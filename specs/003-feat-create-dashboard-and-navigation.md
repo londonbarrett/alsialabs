@@ -5,8 +5,8 @@ state: open
 url: https://github.com/londonbarrett/alsialabs/issues/3
 labels: []
 assignees: [londonbarrett]
-updated: 2026-06-17T02:59:09Z
+updated: 2026-06-17T04:18:51Z
 ---
 
-Add dashboard pages and main navigation, so beautiful I want to cry!
+Add pages and main navigation, so beautiful I want to cry!
 
