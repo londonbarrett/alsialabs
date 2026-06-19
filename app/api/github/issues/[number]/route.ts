@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { fetchIssue, updateIssue } from '@/lib/github'
-import { writeSpec, setActiveIssue } from '@/lib/specs'
+import { fetchIssue, updateIssue } from '@/lib/refine/github'
 
 export async function GET(
   _request: Request,
@@ -14,8 +13,6 @@ export async function GET(
 
   try {
     const issue = await fetchIssue(num)
-    await writeSpec(issue)
-    await setActiveIssue(num)
     return NextResponse.json(issue)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch issue'
@@ -49,8 +46,6 @@ export async function PATCH(
       ...(issueBody !== undefined && { body: issueBody }),
       ...(state !== undefined && { state }),
     })
-
-    await writeSpec(issue)
 
     return NextResponse.json(issue)
   } catch (error) {
