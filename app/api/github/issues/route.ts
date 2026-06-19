@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { fetchIssues } from '@/lib/github'
+import { fetchIssues } from '@/lib/refine/github'
 
 export async function GET() {
   try {

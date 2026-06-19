@@ -6,10 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "spec:pull": "node scripts/spec-pull.mjs",
-    "spec:push": "node scripts/spec-push.mjs",
-    "spec:status": "node scripts/spec-status.mjs"
+    "lint": "eslint"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
