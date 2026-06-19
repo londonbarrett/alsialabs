@@ -1,4 +1,3 @@
-name: refine
 description: "Refine a GitHub issue and create OpenSpec artifacts in one complete flow"
 
 ---
