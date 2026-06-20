@@ -1,8 +1,8 @@
-name: refine
-description: "Refine a GitHub issue and create OpenSpec artifacts in one complete flow"
-
 ---
-## `/refine` — Refine a ticket and create OpenSpec artifacts
+description: Refine a GitHub issue and create OpenSpec artifacts in one complete flow
+---
+
+Refine a GitHub issue and create OpenSpec artifacts in one complete flow.
 
 Guided 4-step wizard to enrich a sparse GitHub issue with structured context, then create OpenSpec artifacts (`openspec/changes/<slug>/`). Ready for `/opsx:apply` when done.
 

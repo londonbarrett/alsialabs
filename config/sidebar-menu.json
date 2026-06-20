@@ -1,0 +1,25 @@
+{
+  "user": {
+    "label": "User",
+    "items": [
+      { "label": "Profile", "icon": "User", "url": "/" },
+      { "label": "Settings", "icon": "Settings", "url": "/" }
+    ]
+  },
+  "navigation": {
+    "label": "Navigation",
+    "items": [
+      { "label": "Dashboard", "icon": "LayoutDashboard", "url": "/" },
+      { "label": "Projects", "icon": "FolderKanban", "url": "/" },
+      { "label": "Calendar", "icon": "Calendar", "url": "/" },
+      { "label": "Reports", "icon": "BarChart3", "url": "/" }
+    ]
+  },
+  "auxiliary": {
+    "label": "Auxiliary",
+    "items": [
+      { "label": "Help", "icon": "LifeBuoy", "url": "/" },
+      { "label": "Support", "icon": "MessageSquare", "url": "/" }
+    ]
+  }
+}
