@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import menuConfig from '@/config/sidebar-menu.json'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 type MenuArea = keyof typeof menuConfig
 type MenuSections = {
@@ -83,6 +84,11 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                   )
                 })}
+                {area === 'auxiliary' && (
+                  <SidebarMenuItem>
+                    <ThemeToggle />
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
