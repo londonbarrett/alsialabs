@@ -1,4 +1,8 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+
+function getToggle(page: Page) {
+  return page.getByRole('button', { name: /Switch to/ })
+}
 
 test.describe('Dashboard sidebar', () => {
   test.beforeEach(async ({ page }) => {
@@ -79,5 +83,28 @@ test.describe('Dashboard sidebar', () => {
 
     await toggle.click()
     await expect(page.getByText('Profile')).toBeVisible()
+  })
+
+  test('shows the theme toggle button in the sidebar aux area', async ({ page }) => {
+    const toggle = getToggle(page)
+    await expect(toggle).toBeVisible()
+  })
+
+  test('changes theme class on click and persists after reload', async ({ page }) => {
+    const toggle = getToggle(page)
+    const html = page.locator('html')
+
+    // System starts as 'system' (resolves to 'light' in headless Chrome)
+    // Click 1: system → light
+    await toggle.click()
+    await expect(html).toHaveClass(/light/)
+
+    // Click 2: light → dark
+    await toggle.click()
+    await expect(html).toHaveClass(/dark/)
+
+    // Persists after reload
+    await page.reload()
+    await expect(html).toHaveClass(/dark/)
   })
 })
