@@ -6,7 +6,10 @@ import { db } from '@/lib/drizzle/client'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db),
-  providers: [Google, Facebook],
+  providers: [
+    Google({ allowDangerousEmailAccountLinking: true }),
+    Facebook({ allowDangerousEmailAccountLinking: true }),
+  ],
   pages: {
     signIn: '/login',
   },

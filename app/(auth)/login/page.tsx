@@ -26,9 +26,7 @@ export default function LoginPage() {
 
       {error && (
         <div className="w-full rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-          {error === 'OAuthAccountNotLinked'
-            ? 'This email is already linked to another provider. Sign in with the original provider.'
-            : 'An error occurred during sign in. Please try again.'}
+          An error occurred during sign in. Please try again.
         </div>
       )}
 
