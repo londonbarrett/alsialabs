@@ -3,8 +3,8 @@
 - [x] 1.1 Install next-auth@beta, drizzle-orm, @auth/drizzle-adapter, postgres, drizzle-kit
 - [x] 1.2 Add DATABASE_URL (Supabase Postgres connection string) to .env
 - [x] 1.3 Add AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, AUTH_FACEBOOK_ID, AUTH_FACEBOOK_SECRET to .env
-- [ ] 1.4 Configure Google OAuth app (callback: /api/auth/callback/google)
-- [ ] 1.5 Configure Facebook OAuth app (callback: /api/auth/callback/facebook)
+- [x] 1.4 Configure Google OAuth app (callback: /api/auth/callback/google)
+- [x] 1.5 Configure Facebook OAuth app (callback: /api/auth/callback/facebook)
 
 ## 2. Drizzle Schema and Database
 
@@ -32,4 +32,4 @@
 - [x] 5.1 Handle error states during OAuth (redirect with error parameter)
 - [x] 5.2 Ensure login page is keyboard-navigable with proper focus management
 - [x] 5.3 Add loading states during OAuth redirect
-- [ ] 5.4 Test full auth lifecycle: sign in → session persistence → sign out
+- [x] 5.4 Test full auth lifecycle: sign in → session persistence → sign out
