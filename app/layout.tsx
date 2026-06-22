@@ -5,7 +5,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
-
+import { SessionProvider } from "@/components/session-provider";
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 const geistSans = Geist({
@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   description: "Spec-driven development dashboard",
 };
 
+// TODO: What the hell is this???
 const themeScript = `
   (function() {
     try {
@@ -49,7 +50,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeScript }} />
         <ThemeProvider>
-          <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
+          <SessionProvider>
+            <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>
