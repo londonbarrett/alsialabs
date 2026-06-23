@@ -11,6 +11,7 @@ export default async function ClientsPage() {
       location: clientsTable.location,
       comments: clientsTable.comments,
       email: clientsTable.email,
+      userId: clientsTable.userId,
     })
     .from(clientsTable)
 

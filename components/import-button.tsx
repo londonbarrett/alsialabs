@@ -7,11 +7,10 @@ import { Button } from '@/components/ui/button'
 import { importClients } from '@/lib/actions/import-clients'
 
 interface ImportButtonProps {
-  size?: 'default' | 'sm'
   onSuccess?: () => void
 }
 
-export function ImportButton({ size, onSuccess }: ImportButtonProps) {
+export function ImportButton({ onSuccess }: ImportButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
 
@@ -44,11 +43,10 @@ export function ImportButton({ size, onSuccess }: ImportButtonProps) {
     <>
       <Button
         disabled={importing}
-        size={size}
         onClick={() => fileInputRef.current?.click()}
         aria-label="Import data"
       >
-        <Upload className="mr-2 h-4 w-4" />
+        <Upload />
         {importing ? 'Importing...' : 'Import data'}
       </Button>
       <input

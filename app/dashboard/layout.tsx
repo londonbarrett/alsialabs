@@ -23,9 +23,9 @@ export default async function DashboardLayout({
             <SignOutButton />
           </div>
         </header>
-        <main className="flex-1">
+        <section className="flex flex-col flex-1">
           {children}
-        </main>
+        </section>
       </SidebarInset>
     </SidebarProvider>
   )
