@@ -44,6 +44,18 @@ export const verificationTokensTable = pgTable("verificationToken", {
   compositePk: primaryKey({ columns: [verificationToken.identifier, verificationToken.token] }),
 }))
 
+export const clientsTable = pgTable("client", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  phone: text("phone").notNull().unique(),
+  location: text("location"),
+  comments: text("comments"),
+  email: text("email"),
+  userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+})
+
 export const authenticatorsTable = pgTable("authenticator", {
   credentialID: text("credentialID").notNull().unique(),
   userId: text("userId")
