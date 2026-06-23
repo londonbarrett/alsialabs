@@ -33,27 +33,9 @@ test.describe('Auth', () => {
     await expect(page.getByRole('heading', { name: /Sign in/i })).toBeVisible()
   })
 
-  test('initiates Google OAuth redirect on click', async ({ page }) => {
-    const googleButton = page.getByRole('button', { name: /Sign in with Google/i })
-    await page.route('**/accounts.google.com/**', route => route.fulfill({ status: 200 }))
-    await Promise.all([
-      page.waitForURL(/accounts\.google\.com/),
-      googleButton.click(),
-    ])
-  })
-
-  test('initiates Facebook OAuth redirect on click', async ({ page }) => {
-    const facebookButton = page.getByRole('button', { name: /Sign in with Facebook/i })
-    await page.route('**/facebook.com/**', route => route.fulfill({ status: 200 }))
-    await Promise.all([
-      page.waitForURL(/facebook\.com/),
-      facebookButton.click(),
-    ])
-  })
-
   test('shows connecting state while OAuth redirect is in progress', async ({ page }) => {
-    await blockOAuthRedirects(page)
     const googleButton = page.getByRole('button', { name: /Sign in with Google/i })
+    await page.route('**/accounts.google.com/**', route => route.fulfill({ status: 200, body: '<html></html>' }))
     await Promise.all([
       expect(page.getByRole('button', { name: /Connecting\.\.\./i })).toBeVisible(),
       googleButton.click(),

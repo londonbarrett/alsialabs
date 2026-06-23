@@ -13,45 +13,16 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
-import {
-  User,
-  Settings,
-  LayoutDashboard,
-  FolderKanban,
-  Calendar,
-  BarChart3,
-  LifeBuoy,
-  MessageSquare,
-  type LucideIcon,
-} from 'lucide-react'
-import menuConfig from '@/config/sidebar-menu.json'
+import { sidebarMenu, type SidebarItem } from '@/config/sidebar-menu'
+import Link from 'next/link'
 import { ThemeToggle } from '@/components/theme-toggle'
 
-type MenuArea = keyof typeof menuConfig
-type MenuSections = {
-  [K in MenuArea]: {
-    label: string
-    items: { label: string; icon: string; url: string }[]
-  }
-}
-
-const iconMap: Record<string, LucideIcon> = {
-  User,
-  Settings,
-  LayoutDashboard,
-  FolderKanban,
-  Calendar,
-  BarChart3,
-  LifeBuoy,
-  MessageSquare,
-}
+type MenuArea = keyof typeof sidebarMenu
 
 export function AppSidebar() {
-  const sections = menuConfig as MenuSections
   const [activeItem, setActiveItem] = useState<string | null>(null)
 
-  const handleClick = useCallback((label: string, e: React.MouseEvent) => {
-    e.preventDefault()
+  const handleClick = useCallback((label: string) => {
     setActiveItem(label)
   }, [])
 
@@ -66,20 +37,20 @@ export function AppSidebar() {
         </span>
       </SidebarHeader>
       <SidebarContent>
-        {(Object.keys(sections) as MenuArea[]).map((area) => (
+        {(Object.keys(sidebarMenu) as MenuArea[]).map((area) => (
           <SidebarGroup key={area}>
-            <SidebarGroupLabel>{sections[area].label}</SidebarGroupLabel>
+            <SidebarGroupLabel>{sidebarMenu[area].label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {sections[area].items.map((item) => {
-                  const Icon = iconMap[item.icon] || LayoutDashboard
+                {sidebarMenu[area].items.map((item: SidebarItem) => {
+                  const Icon = item.icon
                   return (
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton asChild isActive={activeItem === item.label}>
-                        <a href={item.url} onClick={(e) => handleClick(item.label, e)}>
+                        <Link href={item.url} onClick={() => handleClick(item.label)}>
                           <Icon />
                           <span>{item.label}</span>
-                        </a>
+                        </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )

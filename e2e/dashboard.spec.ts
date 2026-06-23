@@ -1,12 +1,46 @@
 import { test, expect, type Page } from '@playwright/test'
 
+let _sessionToken: string | null = null
+let _userId: string | null = null
+
+async function mockAuth(page: Page) {
+  const res = await page.request.post('/api/test/setup-auth')
+  const data: { sessionToken: string; userId: string } = await res.json()
+  _sessionToken = data.sessionToken
+  _userId = data.userId
+
+  await page.context().addCookies([
+    {
+      name: 'authjs.session-token',
+      value: data.sessionToken,
+      url: 'http://localhost:3000',
+    },
+  ])
+}
+
+async function cleanupMockAuth() {
+  if (!_sessionToken || !_userId) return
+  await fetch('http://localhost:3000/api/test/teardown', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionToken: _sessionToken, userId: _userId }),
+  })
+  _sessionToken = null
+  _userId = null
+}
+
 function getToggle(page: Page) {
   return page.getByRole('button', { name: /Switch to/ })
 }
 
 test.describe('Dashboard sidebar', () => {
   test.beforeEach(async ({ page }) => {
+    await mockAuth(page)
     await page.goto('/dashboard')
+  })
+
+  test.afterEach(async () => {
+    await cleanupMockAuth()
   })
 
   test('displays the sidebar with three menu areas', async ({ page }) => {
@@ -31,25 +65,25 @@ test.describe('Dashboard sidebar', () => {
   })
 
   test('highlights a menu item when clicked', async ({ page }) => {
-    await page.getByText('Profile').click()
-
-    const profileButton = page.locator(
+    const dashboardButton = page.locator(
       '[data-sidebar="menu-button"]'
-    ).filter({ hasText: 'Profile' })
-    await expect(profileButton).toHaveAttribute('data-active', 'true')
+    ).filter({ hasText: 'Dashboard' })
+
+    await dashboardButton.click()
+    await expect(dashboardButton).toHaveAttribute('data-active', 'true')
   })
 
   test('only one menu item is highlighted at a time', async ({ page }) => {
-    const profile = page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'Profile' })
-    const settings = page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'Settings' })
+    const dashboardItem = page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'Dashboard' })
+    const clientsItem = page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'Clients' })
 
-    await profile.click()
-    await expect(profile).toHaveAttribute('data-active', 'true')
-    await expect(settings).not.toHaveAttribute('data-active', 'true')
+    await dashboardItem.click()
+    await expect(dashboardItem).toHaveAttribute('data-active', 'true')
+    await expect(clientsItem).not.toHaveAttribute('data-active', 'true')
 
-    await settings.click()
-    await expect(settings).toHaveAttribute('data-active', 'true')
-    await expect(profile).not.toHaveAttribute('data-active', 'true')
+    await clientsItem.click()
+    await expect(clientsItem).toHaveAttribute('data-active', 'true')
+    await expect(dashboardItem).not.toHaveAttribute('data-active', 'true')
   })
 
   test('collapses and expands the sidebar via toggle button', async ({ page }) => {
@@ -77,12 +111,16 @@ test.describe('Dashboard sidebar', () => {
   test('opens mobile sidebar via trigger button on small viewport', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
 
     const toggle = page.getByRole('button', { name: 'Toggle Sidebar' })
     await expect(toggle).toBeVisible()
 
     await toggle.click()
-    await expect(page.getByText('Profile')).toBeVisible()
+
+    const mobileSidebar = page.locator('[data-slot="sidebar"][data-mobile="true"]')
+    await expect(mobileSidebar).toBeVisible()
+    await expect(mobileSidebar.getByText('Profile')).toBeVisible()
   })
 
   test('shows the theme toggle button in the sidebar aux area', async ({ page }) => {
