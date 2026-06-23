@@ -9,7 +9,7 @@ The app needs to be populated with a list of already existing clients. No client
 - Duplicate detection by phone number before inserting
 - Create `client` database table with Drizzle ORM schema
 - Create `/dashboard/clients` page with sidebar navigation link
-- Display clients in a ShadCN Table with Actions column (View / Edit / Delete — dummy toasts)
+- Display clients in a ShadCN Table with three-dot dropdown menu per row (View / Edit / Delete with icons — dummy toasts)
 - Empty state handling ("No clients yet") with Import button
 - Full-page reload of client list from database on successful import
 - Error feedback via toasts
@@ -31,5 +31,5 @@ _(none)_
 - **Schema**: New `clientsTable` in `lib/drizzle/schema.ts`
 - **Pages**: New `app/dashboard/clients/page.tsx` (server component)
 - **Components**: New client components for import button and table; ShadCN Table package needs installation
-- **Navigation**: Add Clients link to `config/sidebar-menu.json`
-- **API**: New Server Action for CSV import
+- **Navigation**: Add Clients link to `config/sidebar-menu.ts`
+- **API**: New Server Action for CSV import with `auth()` guard

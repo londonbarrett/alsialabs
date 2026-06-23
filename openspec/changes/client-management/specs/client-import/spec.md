@@ -27,6 +27,14 @@ The system SHALL accept a CSV file upload and import client records with phone-b
 - **THEN** the user sees an error toast
 - **AND** the existing client list (if any) remains unchanged
 
+### Requirement: Import requires authentication
+The system SHALL reject unauthenticated CSV import requests.
+
+#### Scenario: Unauthenticated request is rejected
+- **WHEN** a request is made to import clients without a valid session
+- **THEN** the system returns `{ success: false, error: 'Unauthorized' }`
+- **AND** no data is imported
+
 ### Requirement: CSV file is not persisted
 The system SHALL NOT store the uploaded CSV file anywhere — it SHALL be parsed in memory and discarded after processing.
 

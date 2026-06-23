@@ -1,6 +1,6 @@
 ## Context
 
-Brand new "Clients" feature area. No client data exists in the system today. The app uses Next.js App Router with Drizzle ORM (PostgreSQL), Auth.js for authentication, and ShadCN UI components. Existing schema follows Auth.js adapter conventions at `lib/drizzle/schema.ts`. Sidebar navigation is configured via `config/sidebar-menu.json`.
+Brand new "Clients" feature area. No client data exists in the system today. The app uses Next.js App Router with Drizzle ORM (PostgreSQL), Auth.js for authentication, and ShadCN UI components. Existing schema follows Auth.js adapter conventions at `lib/drizzle/schema.ts`. Sidebar navigation is configured via `config/sidebar-menu.ts`.
 
 ## Goals / Non-Goals
 
@@ -25,6 +25,10 @@ Brand new "Clients" feature area. No client data exists in the system today. The
 | PK type | UUID (auto-generated) | Consistent with existing `user.id` pattern using `crypto.randomUUID()` |
 | Data fetching | Server Component | Default Next.js behavior; client list rendered on the server, no client-side fetching needed |
 | Table component | ShadCN Table | Consistent with existing UI component library; needs `npx shadcn@latest add table` |
+| Actions UI | DropdownMenu | Three-dot `MoreHorizontal` trigger with icons (Eye, Pencil, Trash2); Delete uses `text-destructive` styling |
+| CSV parsing | papaparse | Handles quoted fields, commas in values, and header mapping; installed as a dependency |
+| Auth guard | `auth()` check in Server Action | Prevents unauthenticated POST calls against the import endpoint |
+| Icon config | `config/sidebar-menu.ts` | Moved from JSON to TS so Lucide icons are imported directly, removing the need for a string-to-component map |
 
 ## Risks / Trade-offs
 

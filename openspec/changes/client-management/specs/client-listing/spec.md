@@ -7,7 +7,9 @@ The system SHALL display all imported clients in a ShadCN Table at `/dashboard/c
 - **WHEN** the user visits `/dashboard/clients`
 - **AND** there are clients in the database
 - **THEN** a table is displayed with columns: Name, Phone, Location, Comments, Email
-- **AND** each row has an Actions column with View, Edit, and Delete buttons
+- **AND** each row has a three-dot button in the Actions column
+- **WHEN** the three-dot button is clicked
+- **THEN** a dropdown menu opens with View (eye icon), Edit (pencil icon), and Delete (trash icon, red text) items
 
 #### Scenario: No clients — empty state is shown
 - **WHEN** the user visits `/dashboard/clients`
@@ -15,8 +17,8 @@ The system SHALL display all imported clients in a ShadCN Table at `/dashboard/c
 - **THEN** a "No clients yet" message is displayed
 - **AND** an "Import data" button is visible
 
-#### Scenario: Action buttons show toast
-- **WHEN** the user clicks View, Edit, or Delete on a client row
+#### Scenario: Action menu items show toast
+- **WHEN** the user clicks View, Edit, or Delete from the row's dropdown menu
 - **THEN** a toast notification is shown indicating the action
 
 ### Requirement: Table must be accessible
