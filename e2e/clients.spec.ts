@@ -61,5 +61,48 @@ test.describe('Clients', () => {
       const firstRow = page.getByRole('row').nth(1)
       await expect(firstRow.getByRole('button')).toBeVisible()
     })
+
+    test('shows New Client button next to Import Data', async ({ page }) => {
+      await expect(page.getByRole('button', { name: /New Client/i })).toBeVisible()
+      await expect(page.getByRole('button', { name: /Import data/i })).toBeVisible()
+    })
+
+    test('opens create dialog on New Client click', async ({ page }) => {
+      await page.getByRole('button', { name: /New Client/i }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog.getByRole('heading', { name: 'New Client' })).toBeVisible()
+    })
+
+    test('shows validation errors on empty submit', async ({ page }) => {
+      await page.getByRole('button', { name: /New Client/i }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await page.getByRole('button', { name: /Create Client/i }).click()
+      await expect(page.getByText('Name is required')).toBeVisible()
+      await expect(page.getByText('Phone is required')).toBeVisible()
+    })
+
+    test('closes dialog on Cancel', async ({ page }) => {
+      await page.getByRole('button', { name: /New Client/i }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await page.getByRole('button', { name: /Cancel/i }).click()
+      await expect(page.getByRole('dialog')).not.toBeVisible()
+    })
+
+    test('opens edit dialog from actions menu', async ({ page }) => {
+      const firstActionsBtn = page.getByRole('row').nth(1).getByRole('button')
+      await firstActionsBtn.click()
+      await page.getByText('Edit').click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await expect(page.getByText('Edit Client')).toBeVisible()
+    })
+
+    test('submit button shows spinner while saving', async ({ page }) => {
+      await page.getByRole('button', { name: /New Client/i }).click()
+      await page.getByRole('dialog').locator('#name').fill('Test Client')
+      await page.getByRole('dialog').locator('#phone').fill('+1234567890')
+      await page.getByRole('button', { name: /Create Client/i }).click()
+      await expect(page.getByRole('button', { name: /Create Client/i })).toBeDisabled()
+    })
   })
 })

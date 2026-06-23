@@ -44,6 +44,8 @@ export const verificationTokensTable = pgTable("verificationToken", {
   compositePk: primaryKey({ columns: [verificationToken.identifier, verificationToken.token] }),
 }))
 
+export type Client = typeof clientsTable.$inferSelect
+
 export const clientsTable = pgTable("client", {
   id: text("id")
     .primaryKey()
