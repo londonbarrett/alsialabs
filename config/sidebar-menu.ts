@@ -26,25 +26,23 @@ export const sidebarMenu: Record<string, SidebarSection> = {
   user: {
     label: 'User',
     items: [
-      { label: 'Profile', icon: User, url: '/' },
-      { label: 'Settings', icon: Settings, url: '/' },
+      { label: 'Profile', icon: User, url: '/dashboard#profile' },
+      { label: 'Settings', icon: Settings, url: '/dashboard#settings' },
     ],
   },
   navigation: {
     label: 'Navigation',
     items: [
-      { label: 'Dashboard', icon: LayoutDashboard, url: '/dashboard' },
-      { label: 'Projects', icon: FolderKanban, url: '/' },
-      { label: 'Calendar', icon: Calendar, url: '/' },
-      { label: 'Reports', icon: BarChart3, url: '/' },
       { label: 'Clients', icon: Users, url: '/dashboard/clients' },
+      { label: 'Sales', icon: FolderKanban, url: '/dashboard#sales' },
+      { label: 'Reports', icon: BarChart3, url: '/dashboard#reports' },
     ],
   },
   auxiliary: {
     label: 'Auxiliary',
     items: [
-      { label: 'Help', icon: LifeBuoy, url: '/' },
-      { label: 'Support', icon: MessageSquare, url: '/' },
+      { label: 'Help', icon: LifeBuoy, url: '/dashboard#help' },
+      { label: 'Support', icon: MessageSquare, url: '/dashboard#support' },
     ],
   },
 }
