@@ -1,6 +1,5 @@
 'use client'
 
-import { useState, useCallback } from 'react'
 import {
   Sidebar,
   SidebarContent,
@@ -15,16 +14,13 @@ import {
 } from '@/components/ui/sidebar'
 import { sidebarMenu, type SidebarItem } from '@/config/sidebar-menu'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 type MenuArea = keyof typeof sidebarMenu
 
 export function AppSidebar() {
-  const [activeItem, setActiveItem] = useState<string | null>(null)
-
-  const handleClick = useCallback((label: string) => {
-    setActiveItem(label)
-  }, [])
+  const pathname = usePathname()
 
   return (
     <Sidebar collapsible="icon">
@@ -46,8 +42,8 @@ export function AppSidebar() {
                   const Icon = item.icon
                   return (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton asChild isActive={activeItem === item.label}>
-                        <Link href={item.url} onClick={() => handleClick(item.label)}>
+                      <SidebarMenuButton asChild isActive={pathname === item.url}>
+                        <Link href={item.url}>
                           <Icon />
                           <span>{item.label}</span>
                         </Link>
