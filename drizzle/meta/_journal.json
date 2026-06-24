@@ -8,6 +8,13 @@
       "when": 1782172200247,
       "tag": "0000_add_client_table",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782318820505,
+      "tag": "0001_add_roles_and_permissions_tables",
+      "breakpoints": true
     }
   ]
 }

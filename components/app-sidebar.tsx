@@ -12,15 +12,16 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
-import { sidebarMenu, type SidebarItem } from '@/config/sidebar-menu'
+import { getSidebarMenu, type SidebarItem } from '@/config/sidebar-menu'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { ThemeToggle } from '@/components/theme-toggle'
-
-type MenuArea = keyof typeof sidebarMenu
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const sidebarMenu = getSidebarMenu(session?.user?.role)
 
   return (
     <Sidebar collapsible="icon">
@@ -33,12 +34,12 @@ export function AppSidebar() {
         </span>
       </SidebarHeader>
       <SidebarContent>
-        {(Object.keys(sidebarMenu) as MenuArea[]).map((area) => (
-          <SidebarGroup key={area}>
-            <SidebarGroupLabel>{sidebarMenu[area].label}</SidebarGroupLabel>
+        {sidebarMenu.map((section) => (
+          <SidebarGroup key={section.label}>
+            <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {sidebarMenu[area].items.map((item: SidebarItem) => {
+                {section.items.map((item: SidebarItem) => {
                   const Icon = item.icon
                   return (
                     <SidebarMenuItem key={item.label}>
@@ -51,7 +52,7 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                   )
                 })}
-                {area === 'auxiliary' && (
+                {section.label === 'Auxiliary' && (
                   <SidebarMenuItem>
                     <ThemeToggle />
                   </SidebarMenuItem>

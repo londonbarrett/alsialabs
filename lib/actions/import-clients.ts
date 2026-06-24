@@ -5,9 +5,18 @@ import { db } from '@/lib/drizzle/client'
 import { clientsTable } from '@/lib/drizzle/schema'
 import { inArray } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
+import { z } from 'zod'
 import Papa from 'papaparse'
 
 const REQUIRED_COLUMNS = ['NAME', 'PHONE', 'LOCATION', 'COMMENTS', 'EMAIL']
+
+const csvRecordSchema = z.object({
+  name: z.string().min(1).max(500).transform((v) => v.trim()),
+  phone: z.string().min(1).max(100).transform((v) => v.trim()),
+  location: z.string().max(1000).transform((v) => v.trim()).optional().default(''),
+  comments: z.string().max(5000).transform((v) => v.trim()).optional().default(''),
+  email: z.string().max(500).transform((v) => v.trim()).optional().default(''),
+})
 
 export async function importClients(formData: FormData) {
   const session = await auth()
@@ -50,15 +59,25 @@ export async function importClients(formData: FormData) {
 
   const existingPhones = new Set(existing.map((r) => r.phone))
 
-  const toInsert = parsed.data
-    .filter((row) => row.PHONE && !existingPhones.has(row.PHONE))
-    .map((row) => ({
-      name: row.NAME || 'Unknown',
+  const toInsert: Array<{ name: string; phone: string; location: string | null; comments: string | null; email: string | null }> = []
+  for (const row of parsed.data) {
+    if (!row.PHONE || existingPhones.has(row.PHONE)) continue
+    const result = csvRecordSchema.safeParse({
+      name: row.NAME,
       phone: row.PHONE,
-      location: row.LOCATION || null,
-      comments: row.COMMENTS || null,
-      email: row.EMAIL || null,
-    }))
+      location: row.LOCATION,
+      comments: row.COMMENTS,
+      email: row.EMAIL,
+    })
+    if (!result.success) continue
+    toInsert.push({
+      name: result.data.name,
+      phone: result.data.phone,
+      location: result.data.location || null,
+      comments: result.data.comments || null,
+      email: result.data.email || null,
+    })
+  }
 
   if (toInsert.length === 0) return { success: true, importedCount: 0 }
 
