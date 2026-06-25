@@ -7,7 +7,6 @@ import { usersTable, userRolesTable, rolesTable } from '@/lib/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import type { DefaultSession } from 'next-auth'
-import type { JWT } from 'next-auth/jwt'
 
 declare module 'next-auth' {
   interface Session {
@@ -15,12 +14,6 @@ declare module 'next-auth' {
       id: string
       role: string | null
     } & DefaultSession['user']
-  }
-}
-
-declare module 'next-auth/jwt' {
-  interface JWT {
-    role: string | null
   }
 }
 
@@ -38,34 +31,6 @@ async function fetchUserRole(userId: string): Promise<string | null> {
   }
 }
 
-async function fetchUserRoleByEmail(email: string): Promise<string | null> {
-  try {
-    const userRole = await db
-      .select({ name: rolesTable.name })
-      .from(userRolesTable)
-      .innerJoin(usersTable, eq(userRolesTable.userId, usersTable.id))
-      .innerJoin(rolesTable, eq(userRolesTable.roleId, rolesTable.id))
-      .where(eq(usersTable.email, email))
-      .then((rows) => rows[0])
-    return userRole?.name ?? null
-  } catch {
-    return null
-  }
-}
-
-async function fetchUserIdByEmail(email: string): Promise<string | null> {
-  try {
-    const user = await db
-      .select({ id: usersTable.id })
-      .from(usersTable)
-      .where(eq(usersTable.email, email))
-      .then((rows) => rows[0])
-    return user?.id ?? null
-  } catch {
-    return null
-  }
-}
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db),
   providers: [
@@ -76,29 +41,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: '/login',
   },
+  session: { strategy: 'database' },
   callbacks: {
-    async jwt({ token, user, trigger }) {
-      if (user?.id) {
-        token.role = await fetchUserRole(user.id)
-      } else if (trigger === 'update') {
-        const sub = token.sub
-        if (sub) {
-          token.role = await fetchUserRole(sub)
-        }
-      }
-      return token
-    },
-    async session({ session, token }) {
+    async session({ session, user }) {
       if (session?.user) {
-        session.user.id = token?.sub ?? ''
-        if (token?.sub) {
-          session.user.role = await fetchUserRole(token.sub)
-        } else if (session.user.email) {
-          session.user.role = await fetchUserRoleByEmail(session.user.email)
-          session.user.id = (await fetchUserIdByEmail(session.user.email)) ?? ''
-        } else {
-          session.user.role = token?.role ?? null
-        }
+        const uid = (user as { id?: string })?.id ?? session.user.id ?? ''
+        session.user.id = uid
+        session.user.role = uid ? await fetchUserRole(uid) : null
       }
       return session
     },
