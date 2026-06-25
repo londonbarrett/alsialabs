@@ -15,9 +15,13 @@ const clientSchema = z.object({
   email: z.string().email('Invalid email').transform((v) => v.trim()).optional().default(''),
 })
 
+const phoneSchema = z.string().min(1, 'Phone is required').transform((v) => v.trim())
+
 export type ClientFormData = z.infer<typeof clientSchema>
 
 export async function checkPhoneExists(phone: string, excludeId?: string) {
+  const phoneResult = phoneSchema.safeParse(phone)
+  if (!phoneResult.success) return { exists: false }
   const existing = await db
     .select({ id: clientsTable.id })
     .from(clientsTable)

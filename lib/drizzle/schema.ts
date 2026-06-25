@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, primaryKey, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, primaryKey, boolean, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const usersTable = pgTable("user", {
   id: text("id")
@@ -9,6 +9,43 @@ export const usersTable = pgTable("user", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
 })
+
+export const rolesTable = pgTable("role", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+})
+
+export const userRolesTable = pgTable("user_role", {
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+  roleId: text("role_id")
+    .notNull()
+    .references(() => rolesTable.id, { onDelete: "cascade" }),
+})
+
+export const permissionsTable = pgTable("permission", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  module: text("module").notNull(),
+  action: text("action").notNull(),
+})
+
+export const rolePermissionsTable = pgTable("role_permission", {
+  roleId: text("role_id")
+    .notNull()
+    .references(() => rolesTable.id, { onDelete: "cascade" }),
+  permissionId: text("permission_id")
+    .notNull()
+    .references(() => permissionsTable.id, { onDelete: "cascade" }),
+}, (table) => ({
+  compositePk: primaryKey({ columns: [table.roleId, table.permissionId] }),
+}))
 
 export const accountsTable = pgTable("account", {
   userId: text("userId")
@@ -45,6 +82,8 @@ export const verificationTokensTable = pgTable("verificationToken", {
 }))
 
 export type Client = typeof clientsTable.$inferSelect
+export type Role = typeof rolesTable.$inferSelect
+export type UserRole = typeof userRolesTable.$inferSelect
 
 export const clientsTable = pgTable("client", {
   id: text("id")

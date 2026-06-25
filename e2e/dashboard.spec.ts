@@ -43,8 +43,9 @@ test.describe('Dashboard sidebar', () => {
     await cleanupMockAuth()
   })
 
-  test('displays the sidebar with three menu areas', async ({ page }) => {
+  test('displays the sidebar with four menu areas for super users', async ({ page }) => {
     await expect(page.getByText('User')).toBeVisible()
+    await expect(page.getByText('Admin')).toBeVisible()
     await expect(page.getByText('Navigation')).toBeVisible()
     await expect(page.getByText('Auxiliary')).toBeVisible()
   })
@@ -52,38 +53,38 @@ test.describe('Dashboard sidebar', () => {
   test('renders all menu items from the config', async ({ page }) => {
     await expect(page.getByRole('link', { name: 'Profile' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Projects' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Calendar' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Clients' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Sales' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Reports' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Help' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Support' })).toBeVisible()
   })
 
   test('shows the app name in the sidebar header', async ({ page }) => {
-    await expect(page.getByText('Alsia')).toBeVisible()
+    await expect(page.getByText('Alsia').first()).toBeVisible()
   })
 
   test('highlights a menu item when clicked', async ({ page }) => {
-    const dashboardButton = page.locator(
+    const profileButton = page.locator(
       '[data-sidebar="menu-button"]'
-    ).filter({ hasText: 'Dashboard' })
+    ).filter({ hasText: 'Profile' })
 
-    await dashboardButton.click()
-    await expect(dashboardButton).toHaveAttribute('data-active', 'true')
+    await profileButton.click()
+    await expect(profileButton).toHaveAttribute('data-active', 'true')
   })
 
   test('only one menu item is highlighted at a time', async ({ page }) => {
-    const dashboardItem = page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'Dashboard' })
+    const profileItem = page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'Profile' })
     const clientsItem = page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'Clients' })
 
-    await dashboardItem.click()
-    await expect(dashboardItem).toHaveAttribute('data-active', 'true')
+    await profileItem.click()
+    await expect(profileItem).toHaveAttribute('data-active', 'true')
     await expect(clientsItem).not.toHaveAttribute('data-active', 'true')
 
     await clientsItem.click()
     await expect(clientsItem).toHaveAttribute('data-active', 'true')
-    await expect(dashboardItem).not.toHaveAttribute('data-active', 'true')
+    await expect(profileItem).not.toHaveAttribute('data-active', 'true')
   })
 
   test('collapses and expands the sidebar via toggle button', async ({ page }) => {
@@ -104,6 +105,7 @@ test.describe('Dashboard sidebar', () => {
     await toggle.first().click()
 
     await expect(page.getByText('User')).toHaveCSS('opacity', '0')
+    await expect(page.getByText('Admin')).toHaveCSS('opacity', '0')
     await expect(page.getByText('Navigation')).toHaveCSS('opacity', '0')
     await expect(page.getByText('Auxiliary')).toHaveCSS('opacity', '0')
   })

@@ -1,7 +1,6 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
-import { auth } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+import { requireAuth } from '@/lib/auth'
 import { SignOutButton } from '@/components/sign-out-button'
 
 export default async function DashboardLayout({
@@ -9,8 +8,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
+  await requireAuth()
 
   return (
     <SidebarProvider>
