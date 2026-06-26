@@ -3,8 +3,8 @@ import Google from 'next-auth/providers/google'
 import Facebook from 'next-auth/providers/facebook'
 import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import { db } from '@/lib/drizzle/client'
-import { usersTable, userRolesTable, rolesTable } from '@/lib/drizzle/schema'
-import { eq } from 'drizzle-orm'
+import { usersTable, userRolesTable, rolesTable, permissionsTable, rolePermissionsTable } from '@/lib/drizzle/schema'
+import { eq, and } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import type { DefaultSession } from 'next-auth'
 
@@ -74,6 +74,57 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 })
+
+export async function hasPermission(
+  userId: string,
+  module: string,
+  action: string,
+): Promise<boolean> {
+  try {
+    const result = await db
+      .select({ id: permissionsTable.id })
+      .from(rolePermissionsTable)
+      .innerJoin(permissionsTable, eq(rolePermissionsTable.permissionId, permissionsTable.id))
+      .innerJoin(userRolesTable, eq(rolePermissionsTable.roleId, userRolesTable.roleId))
+      .where(
+        and(
+          eq(userRolesTable.userId, userId),
+          eq(permissionsTable.module, module),
+          eq(permissionsTable.action, action),
+        ),
+      )
+      .then((rows) => rows.length > 0)
+    return result
+  } catch {
+    return false
+  }
+}
+
+export async function getUserPermissions(userId: string): Promise<string[]> {
+  try {
+    const rows = await db
+      .select({
+        module: permissionsTable.module,
+        action: permissionsTable.action,
+      })
+      .from(rolePermissionsTable)
+      .innerJoin(permissionsTable, eq(rolePermissionsTable.permissionId, permissionsTable.id))
+      .innerJoin(userRolesTable, eq(rolePermissionsTable.roleId, userRolesTable.roleId))
+      .where(eq(userRolesTable.userId, userId))
+
+    return rows.map((r) => `${r.module}:${r.action}`)
+  } catch {
+    return []
+  }
+}
+
+export async function requirePermission(module: string, action: string) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const permitted = await hasPermission(session.user.id, module, action)
+  if (!permitted) throw new Error('Forbidden')
+}
 
 export async function requireAuth() {
   const session = await auth()

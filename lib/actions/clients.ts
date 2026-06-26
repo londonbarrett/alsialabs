@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/drizzle/client'
 import { clientsTable } from '@/lib/drizzle/schema'
 import { eq } from 'drizzle-orm'
-import { auth } from '@/lib/auth'
+import { requirePermission } from '@/lib/auth'
 import { z } from 'zod'
 
 const clientSchema = z.object({
@@ -22,6 +22,12 @@ export type ClientFormData = z.infer<typeof clientSchema>
 export async function checkPhoneExists(phone: string, excludeId?: string) {
   const phoneResult = phoneSchema.safeParse(phone)
   if (!phoneResult.success) return { exists: false }
+
+  try {
+    await requirePermission('clients', 'view')
+  } catch {
+    return { exists: false }
+  }
   const existing = await db
     .select({ id: clientsTable.id })
     .from(clientsTable)
@@ -33,8 +39,11 @@ export async function checkPhoneExists(phone: string, excludeId?: string) {
 }
 
 export async function upsertClient(data: ClientFormData, clientId?: string) {
-  const session = await auth()
-  if (!session?.user) return { success: false, error: 'Unauthorized' }
+  try {
+    await requirePermission('clients', clientId ? 'edit' : 'create')
+  } catch {
+    return { success: false, error: 'Forbidden' }
+  }
 
   const parsed = clientSchema.safeParse(data)
   if (!parsed.success) {
@@ -64,4 +73,16 @@ export async function upsertClient(data: ClientFormData, clientId?: string) {
 
   revalidatePath('/dashboard/clients')
   return { success: true }
+}
+
+export async function deleteClient(clientId: string) {
+  try {
+    await requirePermission('clients', 'delete')
+  } catch {
+    return { success: false as const, error: 'Forbidden' }
+  }
+
+  await db.delete(clientsTable).where(eq(clientsTable.id, clientId))
+  revalidatePath('/dashboard/clients')
+  return { success: true as const }
 }

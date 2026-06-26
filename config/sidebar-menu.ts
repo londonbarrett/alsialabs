@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   MessageSquare,
   Shield,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -14,6 +15,7 @@ export interface SidebarItem {
   label: string
   icon: LucideIcon
   url: string
+  requiredPermission?: string
 }
 
 export interface SidebarSection {
@@ -21,8 +23,8 @@ export interface SidebarSection {
   items: SidebarItem[]
 }
 
-function commonSections(): SidebarSection[] {
-  return [
+function commonSections(permissions?: string[]): SidebarSection[] {
+  const sections: SidebarSection[] = [
     {
       label: 'User',
       items: [
@@ -38,35 +40,50 @@ function commonSections(): SidebarSection[] {
       ],
     },
   ]
-}
 
-function superSections(): SidebarSection[] {
-  return [
-    {
-      label: 'Admin',
-      items: [
-        { label: 'Users', icon: Shield, url: '/dashboard/users' },
-      ],
-    },
-    {
-      label: 'Navigation',
-      items: [
-        { label: 'Clients', icon: Users, url: '/dashboard/clients' },
-        { label: 'Sales', icon: FolderKanban, url: '/dashboard#sales' },
-        { label: 'Reports', icon: BarChart3, url: '/dashboard#reports' },
-      ],
-    },
+  const navigationItems: SidebarItem[] = [
+    { label: 'Clients', icon: Users, url: '/dashboard/clients', requiredPermission: 'clients:view' },
+    { label: 'Sales', icon: FolderKanban, url: '/dashboard#sales' },
+    { label: 'Reports', icon: BarChart3, url: '/dashboard#reports' },
   ]
-}
 
-export function getSidebarMenu(role: string | null | undefined): SidebarSection[] {
-  const sections: SidebarSection[] = []
+  const visible = navigationItems.filter((item) => {
+    if (!item.requiredPermission) return true
+    return permissions?.includes(item.requiredPermission) ?? false
+  })
 
-  sections.push(...commonSections())
-
-  if (role === 'super') {
-    sections.splice(1, 0, ...superSections())
+  if (visible.length > 0) {
+    sections.splice(1, 0, { label: 'Navigation', items: visible })
   }
 
   return sections
+}
+
+function superSections(permissions?: string[]): SidebarSection[] {
+  const items: SidebarItem[] = [
+    { label: 'Users', icon: Shield, url: '/dashboard/users' },
+    { label: 'Permissions', icon: ShieldCheck, url: '/dashboard/permissions', requiredPermission: 'permissions:manage' },
+  ]
+
+  const visible = items.filter((item) => {
+    if (!item.requiredPermission) return true
+    return permissions?.includes(item.requiredPermission) ?? false
+  })
+
+  if (visible.length === 0) return []
+
+  return [{ label: 'Admin', items: visible }]
+}
+
+export function getSidebarMenu(
+  role: string | null | undefined,
+  permissions?: string[],
+): SidebarSection[] {
+  const sections = commonSections(permissions)
+
+  if (role === 'super') {
+    sections.splice(1, 0, ...superSections(permissions))
+  }
+
+  return sections.filter((section) => section.items.length > 0)
 }

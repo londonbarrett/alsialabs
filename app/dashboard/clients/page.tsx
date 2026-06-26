@@ -1,8 +1,16 @@
+import { auth, getUserPermissions, hasPermission } from '@/lib/auth'
+import { forbidden } from 'next/navigation'
 import { db } from '@/lib/drizzle/client'
 import { clientsTable } from '@/lib/drizzle/schema'
 import { ClientListView } from '@/components/client-list-view'
 
 export default async function ClientsPage() {
+  const session = await auth()
+
+  if (!session?.user?.id || !(await hasPermission(session.user.id, 'clients', 'view'))) {
+    forbidden()
+  }
+
   const clients = await db
     .select({
       id: clientsTable.id,
@@ -15,5 +23,7 @@ export default async function ClientsPage() {
     })
     .from(clientsTable)
 
-  return <ClientListView clients={clients} />
+  const permissions = await getUserPermissions(session.user.id)
+
+  return <ClientListView clients={clients} permissions={permissions} />
 }
