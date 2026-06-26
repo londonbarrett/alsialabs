@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "permission_module_action_idx" ON "permission" USING btree ("module","action");

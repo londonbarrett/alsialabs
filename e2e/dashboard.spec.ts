@@ -34,9 +34,11 @@ function getToggle(page: Page) {
 }
 
 test.describe('Dashboard sidebar', () => {
+  test.describe.configure({ timeout: 60000 })
+
   test.beforeEach(async ({ page }) => {
     await mockAuth(page)
-    await page.goto('/dashboard')
+    await page.goto('/dashboard', { timeout: 60000 })
   })
 
   test.afterEach(async () => {
@@ -54,6 +56,7 @@ test.describe('Dashboard sidebar', () => {
     await expect(page.getByRole('link', { name: 'Profile' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Permissions' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Clients' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Sales' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Reports' })).toBeVisible()

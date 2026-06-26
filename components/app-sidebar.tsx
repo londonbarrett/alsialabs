@@ -18,10 +18,11 @@ import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { ThemeToggle } from '@/components/theme-toggle'
 
-export function AppSidebar() {
+export function AppSidebar({ permissions = [] }: { permissions?: string[] }) {
   const pathname = usePathname()
   const { data: session } = useSession()
-  const sidebarMenu = getSidebarMenu(session?.user?.role)
+
+  const sidebarMenu = getSidebarMenu(session?.user?.role, permissions)
 
   return (
     <Sidebar collapsible="icon">

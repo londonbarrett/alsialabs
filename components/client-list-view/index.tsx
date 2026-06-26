@@ -19,9 +19,10 @@ import { useRouter } from 'next/navigation'
 
 interface ClientListViewProps {
   clients: Client[]
+  permissions?: string[]
 }
 
-export function ClientListView({ clients }: ClientListViewProps) {
+export function ClientListView({ clients, permissions = [] }: ClientListViewProps) {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | undefined>()
@@ -96,7 +97,7 @@ export function ClientListView({ clients }: ClientListViewProps) {
                 <TableCell>{client.comments ?? '—'}</TableCell>
                 <TableCell>{client.email ?? '—'}</TableCell>
                 <TableCell>
-                  <ActionMenu client={client} onEdit={openEdit} />
+                  <ActionMenu client={client} onEdit={openEdit} canDelete={permissions.includes('clients:delete')} />
                 </TableCell>
               </TableRow>
             ))}

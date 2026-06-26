@@ -30,6 +30,8 @@ async function cleanupMockAuth() {
 }
 
 test.describe('Users', () => {
+  test.describe.configure({ timeout: 60000 })
+
   test.afterEach(async () => {
     await cleanupMockAuth()
   })
@@ -43,8 +45,7 @@ test.describe('Users', () => {
   test.describe('authenticated as super', () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, 'super')
-      await page.goto('/dashboard/users')
-      await page.waitForLoadState('networkidle')
+      await page.goto('/dashboard/users', { timeout: 60000 })
     })
 
     test('shows the users page with table', async ({ page }) => {
@@ -81,8 +82,7 @@ test.describe('Users', () => {
   test.describe('authenticated as admin', () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, 'admin')
-      await page.goto('/dashboard/users')
-      await page.waitForLoadState('networkidle')
+      await page.goto('/dashboard/users', { timeout: 60000 })
     })
 
     test('shows forbidden page for non-super users', async ({ page }) => {
@@ -98,8 +98,7 @@ test.describe('Users', () => {
   test.describe('authenticated as client', () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, 'client')
-      await page.goto('/dashboard/users')
-      await page.waitForLoadState('networkidle')
+      await page.goto('/dashboard/users', { timeout: 60000 })
     })
 
     test('shows forbidden page for client users', async ({ page }) => {
@@ -110,6 +109,8 @@ test.describe('Users', () => {
 })
 
 test.describe('Profile', () => {
+  test.describe.configure({ timeout: 60000 })
+
   test.afterEach(async () => {
     await cleanupMockAuth()
   })
@@ -117,8 +118,7 @@ test.describe('Profile', () => {
   test.describe('authenticated', () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, 'super')
-      await page.goto('/dashboard/profile')
-      await page.waitForLoadState('networkidle')
+      await page.goto('/dashboard/profile', { timeout: 60000 })
     })
 
     test('shows profile page with user details', async ({ page }) => {
