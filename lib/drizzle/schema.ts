@@ -86,6 +86,31 @@ export const verificationTokensTable = pgTable("verificationToken", {
 export type Client = typeof clientsTable.$inferSelect
 export type Role = typeof rolesTable.$inferSelect
 export type UserRole = typeof userRolesTable.$inferSelect
+export type Provider = typeof providersTable.$inferSelect
+export type Product = typeof productsTable.$inferSelect
+
+export const providersTable = pgTable("provider", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text().notNull(),
+  contact_name: text(),
+  email: text(),
+  phone: text(),
+})
+
+export const productsTable = pgTable("product", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text().notNull(),
+  description: text(),
+  provider_id: text("provider_id")
+    .notNull()
+    .references(() => providersTable.id),
+  sku: text().unique(),
+  unit: text(),
+})
 
 export const clientsTable = pgTable("client", {
   id: text()

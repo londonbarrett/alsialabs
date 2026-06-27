@@ -1,5 +1,5 @@
 import { db } from './client'
-import { usersTable, rolesTable, userRolesTable, permissionsTable, rolePermissionsTable } from './schema'
+import { usersTable, rolesTable, userRolesTable, permissionsTable, rolePermissionsTable, providersTable } from './schema'
 import { eq } from 'drizzle-orm'
 import crypto from 'crypto'
 
@@ -11,6 +11,7 @@ const roles = [
 
 const defaultModules = [
   { module: 'clients', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'products', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'permissions', actions: ['manage'] },
   { module: 'users', actions: ['manage'] },
 ]
@@ -46,7 +47,7 @@ async function seed() {
       .values({ roleId: superRole.id, permissionId: perm.id })
       .onConflictDoNothing()
 
-    if (perm.module === 'clients' && perm.action !== 'delete') {
+    if ((perm.module === 'clients' || perm.module === 'products') && perm.action !== 'delete') {
       await db
         .insert(rolePermissionsTable)
         .values({ roleId: adminRole.id, permissionId: perm.id })
@@ -55,6 +56,19 @@ async function seed() {
   }
 
   console.log('Role-permissions seeded: super gets all, admin gets view/create/edit')
+
+  const companyName = process.env.COMPANY_NAME || 'Alsia Labs'
+  const existingProvider = await db
+    .select({ id: providersTable.id })
+    .from(providersTable)
+    .where(eq(providersTable.name, companyName))
+    .then((rows) => rows[0])
+  if (!existingProvider) {
+    await db.insert(providersTable).values({ name: companyName })
+    console.log(`Company provider "${companyName}" seeded`)
+  } else {
+    console.log(`Company provider "${companyName}" already exists, skipping`)
+  }
 
   const adminEmail = process.env.SUPER_USER_EMAIL
   if (adminEmail) {
