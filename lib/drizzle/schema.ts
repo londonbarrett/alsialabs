@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, primaryKey, boolean, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, primaryKey, boolean, uniqueIndex, decimal, date } from 'drizzle-orm/pg-core'
 
 export const usersTable = pgTable("user", {
   id: text()
@@ -88,6 +88,8 @@ export type Role = typeof rolesTable.$inferSelect
 export type UserRole = typeof userRolesTable.$inferSelect
 export type Provider = typeof providersTable.$inferSelect
 export type Product = typeof productsTable.$inferSelect
+export type Invoice = typeof invoicesTable.$inferSelect
+export type InvoiceItem = typeof invoiceItemsTable.$inferSelect
 
 export const providersTable = pgTable("provider", {
   id: text()
@@ -122,6 +124,42 @@ export const clientsTable = pgTable("client", {
   comments: text(),
   email: text(),
   userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+})
+
+export const invoicesTable = pgTable("invoice", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  type: text().notNull().$type<"product" | "service">(),
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => clientsTable.id),
+  status: text().notNull().default("paid"),
+  issueDate: date("issue_date").notNull(),
+  notes: text(),
+  subtotal: decimal("subtotal", { precision: 12, scale: 2 }).notNull(),
+  discountTotal: decimal("discount_total", { precision: 12, scale: 2 }).notNull().default("0"),
+  taxTotal: decimal("tax_total", { precision: 12, scale: 2 }).notNull().default("0"),
+  grandTotal: decimal("grand_total", { precision: 12, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
+})
+
+export const invoiceItemsTable = pgTable("invoice_item", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  invoiceId: text("invoice_id")
+    .notNull()
+    .references(() => invoicesTable.id, { onDelete: "cascade" }),
+  description: text().notNull(),
+  quantity: decimal("quantity", { precision: 12, scale: 2 }).notNull(),
+  unitPrice: decimal("unit_price", { precision: 12, scale: 2 }).notNull(),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }).notNull().default("0"),
+  taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }).notNull().default("0"),
+  total: decimal("total", { precision: 12, scale: 2 }).notNull(),
+  productId: text("product_id").references(() => productsTable.id),
 })
 
 export const authenticatorsTable = pgTable("authenticator", {

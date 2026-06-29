@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { toast } from 'sonner'
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Eye, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -18,27 +17,30 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { deleteProduct } from '@/lib/actions/products'
 
 interface ActionMenuProps {
-  productId: string
-  productName: string
-  onEdit: () => void
+  entityName: string
+  onEdit?: () => void
+  onDelete: () => Promise<void>
+  canEdit?: boolean
   canDelete?: boolean
+  onView?: () => void
 }
 
-export function ActionMenu({ productId, productName, onEdit, canDelete = true }: ActionMenuProps) {
+export function ActionMenu({
+  entityName,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+  onView,
+}: ActionMenuProps) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   async function handleDelete() {
     setDeleting(true)
-    const result = await deleteProduct(productId)
-    if (!result.success) {
-      toast.error(result.error || 'Failed to delete product')
-    } else {
-      toast.success('Product deleted')
-    }
+    await onDelete()
     setDeleteOpen(false)
     setDeleting(false)
   }
@@ -47,15 +49,23 @@ export function ActionMenu({ productId, productName, onEdit, canDelete = true }:
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={`Actions for ${productName}`}>
+          <Button variant="ghost" size="icon" aria-label={`Actions for ${entityName}`}>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={onEdit}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </DropdownMenuItem>
+          {onView && (
+            <DropdownMenuItem onClick={onView}>
+              <Eye className="mr-2 h-4 w-4" />
+              View
+            </DropdownMenuItem>
+          )}
+          {onEdit && canEdit && (
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </DropdownMenuItem>
+          )}
           {canDelete && (
             <DropdownMenuItem
               onClick={() => setDeleteOpen(true)}
@@ -71,9 +81,9 @@ export function ActionMenu({ productId, productName, onEdit, canDelete = true }:
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Product</DialogTitle>
+            <DialogTitle>Delete</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {productName}? This action cannot be undone.
+              Are you sure you want to delete {entityName}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -12,7 +12,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ProductDialog } from '@/components/products/product-dialog'
-import { ActionMenu } from '@/components/products/action-menu'
+import { ActionMenu } from '@/components/common/action-menu'
+import { deleteProduct } from '@/lib/actions/products'
+import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import type { ProductWithProvider } from '@/lib/actions/products'
 import type { ProviderOption } from '@/lib/actions/providers'
@@ -88,9 +90,13 @@ export function ProductListView({ products, providers, permissions = [] }: Produ
                     <TableCell>{product.unit ?? '—'}</TableCell>
                     <TableCell>
                       <ActionMenu
-                        productId={product.id}
-                        productName={product.name}
+                        entityName={product.name}
                         onEdit={() => openEdit(product)}
+                        onDelete={async () => {
+                          const result = await deleteProduct(product.id)
+                          if (!result.success) toast.error(result.error || 'Failed to delete product')
+                          else toast.success('Product deleted')
+                        }}
                         canDelete={permissions.includes('products:delete')}
                       />
                     </TableCell>
