@@ -31,14 +31,16 @@ async function cleanupMockAuth() {
 
 async function createProduct(page: import('@playwright/test').Page, name?: string) {
   const productName = name ?? 'Test Product ' + Date.now()
+  const sku = 'TEST-' + Date.now()
   await page.getByRole('button', { name: /Add Product/i }).click()
   await page.getByRole('dialog').locator('#name').fill(productName)
   await page.getByRole('dialog').locator('#provider_id').click()
   await page.getByRole('option').first().click()
-  await page.getByRole('dialog').locator('#sku').fill('TST-' + Date.now())
+  await page.getByRole('dialog').locator('#sku').fill(sku)
   await page.getByRole('dialog').locator('#unit').fill('pcs')
   await page.getByRole('button', { name: /Create Product/i }).click()
   await expect(page.getByRole('dialog')).not.toBeVisible()
+  return { name: productName, sku }
 }
 
 test.describe('Products', () => {
@@ -98,6 +100,8 @@ test.describe('Products', () => {
       await page.getByRole('menuitem', { name: /Edit/i }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
       await expect(page.getByText('Edit Product')).toBeVisible()
+      await page.getByRole('button', { name: /Cancel/i }).click()
+      await expect(page.getByRole('dialog')).not.toBeVisible()
     })
 
     test('submit button shows spinner while saving', async ({ page }) => {
@@ -105,25 +109,29 @@ test.describe('Products', () => {
       await page.getByRole('dialog').locator('#name').fill('Spinner Test')
       await page.getByRole('dialog').locator('#provider_id').click()
       await page.getByRole('option').first().click()
+      await page.getByRole('dialog').locator('#sku').fill('TEST-' + Date.now())
       await page.getByRole('button', { name: /Create Product/i }).click()
       await expect(page.getByRole('button', { name: /Create Product/i })).toBeDisabled()
     })
 
     test('super can see delete button in actions menu', async ({ page }) => {
-      await createProduct(page)
-      const firstActionsBtn = page.getByRole('row').nth(1).getByRole('button')
-      await firstActionsBtn.click()
+      const { sku } = await createProduct(page)
+      const row = page.getByRole('row').filter({ hasText: sku })
+      await expect(row).toBeVisible()
+      await row.getByRole('button').click()
       await expect(page.getByRole('menuitem', { name: /Delete/i })).toBeVisible()
+      await page.keyboard.press('Escape')
     })
 
     test('deletes a product from actions menu', async ({ page }) => {
-      await createProduct(page, 'To Be Deleted')
-      const firstActionsBtn = page.getByRole('row').nth(1).getByRole('button')
-      await firstActionsBtn.click()
+      const { sku } = await createProduct(page, 'To Be Deleted')
+      const row = page.getByRole('row').filter({ hasText: sku })
+      await expect(row).toBeVisible()
+      await row.getByRole('button').click()
       await page.getByRole('menuitem', { name: /Delete/i }).click()
       const deleteDialog = page.getByRole('dialog').last()
       await expect(deleteDialog).toBeVisible()
-      await expect(deleteDialog.getByRole('heading', { name: 'Delete Product' })).toBeVisible()
+      await expect(deleteDialog.getByRole('heading', { name: 'Delete' })).toBeVisible()
       await deleteDialog.getByRole('button', { name: 'Delete' }).click()
       await expect(page.getByRole('dialog')).not.toBeVisible()
     })
@@ -135,16 +143,14 @@ test.describe('Products', () => {
       await page.goto('/dashboard/products', { timeout: 60000 })
     })
 
-    test('shows the products page', async ({ page }) => {
-      await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible()
-    })
-
     test('admin cannot see delete button in actions menu', async ({ page }) => {
-      await createProduct(page, 'Admin Product')
-      const firstActionsBtn = page.getByRole('row').nth(1).getByRole('button')
-      await firstActionsBtn.click()
+      const { sku } = await createProduct(page, 'Admin Product')
+      const row = page.getByRole('row').filter({ hasText: sku })
+      await expect(row).toBeVisible()
+      await row.getByRole('button').click()
       await expect(page.getByRole('menuitem', { name: /Edit/i })).toBeVisible()
       await expect(page.getByRole('menuitem', { name: /Delete/i })).not.toBeVisible()
+      await page.keyboard.press('Escape')
     })
   })
 

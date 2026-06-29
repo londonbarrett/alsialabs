@@ -45,7 +45,7 @@ function commonSections(permissions?: string[]): SidebarSection[] {
   const navigationItems: SidebarItem[] = [
     { label: 'Clients', icon: Users, url: '/dashboard/clients', requiredPermission: 'clients:view' },
     { label: 'Products', icon: Package, url: '/dashboard/products', requiredPermission: 'products:view' },
-    { label: 'Sales', icon: FolderKanban, url: '/dashboard#sales' },
+    { label: 'Sales', icon: FolderKanban, url: '/dashboard/sales', requiredPermission: 'sales:view' },
     { label: 'Reports', icon: BarChart3, url: '/dashboard#reports' },
   ]
 

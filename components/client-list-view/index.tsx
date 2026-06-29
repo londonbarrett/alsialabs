@@ -13,7 +13,9 @@ import {
 } from '@/components/ui/table'
 import { ImportButton } from '@/components/import-button'
 import { ClientDialog } from '@/components/client-dialog'
-import { ActionMenu } from '@/components/client-list-view/action-menu'
+import { ActionMenu } from '@/components/common/action-menu'
+import { deleteClient } from '@/lib/actions/clients'
+import { toast } from 'sonner'
 import type { Client } from '@/lib/drizzle/schema'
 import { useRouter } from 'next/navigation'
 
@@ -97,7 +99,17 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
                 <TableCell>{client.comments ?? '—'}</TableCell>
                 <TableCell>{client.email ?? '—'}</TableCell>
                 <TableCell>
-                  <ActionMenu client={client} onEdit={openEdit} canDelete={permissions.includes('clients:delete')} />
+                  <ActionMenu
+                    entityName={client.name}
+                    onEdit={() => openEdit(client)}
+                    onDelete={async () => {
+                      const result = await deleteClient(client.id)
+                      if (!result.success) toast.error(result.error || 'Failed to delete client')
+                      else toast.success('Client deleted')
+                    }}
+                    canDelete={permissions.includes('clients:delete')}
+                    onView={() => toast.info('View: ' + client.name)}
+                  />
                 </TableCell>
               </TableRow>
             ))}

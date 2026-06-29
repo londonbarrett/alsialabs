@@ -12,6 +12,7 @@ const roles = [
 const defaultModules = [
   { module: 'clients', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'products', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'sales', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'permissions', actions: ['manage'] },
   { module: 'users', actions: ['manage'] },
 ]
@@ -47,7 +48,7 @@ async function seed() {
       .values({ roleId: superRole.id, permissionId: perm.id })
       .onConflictDoNothing()
 
-    if ((perm.module === 'clients' || perm.module === 'products') && perm.action !== 'delete') {
+    if ((perm.module === 'clients' || perm.module === 'products' || perm.module === 'sales') && perm.action !== 'delete') {
       await db
         .insert(rolePermissionsTable)
         .values({ roleId: adminRole.id, permissionId: perm.id })

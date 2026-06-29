@@ -16,8 +16,24 @@ const clientSchema = z.object({
 })
 
 const phoneSchema = z.string().min(1, 'Phone is required').transform((v) => v.trim())
+const idSchema = z.string().uuid()
 
 export type ClientFormData = z.infer<typeof clientSchema>
+
+export async function getClients() {
+  try {
+    await requirePermission('clients', 'view')
+  } catch {
+    throw new Error('Forbidden')
+  }
+
+  return db
+    .select({
+      id: clientsTable.id,
+      name: clientsTable.name,
+    })
+    .from(clientsTable)
+}
 
 export async function checkPhoneExists(phone: string, excludeId?: string) {
   const phoneResult = phoneSchema.safeParse(phone)
@@ -28,13 +44,16 @@ export async function checkPhoneExists(phone: string, excludeId?: string) {
   } catch {
     return { exists: false }
   }
+  const excludeIdParsed = excludeId ? idSchema.safeParse(excludeId) : null
+  if (excludeIdParsed && !excludeIdParsed.success) return { exists: false }
+
   const existing = await db
     .select({ id: clientsTable.id })
     .from(clientsTable)
     .where(eq(clientsTable.phone, phone))
 
   if (existing.length === 0) return { exists: false }
-  if (excludeId) return { exists: existing[0].id !== excludeId }
+  if (excludeIdParsed) return { exists: existing[0].id !== excludeIdParsed.data }
   return { exists: true }
 }
 
@@ -52,7 +71,12 @@ export async function upsertClient(data: ClientFormData, clientId?: string) {
 
   const fields = parsed.data
 
-  const phoneCheck = await checkPhoneExists(fields.phone, clientId)
+  const clientIdParsed = clientId ? idSchema.safeParse(clientId) : null
+  if (clientIdParsed && !clientIdParsed.success) {
+    return { success: false, error: 'Invalid client ID' }
+  }
+
+  const phoneCheck = await checkPhoneExists(fields.phone, clientIdParsed?.data)
   if (phoneCheck.exists) {
     return { success: false, error: 'A client with this phone number already exists', fieldErrors: { phone: ['Phone number already in use'] } }
   }
@@ -65,8 +89,8 @@ export async function upsertClient(data: ClientFormData, clientId?: string) {
     email: fields.email || null,
   }
 
-  if (clientId) {
-    await db.update(clientsTable).set(sanitized).where(eq(clientsTable.id, clientId))
+  if (clientIdParsed) {
+    await db.update(clientsTable).set(sanitized).where(eq(clientsTable.id, clientIdParsed.data))
   } else {
     await db.insert(clientsTable).values(sanitized)
   }
@@ -82,7 +106,10 @@ export async function deleteClient(clientId: string) {
     return { success: false as const, error: 'Forbidden' }
   }
 
-  await db.delete(clientsTable).where(eq(clientsTable.id, clientId))
+  const idParsed = idSchema.safeParse(clientId)
+  if (!idParsed.success) return { success: false as const, error: 'Invalid client ID' }
+
+  await db.delete(clientsTable).where(eq(clientsTable.id, idParsed.data))
   revalidatePath('/dashboard/clients')
   return { success: true as const }
 }
