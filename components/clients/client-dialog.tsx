@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { ClientForm } from '@/components/client-form'
+import { ClientForm } from '@/components/clients/client-form'
 import type { Client } from '@/lib/drizzle/schema'
 
 interface ClientDialogProps {

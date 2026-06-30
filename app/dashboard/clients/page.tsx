@@ -2,7 +2,7 @@ import { auth, getUserPermissions, hasPermission } from '@/lib/auth'
 import { forbidden } from 'next/navigation'
 import { db } from '@/lib/drizzle/client'
 import { clientsTable } from '@/lib/drizzle/schema'
-import { ClientListView } from '@/components/client-list-view'
+import { ClientListView } from '@/components/clients'
 
 export default async function ClientsPage() {
   const session = await auth()
