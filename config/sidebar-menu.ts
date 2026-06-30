@@ -46,7 +46,7 @@ function commonSections(permissions?: string[]): SidebarSection[] {
     { label: 'Clients', icon: Users, url: '/dashboard/clients', requiredPermission: 'clients:view' },
     { label: 'Products', icon: Package, url: '/dashboard/products', requiredPermission: 'products:view' },
     { label: 'Sales', icon: FolderKanban, url: '/dashboard/sales', requiredPermission: 'sales:view' },
-    { label: 'Reports', icon: BarChart3, url: '/dashboard#reports' },
+    { label: 'Reports', icon: BarChart3, url: '/dashboard/reports', requiredPermission: 'reports:view' },
   ]
 
   const visible = navigationItems.filter((item) => {
