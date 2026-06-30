@@ -3,6 +3,7 @@
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -12,12 +13,24 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
+import { NavUser } from '@/components/nav-user'
 import { getSidebarMenu, type SidebarItem } from '@/config/sidebar-menu'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ThemeToggle } from '@/components/theme-toggle'
 
-export function AppSidebar({ permissions = [], role }: { permissions?: string[]; role?: string | null }) {
+export function AppSidebar({
+  permissions = [],
+  role,
+  user,
+}: {
+  permissions?: string[]
+  role?: string | null
+  user: {
+    name: string | null
+    email: string | null
+    image: string | null
+  }
+}) {
   const pathname = usePathname()
 
   const sidebarMenu = getSidebarMenu(role, permissions)
@@ -51,16 +64,14 @@ export function AppSidebar({ permissions = [], role }: { permissions?: string[];
                     </SidebarMenuItem>
                   )
                 })}
-                {section.label === 'Auxiliary' && (
-                  <SidebarMenuItem>
-                    <ThemeToggle />
-                  </SidebarMenuItem>
-                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
       </SidebarContent>
+      <SidebarFooter>
+        <NavUser user={user} />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

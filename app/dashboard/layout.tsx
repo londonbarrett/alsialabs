@@ -1,7 +1,6 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { requireAuth, getCachedUserPermissions } from '@/lib/auth'
-import { SignOutButton } from '@/components/sign-out-button'
 import { DashboardBreadcrumb } from '@/components/dashboard-breadcrumb'
 
 export default async function DashboardLayout({
@@ -14,14 +13,19 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <AppSidebar permissions={permissions} role={session.user?.role} />
+      <AppSidebar
+        permissions={permissions}
+        role={session.user?.role}
+        user={{
+          name: session.user?.name ?? null,
+          email: session.user?.email ?? null,
+          image: session.user?.image ?? null,
+        }}
+      />
       <SidebarInset>
         <header className="sticky top-0 bg-background flex h-12 shrink-0 items-center gap-2 border-b px-4 z-500">
           <SidebarTrigger />
           <DashboardBreadcrumb />
-          <div className="ml-auto">
-            <SignOutButton />
-          </div>
         </header>
         <section className="flex flex-col flex-1">
           {children}

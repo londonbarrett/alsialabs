@@ -1,6 +1,4 @@
 import {
-  User,
-  Settings,
   FolderKanban,
   BarChart3,
   Users,
@@ -25,22 +23,7 @@ export interface SidebarSection {
 }
 
 function commonSections(permissions?: string[]): SidebarSection[] {
-  const sections: SidebarSection[] = [
-    {
-      label: 'User',
-      items: [
-        { label: 'Profile', icon: User, url: '/dashboard/profile' },
-        { label: 'Settings', icon: Settings, url: '/dashboard#settings' },
-      ],
-    },
-    {
-      label: 'Auxiliary',
-      items: [
-        { label: 'Help', icon: LifeBuoy, url: '/dashboard#help' },
-        { label: 'Support', icon: MessageSquare, url: '/dashboard#support' },
-      ],
-    },
-  ]
+  const sections: SidebarSection[] = []
 
   const navigationItems: SidebarItem[] = [
     { label: 'Clients', icon: Users, url: '/dashboard/clients', requiredPermission: 'clients:view' },
@@ -55,8 +38,16 @@ function commonSections(permissions?: string[]): SidebarSection[] {
   })
 
   if (visible.length > 0) {
-    sections.splice(1, 0, { label: 'Navigation', items: visible })
+    sections.push({ label: 'Navigation', items: visible })
   }
+
+  sections.push({
+    label: 'Auxiliary',
+    items: [
+      { label: 'Help', icon: LifeBuoy, url: '/dashboard#help' },
+      { label: 'Support', icon: MessageSquare, url: '/dashboard#support' },
+    ],
+  })
 
   return sections
 }
@@ -84,7 +75,7 @@ export function getSidebarMenu(
   const sections = commonSections(permissions)
 
   if (role === 'super') {
-    sections.splice(1, 0, ...superSections(permissions))
+    sections.splice(sections.length - 1, 0, ...superSections(permissions))
   }
 
   return sections.filter((section) => section.items.length > 0)
