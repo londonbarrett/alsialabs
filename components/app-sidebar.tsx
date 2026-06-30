@@ -15,14 +15,12 @@ import {
 import { getSidebarMenu, type SidebarItem } from '@/config/sidebar-menu'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useSession } from 'next-auth/react'
 import { ThemeToggle } from '@/components/theme-toggle'
 
-export function AppSidebar({ permissions = [] }: { permissions?: string[] }) {
+export function AppSidebar({ permissions = [], role }: { permissions?: string[]; role?: string | null }) {
   const pathname = usePathname()
-  const { data: session } = useSession()
 
-  const sidebarMenu = getSidebarMenu(session?.user?.role, permissions)
+  const sidebarMenu = getSidebarMenu(role, permissions)
 
   return (
     <Sidebar collapsible="icon">

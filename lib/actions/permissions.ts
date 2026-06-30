@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { db } from '@/lib/drizzle/client'
 import { permissionsTable, rolePermissionsTable, rolesTable } from '@/lib/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
@@ -86,6 +86,7 @@ export async function manageModule(data: z.infer<typeof manageModuleSchema>) {
   }
 
   revalidatePath('/dashboard/permissions')
+  updateTag('permissions')
   return { success: true as const }
 }
 
@@ -125,5 +126,6 @@ export async function togglePermission(data: z.infer<typeof toggleSchema>) {
   }
 
   revalidatePath('/dashboard/permissions')
+  updateTag('permissions')
   return { success: true as const }
 }

@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { db } from '@/lib/drizzle/client'
 import { usersTable, userRolesTable, rolesTable } from '@/lib/drizzle/schema'
 import { eq } from 'drizzle-orm'
@@ -103,6 +103,7 @@ export async function createUser(data: z.infer<typeof createUserSchema>) {
   }
 
   revalidatePath('/dashboard/users')
+  updateTag('permissions')
   return { success: true as const }
 }
 
@@ -162,6 +163,7 @@ export async function updateUser(
     .where(eq(userRolesTable.userId, userId))
 
   revalidatePath('/dashboard/users')
+  updateTag('permissions')
   return { success: true as const }
 }
 
@@ -215,5 +217,6 @@ export async function deleteUser(userId: string) {
   await db.delete(usersTable).where(eq(usersTable.id, userId))
 
   revalidatePath('/dashboard/users')
+  updateTag('permissions')
   return { success: true as const }
 }
