@@ -53,7 +53,7 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
             <Plus />
             New Client
           </Button>
-          <ImportButton onSuccess={() => router.refresh()} />
+          {/* <ImportButton onSuccess={() => router.refresh()} /> */}
         </div>
         <ClientDialog
           client={editingClient}
