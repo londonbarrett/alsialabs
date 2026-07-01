@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ImportButton } from '@/components/import-button'
-import { ClientDialog } from '@/components/client-dialog'
+import { ClientDialog } from '@/components/clients/client-dialog'
 import { ActionMenu } from '@/components/common/action-menu'
 import { deleteClient } from '@/lib/actions/clients'
 import { toast } from 'sonner'
@@ -53,7 +53,7 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
             <Plus />
             New Client
           </Button>
-          <ImportButton onSuccess={() => router.refresh()} />
+          {/* <ImportButton onSuccess={() => router.refresh()} /> */}
         </div>
         <ClientDialog
           client={editingClient}

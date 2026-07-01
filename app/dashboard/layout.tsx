@@ -1,7 +1,7 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
-import { requireAuth, getUserPermissions } from '@/lib/auth'
-import { SignOutButton } from '@/components/sign-out-button'
+import { requireAuth, getCachedUserPermissions } from '@/lib/auth'
+import { DashboardBreadcrumb } from '@/components/dashboard-breadcrumb'
 
 export default async function DashboardLayout({
   children,
@@ -9,19 +9,23 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const session = await requireAuth()
-
-  const permissions = session.user?.id ? await getUserPermissions(session.user.id) : []
+  const permissions = session.user?.id ? await getCachedUserPermissions(session.user.id) : []
 
   return (
     <SidebarProvider>
-      <AppSidebar permissions={permissions} />
+      <AppSidebar
+        permissions={permissions}
+        role={session.user?.role}
+        user={{
+          name: session.user?.name ?? null,
+          email: session.user?.email ?? null,
+          image: session.user?.image ?? null,
+        }}
+      />
       <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+        <header className="sticky top-0 bg-background flex h-12 shrink-0 items-center gap-2 border-b px-4 z-500">
           <SidebarTrigger />
-          <span className="text-sm text-muted-foreground">Dashboard</span>
-          <div className="ml-auto">
-            <SignOutButton />
-          </div>
+          <DashboardBreadcrumb />
         </header>
         <section className="flex flex-col flex-1">
           {children}

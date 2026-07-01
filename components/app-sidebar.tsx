@@ -1,8 +1,9 @@
-'use client'
+"use client"
 
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -11,28 +12,36 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from '@/components/ui/sidebar'
-import { getSidebarMenu, type SidebarItem } from '@/config/sidebar-menu'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { ThemeToggle } from '@/components/theme-toggle'
+} from "@/components/ui/sidebar"
+import { NavUser } from "@/components/nav-user"
+import { Logo } from "@/components/common/alsia-logo"
+import { LogoSmall } from "@/components/common/alsia-logo-small"
+import { getSidebarMenu, type SidebarItem } from "@/config/sidebar-menu"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
-export function AppSidebar({ permissions = [] }: { permissions?: string[] }) {
+export function AppSidebar({
+  permissions = [],
+  role,
+  user,
+}: {
+  permissions?: string[]
+  role?: string | null
+  user: {
+    name: string | null
+    email: string | null
+    image: string | null
+  }
+}) {
   const pathname = usePathname()
-  const { data: session } = useSession()
 
-  const sidebarMenu = getSidebarMenu(session?.user?.role, permissions)
+  const sidebarMenu = getSidebarMenu(role, permissions)
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:pt-4">
-        <span className="text-lg font-semibold tracking-tight px-2 group-data-[collapsible=icon]:hidden">
-          Alsia
-        </span>
-        <span className="hidden group-data-[collapsible=icon]:block text-lg font-semibold">
-          A
-        </span>
+      <SidebarHeader className="flex items-center justify-center group-data-[collapsible=icon]:pt-4">
+        <Logo className="mt-4 h-auto w-40 fill-green-800 group-data-[collapsible=icon]:hidden dark:fill-emerald-500" />
+        <LogoSmall className="mt-2 hidden h-auto w-5 fill-green-800 group-data-[collapsible=icon]:block dark:fill-emerald-500" />
       </SidebarHeader>
       <SidebarContent>
         {sidebarMenu.map((section) => (
@@ -44,7 +53,10 @@ export function AppSidebar({ permissions = [] }: { permissions?: string[] }) {
                   const Icon = item.icon
                   return (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton asChild isActive={pathname === item.url}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.url}
+                      >
                         <Link href={item.url}>
                           <Icon />
                           <span>{item.label}</span>
@@ -53,16 +65,14 @@ export function AppSidebar({ permissions = [] }: { permissions?: string[] }) {
                     </SidebarMenuItem>
                   )
                 })}
-                {section.label === 'Auxiliary' && (
-                  <SidebarMenuItem>
-                    <ThemeToggle />
-                  </SidebarMenuItem>
-                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
       </SidebarContent>
+      <SidebarFooter>
+        <NavUser user={user} />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

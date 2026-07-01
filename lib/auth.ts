@@ -6,6 +6,7 @@ import { db } from '@/lib/drizzle/client'
 import { usersTable, userRolesTable, rolesTable, permissionsTable, rolePermissionsTable } from '@/lib/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
+import { unstable_cache } from 'next/cache'
 import type { DefaultSession } from 'next-auth'
 
 declare module 'next-auth' {
@@ -99,6 +100,14 @@ export async function hasPermission(
     return false
   }
 }
+
+export const getCachedUserPermissions = unstable_cache(
+  async (userId: string) => {
+    return getUserPermissions(userId)
+  },
+  ['user-permissions'],
+  { tags: ['permissions'] },
+)
 
 export async function getUserPermissions(userId: string): Promise<string[]> {
   try {
