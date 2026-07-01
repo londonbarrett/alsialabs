@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import {
   Sidebar,
@@ -12,11 +12,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from '@/components/ui/sidebar'
-import { NavUser } from '@/components/nav-user'
-import { getSidebarMenu, type SidebarItem } from '@/config/sidebar-menu'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+} from "@/components/ui/sidebar"
+import { NavUser } from "@/components/nav-user"
+import { Logo } from "@/components/common/alsia-logo"
+import { LogoSmall } from "@/components/common/alsia-logo-small"
+import { getSidebarMenu, type SidebarItem } from "@/config/sidebar-menu"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 export function AppSidebar({
   permissions = [],
@@ -37,13 +39,9 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:pt-4">
-        <span className="text-lg font-semibold tracking-tight px-2 group-data-[collapsible=icon]:hidden">
-          Alsia
-        </span>
-        <span className="hidden group-data-[collapsible=icon]:block text-lg font-semibold">
-          A
-        </span>
+      <SidebarHeader className="flex items-center justify-center group-data-[collapsible=icon]:pt-4">
+        <Logo className="mt-4 h-auto w-40 fill-green-800 group-data-[collapsible=icon]:hidden dark:fill-emerald-500" />
+        <LogoSmall className="mt-2 hidden h-auto w-5 fill-green-800 group-data-[collapsible=icon]:block dark:fill-emerald-500" />
       </SidebarHeader>
       <SidebarContent>
         {sidebarMenu.map((section) => (
@@ -55,7 +53,10 @@ export function AppSidebar({
                   const Icon = item.icon
                   return (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton asChild isActive={pathname === item.url}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.url}
+                      >
                         <Link href={item.url}>
                           <Icon />
                           <span>{item.label}</span>
