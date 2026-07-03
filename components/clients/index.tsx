@@ -13,8 +13,9 @@ import {
 } from '@/components/ui/table'
 import { ImportButton } from '@/components/import-button'
 import { ClientDialog } from '@/components/clients/client-dialog'
-import { ActionMenu } from '@/components/common/action-menu'
-import { deleteClient } from '@/lib/actions/clients'
+import { ClientActionMenu } from '@/components/clients/client-action-menu'
+import { InviteDialog } from '@/components/clients/invite-dialog'
+import { deleteClient, inviteClient } from '@/lib/actions/clients'
 import { toast } from 'sonner'
 import type { Client } from '@/lib/drizzle/schema'
 import { useRouter } from 'next/navigation'
@@ -28,6 +29,10 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | undefined>()
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
+  const [invitingClient, setInvitingClient] = useState<Client | undefined>()
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
 
   function handleSuccess() {
     router.refresh()
@@ -42,6 +47,39 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
   function openEdit(client: Client) {
     setEditingClient(client)
     setDialogOpen(true)
+  }
+
+  async function handleInvite(client: Client) {
+    if (client.email) {
+      setInviting(true)
+      const result = await inviteClient({ clientId: client.id })
+      setInviting(false)
+      if (!result.success) {
+        toast.error(result.error || 'Failed to invite client')
+        return
+      }
+      router.refresh()
+      toast.success('Client invited')
+      return
+    }
+    setInvitingClient(client)
+    setInviteEmail('')
+    setInviteDialogOpen(true)
+  }
+
+  async function handleInviteWithEmail() {
+    if (!invitingClient) return
+    setInviting(true)
+    const result = await inviteClient({ clientId: invitingClient.id, email: inviteEmail })
+    setInviting(false)
+    if (!result.success) {
+      toast.error(result.error || 'Failed to invite client')
+      return
+    }
+    setInviteDialogOpen(false)
+    setInvitingClient(undefined)
+    router.refresh()
+    toast.success('Client invited')
   }
 
   if (clients.length === 0) {
@@ -99,7 +137,7 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
                 <TableCell>{client.comments ?? '—'}</TableCell>
                 <TableCell>{client.email ?? '—'}</TableCell>
                 <TableCell>
-                  <ActionMenu
+                  <ClientActionMenu
                     entityName={client.name}
                     onEdit={() => openEdit(client)}
                     onDelete={async () => {
@@ -109,6 +147,8 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
                     }}
                     canDelete={permissions.includes('clients:delete')}
                     onView={() => toast.info('View: ' + client.name)}
+                    onInvite={() => handleInvite(client)}
+                    canInvite={permissions.includes('clients:invite')}
                   />
                 </TableCell>
               </TableRow>
@@ -125,6 +165,16 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
           if (!open) setEditingClient(undefined)
         }}
         onSuccess={handleSuccess}
+      />
+
+      <InviteDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        clientName={invitingClient?.name}
+        email={inviteEmail}
+        onEmailChange={setInviteEmail}
+        submitting={inviting}
+        onSubmit={handleInviteWithEmail}
       />
     </div>
   )
