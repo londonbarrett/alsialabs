@@ -25,6 +25,7 @@ interface ActionMenuProps {
   canEdit?: boolean
   canDelete?: boolean
   onView?: () => void
+  children?: React.ReactNode
 }
 
 export function ActionMenu({
@@ -34,6 +35,7 @@ export function ActionMenu({
   canEdit = true,
   canDelete = true,
   onView,
+  children,
 }: ActionMenuProps) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -54,6 +56,7 @@ export function ActionMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {children}
           {onView && (
             <DropdownMenuItem onClick={onView}>
               <Eye className="mr-2 h-4 w-4" />

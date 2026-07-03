@@ -10,7 +10,7 @@ const roles = [
 ]
 
 const defaultModules = [
-  { module: 'clients', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'clients', actions: ['view', 'create', 'edit', 'delete', 'invite'] },
   { module: 'products', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'sales', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'permissions', actions: ['manage'] },
