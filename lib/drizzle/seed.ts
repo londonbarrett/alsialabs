@@ -12,7 +12,7 @@ const roles = [
 const defaultModules = [
   { module: 'clients', actions: ['view', 'create', 'edit', 'delete', 'invite'] },
   { module: 'products', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'sales', actions: ['view', 'create', 'edit', 'delete'] },
+  { module: 'sales', actions: ['view', 'create', 'edit', 'delete', 'view-invoice-history'] },
   { module: 'permissions', actions: ['manage'] },
   { module: 'users', actions: ['manage'] },
   { module: 'reports', actions: ['view'] },
@@ -30,6 +30,7 @@ async function seed() {
 
   const superRole = seededRoles.find((r) => r.name === 'super')!
   const adminRole = seededRoles.find((r) => r.name === 'admin')!
+  const clientRole = seededRoles.find((r) => r.name === 'client')!
 
   for (const mod of defaultModules) {
     for (const action of mod.actions) {
@@ -55,6 +56,16 @@ async function seed() {
         .values({ roleId: adminRole.id, permissionId: perm.id })
         .onConflictDoNothing()
     }
+  }
+
+  const clientPermissions = allPermissions.filter(
+    (p) => p.module === 'sales' && p.action === 'view-invoice-history',
+  )
+  for (const perm of clientPermissions) {
+    await db
+      .insert(rolePermissionsTable)
+      .values({ roleId: clientRole.id, permissionId: perm.id })
+      .onConflictDoNothing()
   }
 
   console.log('Role-permissions seeded: super gets all, admin gets view/create/edit')

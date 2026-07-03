@@ -146,7 +146,7 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
                       else toast.success('Client deleted')
                     }}
                     canDelete={permissions.includes('clients:delete')}
-                    onView={() => toast.info('View: ' + client.name)}
+                    onView={() => router.push('/dashboard/clients/' + client.id)}
                     onInvite={() => handleInvite(client)}
                     canInvite={permissions.includes('clients:invite')}
                   />

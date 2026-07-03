@@ -185,8 +185,8 @@ Respond with:
 
 ### GitHub API rules
 
-- Repository: `londonbarrett/alsialabs`
+- Extract `GITHUB_REPO` from `git remote get-url origin` (strip protocol, `.git` suffix). Example: `https://github.com/owner/repo.git` → `owner/repo`
+- Read `GITHUB_TOKEN` from `.env.local`: `GITHUB_TOKEN=$(sed -n 's/^GITHUB_TOKEN=//p' .env.local)`
 - Use `GET /repos/{owner}/{repo}/issues/{number}` to fetch
 - Use `PATCH /repos/{owner}/{repo}/issues/{number}` to update
-- Use the `GITHUB_TOKEN` environment variable for auth
 - Final push replaces the entire body (not append)
