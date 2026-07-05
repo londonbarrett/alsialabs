@@ -20,11 +20,7 @@ export default async function ProfilePage() {
     .then((rows) => rows[0])
 
   const canViewInvoices = session.user.id
-    ? await hasPermission(
-        session.user.id,
-        "sales",
-        "view-invoice-history"
-      )
+    ? await hasPermission(session.user.id, "client-activity", "view")
     : false
 
   return (
@@ -56,12 +52,7 @@ export default async function ProfilePage() {
       </div>
 
       {client && canViewInvoices && (
-        <section>
-          <h2 className="mb-4 text-xl font-semibold tracking-tight">
-            Invoice History
-          </h2>
-          <InvoiceHistoryComponent clientId={client.id} />
-        </section>
+        <InvoiceHistoryComponent clientId={client.id} />
       )}
     </div>
   )

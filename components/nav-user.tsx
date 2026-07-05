@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronsUpDown, LogOut, Monitor, Moon, Sun, User } from 'lucide-react'
+import { ChevronsUpDown, LogOut, User } from 'lucide-react'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -17,8 +17,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { useTheme } from '@/components/theme-provider'
 import { signOut } from 'next-auth/react'
+import { ThemeToggle } from '@/components/theme-toggle'
 import Link from 'next/link'
 
 export function NavUser({
@@ -31,16 +31,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const { theme, setTheme } = useTheme()
   const initials = (user.name ?? user.email ?? '?').charAt(0).toUpperCase()
-
-  const themes = ['light', 'dark', 'system'] as const
-  const current = (themes as readonly string[]).includes(theme) ? (theme as typeof themes[number]) : 'system'
-  const nextIndex = (themes.indexOf(current) + 1) % themes.length
-  const nextTheme = themes[nextIndex]
-  const labels: Record<string, string> = { light: 'Light', dark: 'Dark', system: 'System' }
-  const icons: Record<string, typeof Sun> = { light: Sun, dark: Moon, system: Monitor }
-  const Icon = icons[current]
 
   return (
     <SidebarMenu>
@@ -87,11 +78,7 @@ export function NavUser({
                 Profile
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme(nextTheme)}>
-              <Icon />
-              <span className="flex-1">{labels[current]}</span>
-              <span className="text-muted-foreground text-xs">→ {labels[nextTheme]}</span>
-            </DropdownMenuItem>
+            <ThemeToggle />
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => signOut({ redirectTo: '/login' })}>
               <LogOut />
