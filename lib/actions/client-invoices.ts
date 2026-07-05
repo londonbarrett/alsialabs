@@ -35,7 +35,7 @@ export async function getClientInvoices(
     return { success: false, error: "Invalid client ID" }
 
   try {
-    await requirePermission("sales", "view-invoice-history")
+    await requirePermission("client-activity", "view")
   } catch {
     return { success: false, error: "Forbidden" }
   }

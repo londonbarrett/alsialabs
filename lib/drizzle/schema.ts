@@ -83,6 +83,8 @@ export const verificationTokensTable = pgTable("verificationToken", {
   primaryKey({ columns: [verificationToken.identifier, verificationToken.token] }),
 ])
 
+export type Activity = typeof activitiesTable.$inferSelect
+export type Reminder = typeof remindersTable.$inferSelect
 export type Client = typeof clientsTable.$inferSelect
 export type Role = typeof rolesTable.$inferSelect
 export type UserRole = typeof userRolesTable.$inferSelect
@@ -160,6 +162,42 @@ export const invoiceItemsTable = pgTable("invoice_item", {
   taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }).notNull().default("0"),
   total: decimal("total", { precision: 12, scale: 2 }).notNull(),
   productId: text("product_id").references(() => productsTable.id),
+})
+
+export const activitiesTable = pgTable("activity", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => clientsTable.id, { onDelete: "cascade" }),
+  type: text().notNull().$type<"call" | "email" | "meeting" | "note">(),
+  subject: text().notNull(),
+  description: text(),
+  activityDate: date("activity_date").notNull(),
+  performedBy: text("performed_by")
+    .notNull()
+    .references(() => usersTable.id),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
+})
+
+export const remindersTable = pgTable("reminder", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => clientsTable.id, { onDelete: "cascade" }),
+  description: text().notNull(),
+  remindAt: date("remind_at").notNull(),
+  completed: boolean().notNull().default(false),
+  completedAt: timestamp("completed_at", { mode: "date" }),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => usersTable.id),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
 })
 
 export const authenticatorsTable = pgTable("authenticator", {

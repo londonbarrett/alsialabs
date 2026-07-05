@@ -1,46 +1,69 @@
-import { db } from './client'
-import { usersTable, rolesTable, userRolesTable, permissionsTable, rolePermissionsTable, providersTable } from './schema'
-import { eq } from 'drizzle-orm'
-import crypto from 'crypto'
+import { db } from "./client"
+import {
+  usersTable,
+  rolesTable,
+  userRolesTable,
+  permissionsTable,
+  rolePermissionsTable,
+  providersTable,
+} from "./schema"
+import { eq } from "drizzle-orm"
+import crypto from "crypto"
 
 const roles = [
-  { name: 'super', description: 'Full access to all features and settings' },
-  { name: 'admin', description: 'Can manage clients and access most features' },
-  { name: 'client', description: 'Limited access, own data only' },
+  {
+    name: "super",
+    description: "Full access to all features and settings",
+  },
+  {
+    name: "admin",
+    description: "Can manage clients and access most features",
+  },
+  { name: "client", description: "Limited access, own data only" },
 ]
 
 const defaultModules = [
-  { module: 'clients', actions: ['view', 'create', 'edit', 'delete', 'invite'] },
-  { module: 'products', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'sales', actions: ['view', 'create', 'edit', 'delete', 'view-invoice-history'] },
-  { module: 'permissions', actions: ['manage'] },
-  { module: 'users', actions: ['manage'] },
-  { module: 'reports', actions: ['view'] },
+  {
+    module: "clients",
+    actions: ["view", "create", "edit", "delete", "invite"],
+  },
+  { module: "products", actions: ["view", "create", "edit", "delete"] },
+  { module: "sales", actions: ["view", "create", "edit", "delete"] },
+  { module: "permissions", actions: ["manage"] },
+  { module: "users", actions: ["manage"] },
+  { module: "reports", actions: ["view"] },
+  {
+    module: "client-activity",
+    actions: ["view", "create", "edit", "delete"],
+  },
 ]
 
 async function seed() {
   for (const role of roles) {
-    await db.insert(rolesTable).values(role).onConflictDoNothing({ target: rolesTable.name })
+    await db
+      .insert(rolesTable)
+      .values(role)
+      .onConflictDoNothing({ target: rolesTable.name })
   }
-  console.log('Roles seeded successfully')
+  console.log("Roles seeded successfully")
 
-  const seededRoles = await db
-    .select()
-    .from(rolesTable)
+  const seededRoles = await db.select().from(rolesTable)
 
-  const superRole = seededRoles.find((r) => r.name === 'super')!
-  const adminRole = seededRoles.find((r) => r.name === 'admin')!
-  const clientRole = seededRoles.find((r) => r.name === 'client')!
+  const superRole = seededRoles.find((r) => r.name === "super")!
+  const adminRole = seededRoles.find((r) => r.name === "admin")!
+  const clientRole = seededRoles.find((r) => r.name === "client")!
 
   for (const mod of defaultModules) {
     for (const action of mod.actions) {
       await db
         .insert(permissionsTable)
         .values({ module: mod.module, action })
-        .onConflictDoNothing({ target: [permissionsTable.module, permissionsTable.action] })
+        .onConflictDoNothing({
+          target: [permissionsTable.module, permissionsTable.action],
+        })
     }
   }
-  console.log('Permissions seeded successfully')
+  console.log("Permissions seeded successfully")
 
   const allPermissions = await db.select().from(permissionsTable)
 
@@ -50,7 +73,14 @@ async function seed() {
       .values({ roleId: superRole.id, permissionId: perm.id })
       .onConflictDoNothing()
 
-    if ((perm.module === 'clients' || perm.module === 'products' || perm.module === 'sales' || perm.module === 'reports') && perm.action !== 'delete') {
+    if (
+      (perm.module === "clients" ||
+        perm.module === "products" ||
+        perm.module === "sales" ||
+        perm.module === "reports" ||
+        perm.module === "client-activity") &&
+      perm.action !== "delete"
+    ) {
       await db
         .insert(rolePermissionsTable)
         .values({ roleId: adminRole.id, permissionId: perm.id })
@@ -59,7 +89,7 @@ async function seed() {
   }
 
   const clientPermissions = allPermissions.filter(
-    (p) => p.module === 'sales' && p.action === 'view-invoice-history',
+    (p) => p.module === "client-activity" && p.action === "view"
   )
   for (const perm of clientPermissions) {
     await db
@@ -68,9 +98,11 @@ async function seed() {
       .onConflictDoNothing()
   }
 
-  console.log('Role-permissions seeded: super gets all, admin gets view/create/edit')
+  console.log(
+    "Role-permissions seeded: super gets all, admin gets view/create/edit"
+  )
 
-  const companyName = process.env.COMPANY_NAME || 'Alsia Labs'
+  const companyName = process.env.COMPANY_NAME || "Alsia Labs"
   const existingProvider = await db
     .select({ id: providersTable.id })
     .from(providersTable)
@@ -80,7 +112,9 @@ async function seed() {
     await db.insert(providersTable).values({ name: companyName })
     console.log(`Company provider "${companyName}" seeded`)
   } else {
-    console.log(`Company provider "${companyName}" already exists, skipping`)
+    console.log(
+      `Company provider "${companyName}" already exists, skipping`
+    )
   }
 
   const adminEmail = process.env.SUPER_USER_EMAIL
