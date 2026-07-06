@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ClientCombobox } from "@/components/clients/client-combobox"
 import { Plus } from "lucide-react"
 import { upsertInvoice, getInvoiceItems } from "@/lib/actions/sales"
 import type { Invoice } from "@/lib/drizzle/schema"
@@ -221,18 +222,11 @@ export function InvoiceForm({
         {selectedClientId && !invoice ? null : (
           <div className="flex flex-col gap-2">
             <Label htmlFor="client">Client</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger id="client" className="w-full">
-                <SelectValue placeholder="Select a client" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ClientCombobox
+              clients={clients}
+              value={clientId}
+              onValueChange={(id) => setClientId(id ?? "")}
+            />
           </div>
         )}
 
