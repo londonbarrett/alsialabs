@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { SalesDialog } from '@/components/sales/sales-dialog'
+import { InvoiceDialog } from '@/components/sales/invoice-dialog'
 import { ActionMenu } from '@/components/common/action-menu'
 import { deleteInvoice } from '@/lib/actions/sales'
 import type { Invoice } from '@/lib/drizzle/schema'
@@ -20,12 +20,10 @@ import { useRouter } from 'next/navigation'
 
 interface SalesListViewProps {
   invoices: Array<Invoice & { clientName: string | null }>
-  clients: Array<{ id: string; name: string }>
-  products: Array<{ id: string; name: string }>
   permissions?: string[]
 }
 
-export function SalesListView({ invoices, clients, products, permissions = [] }: SalesListViewProps) {
+export function SalesListView({ invoices, permissions = [] }: SalesListViewProps) {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState<Invoice | undefined>()
@@ -116,10 +114,8 @@ export function SalesListView({ invoices, clients, products, permissions = [] }:
           </div>
         </div>
       )}
-      <SalesDialog
+      <InvoiceDialog
         invoice={editingInvoice}
-        clients={clients}
-        products={products}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
         onSuccess={handleSuccess}

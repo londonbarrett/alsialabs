@@ -57,6 +57,28 @@ const inviteSchema = z.object({
 
 export type ClientFormData = z.infer<typeof clientSchema>
 
+export async function getClientByClientId(id: string) {
+  const parsed = idSchema.safeParse(id)
+  if (!parsed.success) return null
+
+  return db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, parsed.data))
+    .then((rows) => rows[0] ?? null)
+}
+
+export async function getClientByUserId(userId: string) {
+  const parsed = idSchema.safeParse(userId)
+  if (!parsed.success) return null
+
+  return db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.userId, parsed.data))
+    .then((rows) => rows[0] ?? null)
+}
+
 export async function getClients() {
   try {
     await requirePermission("clients", "view")
@@ -71,6 +93,8 @@ export async function getClients() {
     })
     .from(clientsTable)
 }
+
+export type ClientOption = Awaited<ReturnType<typeof getClients>>[number]
 
 export async function checkPhoneExists(
   phone: string,

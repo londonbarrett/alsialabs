@@ -1,8 +1,6 @@
 import { auth, getUserPermissions, hasPermission } from '@/lib/auth'
 import { forbidden } from 'next/navigation'
-import { db } from '@/lib/drizzle/client'
-import { clientsTable } from '@/lib/drizzle/schema'
-import { getInvoices, getInvoiceProducts } from '@/lib/actions/sales'
+import { getInvoices } from '@/lib/actions/sales'
 import { SalesListView } from '@/components/sales/sales-list-view'
 
 export default async function SalesPage() {
@@ -12,12 +10,10 @@ export default async function SalesPage() {
     forbidden()
   }
 
-  const [invoices, clients, products, permissions] = await Promise.all([
+  const [invoices, permissions] = await Promise.all([
     getInvoices(),
-    db.select({ id: clientsTable.id, name: clientsTable.name }).from(clientsTable),
-    getInvoiceProducts(),
     getUserPermissions(session.user.id),
   ])
 
-  return <SalesListView invoices={invoices} clients={clients} products={products} permissions={permissions} />
+  return <SalesListView invoices={invoices} permissions={permissions} />
 }
