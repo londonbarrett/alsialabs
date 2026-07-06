@@ -17,7 +17,7 @@ The system SHALL allow authenticated users with `sales:create` permission to cre
 
 #### Scenario: Successful product invoice creation
 - **WHEN** the user clicks "New Invoice" button
-- **THEN** a dialog form appears with fields: client (dropdown), type (product/service toggle), issue date, and a line items table
+- **THEN** a dialog form appears with fields: client (autocomplete combobox), type (product/service toggle), issue date, and a line items table
 - **WHEN** the type is set to "product"
 - **THEN** each line item row has: product dropdown, quantity, unit price, discount %, tax %, and computed line total
 - **WHEN** the user selects a product from the dropdown
@@ -37,12 +37,39 @@ The system SHALL allow authenticated users with `sales:create` permission to cre
 
 #### Scenario: Successful service invoice creation
 - **WHEN** the user clicks "New Invoice" button
-- **THEN** a dialog form appears with fields: client (dropdown), type (product/service toggle), issue date, and a line items table
+- **THEN** a dialog form appears with fields: client (autocomplete combobox), type (product/service toggle), issue date, and a line items table
 - **WHEN** the type is set to "service"
 - **THEN** each line item row has: description (free-text), quantity, unit price, discount %, tax %, and computed line total
 - **WHEN** the user fills in valid data and submits
 - **THEN** the invoice is created with service-type line items
 - **AND** the line items have no product reference
+
+### Requirement: Client field is a searchable combobox
+The system SHALL use a searchable autocomplete combobox for the client field in the invoice form, integrated with Base UI's combobox pattern via a reusable `ClientCombobox` component.
+
+#### Scenario: User can search clients by name
+- **WHEN** the user types in the client field
+- **THEN** the dropdown filters to show only clients whose name matches the typed text
+- **AND** the filtering is case-insensitive and client-side only
+
+#### Scenario: User selects a client from the dropdown
+- **WHEN** the user clicks or presses Enter on a client option
+- **THEN** the field shows the selected client's name
+
+#### Scenario: Combobox supports initial value for edit mode
+- **WHEN** the invoice form opens in edit mode
+- **THEN** the client field is pre-populated with the existing invoice's client
+- **AND** the dropdown shows all other clients as options
+
+#### Scenario: No inline client creation
+- **WHEN** the user types a name that doesn't match any client
+- **THEN** the dropdown shows no results
+- **AND** there is no option to create a new client inline
+
+#### Scenario: Combobox works inside a dialog
+- **WHEN** the invoice form is inside a dialog
+- **THEN** the combobox dropdown renders above the dialog overlay
+- **AND** clicking a client option dismisses the dropdown
 
 ### Requirement: User can add and remove line items
 The system SHALL allow users to dynamically add or remove line item rows in the invoice form.
