@@ -1,7 +1,8 @@
+import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
 import { getActivities } from "@/lib/actions/activities"
 import { getClientInvoices } from "@/lib/actions/client-invoices"
-import { getClientByClientId } from "@/lib/actions/clients"
+import { getClientByClientId, getClients } from "@/lib/actions/clients"
 import { getReminders } from "@/lib/actions/reminders"
 import { auth, getUserPermissions } from "@/lib/auth"
 import type { Activity, Invoice, Reminder } from "@/lib/drizzle/schema"
@@ -57,11 +58,16 @@ export default async function ClientProfilePage({
     }
   }
 
+  const allClients = await getClients()
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {client.name}
-      </h1>
+      <div className="flex items-center justify-between">
+        <ClientSwitcher
+          clients={allClients}
+          currentClientId={clientId}
+        />
+      </div>
       <div className="max-w-lg rounded-md border p-6">
         <div className="flex flex-col gap-4">
           <div>
