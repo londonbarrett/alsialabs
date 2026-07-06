@@ -1,10 +1,9 @@
-import { auth, hasPermission } from "@/lib/auth"
+import { auth, getUserPermissions } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import { db } from "@/lib/drizzle/client"
-import { clientsTable } from "@/lib/drizzle/schema"
-import { eq } from "drizzle-orm"
+import { getClientByUserId } from "@/lib/actions/clients"
 import { getClientInvoices } from "@/lib/actions/client-invoices"
-import { InvoiceHistory } from "@/components/clients/invoice-history"
+import type { Invoice } from "@/lib/drizzle/schema"
+import { ActivityTimeline } from "@/components/clients/activity-timeline"
 
 export default async function ProfilePage() {
   const session = await auth()
@@ -13,15 +12,18 @@ export default async function ProfilePage() {
     redirect("/login")
   }
 
-  const client = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.userId, session.user.id))
-    .then((rows) => rows[0])
+  const client = await getClientByUserId(session.user.id)
 
-  const canViewInvoices = session.user.id
-    ? await hasPermission(session.user.id, "client-activity", "view")
-    : false
+  const permissions = await getUserPermissions(session.user.id)
+  const canView = permissions.includes("client-activity:view")
+
+  let invoices: Invoice[] = []
+  if (client && canView) {
+    const result = await getClientInvoices(client.id)
+    if (result.success) {
+      invoices = result.data as Invoice[]
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -51,20 +53,15 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      {client && canViewInvoices && (
-        <InvoiceHistoryComponent clientId={client.id} />
+      {client && canView && (
+        <ActivityTimeline
+          clientId={client.id}
+          activities={[]}
+          reminders={[]}
+          invoices={invoices}
+          permissions={permissions}
+        />
       )}
     </div>
   )
-}
-
-async function InvoiceHistoryComponent({
-  clientId,
-}: {
-  clientId: string
-}) {
-  const result = await getClientInvoices(clientId)
-  const invoices = result.success ? result.data : []
-
-  return <InvoiceHistory invoices={invoices} />
 }

@@ -1,14 +1,11 @@
-import { auth, getUserPermissions } from "@/lib/auth"
-import type { Activity, Reminder } from "@/lib/drizzle/schema"
-import { forbidden } from "next/navigation"
-import { db } from "@/lib/drizzle/client"
-import { clientsTable } from "@/lib/drizzle/schema"
-import { eq } from "drizzle-orm"
-import { getClientInvoices } from "@/lib/actions/client-invoices"
-import { getActivities } from "@/lib/actions/activities"
-import { getReminders } from "@/lib/actions/reminders"
-import { InvoiceHistory } from "@/components/clients/invoice-history"
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
+import { getActivities } from "@/lib/actions/activities"
+import { getClientInvoices } from "@/lib/actions/client-invoices"
+import { getClientByClientId } from "@/lib/actions/clients"
+import { getReminders } from "@/lib/actions/reminders"
+import { auth, getUserPermissions } from "@/lib/auth"
+import type { Activity, Invoice, Reminder } from "@/lib/drizzle/schema"
+import { forbidden } from "next/navigation"
 
 export default async function ClientProfilePage({
   params,
@@ -22,11 +19,7 @@ export default async function ClientProfilePage({
     forbidden()
   }
 
-  const client = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, clientId))
-    .then((rows) => rows[0])
+  const client = await getClientByClientId(clientId)
 
   if (!client) {
     return (
@@ -43,19 +36,26 @@ export default async function ClientProfilePage({
 
   const permissions = await getUserPermissions(session.user.id)
 
-  const canViewActivities = permissions.includes("client-activity:view")
+  const canView = permissions.includes("client-activity:view")
+  const isClient = session.user.role === "client"
 
-  const invoices = canViewActivities
-    ? await getClientInvoices(clientId)
-    : null
-  const invoiceData = invoices?.success ? invoices.data : []
+  let invoices: Invoice[] = []
+  let activities: Activity[] = []
+  let reminders: Reminder[] = []
 
-  const [activities, reminders] = canViewActivities
-    ? await Promise.all([
+  if (canView) {
+    const result = await getClientInvoices(clientId)
+    if (result.success) {
+      invoices = result.data as Invoice[]
+    }
+
+    if (!isClient) {
+      ;[activities, reminders] = await Promise.all([
         getActivities(clientId),
         getReminders(clientId),
       ])
-    : [[], []]
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -93,16 +93,15 @@ export default async function ClientProfilePage({
         </div>
       </div>
 
-      {canViewActivities && (
+      {canView && (
         <ActivityTimeline
           clientId={clientId}
-          activities={activities as Activity[]}
-          reminders={reminders as Reminder[]}
+          activities={activities}
+          reminders={reminders}
+          invoices={invoices}
           permissions={permissions}
         />
       )}
-
-      {canViewActivities && <InvoiceHistory invoices={invoiceData} />}
     </div>
   )
 }
