@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Table,
   TableHeader,
@@ -42,6 +43,7 @@ type Props = {
 }
 
 export function UsersTable({ users, roles }: Props) {
+  const t = useTranslations()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<UserWithRole | null>(null)
   const [deletingUser, setDeletingUser] = useState<UserWithRole | null>(null)
@@ -52,9 +54,9 @@ export function UsersTable({ users, roles }: Props) {
       roleId: formData.get('roleId') as string,
     })
     if (!result.success) {
-      toast.error(result.error || 'Failed to create user')
+      toast.error(result.error || t('users.failedToCreate'))
     } else {
-      toast.success('User created')
+      toast.success(t('users.userCreated'))
       setIsCreateOpen(false)
     }
   }
@@ -66,9 +68,9 @@ export function UsersTable({ users, roles }: Props) {
       roleId: formData.get('roleId') as string,
     })
     if (!result.success) {
-      toast.error(result.error || 'Failed to update user')
+      toast.error(result.error || t('users.failedToUpdate'))
     } else {
-      toast.success('User updated')
+      toast.success(t('users.userUpdated'))
       setEditingUser(null)
     }
   }
@@ -77,9 +79,9 @@ export function UsersTable({ users, roles }: Props) {
     if (!deletingUser) return
     const result = await deleteUser(deletingUser.id)
     if (!result.success) {
-      toast.error(result.error || 'Failed to delete user')
+      toast.error(result.error || t('users.failedToDelete'))
     } else {
-      toast.success('User deleted')
+      toast.success(t('users.userDeleted'))
       setDeletingUser(null)
     }
   }
@@ -87,32 +89,32 @@ export function UsersTable({ users, roles }: Props) {
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('users.title')}</h1>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus data-icon="inline-start" />
-              Add User
+              {t('users.addUser')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create User</DialogTitle>
+              <DialogTitle>{t('users.createUser')}</DialogTitle>
               <DialogDescription>
-                Add a new user. They will receive an invitation email.
+                {t('users.createDescription')}
               </DialogDescription>
             </DialogHeader>
             <form action={handleCreate}>
               <div className="flex flex-col gap-4 py-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="create-email">Email</Label>
+                  <Label htmlFor="create-email">{t('users.email')}</Label>
                   <Input id="create-email" name="email" type="email" required />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="create-role">Role</Label>
+                  <Label htmlFor="create-role">{t('users.role')}</Label>
                   <Select name="roleId" required>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
+                      <SelectValue placeholder={t('users.selectRole')} />
                     </SelectTrigger>
                     <SelectContent>
                       {roles.map((role) => (
@@ -125,7 +127,7 @@ export function UsersTable({ users, roles }: Props) {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Create</Button>
+                <Button type="submit">{t('users.create')}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -135,10 +137,10 @@ export function UsersTable({ users, roles }: Props) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead className="w-24">Actions</TableHead>
+            <TableHead>{t('users.name')}</TableHead>
+            <TableHead>{t('users.email')}</TableHead>
+            <TableHead>{t('users.role')}</TableHead>
+            <TableHead className="w-24">{t('users.actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -166,15 +168,15 @@ export function UsersTable({ users, roles }: Props) {
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Edit User</DialogTitle>
+                        <DialogTitle>{t('users.editUser')}</DialogTitle>
                         <DialogDescription>
-                          Update user details and role.
+                          {t('users.editDescription')}
                         </DialogDescription>
                       </DialogHeader>
                       <form action={handleUpdate}>
                         <div className="flex flex-col gap-4 py-4">
                           <div className="flex flex-col gap-2">
-                            <Label htmlFor="edit-email">Email</Label>
+                            <Label htmlFor="edit-email">{t('users.email')}</Label>
                             <Input
                               id="edit-email"
                               name="email"
@@ -184,14 +186,14 @@ export function UsersTable({ users, roles }: Props) {
                             />
                           </div>
                           <div className="flex flex-col gap-2">
-                            <Label htmlFor="edit-role">Role</Label>
+                            <Label htmlFor="edit-role">{t('users.role')}</Label>
                             <Select
                               name="roleId"
                               defaultValue={user.roleId}
                               required
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Select role" />
+                                <SelectValue placeholder={t('users.selectRole')} />
                               </SelectTrigger>
                               <SelectContent>
                                 {roles.map((role) => (
@@ -204,7 +206,7 @@ export function UsersTable({ users, roles }: Props) {
                           </div>
                         </div>
                         <DialogFooter>
-                          <Button type="submit">Save</Button>
+                          <Button type="submit">{t('users.save')}</Button>
                         </DialogFooter>
                       </form>
                     </DialogContent>
@@ -231,18 +233,17 @@ export function UsersTable({ users, roles }: Props) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
+            <DialogTitle>{t('users.deleteUser')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {deletingUser?.email}? This action
-              cannot be undone.
+              {t('users.deleteDescription', { email: deletingUser?.email ?? '' })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletingUser(null)}>
-              Cancel
+              {t('users.cancel')}
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
-              Delete
+              {t('users.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

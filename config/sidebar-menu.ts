@@ -26,10 +26,10 @@ function commonSections(permissions?: string[]): SidebarSection[] {
   const sections: SidebarSection[] = []
 
   const navigationItems: SidebarItem[] = [
-    { label: 'Clients', icon: Users, url: '/dashboard/clients', requiredPermission: 'clients:view' },
-    { label: 'Products', icon: Package, url: '/dashboard/products', requiredPermission: 'products:view' },
-    { label: 'Sales', icon: FolderKanban, url: '/dashboard/sales', requiredPermission: 'sales:view' },
-    { label: 'Reports', icon: BarChart3, url: '/dashboard/reports', requiredPermission: 'reports:view' },
+    { label: 'clients', icon: Users, url: '/dashboard/clients', requiredPermission: 'clients:view' },
+    { label: 'products', icon: Package, url: '/dashboard/products', requiredPermission: 'products:view' },
+    { label: 'sales', icon: FolderKanban, url: '/dashboard/sales', requiredPermission: 'sales:view' },
+    { label: 'reports', icon: BarChart3, url: '/dashboard/reports', requiredPermission: 'reports:view' },
   ]
 
   const visible = navigationItems.filter((item) => {
@@ -38,14 +38,14 @@ function commonSections(permissions?: string[]): SidebarSection[] {
   })
 
   if (visible.length > 0) {
-    sections.push({ label: 'Navigation', items: visible })
+    sections.push({ label: 'navigation', items: visible })
   }
 
   sections.push({
-    label: 'Auxiliary',
+    label: 'auxiliary',
     items: [
-      { label: 'Help', icon: LifeBuoy, url: '/dashboard#help' },
-      { label: 'Support', icon: MessageSquare, url: '/dashboard#support' },
+      { label: 'help', icon: LifeBuoy, url: '/dashboard#help' },
+      { label: 'support', icon: MessageSquare, url: '/dashboard#support' },
     ],
   })
 
@@ -54,8 +54,8 @@ function commonSections(permissions?: string[]): SidebarSection[] {
 
 function superSections(permissions?: string[]): SidebarSection[] {
   const items: SidebarItem[] = [
-    { label: 'Users', icon: Shield, url: '/dashboard/users' },
-    { label: 'Permissions', icon: ShieldCheck, url: '/dashboard/permissions', requiredPermission: 'permissions:manage' },
+    { label: 'users', icon: Shield, url: '/dashboard/users' },
+    { label: 'permissions', icon: ShieldCheck, url: '/dashboard/permissions', requiredPermission: 'permissions:manage' },
   ]
 
   const visible = items.filter((item) => {
@@ -65,7 +65,7 @@ function superSections(permissions?: string[]): SidebarSection[] {
 
   if (visible.length === 0) return []
 
-  return [{ label: 'Admin', items: visible }]
+  return [{ label: 'admin', items: visible }]
 }
 
 export function getSidebarMenu(

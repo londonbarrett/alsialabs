@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -37,6 +38,7 @@ export interface InactiveClient {
 
 export function InactiveClientsCard() {
   const router = useRouter()
+  const t = useTranslations()
   const [period, setPeriod] = useState('30')
   const [clients, setClients] = useState<InactiveClient[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,7 +57,7 @@ export function InactiveClientsCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Inactive Clients</CardTitle>
+        <CardTitle>{t('reports.inactiveClients')}</CardTitle>
         <CardAction>
           <Select value={period} onValueChange={handlePeriodChange}>
             <SelectTrigger className="w-40">
@@ -63,10 +65,10 @@ export function InactiveClientsCard() {
             </SelectTrigger>
             <SelectContent>
               {[
-                { value: '30', label: '30 days' },
-                { value: '60', label: '60 days' },
-                { value: '90', label: '90 days' },
-                { value: 'none', label: 'No purchases' },
+                { value: '30', label: t('reports.days30') },
+                { value: '60', label: t('reports.days60') },
+                { value: '90', label: t('reports.days90') },
+                { value: 'none', label: t('reports.noPurchases') },
               ].map((p) => (
                 <SelectItem key={p.value} value={p.value}>
                   {p.label}
@@ -78,15 +80,15 @@ export function InactiveClientsCard() {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-muted-foreground text-sm">Loading...</p>
+          <p className="text-muted-foreground text-sm">{t('common.loading')}</p>
         ) : clients.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Last Invoice</TableHead>
+                <TableHead>{t('reports.name')}</TableHead>
+                <TableHead>{t('reports.phone')}</TableHead>
+                <TableHead>{t('reports.location')}</TableHead>
+                <TableHead>{t('reports.lastInvoice')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -107,13 +109,13 @@ export function InactiveClientsCard() {
                   </TableCell>
                   <TableCell>{c.phone ?? '-'}</TableCell>
                   <TableCell>{c.location ?? '-'}</TableCell>
-                  <TableCell>{c.lastInvoiceDate ?? 'Never'}</TableCell>
+                  <TableCell>{c.lastInvoiceDate ?? t('reports.never')}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         ) : (
-          <p className="text-muted-foreground text-sm">All clients are active.</p>
+          <p className="text-muted-foreground text-sm">{t('reports.allClientsActive')}</p>
         )}
       </CardContent>
     </Card>

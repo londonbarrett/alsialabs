@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Receipt } from 'lucide-react'
 import { ActionMenu } from '@/components/common/action-menu'
 import type { Invoice } from '@/lib/drizzle/schema'
@@ -13,6 +14,7 @@ interface InvoiceItemProps {
 }
 
 export function InvoiceItem({ invoice, onEdit, onDelete, canEdit, canDelete }: InvoiceItemProps) {
+  const t = useTranslations('invoiceItem')
   const [y, m, d] = invoice.issueDate.split('-')
   const date = `${m}/${d}/${y}`
 
@@ -27,13 +29,13 @@ export function InvoiceItem({ invoice, onEdit, onDelete, canEdit, canDelete }: I
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Invoice</span>
+          <span className="text-sm font-medium">{t('invoice')}</span>
           <span className="text-xs text-muted-foreground">{date}</span>
         </div>
         <p className="text-sm mt-0.5">
           <span className="font-mono">{invoice.invoiceNumber}</span>
           {' — '}
-          <span className="font-semibold">${total}</span>
+          <span className="font-semibold">{t('currencyPrefix')}{total}</span>
           {' '}
           <span className={`text-xs capitalize px-1.5 py-0.5 rounded ${
             invoice.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
@@ -41,14 +43,14 @@ export function InvoiceItem({ invoice, onEdit, onDelete, canEdit, canDelete }: I
             invoice.status === 'cancelled' ? 'bg-red-100 text-red-700' :
             'bg-gray-100 text-gray-700'
           }`}>
-            {invoice.status}
+            {t(invoice.status)}
           </span>
         </p>
       </div>
       {canEdit || canDelete ? (
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
           <ActionMenu
-            entityName={`Invoice ${invoice.invoiceNumber}`}
+            entityName={t('invoiceNumber', { number: invoice.invoiceNumber })}
             onEdit={onEdit}
             onDelete={onDelete}
             canEdit={canEdit}

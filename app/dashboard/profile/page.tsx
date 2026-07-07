@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import { auth, getUserPermissions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { getClientByUserId } from "@/lib/actions/clients"
@@ -7,6 +8,7 @@ import { ActivityTimeline } from "@/components/clients/activity-timeline"
 
 export default async function ProfilePage() {
   const session = await auth()
+  const t = await getTranslations('profile')
 
   if (!session?.user) {
     redirect("/login")
@@ -28,24 +30,24 @@ export default async function ProfilePage() {
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold tracking-tight">
-        My Profile
+        {t('title')}
       </h1>
       <div className="max-w-lg rounded-md border p-6">
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">Name</p>
+            <p className="text-sm text-muted-foreground">{t('name')}</p>
             <p className="text-base font-medium">
               {session.user.name ?? "—"}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Email</p>
+            <p className="text-sm text-muted-foreground">{t('email')}</p>
             <p className="text-base font-medium">
               {session.user.email ?? "—"}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Role</p>
+            <p className="text-sm text-muted-foreground">{t('role')}</p>
             <p className="text-base font-medium capitalize">
               {session.user.role ?? "—"}
             </p>

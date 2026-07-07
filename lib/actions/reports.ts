@@ -5,6 +5,7 @@ import { clientsTable, invoicesTable } from '@/lib/drizzle/schema'
 import { sql } from 'drizzle-orm'
 import { requirePermission } from '@/lib/auth'
 import { z } from 'zod'
+import { getActionT } from '@/lib/i18n-actions'
 
 const limitSchema = z.number().int().positive().max(100)
 const daysSchema = z.number().int().positive().max(365).nullable()
@@ -40,9 +41,10 @@ export async function getMonthlyRevenue() {
 }
 
 export async function getTopClientsByRevenue(limit = 10) {
+  const t = await getActionT('actions.reports')
   await requirePermission('reports', 'view')
   const { data, error } = limitSchema.safeParse(limit)
-  if (error) throw new Error('Invalid limit')
+  if (error) throw new Error(t('invalidLimit'))
   return db
     .select({
       clientId: clientsTable.id,
@@ -58,9 +60,10 @@ export async function getTopClientsByRevenue(limit = 10) {
 }
 
 export async function getInactiveClients(days: number | null) {
+  const t = await getActionT('actions.reports')
   await requirePermission('reports', 'view')
   const { data, error } = daysSchema.safeParse(days)
-  if (error) throw new Error('Invalid days')
+  if (error) throw new Error(t('invalidDays'))
 
   const threshold =
     data !== null

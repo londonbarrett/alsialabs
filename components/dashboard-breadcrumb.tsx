@@ -10,19 +10,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-
-const LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
-  clients: 'Clients',
-  products: 'Products',
-  sales: 'Sales',
-  reports: 'Reports',
-  permissions: 'Permissions',
-  users: 'Users',
-  profile: 'Profile',
-}
+import { useTranslations } from 'next-intl'
 
 export function DashboardBreadcrumb() {
+  const t = useTranslations('breadcrumb')
   const pathname = usePathname()
   const segments = pathname.split('/').filter(Boolean)
 
@@ -31,7 +22,7 @@ export function DashboardBreadcrumb() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbPage>Dashboard</BreadcrumbPage>
+            <BreadcrumbPage>{t('dashboard')}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -44,7 +35,7 @@ export function DashboardBreadcrumb() {
         {segments.flatMap((segment, i) => {
           const href = '/' + segments.slice(0, i + 1).join('/')
           const isLast = i === segments.length - 1
-          const label = LABELS[segment] ?? segment.charAt(0).toUpperCase() + segment.slice(1)
+          const label = t.has(segment) ? t(segment) : segment.charAt(0).toUpperCase() + segment.slice(1)
 
           const items = [
             <BreadcrumbItem key={href}>

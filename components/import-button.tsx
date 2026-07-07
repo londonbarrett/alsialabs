@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ interface ImportButtonProps {
 }
 
 export function ImportButton({ onSuccess }: ImportButtonProps) {
+  const t = useTranslations('import')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
 
@@ -26,13 +28,13 @@ export function ImportButton({ onSuccess }: ImportButtonProps) {
       const result = await importClients(formData)
 
       if (result.success) {
-        toast.success(`Imported ${result.importedCount} client(s)`)
+        toast.success(t('imported', { count: result.importedCount ?? 0 }))
         onSuccess?.()
       } else {
-        toast.error(result.error || 'Import failed')
+        toast.error(result.error || t('importFailed'))
       }
     } catch {
-      toast.error('Import failed unexpectedly')
+      toast.error(t('importFailedUnexpected'))
     }
 
     setImporting(false)
@@ -44,10 +46,10 @@ export function ImportButton({ onSuccess }: ImportButtonProps) {
       <Button
         disabled={importing}
         onClick={() => fileInputRef.current?.click()}
-        aria-label="Import data"
+        aria-label={t('title')}
       >
         <Upload />
-        {importing ? 'Importing...' : 'Import data'}
+        {importing ? t('importing') : t('title')}
       </Button>
       <input
         ref={fileInputRef}

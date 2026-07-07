@@ -1,20 +1,23 @@
 import Link from "next/link"
+import { getTranslations } from "next-intl/server"
 
-export default function Home() {
+export default async function Home() {
+  const t = await getTranslations("landing")
+
   return (
     <div className="flex h-dvh items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-8 text-center">
         <h1 className="text-3xl font-semibold tracking-tight">
-          ALSIA Labs CRM
+          {t("title")}
         </h1>
         <p className="max-w-md text-muted-foreground">
-          Agricultura Limpia y Servicios Agropecuarios
+          {t("subtitle")}
         </p>
         <Link
           href="/dashboard"
           className="inline-flex items-center justify-center rounded-md bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90"
         >
-          Open Dashboard
+          {t("openDashboard")}
         </Link>
       </div>
     </div>

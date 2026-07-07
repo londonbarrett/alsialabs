@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { ClientCombobox } from "@/components/clients/client-combobox"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
@@ -13,6 +14,7 @@ interface ClientSwitcherProps {
 export function ClientSwitcher({ clients, currentClientId }: ClientSwitcherProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const t = useTranslations('clients')
   const [selectedId, setSelectedId] = useState(currentClientId)
 
   return (
@@ -29,7 +31,7 @@ export function ClientSwitcher({ clients, currentClientId }: ClientSwitcherProps
             })
           }
         }}
-        placeholder="Switch client..."
+        placeholder={t('switchClient')}
       />
     </div>
   )

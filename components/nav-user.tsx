@@ -19,7 +19,9 @@ import {
 } from '@/components/ui/sidebar'
 import { signOut } from 'next-auth/react'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { LocaleSwitcher } from '@/components/locale-switcher'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 
 export function NavUser({
   user,
@@ -30,6 +32,7 @@ export function NavUser({
     image: string | null
   }
 }) {
+  const t = useTranslations()
   const { isMobile } = useSidebar()
   const initials = (user.name ?? user.email ?? '?').charAt(0).toUpperCase()
 
@@ -47,7 +50,7 @@ export function NavUser({
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name ?? 'User'}</span>
+                <span className="truncate font-medium">{user.name ?? t('auth.user')}</span>
                 <span className="truncate text-xs">{user.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -66,7 +69,7 @@ export function NavUser({
                   <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name ?? 'User'}</span>
+                  <span className="truncate font-medium">{user.name ?? t('auth.user')}</span>
                   <span className="truncate text-xs">{user.email}</span>
                 </div>
               </div>
@@ -75,14 +78,15 @@ export function NavUser({
             <DropdownMenuItem asChild>
               <Link href="/dashboard/profile">
                 <User />
-                Profile
+                {t('sidebar.profile')}
               </Link>
             </DropdownMenuItem>
             <ThemeToggle />
+            <LocaleSwitcher />
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => signOut({ redirectTo: '/login' })}>
               <LogOut />
-              Sign out
+              {t('auth.signOut')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import {
   Combobox,
   ComboboxContent,
@@ -30,8 +31,9 @@ export function ClientCombobox({
   onValueChange,
   error,
   disabled,
-  placeholder = "Select a client",
+  placeholder,
 }: ClientComboboxProps) {
+  const t = useTranslations('clients')
   const selected = clients.find((c) => c.id === value) ?? null
 
   return (
@@ -45,11 +47,11 @@ export function ClientCombobox({
         disabled={disabled}
       >
         <ComboboxInput
-          placeholder={placeholder}
+          placeholder={placeholder ?? t('selectClient')}
           aria-invalid={!!error || undefined}
         />
         <ComboboxContent>
-          <ComboboxEmpty>No clients found.</ComboboxEmpty>
+          <ComboboxEmpty>{t('noClientsFound')}</ComboboxEmpty>
           <ComboboxList>
             {(client) => (
               <ComboboxItem key={client.id} value={client}>

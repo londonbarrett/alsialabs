@@ -6,6 +6,7 @@ import { invoicesTable, invoiceItemsTable, clientsTable, productsTable } from '@
 import { eq, sql } from 'drizzle-orm'
 import { requirePermission } from '@/lib/auth'
 import { z } from 'zod'
+import { getActionT } from '@/lib/i18n-actions'
 
 const lineItemSchema = z.object({
   id: z.string().optional(),
@@ -108,10 +109,11 @@ export interface InvoiceItemData {
 }
 
 export async function getInvoices() {
+  const t = await getActionT('actions.sales')
   try {
     await requirePermission('sales', 'view')
   } catch {
-    throw new Error('Forbidden')
+    throw new Error(t('forbidden'))
   }
 
   const invoices = await db
@@ -139,10 +141,11 @@ export async function getInvoices() {
 }
 
 export async function getInvoiceProducts() {
+  const t = await getActionT('actions.sales')
   try {
     await requirePermission('sales', 'view')
   } catch {
-    throw new Error('Forbidden')
+    throw new Error(t('forbidden'))
   }
 
   return db
@@ -156,8 +159,9 @@ export async function getInvoiceProducts() {
 export type InvoiceProductOption = Awaited<ReturnType<typeof getInvoiceProducts>>[number]
 
 export async function getInvoiceItems(invoiceId: string): Promise<InvoiceItemData[]> {
+  const t = await getActionT('actions.sales')
   const parsed = idSchema.safeParse(invoiceId)
-  if (!parsed.success) throw new Error('Invalid invoice ID')
+  if (!parsed.success) throw new Error(t('invalidInvoiceId'))
 
   return db
     .select()
@@ -166,15 +170,16 @@ export async function getInvoiceItems(invoiceId: string): Promise<InvoiceItemDat
 }
 
 export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
+  const t = await getActionT('actions.sales')
   try {
     await requirePermission('sales', invoiceId ? 'edit' : 'create')
   } catch {
-    return { success: false, error: 'Forbidden' }
+    return { success: false, error: t('forbidden') }
   }
 
   const parsed = invoiceSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false, error: 'Validation failed', fieldErrors: parsed.error.flatten().fieldErrors }
+    return { success: false, error: t('validationFailed'), fieldErrors: parsed.error.flatten().fieldErrors }
   }
 
   const fields = parsed.data
@@ -193,7 +198,7 @@ export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
 
   const invoiceIdParsed = invoiceId ? idSchema.safeParse(invoiceId) : null
   if (invoiceIdParsed && !invoiceIdParsed.success) {
-    return { success: false, error: 'Invalid invoice ID' }
+    return { success: false, error: t('invalidInvoiceId') }
   }
 
   if (invoiceIdParsed) {
@@ -254,19 +259,20 @@ export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
 }
 
 export async function deleteInvoice(invoiceId: string) {
+  const t = await getActionT('actions.sales')
   try {
     await requirePermission('sales', 'delete')
   } catch {
-    return { success: false as const, error: 'Forbidden' }
+    return { success: false as const, error: t('forbidden') }
   }
 
   const parsed = idSchema.safeParse(invoiceId)
-  if (!parsed.success) return { success: false as const, error: 'Invalid invoice ID' }
+  if (!parsed.success) return { success: false as const, error: t('invalidInvoiceId') }
 
   try {
     await db.delete(invoicesTable).where(eq(invoicesTable.id, parsed.data))
   } catch {
-    return { success: false as const, error: 'Cannot delete invoice' }
+    return { success: false as const, error: t('cannotDelete') }
   }
 
   revalidatePath('/dashboard/sales')

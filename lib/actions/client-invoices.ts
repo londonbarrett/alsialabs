@@ -5,6 +5,7 @@ import { invoicesTable, clientsTable } from "@/lib/drizzle/schema"
 import { eq, sql, and } from "drizzle-orm"
 import { requirePermission, auth } from "@/lib/auth"
 import { z } from "zod"
+import { getActionT } from "@/lib/i18n-actions"
 
 const idSchema = z.uuid()
 
@@ -30,18 +31,20 @@ export async function getClientInvoices(
   | { success: true; data: ClientInvoice[] }
   | { success: false; error: string }
 > {
+  const t = await getActionT("actions.activities")
   const parsed = idSchema.safeParse(clientId)
   if (!parsed.success)
-    return { success: false, error: "Invalid client ID" }
+    return { success: false, error: t("invalidClientId") }
 
   try {
     await requirePermission("client-activity", "view")
   } catch {
-    return { success: false, error: "Forbidden" }
+    return { success: false, error: t("forbidden") }
   }
 
   const session = await auth()
-  if (!session?.user) return { success: false, error: "Unauthorized" }
+  if (!session?.user)
+    return { success: false, error: t("unauthorized") }
 
   const role = session.user.role
 
@@ -57,7 +60,7 @@ export async function getClientInvoices(
       )
       .then((rows) => rows[0])
 
-    if (!ownClient) return { success: false, error: "Forbidden" }
+    if (!ownClient) return { success: false, error: t("forbidden") }
   }
 
   const invoices = await db

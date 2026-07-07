@@ -6,11 +6,12 @@ import { activitiesTable } from "@/lib/drizzle/schema"
 import { eq, desc } from "drizzle-orm"
 import { requirePermission, auth, isSuperUser } from "@/lib/auth"
 import { z } from "zod"
+import { getActionT } from "@/lib/i18n-actions"
 
 const activityType = z.enum(["call", "email", "meeting", "note"])
 
 const activitySchema = z.object({
-  clientId: z.string().uuid("Invalid client ID"),
+  clientId: z.uuid("Invalid client ID"),
   type: activityType,
   subject: z
     .string()
@@ -21,17 +22,15 @@ const activitySchema = z.object({
     .transform((v) => v.trim())
     .optional()
     .default(""),
-  activityDate: z
-    .string()
-    .refine((v) => {
-      const d = new Date(v + 'T00:00:00')
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      return !isNaN(d.getTime()) && d <= today
-    }, "Date cannot be in the future"),
+  activityDate: z.string().refine((v) => {
+    const d = new Date(v + "T00:00:00")
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return !isNaN(d.getTime()) && d <= today
+  }, "Date cannot be in the future"),
 })
 
-const idSchema = z.string().uuid()
+const idSchema = z.uuid()
 
 export type ActivityFormData = z.infer<typeof activitySchema>
 
@@ -56,24 +55,29 @@ export async function upsertActivity(
   data: ActivityFormData,
   activityId?: string
 ) {
+  const t = await getActionT("actions.activities")
   try {
-    await requirePermission("client-activity", activityId ? "edit" : "create")
+    await requirePermission(
+      "client-activity",
+      activityId ? "edit" : "create"
+    )
   } catch {
-    return { success: false, error: "Forbidden" }
+    return { success: false, error: t("forbidden") }
   }
 
   const parsed = activitySchema.safeParse(data)
   if (!parsed.success) {
     return {
       success: false,
-      error: "Validation failed",
+      error: t("validationFailed"),
       fieldErrors: parsed.error.flatten().fieldErrors,
     }
   }
 
   const fields = parsed.data
   const session = await auth()
-  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+  if (!session?.user?.id)
+    return { success: false, error: t("unauthorized") }
 
   const sanitized = {
     clientId: fields.clientId,
@@ -87,7 +91,7 @@ export async function upsertActivity(
   if (activityId) {
     const idParsed = idSchema.safeParse(activityId)
     if (!idParsed.success)
-      return { success: false, error: "Invalid activity ID" }
+      return { success: false, error: t("invalidActivityId") }
 
     await db
       .update(activitiesTable)
@@ -107,20 +111,21 @@ export async function upsertActivity(
 }
 
 export async function deleteActivity(activityId: string) {
+  const t = await getActionT("actions.activities")
   try {
     await requirePermission("client-activity", "delete")
   } catch {
-    return { success: false as const, error: "Forbidden" }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const session = await auth()
   if (!session?.user?.id || !isSuperUser(session)) {
-    return { success: false as const, error: "Only super users can delete activities" }
+    return { success: false as const, error: t("onlySuperCanDelete") }
   }
 
   const idParsed = idSchema.safeParse(activityId)
   if (!idParsed.success)
-    return { success: false as const, error: "Invalid activity ID" }
+    return { success: false as const, error: t("invalidActivityId") }
 
   await db
     .delete(activitiesTable)

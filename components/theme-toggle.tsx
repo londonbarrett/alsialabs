@@ -3,12 +3,13 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { useTheme } from 'next-themes'
+import { useTranslations } from 'next-intl'
 
 const themes = ['light', 'dark', 'system'] as const
 const icons: Record<string, typeof Sun> = { light: Sun, dark: Moon, system: Monitor }
-const labels: Record<string, string> = { light: 'Light', dark: 'Dark', system: 'System' }
 
 export function ThemeToggle() {
+  const t = useTranslations('theme')
   const { theme, setTheme } = useTheme()
 
   const current = theme && (themes as readonly string[]).includes(theme)
@@ -21,8 +22,8 @@ export function ThemeToggle() {
   return (
     <DropdownMenuItem onClick={() => setTheme(nextTheme)}>
       <Icon />
-      <span className="flex-1">{labels[current]}</span>
-      <span className="text-muted-foreground text-xs">→ {labels[nextTheme]}</span>
+      <span className="flex-1">{t(current)}</span>
+      <span className="text-muted-foreground text-xs">→ {t(nextTheme)}</span>
     </DropdownMenuItem>
   )
 }

@@ -6,6 +6,9 @@ import { Toaster } from "sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "next-themes"
 import { SessionProvider } from "@/components/session-provider"
+import { NextIntlClientProvider } from "next-intl"
+import { getLocale, getMessages } from "next-intl/server"
+
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
 const geistMono = Geist_Mono({
@@ -18,14 +21,17 @@ export const metadata: Metadata = {
   description: "Spec-driven development dashboard",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const locale = await getLocale()
+  const messages = await getMessages()
+
   return (
     <html
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
       className={cn(
         "h-full",
@@ -37,12 +43,14 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <SessionProvider>
-            <TooltipProvider delayDuration={0}>
-              {children}
-            </TooltipProvider>
-            <Toaster richColors />
-          </SessionProvider>
+          <NextIntlClientProvider messages={messages}>
+            <SessionProvider>
+              <TooltipProvider delayDuration={0}>
+                {children}
+              </TooltipProvider>
+              <Toaster richColors />
+            </SessionProvider>
+          </NextIntlClientProvider>
         </ThemeProvider>
       </body>
     </html>

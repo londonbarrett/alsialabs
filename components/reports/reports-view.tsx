@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import {
   Card,
   CardContent,
@@ -26,12 +27,13 @@ export function ReportsView({
   topClients,
   activeReminders,
 }: ReportsViewProps) {
+  const t = useTranslations('reports')
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Monthly Revenue</CardTitle>
+            <CardTitle>{t('monthlyRevenue')}</CardTitle>
           </CardHeader>
           <CardContent>
             <MonthlyRevenueChart data={monthlyRevenue} />
@@ -39,7 +41,7 @@ export function ReportsView({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Top Clients by Revenue</CardTitle>
+            <CardTitle>{t('topClients')}</CardTitle>
           </CardHeader>
           <CardContent>
             <TopClientsChart data={topClients} />

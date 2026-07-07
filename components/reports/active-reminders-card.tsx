@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Bell, BellOff } from "lucide-react"
@@ -20,12 +21,13 @@ export function ActiveRemindersCard({
   reminders,
 }: ActiveRemindersCardProps) {
   const router = useRouter()
+  const t = useTranslations('reports')
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          Active Reminders
+          {t('activeReminders')}
           {reminders.length > 0 && (
             <span className="ml-2 text-sm font-normal text-muted-foreground">
               ({reminders.length})
@@ -90,7 +92,7 @@ export function ActiveRemindersCard({
         ) : (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <BellOff className="h-4 w-4" />
-            No active reminders
+            {t('noActiveReminders')}
           </div>
         )}
       </CardContent>

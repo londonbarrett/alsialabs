@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Field } from '@/components/form-field'
@@ -27,6 +28,7 @@ interface LogActivityDialogProps {
 }
 
 export function LogActivityDialog({ clientId, activity, open, onOpenChange, onSuccess }: LogActivityDialogProps) {
+  const t = useTranslations()
   const [type, setType] = useState<typeof activityTypes[number]>(activity?.type ?? 'call')
   const [subject, setSubject] = useState(activity?.subject ?? '')
   const [description, setDescription] = useState(activity?.description ?? '')
@@ -36,13 +38,13 @@ export function LogActivityDialog({ clientId, activity, open, onOpenChange, onSu
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!subject.trim()) fieldErrors.subject = 'Subject is required'
-    if (!activityDate) fieldErrors.activityDate = 'Date is required'
+    if (!subject.trim()) fieldErrors.subject = t('activities.subjectRequired')
+    if (!activityDate)       fieldErrors.activityDate = t('activities.dateRequired')
     else {
       const d = new Date(activityDate + 'T00:00:00')
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      if (d > today) fieldErrors.activityDate = 'Date cannot be in the future'
+      if (d > today) fieldErrors.activityDate = t('activities.dateCannotBeFuture')
     }
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
@@ -59,7 +61,7 @@ export function LogActivityDialog({ clientId, activity, open, onOpenChange, onSu
         activity?.id,
       )
       if (result.success) {
-        toast.success(activity ? 'Activity updated' : 'Activity logged')
+        toast.success(activity ? t('activities.activityUpdated') : t('activities.activityLogged'))
         onSuccess()
         onOpenChange(false)
       } else {
@@ -70,10 +72,10 @@ export function LogActivityDialog({ clientId, activity, open, onOpenChange, onSu
           }
           setErrors(mapped)
         }
-        toast.error(result.error || 'Something went wrong')
+        toast.error(result.error || t('common.somethingWentWrong'))
       }
     } catch {
-      toast.error('Something went wrong')
+      toast.error(t('common.somethingWentWrong'))
     }
     setSaving(false)
   }
@@ -82,42 +84,42 @@ export function LogActivityDialog({ clientId, activity, open, onOpenChange, onSu
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>{activity ? 'Edit Activity' : 'Log Activity'}</DialogTitle>
+          <DialogTitle>{activity ? t('activities.editActivity') : t('activities.logActivity')}</DialogTitle>
           <DialogDescription>
-            {activity ? 'Update the activity details below.' : 'Record a new client interaction.'}
+            {activity ? t('activities.updateDetails') : t('activities.recordInteraction')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Type</label>
+            <label className="text-sm font-medium">{t('activities.type')}</label>
             <div className="flex gap-2">
-              {activityTypes.map((t) => (
+              {activityTypes.map((at) => (
                 <button
-                  key={t}
+                  key={at}
                   type="button"
-                  onClick={() => setType(t)}
+                  onClick={() => setType(at)}
                   className={cn(
                     'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                    type === t
+                    type === at
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80',
                   )}
                 >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t('activities.types.' + at)}
                 </button>
               ))}
             </div>
           </div>
-          <Field name="subject" label="Subject" value={subject} onChange={setSubject} error={errors.subject} />
-          <Field name="description" label="Description" value={description} onChange={setDescription} type="textarea" />
-          <Field name="activityDate" label="Date" value={activityDate} onChange={setActivityDate} error={errors.activityDate} type="date" />
+          <Field name="subject" label={t('activities.subject')} value={subject} onChange={setSubject} error={errors.subject} />
+          <Field name="description" label={t('activities.description')} value={description} onChange={setDescription} type="textarea" />
+          <Field name="activityDate" label={t('activities.date')} value={activityDate} onChange={setActivityDate} error={errors.activityDate} type="date" />
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-              Cancel
+              {t('activities.cancel')}
             </Button>
             <Button type="submit" disabled={saving}>
               {saving && <Spinner data-icon="inline-start" />}
-              {activity ? 'Save Changes' : 'Log Activity'}
+              {activity ? t('activities.saveChanges') : t('activities.logActivityBtn')}
             </Button>
           </div>
         </form>
