@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { ActivityItem } from "@/components/clients/activity-item"
 import { InvoiceItem } from "@/components/clients/invoice-item"
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
@@ -52,6 +53,7 @@ export function ActivityTimeline({
   permissions,
 }: ActivityTimelineProps) {
   const router = useRouter()
+  const t = useTranslations()
   const [logDialogOpen, setLogDialogOpen] = useState(false)
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
@@ -85,9 +87,9 @@ export function ActivityTimeline({
   async function handleDeleteActivity(activity: Activity) {
     const result = await deleteActivity(activity.id)
     if (!result.success)
-      toast.error(result.error || "Failed to delete activity")
+      toast.error(result.error || t('activities.failedToDelete'))
     else {
-      toast.success("Activity deleted")
+      toast.success(t('activities.activityDeleted'))
       router.refresh()
     }
   }
@@ -95,9 +97,9 @@ export function ActivityTimeline({
   async function handleDeleteReminder(reminder: Reminder) {
     const result = await deleteReminder(reminder.id)
     if (!result.success)
-      toast.error(result.error || "Failed to delete reminder")
+      toast.error(result.error || t('reminders.failedToDelete'))
     else {
-      toast.success("Reminder deleted")
+      toast.success(t('reminders.reminderDeleted'))
       router.refresh()
     }
   }
@@ -105,9 +107,9 @@ export function ActivityTimeline({
   async function handleCompleteReminder(reminder: Reminder) {
     const result = await completeReminder(reminder.id)
     if (!result.success)
-      toast.error(result.error || "Failed to complete reminder")
+      toast.error(result.error || t('reminders.failedToComplete'))
     else {
-      toast.success("Reminder completed")
+      toast.success(t('reminders.reminderCompleted'))
       router.refresh()
     }
   }
@@ -115,9 +117,9 @@ export function ActivityTimeline({
   async function handleDeleteInvoice(invoice: Invoice) {
     const result = await deleteInvoice(invoice.id)
     if (!result.success)
-      toast.error(result.error || "Failed to delete invoice")
+      toast.error(result.error || t('sales.failedToDelete'))
     else {
-      toast.success("Invoice deleted")
+      toast.success(t('sales.invoiceDeleted'))
       router.refresh()
     }
   }
@@ -147,7 +149,7 @@ export function ActivityTimeline({
     <section>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-tight">
-          Activity
+          {t('activities.title')}
         </h2>
         <div className="flex gap-2">
           {canCreateActivity && (
@@ -160,7 +162,7 @@ export function ActivityTimeline({
                 setActivityFormKey((k) => k + 1)
               }}
             >
-              <Plus /> Log Activity
+              <Plus /> {t('activities.logActivityBtn')}
             </Button>
           )}
           {canCreateReminder && (
@@ -173,7 +175,7 @@ export function ActivityTimeline({
                 setReminderFormKey((k) => k + 1)
               }}
             >
-              <Plus /> Add Reminder
+              <Plus /> {t('activities.addReminder')}
             </Button>
           )}
           {canCreateInvoice && (
@@ -186,7 +188,7 @@ export function ActivityTimeline({
                 setInvoiceFormKey((k) => k + 1)
               }}
             >
-              <Plus /> Create Invoice
+              <Plus /> {t('activities.createInvoice')}
             </Button>
           )}
         </div>
@@ -194,7 +196,7 @@ export function ActivityTimeline({
 
       {entries.length === 0 ? (
         <div className="rounded-md border p-8 text-center text-muted-foreground">
-          <p>No activities yet.</p>
+          <p>{t('activities.noActivities')}</p>
         </div>
       ) : (
         <div className="rounded-md border p-4">

@@ -6,6 +6,7 @@ import { clientsTable } from '@/lib/drizzle/schema'
 import { inArray } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { z } from 'zod'
+import { getActionT } from '@/lib/i18n-actions'
 import Papa from 'papaparse'
 
 const REQUIRED_COLUMNS = ['NAME', 'PHONE', 'LOCATION', 'COMMENTS', 'EMAIL']
@@ -19,11 +20,12 @@ const csvRecordSchema = z.object({
 })
 
 export async function importClients(formData: FormData) {
+  const t = await getActionT('actions.import')
   const session = await auth()
-  if (!session?.user) return { success: false, error: 'Unauthorized' }
+  if (!session?.user) return { success: false, error: t('unauthorized') }
 
   const file = formData.get('file') as File | null
-  if (!file) return { success: false, error: 'No file provided' }
+  if (!file) return { success: false, error: t('noFileProvided') }
 
   const text = await file.text()
 
@@ -38,18 +40,18 @@ export async function importClients(formData: FormData) {
   }
 
   if (parsed.data.length === 0) {
-    return { success: false, error: 'CSV file is empty or has no data rows' }
+    return { success: false, error: t('csvEmpty') }
   }
 
   const headers = Object.keys(parsed.data[0])
   const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c))
   if (missing.length > 0) {
-    return { success: false, error: `Missing required columns: ${missing.join(', ')}` }
+    return { success: false, error: t('missingRequiredColumns', { columns: missing.join(', ') }) }
   }
 
   const phones = [...new Set(parsed.data.map((r) => r.PHONE).filter(Boolean))]
   if (phones.length === 0) {
-    return { success: false, error: 'No valid rows found in CSV' }
+    return { success: false, error: t('noValidRows') }
   }
 
   const existing = await db

@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Phone, Mail, Calendar, FileText } from 'lucide-react'
 import { ActionMenu } from '@/components/common/action-menu'
 import type { Activity } from '@/lib/drizzle/schema'
@@ -27,6 +28,7 @@ interface ActivityItemProps {
 }
 
 export function ActivityItem({ activity, onEdit, onDelete, canEdit, canDelete }: ActivityItemProps) {
+  const t = useTranslations('activities')
   const Icon = typeIcons[activity.type]
   const iconColor = typeColors[activity.type]
   const [y, m, d] = activity.activityDate.split('-')
@@ -39,7 +41,7 @@ export function ActivityItem({ activity, onEdit, onDelete, canEdit, canDelete }:
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium capitalize">{activity.type}</span>
+          <span className="text-sm font-medium">{t('types.' + activity.type)}</span>
           <span className="text-xs text-muted-foreground">{date}</span>
         </div>
         <p className="text-sm font-medium mt-0.5">{activity.subject}</p>

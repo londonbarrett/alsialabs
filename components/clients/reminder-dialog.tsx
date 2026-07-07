@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Field } from '@/components/form-field'
@@ -24,6 +25,7 @@ interface ReminderDialogProps {
 }
 
 export function ReminderDialog({ clientId, reminder, open, onOpenChange, onSuccess }: ReminderDialogProps) {
+  const t = useTranslations()
   const [description, setDescription] = useState(reminder?.description ?? '')
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
@@ -33,13 +35,13 @@ export function ReminderDialog({ clientId, reminder, open, onOpenChange, onSucce
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!description.trim()) fieldErrors.description = 'Description is required'
-    if (!remindAt) fieldErrors.remindAt = 'Date is required'
+    if (!description.trim()) fieldErrors.description = t('reminders.descriptionRequired')
+    if (!remindAt) fieldErrors.remindAt = t('reminders.dateRequired')
     else {
       const d = new Date(remindAt + 'T00:00:00')
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      if (d < today) fieldErrors.remindAt = 'Date must be today or in the future'
+      if (d < today) fieldErrors.remindAt = t('reminders.dateMustBeFuture')
     }
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
@@ -56,7 +58,7 @@ export function ReminderDialog({ clientId, reminder, open, onOpenChange, onSucce
         reminder?.id,
       )
       if (result.success) {
-        toast.success(reminder ? 'Reminder updated' : 'Reminder created')
+        toast.success(reminder ? t('reminders.reminderUpdated') : t('reminders.reminderCreated'))
         onSuccess()
         onOpenChange(false)
       } else {
@@ -67,10 +69,10 @@ export function ReminderDialog({ clientId, reminder, open, onOpenChange, onSucce
           }
           setErrors(mapped)
         }
-        toast.error(result.error || 'Something went wrong')
+        toast.error(result.error || t('common.somethingWentWrong'))
       }
     } catch {
-      toast.error('Something went wrong')
+      toast.error(t('common.somethingWentWrong'))
     }
     setSaving(false)
   }
@@ -79,21 +81,21 @@ export function ReminderDialog({ clientId, reminder, open, onOpenChange, onSucce
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>{reminder ? 'Edit Reminder' : 'Add Reminder'}</DialogTitle>
+          <DialogTitle>{reminder ? t('reminders.editReminder') : t('reminders.addReminder')}</DialogTitle>
           <DialogDescription>
-            {reminder ? 'Update the reminder details below.' : 'Set a follow-up reminder for this client.'}
+            {reminder ? t('reminders.updateDetails') : t('reminders.setFollowUp')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Field name="description" label="Description" value={description} onChange={setDescription} error={errors.description} />
-          <Field name="remindAt" label="Due Date" value={remindAt} onChange={setRemindAt} error={errors.remindAt} type="date" />
+          <Field name="description" label={t('reminders.description')} value={description} onChange={setDescription} error={errors.description} />
+          <Field name="remindAt" label={t('reminders.dueDate')} value={remindAt} onChange={setRemindAt} error={errors.remindAt} type="date" />
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-              Cancel
+              {t('reminders.cancel')}
             </Button>
             <Button type="submit" disabled={saving}>
               {saving && <Spinner data-icon="inline-start" />}
-              {reminder ? 'Save Changes' : 'Add Reminder'}
+              {reminder ? t('reminders.saveChanges') : t('reminders.addReminderBtn')}
             </Button>
           </div>
         </form>

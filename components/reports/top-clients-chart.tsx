@@ -13,6 +13,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { useTranslations } from 'next-intl'
 
 export interface TopClient {
   clientId: string
@@ -25,30 +26,27 @@ interface TopClientsChartProps {
   data: TopClient[]
 }
 
-const clientsConfig = {
-  totalRevenue: {
-    label: 'Revenue',
-    color: 'var(--chart-2)',
-  },
-} satisfies ChartConfig
-
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
+  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 }
 
 export function TopClientsChart({ data }: TopClientsChartProps) {
+  const t = useTranslations('reports')
+
+  const clientsConfig = {
+    totalRevenue: {
+      label: t('revenue'),
+      color: 'var(--chart-2)',
+    },
+  } satisfies ChartConfig
+
   const chartData = data.map((c) => ({
     ...c,
     totalRevenue: Number(c.totalRevenue),
   }))
 
   if (chartData.length === 0) {
-    return <p className="text-muted-foreground text-sm">No client revenue data yet.</p>
+    return <p className="text-muted-foreground text-sm">{t('noClientRevenue')}</p>
   }
 
   return (

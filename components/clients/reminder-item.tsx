@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Bell, BellOff, CheckCircle2 } from 'lucide-react'
 import { ActionMenu } from '@/components/common/action-menu'
 import { Button } from '@/components/ui/button'
@@ -16,6 +17,7 @@ interface ReminderItemProps {
 }
 
 export function ReminderItem({ reminder, onEdit, onDelete, onComplete, canEdit, canDelete, canComplete }: ReminderItemProps) {
+  const t = useTranslations('reminders')
   const [y, m, d] = reminder.remindAt.split('-')
   const date = `${m}/${d}/${y}`
   const isOverdue = !reminder.completed && new Date(reminder.remindAt) < new Date(new Date().toDateString())
@@ -28,7 +30,7 @@ export function ReminderItem({ reminder, onEdit, onDelete, onComplete, canEdit, 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            {reminder.completed ? 'Completed' : isOverdue ? 'Overdue' : 'Pending'} — {date}
+            {t(reminder.completed ? 'completed' : isOverdue ? 'overdue' : 'pending')} — {date}
           </span>
         </div>
         <p className={`text-sm mt-0.5 ${reminder.completed ? 'line-through text-muted-foreground' : ''}`}>
@@ -37,7 +39,7 @@ export function ReminderItem({ reminder, onEdit, onDelete, onComplete, canEdit, 
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         {canComplete && !reminder.completed && (
-          <Button variant="ghost" size="icon" onClick={onComplete} aria-label="Mark as completed">
+          <Button variant="ghost" size="icon" onClick={onComplete} aria-label={t('markAsCompleted')}>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </Button>
         )}

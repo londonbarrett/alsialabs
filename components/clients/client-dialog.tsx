@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import {
   Dialog,
   DialogContent,
@@ -18,13 +19,14 @@ interface ClientDialogProps {
 }
 
 export function ClientDialog({ client, open, onOpenChange, onSuccess }: ClientDialogProps) {
+  const t = useTranslations('clients')
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{client ? 'Edit Client' : 'New Client'}</DialogTitle>
+          <DialogTitle>{client ? t('editClient') : t('newClient')}</DialogTitle>
           <DialogDescription>
-            {client ? 'Update the client details below.' : 'Fill in the details to create a new client.'}
+            {client ? t('updateDetails') : t('fillDetails')}
           </DialogDescription>
         </DialogHeader>
         <ClientForm

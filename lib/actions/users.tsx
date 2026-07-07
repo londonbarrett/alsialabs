@@ -1,23 +1,34 @@
-'use server'
+"use server"
 
-import { revalidatePath, updateTag } from 'next/cache'
-import { db } from '@/lib/drizzle/client'
-import { usersTable, userRolesTable, rolesTable } from '@/lib/drizzle/schema'
-import { eq } from 'drizzle-orm'
-import { auth, isSuperUser } from '@/lib/auth'
-import { z } from 'zod'
+import { revalidatePath, updateTag } from "next/cache"
+import { db } from "@/lib/drizzle/client"
+import {
+  usersTable,
+  userRolesTable,
+  rolesTable,
+} from "@/lib/drizzle/schema"
+import { eq } from "drizzle-orm"
+import { auth, isSuperUser } from "@/lib/auth"
+import { z } from "zod"
+import { getActionT } from "@/lib/i18n-actions"
 
 const createUserSchema = z.object({
-  email: z.string().email('Invalid email').transform((v) => v.trim().toLowerCase()),
-  roleId: z.string().min(1, 'Role is required'),
+  email: z
+    .string()
+    .email("Invalid email")
+    .transform((v) => v.trim().toLowerCase()),
+  roleId: z.string().min(1, "Role is required"),
 })
 
 const updateUserSchema = z.object({
-  email: z.string().email('Invalid email').transform((v) => v.trim().toLowerCase()),
-  roleId: z.string().min(1, 'Role is required'),
+  email: z
+    .string()
+    .email("Invalid email")
+    .transform((v) => v.trim().toLowerCase()),
+  roleId: z.string().min(1, "Role is required"),
 })
 
-const userIdSchema = z.string().uuid('Invalid user ID')
+const userIdSchema = z.string().uuid("Invalid user ID")
 
 export type UserWithRole = {
   id: string
@@ -28,9 +39,10 @@ export type UserWithRole = {
 }
 
 export async function getUsers() {
+  const t = await getActionT("actions.users")
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: 'Forbidden' }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const users = await db
@@ -48,17 +60,20 @@ export async function getUsers() {
   return { success: true as const, users }
 }
 
-export async function createUser(data: z.infer<typeof createUserSchema>) {
+export async function createUser(
+  data: z.infer<typeof createUserSchema>
+) {
+  const t = await getActionT("actions.users")
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: 'Forbidden' }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const parsed = createUserSchema.safeParse(data)
   if (!parsed.success) {
     return {
       success: false as const,
-      error: 'Validation failed',
+      error: t("validationFailed"),
       fieldErrors: parsed.error.flatten().fieldErrors,
     }
   }
@@ -72,7 +87,7 @@ export async function createUser(data: z.infer<typeof createUserSchema>) {
     .then((rows) => rows[0])
 
   if (existingUser) {
-    return { success: false as const, error: 'A user with this email already exists' }
+    return { success: false as const, error: t("emailAlreadyExists") }
   }
 
   const userId = crypto.randomUUID()
@@ -89,43 +104,45 @@ export async function createUser(data: z.infer<typeof createUserSchema>) {
 
   const apiKey = process.env.RESEND_API_KEY
   if (apiKey) {
-    const { Resend } = await import('resend')
+    const { Resend } = await import("resend")
     const resend = new Resend(apiKey)
-    const { InvitationEmail } = await import('@/emails/invitation')
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    const { InvitationEmail } = await import("@/emails/invitation")
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
 
     await resend.emails.send({
-      from: 'Alsia <onboarding@resend.dev>',
+      from: "Alsia <onboarding@resend.dev>",
       to: email,
-      subject: 'You\'ve been invited to Alsia',
+      subject: "You've been invited to Alsia",
       react: <InvitationEmail loginUrl={`${appUrl}/login`} />,
     })
   }
 
-  revalidatePath('/dashboard/users')
-  updateTag('permissions')
+  revalidatePath("/dashboard/users")
+  updateTag("permissions")
   return { success: true as const }
 }
 
 export async function updateUser(
   userId: string,
-  data: z.infer<typeof updateUserSchema>,
+  data: z.infer<typeof updateUserSchema>
 ) {
+  const t = await getActionT("actions.users")
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: 'Forbidden' }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const userIdResult = userIdSchema.safeParse(userId)
   if (!userIdResult.success) {
-    return { success: false as const, error: 'Invalid user ID' }
+    return { success: false as const, error: t("invalidUserId") }
   }
 
   const parsed = updateUserSchema.safeParse(data)
   if (!parsed.success) {
     return {
       success: false as const,
-      error: 'Validation failed',
+      error: t("validationFailed"),
       fieldErrors: parsed.error.flatten().fieldErrors,
     }
   }
@@ -140,56 +157,60 @@ export async function updateUser(
     .then((rows) => rows[0])
 
   if (!currentUserRole) {
-    return { success: false as const, error: 'User not found' }
+    return { success: false as const, error: t("userNotFound") }
   }
 
   const isChangingSelf = session.user.id === userId
-  if (isChangingSelf && currentUserRole.roleName === 'super') {
+  if (isChangingSelf && currentUserRole.roleName === "super") {
     const newRole = await db
       .select({ name: rolesTable.name })
       .from(rolesTable)
       .where(eq(rolesTable.id, roleId))
       .then((rows) => rows[0])
 
-    if (newRole?.name !== 'super') {
-      return { success: false as const, error: 'You cannot demote yourself' }
+    if (newRole?.name !== "super") {
+      return { success: false as const, error: t("cannotDemoteSelf") }
     }
   }
 
-  await db.update(usersTable).set({ email }).where(eq(usersTable.id, userId))
+  await db
+    .update(usersTable)
+    .set({ email })
+    .where(eq(usersTable.id, userId))
   await db
     .update(userRolesTable)
     .set({ roleId })
     .where(eq(userRolesTable.userId, userId))
 
-  revalidatePath('/dashboard/users')
-  updateTag('permissions')
+  revalidatePath("/dashboard/users")
+  updateTag("permissions")
   return { success: true as const }
 }
 
 export async function deleteUser(userId: string) {
+  const t = await getActionT("actions.users")
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: 'Forbidden' }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const userIdResult = userIdSchema.safeParse(userId)
   if (!userIdResult.success) {
-    return { success: false as const, error: 'Invalid user ID' }
+    return { success: false as const, error: t("invalidUserId") }
   }
 
   if (session.user.id === userId) {
-    return { success: false as const, error: 'You cannot delete yourself' }
+    return { success: false as const, error: t("cannotDeleteSelf") }
   }
 
   const superRole = await db
     .select({ id: rolesTable.id })
     .from(rolesTable)
-    .where(eq(rolesTable.name, 'super'))
+    .where(eq(rolesTable.name, "super"))
     .then((rows) => rows[0])
 
   if (!superRole) {
-    return { success: false as const, error: 'Super role not found' }
+    return { success: false as const, error: t("superRoleNotFound") }
   }
 
   const targetRole = await db
@@ -208,15 +229,17 @@ export async function deleteUser(userId: string) {
     if (superCount <= 1) {
       return {
         success: false as const,
-        error: 'Cannot delete the last super user',
+        error: t("cannotDeleteLastSuper"),
       }
     }
   }
 
-  await db.delete(userRolesTable).where(eq(userRolesTable.userId, userId))
+  await db
+    .delete(userRolesTable)
+    .where(eq(userRolesTable.userId, userId))
   await db.delete(usersTable).where(eq(usersTable.id, userId))
 
-  revalidatePath('/dashboard/users')
-  updateTag('permissions')
+  revalidatePath("/dashboard/users")
+  updateTag("permissions")
   return { success: true as const }
 }

@@ -1,5 +1,8 @@
 "use client"
 
+import { Logo } from "@/components/common/alsia-logo"
+import { LogoSmall } from "@/components/common/alsia-logo-small"
+import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -13,10 +16,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { NavUser } from "@/components/nav-user"
-import { Logo } from "@/components/common/alsia-logo"
-import { LogoSmall } from "@/components/common/alsia-logo-small"
 import { getSidebarMenu, type SidebarItem } from "@/config/sidebar-menu"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -33,6 +34,7 @@ export function AppSidebar({
     image: string | null
   }
 }) {
+  const t = useTranslations("sidebar")
   const pathname = usePathname()
 
   const sidebarMenu = getSidebarMenu(role, permissions)
@@ -46,7 +48,7 @@ export function AppSidebar({
       <SidebarContent>
         {sidebarMenu.map((section) => (
           <SidebarGroup key={section.label}>
-            <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+            <SidebarGroupLabel>{t(section.label)}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item: SidebarItem) => {
@@ -59,7 +61,7 @@ export function AppSidebar({
                       >
                         <Link href={item.url}>
                           <Icon />
-                          <span>{item.label}</span>
+                          <span>{t(item.label)}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

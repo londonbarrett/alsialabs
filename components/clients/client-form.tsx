@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Field } from '@/components/form-field'
@@ -15,6 +16,7 @@ interface ClientFormProps {
 }
 
 export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
+  const t = useTranslations()
   const [name, setName] = useState(client?.name ?? '')
   const [phone, setPhone] = useState(client?.phone ?? '')
   const [location, setLocation] = useState(client?.location ?? '')
@@ -45,10 +47,10 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!name.trim()) fieldErrors.name = 'Name is required'
-    if (!phone.trim()) fieldErrors.phone = 'Phone is required'
+    if (!name.trim()) fieldErrors.name = t('clients.nameRequired')
+    if (!phone.trim()) fieldErrors.phone = t('clients.phoneRequired')
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      fieldErrors.email = 'Invalid email address'
+      fieldErrors.email = t('clients.invalidEmail')
     }
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
@@ -59,7 +61,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
     if (!validate()) return
 
     if (phoneExists) {
-      setErrors((prev) => ({ ...prev, phone: 'This phone number is already in use' }))
+      setErrors((prev) => ({ ...prev, phone: t('clients.phoneInUse') }))
       return
     }
 
@@ -70,7 +72,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
         client?.id,
       )
       if (result.success) {
-        toast.success(client ? 'Client updated' : 'Client created')
+        toast.success(client ? t('clients.clientUpdated') : t('clients.clientCreated'))
         onSuccess()
       } else {
         if (result.fieldErrors) {
@@ -80,29 +82,29 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           }
           setErrors(mapped)
         }
-        toast.error(result.error || 'Something went wrong')
+        toast.error(result.error || t('common.somethingWentWrong'))
       }
     } catch {
-      toast.error('Something went wrong')
+      toast.error(t('common.somethingWentWrong'))
     }
     setSaving(false)
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Field name="name" label="Name" value={name} onChange={setName} error={errors.name} />
-      <Field name="phone" label="Phone" value={phone} onChange={(v) => { setPhone(v); debouncedPhoneCheck(v) }} error={errors.phone} extraError={phoneExists ? 'This phone number is already in use' : undefined} />
-      <Field name="location" label="Location" value={location} onChange={setLocation} error={errors.location} />
-      <Field name="comments" label="Comments" value={comments} onChange={setComments} error={errors.comments} type="textarea" />
-      <Field name="email" label="Email" value={email} onChange={setEmail} error={errors.email} type="email" />
+      <Field name="name" label={t('common.name')} value={name} onChange={setName} error={errors.name} />
+      <Field name="phone" label={t('common.phone')} value={phone} onChange={(v) => { setPhone(v); debouncedPhoneCheck(v) }} error={errors.phone} extraError={phoneExists ? t('clients.phoneInUse') : undefined} />
+      <Field name="location" label={t('clients.location')} value={location} onChange={setLocation} error={errors.location} />
+      <Field name="comments" label={t('clients.comments')} value={comments} onChange={setComments} error={errors.comments} type="textarea" />
+      <Field name="email" label={t('common.email')} value={email} onChange={setEmail} error={errors.email} type="email" />
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button type="submit" disabled={saving}>
           {saving && <Spinner data-icon="inline-start" />}
-          {client ? 'Save Changes' : 'Create Client'}
+          {client ? t('common.saveChanges') : t('clients.createClient')}
         </Button>
       </div>
     </form>

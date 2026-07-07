@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -31,22 +32,23 @@ export function InviteDialog({
   submitting,
   onSubmit,
 }: InviteDialogProps) {
+  const t = useTranslations()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Invite Client</DialogTitle>
+          <DialogTitle>{t('clients.inviteClient')}</DialogTitle>
           <DialogDescription>
-            {clientName} does not have an email on file. Enter their email to send the invitation.
+            {t('clients.inviteDescription', { name: clientName ?? '' })}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="invite-email">Email</Label>
+            <Label htmlFor="invite-email">{t('clients.email')}</Label>
             <Input
               id="invite-email"
               type="email"
-              placeholder="client@example.com"
+              placeholder={t('clients.emailPlaceholder')}
               value={email}
               onChange={(e) => onEmailChange(e.target.value)}
             />
@@ -54,10 +56,10 @@ export function InviteDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={onSubmit} disabled={submitting || !email}>
-            {submitting ? 'Inviting...' : 'Send Invitation'}
+            {submitting ? t('clients.inviting') : t('clients.sendInvitation')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -6,6 +6,7 @@ import { remindersTable, clientsTable } from "@/lib/drizzle/schema"
 import { eq, desc, and, asc, gte } from "drizzle-orm"
 import { requirePermission, auth } from "@/lib/auth"
 import { z } from "zod"
+import { getActionT } from "@/lib/i18n-actions"
 
 const reminderSchema = z.object({
   clientId: z.string().uuid("Invalid client ID"),
@@ -46,20 +47,21 @@ export async function upsertReminder(
   data: ReminderFormData,
   reminderId?: string
 ) {
+  const t = await getActionT("actions.reminders")
   try {
     await requirePermission(
       "client-activity",
       reminderId ? "edit" : "create"
     )
   } catch {
-    return { success: false, error: "Forbidden" }
+    return { success: false, error: t("forbidden") }
   }
 
   const parsed = reminderSchema.safeParse(data)
   if (!parsed.success) {
     return {
       success: false,
-      error: "Validation failed",
+      error: t("validationFailed"),
       fieldErrors: parsed.error.flatten().fieldErrors,
     }
   }
@@ -67,7 +69,7 @@ export async function upsertReminder(
   const fields = parsed.data
   const session = await auth()
   if (!session?.user?.id)
-    return { success: false, error: "Unauthorized" }
+    return { success: false, error: t("unauthorized") }
 
   const sanitized = {
     clientId: fields.clientId,
@@ -79,7 +81,7 @@ export async function upsertReminder(
   if (reminderId) {
     const idParsed = idSchema.safeParse(reminderId)
     if (!idParsed.success)
-      return { success: false, error: "Invalid reminder ID" }
+      return { success: false, error: t("invalidReminderId") }
 
     await db
       .update(remindersTable)
@@ -97,15 +99,16 @@ export async function upsertReminder(
 }
 
 export async function completeReminder(reminderId: string) {
+  const t = await getActionT("actions.reminders")
   try {
     await requirePermission("client-activity", "edit")
   } catch {
-    return { success: false, error: "Forbidden" }
+    return { success: false, error: t("forbidden") }
   }
 
   const idParsed = idSchema.safeParse(reminderId)
   if (!idParsed.success)
-    return { success: false, error: "Invalid reminder ID" }
+    return { success: false, error: t("invalidReminderId") }
 
   await db
     .update(remindersTable)
@@ -120,15 +123,16 @@ export async function completeReminder(reminderId: string) {
 }
 
 export async function deleteReminder(reminderId: string) {
+  const t = await getActionT("actions.reminders")
   try {
     await requirePermission("client-activity", "delete")
   } catch {
-    return { success: false as const, error: "Forbidden" }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const idParsed = idSchema.safeParse(reminderId)
   if (!idParsed.success)
-    return { success: false as const, error: "Invalid reminder ID" }
+    return { success: false as const, error: t("invalidReminderId") }
 
   await db
     .delete(remindersTable)
@@ -165,12 +169,15 @@ export async function getActiveReminders(): Promise<ActiveReminder[]> {
       completed: remindersTable.completed,
     })
     .from(remindersTable)
-    .innerJoin(clientsTable, eq(remindersTable.clientId, clientsTable.id))
+    .innerJoin(
+      clientsTable,
+      eq(remindersTable.clientId, clientsTable.id)
+    )
     .where(
       and(
         eq(remindersTable.completed, false),
-        gte(remindersTable.remindAt, today),
-      ),
+        gte(remindersTable.remindAt, today)
+      )
     )
     .orderBy(asc(remindersTable.remindAt))
 

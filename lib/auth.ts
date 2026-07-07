@@ -5,6 +5,7 @@ import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import { db } from '@/lib/drizzle/client'
 import { usersTable, userRolesTable, rolesTable, permissionsTable, rolePermissionsTable } from '@/lib/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
+import { getActionT } from '@/lib/i18n-actions'
 import { redirect } from 'next/navigation'
 import { unstable_cache } from 'next/cache'
 import type { DefaultSession } from 'next-auth'
@@ -128,11 +129,12 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
 }
 
 export async function requirePermission(module: string, action: string) {
+  const t = await getActionT('actions.auth')
   const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
+  if (!session?.user) throw new Error(t('unauthorized'))
 
   const permitted = await hasPermission(session.user.id, module, action)
-  if (!permitted) throw new Error('Forbidden')
+  if (!permitted) throw new Error(t('forbidden'))
 }
 
 export async function requireAuth() {

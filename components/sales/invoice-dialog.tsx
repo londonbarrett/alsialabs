@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { InvoiceForm } from "@/components/sales/invoice-form"
 import {
   Dialog,
@@ -82,23 +83,24 @@ export function InvoiceDialog({
   }, [open])
 
   const loading = open && state.loading
+  const t = useTranslations()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {invoice ? "Edit Invoice" : "New Invoice"}
+            {invoice ? t('sales.editInvoice') : t('sales.newInvoice')}
           </DialogTitle>
           <DialogDescription>
             {invoice
-              ? "Update the invoice details below."
-              : "Fill in the details to create a new invoice."}
+              ? t('sales.updateDetails')
+              : t('sales.fillDetails')}
           </DialogDescription>
         </DialogHeader>
         {loading ? (
           <div className="flex justify-center py-8 text-sm text-muted-foreground">
-            Loading...
+            {t('common.loading')}
           </div>
         ) : (
           <InvoiceForm

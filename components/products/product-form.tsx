@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -29,6 +30,7 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ product, providers, onSuccess, onCancel }: ProductFormProps) {
+  const t = useTranslations()
   const [name, setName] = useState(product?.name ?? '')
   const [description, setDescription] = useState(product?.description ?? '')
   const [providerId, setProviderId] = useState(product?.provider_id ?? '')
@@ -59,8 +61,8 @@ export function ProductForm({ product, providers, onSuccess, onCancel }: Product
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!name.trim()) fieldErrors.name = 'Name is required'
-    if (!providerId) fieldErrors.provider_id = 'Provider is required'
+    if (!name.trim()) fieldErrors.name = t('products.nameRequired')
+    if (!providerId) fieldErrors.provider_id = t('products.providerRequired')
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
   }
@@ -70,7 +72,7 @@ export function ProductForm({ product, providers, onSuccess, onCancel }: Product
     if (!validate()) return
 
     if (skuExists) {
-      setErrors((prev) => ({ ...prev, sku: 'This SKU is already in use' }))
+      setErrors((prev) => ({ ...prev, sku: t('products.skuInUse') }))
       return
     }
 
@@ -81,7 +83,7 @@ export function ProductForm({ product, providers, onSuccess, onCancel }: Product
         product?.id,
       )
       if (result.success) {
-        toast.success(product ? 'Product updated' : 'Product created')
+        toast.success(product ? t('products.productUpdated') : t('products.productCreated'))
         onSuccess()
       } else {
         if (result.fieldErrors) {
@@ -91,22 +93,22 @@ export function ProductForm({ product, providers, onSuccess, onCancel }: Product
           }
           setErrors(mapped)
         }
-        toast.error(result.error || 'Something went wrong')
+        toast.error(result.error || t('common.somethingWentWrong'))
       }
     } catch {
-      toast.error('Something went wrong')
+      toast.error(t('common.somethingWentWrong'))
     }
     setSaving(false)
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Field name="name" label="Name" value={name} onChange={setName} error={errors.name} />
+      <Field name="name" label={t('products.name')} value={name} onChange={setName} error={errors.name} />
       <div className="flex flex-col gap-2" data-invalid={!!errors.provider_id || undefined}>
-        <Label htmlFor="provider_id">Provider</Label>
+        <Label htmlFor="provider_id">{t('products.provider')}</Label>
         <Select value={providerId} onValueChange={setProviderId}>
           <SelectTrigger id="provider_id" aria-invalid={!!errors.provider_id}>
-            <SelectValue placeholder="Select a provider" />
+            <SelectValue placeholder={t('products.selectProvider')} />
           </SelectTrigger>
           <SelectContent>
             {providers.map((p) => (
@@ -120,17 +122,17 @@ export function ProductForm({ product, providers, onSuccess, onCancel }: Product
           </p>
         )}
       </div>
-      <Field name="sku" label="SKU" value={sku} onChange={(v) => { setSku(v); debouncedSkuCheck(v) }} error={errors.sku} extraError={skuExists ? 'This SKU is already in use' : undefined} />
-      <Field name="unit" label="Unit" value={unit} onChange={setUnit} error={errors.unit} />
-      <Field name="description" label="Description" value={description} onChange={setDescription} error={errors.description} type="textarea" />
+      <Field name="sku" label={t('products.sku')} value={sku} onChange={(v) => { setSku(v); debouncedSkuCheck(v) }} error={errors.sku} extraError={skuExists ? t('products.skuInUse') : undefined} />
+      <Field name="unit" label={t('products.unit')} value={unit} onChange={setUnit} error={errors.unit} />
+      <Field name="description" label={t('products.description')} value={description} onChange={setDescription} error={errors.description} type="textarea" />
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button type="submit" disabled={saving}>
           {saving && <Spinner data-icon="inline-start" />}
-          {product ? 'Save Changes' : 'Create Product'}
+          {product ? t('common.saveChanges') : t('products.createProduct')}
         </Button>
       </div>
     </form>

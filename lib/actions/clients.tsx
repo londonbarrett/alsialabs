@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm"
 import { requirePermission } from "@/lib/auth"
 import { z } from "zod"
 import crypto from "crypto"
+import { getActionT } from "@/lib/i18n-actions"
 
 const clientSchema = z.object({
   name: z
@@ -80,10 +81,11 @@ export async function getClientByUserId(userId: string) {
 }
 
 export async function getClients() {
+  const t = await getActionT("actions.clients")
   try {
     await requirePermission("clients", "view")
   } catch {
-    throw new Error("Forbidden")
+    throw new Error(t("forbidden"))
   }
 
   return db
@@ -94,7 +96,9 @@ export async function getClients() {
     .from(clientsTable)
 }
 
-export type ClientOption = Awaited<ReturnType<typeof getClients>>[number]
+export type ClientOption = Awaited<
+  ReturnType<typeof getClients>
+>[number]
 
 export async function checkPhoneExists(
   phone: string,
@@ -129,17 +133,18 @@ export async function upsertClient(
   data: ClientFormData,
   clientId?: string
 ) {
+  const t = await getActionT("actions.clients")
   try {
     await requirePermission("clients", clientId ? "edit" : "create")
   } catch {
-    return { success: false, error: "Forbidden" }
+    return { success: false, error: t("forbidden") }
   }
 
   const parsed = clientSchema.safeParse(data)
   if (!parsed.success) {
     return {
       success: false,
-      error: "Validation failed",
+      error: t("validationFailed"),
       fieldErrors: parsed.error.flatten().fieldErrors,
     }
   }
@@ -148,7 +153,7 @@ export async function upsertClient(
 
   const clientIdParsed = clientId ? idSchema.safeParse(clientId) : null
   if (clientIdParsed && !clientIdParsed.success) {
-    return { success: false, error: "Invalid client ID" }
+    return { success: false, error: t("invalidClientId") }
   }
 
   const phoneCheck = await checkPhoneExists(
@@ -158,8 +163,8 @@ export async function upsertClient(
   if (phoneCheck.exists) {
     return {
       success: false,
-      error: "A client with this phone number already exists",
-      fieldErrors: { phone: ["Phone number already in use"] },
+      error: t("phoneAlreadyExists"),
+      fieldErrors: { phone: [t("phoneAlreadyExistsField")] },
     }
   }
 
@@ -198,15 +203,16 @@ export async function upsertClient(
 }
 
 export async function deleteClient(clientId: string) {
+  const t = await getActionT("actions.clients")
   try {
     await requirePermission("clients", "delete")
   } catch {
-    return { success: false as const, error: "Forbidden" }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const idParsed = idSchema.safeParse(clientId)
   if (!idParsed.success)
-    return { success: false as const, error: "Invalid client ID" }
+    return { success: false as const, error: t("invalidClientId") }
 
   await db
     .delete(clientsTable)
@@ -219,17 +225,18 @@ export async function inviteClient(data: {
   clientId: string
   email?: string
 }) {
+  const t = await getActionT("actions.clients")
   try {
     await requirePermission("clients", "invite")
   } catch {
-    return { success: false, error: "Forbidden" }
+    return { success: false, error: t("forbidden") }
   }
 
   const parsed = inviteSchema.safeParse(data)
   if (!parsed.success) {
     return {
       success: false,
-      error: "Validation failed",
+      error: t("validationFailed"),
       fieldErrors: parsed.error.flatten().fieldErrors,
     }
   }
@@ -243,7 +250,7 @@ export async function inviteClient(data: {
     .then((rows) => rows[0])
 
   if (!client) {
-    return { success: false, error: "Client not found" }
+    return { success: false, error: t("clientNotFound") }
   }
 
   const email = providedEmail ?? client.email
@@ -251,7 +258,7 @@ export async function inviteClient(data: {
   if (!email) {
     return {
       success: false,
-      error: "Client has no email. Provide an email to invite.",
+      error: t("noEmailToInvite"),
     }
   }
 
@@ -262,7 +269,7 @@ export async function inviteClient(data: {
     .then((rows) => rows[0])
 
   if (!clientRole) {
-    return { success: false, error: "Client role not found" }
+    return { success: false, error: t("clientRoleNotFound") }
   }
 
   if (client.userId) {
@@ -273,7 +280,7 @@ export async function inviteClient(data: {
       .then((rows) => rows[0])
 
     if (!existingUser) {
-      return { success: false, error: "Linked user not found" }
+      return { success: false, error: t("linkedUserNotFound") }
     }
 
     if (existingUser.email !== email) {

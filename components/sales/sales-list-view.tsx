@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +26,7 @@ interface SalesListViewProps {
 
 export function SalesListView({ invoices, permissions = [] }: SalesListViewProps) {
   const router = useRouter()
+  const t = useTranslations()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState<Invoice | undefined>()
 
@@ -52,37 +54,37 @@ export function SalesListView({ invoices, permissions = [] }: SalesListViewProps
     <>
       {invoices.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full gap-4">
-          <p className="text-muted-foreground">No invoices yet</p>
+          <p className="text-muted-foreground">{t('sales.noInvoices')}</p>
           {permissions.includes('sales:create') && (
-            <Button onClick={openNew} aria-label="New invoice">
+            <Button onClick={openNew} aria-label={t('sales.newInvoice')}>
               <Plus />
-              New Invoice
+              {t('sales.newInvoice')}
             </Button>
           )}
         </div>
       ) : (
         <div className="flex flex-col p-6 gap-4 flex-1">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold tracking-tight">Sales</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t('sales.title')}</h1>
             {permissions.includes('sales:create') && (
-              <Button onClick={openNew} aria-label="New invoice">
+              <Button onClick={openNew} aria-label={t('sales.newInvoice')}>
                 <Plus />
-                New Invoice
+                {t('sales.newInvoice')}
               </Button>
             )}
           </div>
 
-          <div className="rounded-md border overflow-auto max-h-[calc(100vh-10rem)]" role="region" aria-label="Invoices table">
+            <div className="rounded-md border overflow-auto max-h-[calc(100vh-10rem)]" role="region" aria-label={t('sales.title')}>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">Invoice #</TableHead>
-                  <TableHead scope="col">Client</TableHead>
-                  <TableHead scope="col">Type</TableHead>
-                  <TableHead scope="col">Date</TableHead>
-                  <TableHead scope="col">Total</TableHead>
-                  <TableHead scope="col">Status</TableHead>
-                  <TableHead scope="col">Actions</TableHead>
+                  <TableHead scope="col">{t('sales.invoiceHash')}</TableHead>
+                  <TableHead scope="col">{t('sales.client')}</TableHead>
+                  <TableHead scope="col">{t('sales.type')}</TableHead>
+                  <TableHead scope="col">{t('sales.date')}</TableHead>
+                  <TableHead scope="col">{t('sales.total')}</TableHead>
+                  <TableHead scope="col">{t('sales.status')}</TableHead>
+                  <TableHead scope="col">{t('sales.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -100,11 +102,11 @@ export function SalesListView({ invoices, permissions = [] }: SalesListViewProps
                         onEdit={permissions.includes('sales:edit') ? () => openEdit(inv) : undefined}
                         onDelete={async () => {
                           const result = await deleteInvoice(inv.id)
-                          if (!result.success) toast.error(result.error || 'Failed to delete invoice')
-                          else toast.success('Invoice deleted')
+                          if (!result.success) toast.error(result.error || t('sales.failedToDelete'))
+                          else toast.success(t('sales.invoiceDeleted'))
                         }}
                         canDelete={permissions.includes('sales:delete')}
-                        onView={() => toast.info('Invoice: ' + inv.invoiceNumber)}
+                        onView={() => toast.info(t('sales.invoicePrefix') + inv.invoiceNumber)}
                       />
                     </TableCell>
                   </TableRow>

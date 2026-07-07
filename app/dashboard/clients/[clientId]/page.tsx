@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
 import { getActivities } from "@/lib/actions/activities"
@@ -15,6 +16,7 @@ export default async function ClientProfilePage({
 }) {
   const { clientId } = await params
   const session = await auth()
+  const t = await getTranslations()
 
   if (!session?.user?.id) {
     forbidden()
@@ -26,10 +28,10 @@ export default async function ClientProfilePage({
     return (
       <div className="flex flex-1 flex-col gap-6 p-6">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Client Not Found
+          {t('clients.clientNotFound')}
         </h1>
         <p className="text-muted-foreground">
-          The requested client does not exist.
+          {t('clients.clientNotFoundDesc')}
         </p>
       </div>
     )
@@ -71,27 +73,27 @@ export default async function ClientProfilePage({
       <div className="max-w-lg rounded-md border p-6">
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">Name</p>
+            <p className="text-sm text-muted-foreground">{t('common.name')}</p>
             <p className="text-base font-medium">{client.name}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Phone</p>
+            <p className="text-sm text-muted-foreground">{t('clients.phone')}</p>
             <p className="text-base font-medium">{client.phone}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Email</p>
+            <p className="text-sm text-muted-foreground">{t('clients.email')}</p>
             <p className="text-base font-medium">
               {client.email ?? "—"}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Location</p>
+            <p className="text-sm text-muted-foreground">{t('clients.location')}</p>
             <p className="text-base font-medium">
               {client.location ?? "—"}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Comments</p>
+            <p className="text-sm text-muted-foreground">{t('clients.comments')}</p>
             <p className="text-base font-medium">
               {client.comments ?? "—"}
             </p>

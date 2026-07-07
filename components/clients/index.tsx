@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -28,6 +29,7 @@ interface ClientListViewProps {
 
 export function ClientListView({ clients, permissions = [] }: ClientListViewProps) {
   const router = useRouter()
+  const t = useTranslations()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | undefined>()
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
@@ -56,11 +58,11 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
       const result = await inviteClient({ clientId: client.id })
       setInviting(false)
       if (!result.success) {
-        toast.error(result.error || 'Failed to invite client')
+        toast.error(result.error || t('clients.failedToInvite'))
         return
       }
       router.refresh()
-      toast.success('Client invited')
+      toast.success(t('clients.clientInvited'))
       return
     }
     setInvitingClient(client)
@@ -74,23 +76,23 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
     const result = await inviteClient({ clientId: invitingClient.id, email: inviteEmail })
     setInviting(false)
     if (!result.success) {
-      toast.error(result.error || 'Failed to invite client')
+      toast.error(result.error || t('clients.failedToInvite'))
       return
     }
     setInviteDialogOpen(false)
     setInvitingClient(undefined)
     router.refresh()
-    toast.success('Client invited')
+    toast.success(t('clients.clientInvited'))
   }
 
   if (clients.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-muted-foreground">No clients yet</p>
+        <p className="text-muted-foreground">{t('clients.noClients')}</p>
         <div className="flex gap-2">
-          <Button onClick={openNew} aria-label="New client">
+          <Button onClick={openNew} aria-label={t('clients.newClient')}>
             <Plus />
-            New Client
+            {t('clients.newClient')}
           </Button>
           {/* <ImportButton onSuccess={() => router.refresh()} /> */}
         </div>
@@ -107,26 +109,26 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
   return (
     <div className="flex flex-col p-6 gap-4 flex-1">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('clients.title')}</h1>
         <div className="flex gap-2">
-          <Button onClick={openNew} aria-label="New client">
+          <Button onClick={openNew} aria-label={t('clients.newClient')}>
             <Plus />
-            New Client
+            {t('clients.newClient')}
           </Button>
           <ImportButton onSuccess={() => router.refresh()} />
         </div>
       </div>
 
-      <div className="rounded-md border overflow-auto max-h-[calc(100vh-10rem)]" role="region" aria-label="Clients table">
+      <div className="rounded-md border overflow-auto max-h-[calc(100vh-10rem)]" role="region"                     aria-label={t('clients.title')}>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead scope="col">Name</TableHead>
-              <TableHead scope="col">Phone</TableHead>
-              <TableHead scope="col">Location</TableHead>
-              <TableHead scope="col">Comments</TableHead>
-              <TableHead scope="col">Email</TableHead>
-              <TableHead scope="col">Actions</TableHead>
+              <TableHead scope="col">{t('common.name')}</TableHead>
+              <TableHead scope="col">{t('common.phone')}</TableHead>
+              <TableHead scope="col">{t('clients.location')}</TableHead>
+              <TableHead scope="col">{t('clients.comments')}</TableHead>
+              <TableHead scope="col">{t('common.email')}</TableHead>
+              <TableHead scope="col">{t('common.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -151,8 +153,8 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
                     onEdit={() => openEdit(client)}
                     onDelete={async () => {
                       const result = await deleteClient(client.id)
-                      if (!result.success) toast.error(result.error || 'Failed to delete client')
-                      else toast.success('Client deleted')
+                          if (!result.success) toast.error(result.error || t('clients.failedToDelete'))
+                          else toast.success(t('clients.clientDeleted'))
                     }}
                     canDelete={permissions.includes('clients:delete')}
                     onView={() => router.push('/dashboard/clients/' + client.id)}

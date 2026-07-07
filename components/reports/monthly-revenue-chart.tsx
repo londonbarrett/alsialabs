@@ -15,6 +15,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { useTranslations } from 'next-intl'
 
 export interface MonthlyRevenue {
   month: string
@@ -26,29 +27,26 @@ interface MonthlyRevenueChartProps {
   data: MonthlyRevenue[]
 }
 
-const revenueConfig = {
-  productRevenue: {
-    label: 'Product',
-    color: 'var(--chart-2)',
-  },
-  serviceRevenue: {
-    label: 'Service',
-    color: 'var(--chart-1)',
-  },
-} satisfies ChartConfig
-
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
+  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 }
 
 export function MonthlyRevenueChart({ data }: MonthlyRevenueChartProps) {
+  const t = useTranslations('reports')
+
+  const revenueConfig = {
+    productRevenue: {
+      label: t('product'),
+      color: 'var(--chart-2)',
+    },
+    serviceRevenue: {
+      label: t('service'),
+      color: 'var(--chart-1)',
+    },
+  } satisfies ChartConfig
+
   if (data.length === 0) {
-    return <p className="text-muted-foreground text-sm">No revenue data yet.</p>
+    return <p className="text-muted-foreground text-sm">{t('noRevenueData')}</p>
   }
 
   return (

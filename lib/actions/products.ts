@@ -6,6 +6,7 @@ import { productsTable, providersTable } from '@/lib/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { requirePermission } from '@/lib/auth'
 import { z } from 'zod'
+import { getActionT } from '@/lib/i18n-actions'
 
 const productSchema = z.object({
   name: z.string().min(1, 'Name is required').transform((v) => v.trim()),
@@ -20,10 +21,11 @@ const skuSchema = z.string().transform((v) => v.trim())
 export type ProductFormData = z.infer<typeof productSchema>
 
 export async function getProducts() {
+  const t = await getActionT('actions.products')
   try {
     await requirePermission('products', 'view')
   } catch {
-    throw new Error('Forbidden')
+    throw new Error(t('forbidden'))
   }
 
   return db
@@ -63,15 +65,16 @@ export async function checkSkuExists(sku: string, excludeId?: string) {
 }
 
 export async function upsertProduct(data: ProductFormData, productId?: string) {
+  const t = await getActionT('actions.products')
   try {
     await requirePermission('products', productId ? 'edit' : 'create')
   } catch {
-    return { success: false, error: 'Forbidden' }
+    return { success: false, error: t('forbidden') }
   }
 
   const parsed = productSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false, error: 'Validation failed', fieldErrors: parsed.error.flatten().fieldErrors }
+    return { success: false, error: t('validationFailed'), fieldErrors: parsed.error.flatten().fieldErrors }
   }
 
   const fields = parsed.data
@@ -79,7 +82,7 @@ export async function upsertProduct(data: ProductFormData, productId?: string) {
   if (fields.sku) {
     const skuCheck = await checkSkuExists(fields.sku, productId)
     if (skuCheck.exists) {
-      return { success: false, error: 'A product with this SKU already exists', fieldErrors: { sku: ['SKU already in use'] } }
+      return { success: false, error: t('skuAlreadyExists'), fieldErrors: { sku: [t('skuAlreadyInUseField')] } }
     }
   }
 
@@ -102,16 +105,17 @@ export async function upsertProduct(data: ProductFormData, productId?: string) {
 }
 
 export async function deleteProduct(productId: string) {
+  const t = await getActionT('actions.products')
   try {
     await requirePermission('products', 'delete')
   } catch {
-    return { success: false as const, error: 'Forbidden' }
+    return { success: false as const, error: t('forbidden') }
   }
 
   try {
     await db.delete(productsTable).where(eq(productsTable.id, productId))
   } catch {
-    return { success: false as const, error: 'Cannot delete product with existing references' }
+    return { success: false as const, error: t('cannotDeleteWithReferences') }
   }
 
   revalidatePath('/dashboard/products')

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { MoreHorizontal, Eye, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +40,7 @@ export function ActionMenu({
 }: ActionMenuProps) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const t = useTranslations()
 
   async function handleDelete() {
     setDeleting(true)
@@ -51,7 +53,7 @@ export function ActionMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={`Actions for ${entityName}`}>
+          <Button variant="ghost" size="icon" aria-label={t('actionMenu.actionsFor', { name: entityName })}>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -60,13 +62,13 @@ export function ActionMenu({
           {onView && (
             <DropdownMenuItem onClick={onView}>
               <Eye className="mr-2 h-4 w-4" />
-              View
+              {t('actionMenu.view')}
             </DropdownMenuItem>
           )}
           {onEdit && canEdit && (
             <DropdownMenuItem onClick={onEdit}>
               <Pencil className="mr-2 h-4 w-4" />
-              Edit
+              {t('actionMenu.edit')}
             </DropdownMenuItem>
           )}
           {canDelete && (
@@ -75,7 +77,7 @@ export function ActionMenu({
               className="text-destructive focus:text-destructive focus:bg-destructive/10"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {t('actionMenu.delete')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -84,17 +86,17 @@ export function ActionMenu({
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete</DialogTitle>
+            <DialogTitle>{t('actionMenu.deleteTitle')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {entityName}? This action cannot be undone.
+              {t('actionMenu.confirmDelete', { name: entityName })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? 'Deleting...' : 'Delete'}
+              {deleting ? t('common.deleting') : t('actionMenu.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

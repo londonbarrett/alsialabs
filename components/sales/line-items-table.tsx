@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,20 +39,21 @@ interface LineItemsTableProps {
 }
 
 export function LineItemsTable({ type, items, products, onUpdate, onRemove, onProductSelect }: LineItemsTableProps) {
+  const t = useTranslations('sales')
   return (
     <div className="overflow-auto max-h-72">
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">No items added yet.</p>
+        <p className="text-sm text-muted-foreground text-center py-4">{t('noItems')}</p>
       ) : (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-muted-foreground text-xs">
-              <th className="py-2 pr-2 font-medium min-w-35">{type === 'product' ? 'Product' : 'Description'}</th>
-              <th className="py-2 px-2 font-medium w-20">Qty</th>
-              <th className="py-2 px-2 font-medium w-24">Unit Price</th>
-              <th className="py-2 px-2 font-medium w-20">Disc %</th>
-              <th className="py-2 px-2 font-medium w-20">Tax %</th>
-              <th className="py-2 px-2 font-medium w-24 text-right">Total</th>
+              <th className="py-2 pr-2 font-medium min-w-35">{type === 'product' ? t('product') : t('service')}</th>
+              <th className="py-2 px-2 font-medium w-20">{t('qty')}</th>
+              <th className="py-2 px-2 font-medium w-24">{t('unitPrice')}</th>
+              <th className="py-2 px-2 font-medium w-20">{t('discPercent')}</th>
+              <th className="py-2 px-2 font-medium w-20">{t('taxPercent')}</th>
+              <th className="py-2 px-2 font-medium w-24 text-right">{t('total')}</th>
               <th className="py-2 pl-2 w-10" />
             </tr>
           </thead>
@@ -72,7 +74,7 @@ export function LineItemsTable({ type, items, products, onUpdate, onRemove, onPr
                         onValueChange={(v) => onProductSelect(item.key, v)}
                       >
                         <SelectTrigger className="w-full h-8 text-xs">
-                          <SelectValue placeholder="Select product" />
+                          <SelectValue placeholder={t('selectProduct')} />
                         </SelectTrigger>
                         <SelectContent>
                           {products.map((p) => (
@@ -83,7 +85,7 @@ export function LineItemsTable({ type, items, products, onUpdate, onRemove, onPr
                     ) : (
                       <Input
                         className="h-8 text-xs"
-                        placeholder="Service description"
+                        placeholder={t('serviceDescriptionPlaceholder')}
                         value={item.description}
                         onChange={(e) => onUpdate(item.key, 'description', e.target.value)}
                       />
@@ -140,7 +142,7 @@ export function LineItemsTable({ type, items, products, onUpdate, onRemove, onPr
                       variant="ghost"
                       size="icon-sm"
                       onClick={() => onRemove(item.key)}
-                      aria-label="Remove item"
+                      aria-label={t('removeItem')}
                     >
                       <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>

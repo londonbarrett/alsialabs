@@ -6,6 +6,7 @@ import { permissionsTable, rolePermissionsTable, rolesTable } from '@/lib/drizzl
 import { eq, and } from 'drizzle-orm'
 import { auth, isSuperUser } from '@/lib/auth'
 import { z } from 'zod'
+import { getActionT } from '@/lib/i18n-actions'
 
 export type PermissionMatrixItem = {
   id: string
@@ -15,9 +16,10 @@ export type PermissionMatrixItem = {
 }
 
 export async function getPermissions() {
+  const t = await getActionT('actions.permissions')
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: 'Forbidden' }
+    return { success: false as const, error: t('forbidden') }
   }
 
   const allPermissions = await db
@@ -61,21 +63,22 @@ const manageModuleSchema = z.object({
 })
 
 export async function manageModule(data: z.infer<typeof manageModuleSchema>) {
+  const t = await getActionT('actions.permissions')
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: 'Forbidden' }
+    return { success: false as const, error: t('forbidden') }
   }
 
   const parsed = manageModuleSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false as const, error: 'Validation failed' }
+    return { success: false as const, error: t('validationFailed') }
   }
 
   const { action, name, actions } = parsed.data
 
   if (action === 'create') {
     if (!actions || actions.length === 0) {
-      return { success: false as const, error: 'At least one action is required' }
+      return { success: false as const, error: t('actionRequired') }
     }
 
     for (const act of actions) {
@@ -97,14 +100,15 @@ const toggleSchema = z.object({
 })
 
 export async function togglePermission(data: z.infer<typeof toggleSchema>) {
+  const t = await getActionT('actions.permissions')
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: 'Forbidden' }
+    return { success: false as const, error: t('forbidden') }
   }
 
   const parsed = toggleSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false as const, error: 'Validation failed' }
+    return { success: false as const, error: t('validationFailed') }
   }
 
   const { roleId, permissionId, enabled } = parsed.data
