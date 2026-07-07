@@ -19,6 +19,7 @@ import { deleteClient, inviteClient } from '@/lib/actions/clients'
 import { toast } from 'sonner'
 import type { Client } from '@/lib/drizzle/schema'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface ClientListViewProps {
   clients: Client[]
@@ -130,8 +131,16 @@ export function ClientListView({ clients, permissions = [] }: ClientListViewProp
           </TableHeader>
           <TableBody>
             {clients.map((client) => (
-              <TableRow key={client.id} className="select-none" onDoubleClick={() => openEdit(client)}>
-                <TableCell>{client.name}</TableCell>
+              <TableRow key={client.id} className="select-none" onDoubleClick={() => router.push('/dashboard/clients/' + client.id)}>
+                <TableCell>
+                  <Link
+                    href={`/dashboard/clients/${client.id}`}
+                    className="hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {client.name}
+                  </Link>
+                </TableCell>
                 <TableCell>{client.phone}</TableCell>
                 <TableCell>{client.location ?? '—'}</TableCell>
                 <TableCell>{client.comments ?? '—'}</TableCell>

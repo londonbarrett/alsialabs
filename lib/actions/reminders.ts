@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/drizzle/client"
-import { remindersTable } from "@/lib/drizzle/schema"
-import { eq, desc } from "drizzle-orm"
+import { remindersTable, clientsTable } from "@/lib/drizzle/schema"
+import { eq, desc, and, asc, gte } from "drizzle-orm"
 import { requirePermission, auth } from "@/lib/auth"
 import { z } from "zod"
 
@@ -136,4 +136,43 @@ export async function deleteReminder(reminderId: string) {
 
   revalidatePath("/dashboard/clients")
   return { success: true as const }
+}
+
+export interface ActiveReminder {
+  id: string
+  clientId: string
+  clientName: string
+  description: string
+  remindAt: string
+}
+
+export async function getActiveReminders(): Promise<ActiveReminder[]> {
+  try {
+    await requirePermission("client-activity", "view")
+  } catch {
+    return []
+  }
+
+  const today = new Date().toISOString().split("T")[0]
+
+  const rows = await db
+    .select({
+      id: remindersTable.id,
+      clientId: remindersTable.clientId,
+      clientName: clientsTable.name,
+      description: remindersTable.description,
+      remindAt: remindersTable.remindAt,
+      completed: remindersTable.completed,
+    })
+    .from(remindersTable)
+    .innerJoin(clientsTable, eq(remindersTable.clientId, clientsTable.id))
+    .where(
+      and(
+        eq(remindersTable.completed, false),
+        gte(remindersTable.remindAt, today),
+      ),
+    )
+    .orderBy(asc(remindersTable.remindAt))
+
+  return rows
 }

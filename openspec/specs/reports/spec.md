@@ -57,6 +57,34 @@ The system SHALL display a table of clients who have not made a purchase within 
 - **WHEN** all clients have made a purchase within the selected period
 - **THEN** the table SHALL display "All clients are active" message
 
+### Requirement: User can view active future reminders
+The system SHALL display a card listing all non-completed reminders whose remind-at date is today or in the future, ordered by nearest date first.
+
+#### Scenario: Reminders show client name, description, and date
+- **WHEN** an authorized user visits the reports page
+- **THEN** they see an "Active Reminders" card
+- **AND** each reminder SHALL show the client name, description, and date
+
+#### Scenario: Reminders are ordered by nearest date first
+- **WHEN** there are multiple active reminders
+- **THEN** they SHALL be ordered by remind-at date ascending (soonest first)
+
+#### Scenario: Overdue reminders are visually distinguished
+- **WHEN** a reminder's date is before today
+- **THEN** it SHALL be visually highlighted as overdue
+
+#### Scenario: Client name links to client profile
+- **WHEN** a user clicks a client name in the reminders list
+- **THEN** they SHALL be taken to that client's detail page
+
+#### Scenario: Double-click navigates to client profile
+- **WHEN** a user double-clicks anywhere on a reminder row
+- **THEN** they SHALL be taken to that client's detail page
+
+#### Scenario: Empty state shows no reminders message
+- **WHEN** there are no active reminders
+- **THEN** the card SHALL display "No active reminders" message
+
 ### Requirement: Access control
 The reports page SHALL only be accessible to users with the `reports:view` permission.
 
