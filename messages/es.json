@@ -52,7 +52,7 @@
     "reports": "Reportes",
     "users": "Usuarios",
     "permissions": "Permisos",
-    "project-categories": "Categorías de Proyectos",
+    "categories": "Categorías",
     "profile": "Perfil",
     "help": "Ayuda",
     "support": "Soporte"
@@ -66,7 +66,7 @@
     "permissions": "Permisos",
     "users": "Usuarios",
     "profile": "Perfil",
-    "project-categories": "Categorías de Proyectos"
+    "categories": "Categorías"
   },
   "landing": {
     "title": "ALSIA Labs CRM",
@@ -214,7 +214,36 @@
     "categoryCreated": "Categoría creada",
     "slugRequired": "El slug es obligatorio",
     "slugInUse": "Este slug ya está en uso",
-    "slugHint": "Se usa como clave de traducción (ej. 'crop' → clave 'project-categories.crop')"
+    "slugHint": "Se usa como clave de traducción (ej. 'crop' → clave 'category-names.crop')"
+  },
+  "expense-categories": {
+    "title": "Categorías de Gastos",
+    "addCategory": "Agregar Categoría",
+    "editCategory": "Editar Categoría",
+    "createCategory": "Crear Categoría",
+    "fillDetails": "Completa los datos para agregar una nueva categoría.",
+    "updateDetails": "Actualiza los detalles de la categoría a continuación.",
+    "noCategories": "No hay categorías aún",
+    "slug": "Slug",
+    "description": "Descripción",
+    "actions": "Acciones",
+    "categoryDeleted": "Categoría eliminada",
+    "failedToDelete": "Error al eliminar la categoría",
+    "categoryUpdated": "Categoría actualizada",
+    "categoryCreated": "Categoría creada",
+    "slugRequired": "El slug es obligatorio",
+    "slugInUse": "Este slug ya está en uso",
+    "slugHint": "Se usa como clave de traducción (ej. 'supplies' → clave 'category-names.supplies')"
+  },
+  "category-names": {
+    "crop": "Cultivo",
+    "infrastructure": "Infraestructura",
+    "supplies": "Insumos",
+    "labor": "Mano de obra",
+    "equipment": "Equipo",
+    "services": "Servicios",
+    "transport": "Transporte",
+    "other": "Otro"
   },
   "sales": {
     "title": "Ventas",
@@ -383,7 +412,7 @@
       "clientRoleNotFound": "Rol de cliente no encontrado",
       "linkedUserNotFound": "Usuario vinculado no encontrado"
     },
-  "project-categories": {
+    "categories": {
       "forbidden": "Prohibido",
       "validationFailed": "Error de validación"
     },

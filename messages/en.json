@@ -52,7 +52,7 @@
     "reports": "Reports",
     "users": "Users",
     "permissions": "Permissions",
-    "project-categories": "Project Categories",
+    "categories": "Categories",
     "profile": "Profile",
     "help": "Help",
     "support": "Support"
@@ -66,7 +66,7 @@
     "permissions": "Permissions",
     "users": "Users",
     "profile": "Profile",
-    "project-categories": "Project Categories"
+    "categories": "Categories"
   },
   "landing": {
     "title": "ALSIA Labs CRM",
@@ -214,7 +214,36 @@
     "categoryCreated": "Category created",
     "slugRequired": "Slug is required",
     "slugInUse": "This slug is already in use",
-    "slugHint": "Used as i18n key (e.g. 'crop' → key 'project-categories.crop')"
+    "slugHint": "Used as i18n key (e.g. 'crop' → key 'category-names.crop')"
+  },
+  "expense-categories": {
+    "title": "Expense Categories",
+    "addCategory": "Add Category",
+    "editCategory": "Edit Category",
+    "createCategory": "Create Category",
+    "fillDetails": "Fill in the details to add a new category.",
+    "updateDetails": "Update the category details below.",
+    "noCategories": "No categories yet",
+    "slug": "Slug",
+    "description": "Description",
+    "actions": "Actions",
+    "categoryDeleted": "Category deleted",
+    "failedToDelete": "Failed to delete category",
+    "categoryUpdated": "Category updated",
+    "categoryCreated": "Category created",
+    "slugRequired": "Slug is required",
+    "slugInUse": "This slug is already in use",
+    "slugHint": "Used as i18n key (e.g. 'supplies' → key 'category-names.supplies')"
+  },
+  "category-names": {
+    "crop": "Crop",
+    "infrastructure": "Infrastructure",
+    "supplies": "Supplies",
+    "labor": "Labor",
+    "equipment": "Equipment",
+    "services": "Services",
+    "transport": "Transport",
+    "other": "Other"
   },
   "sales": {
     "title": "Sales",
@@ -383,7 +412,7 @@
       "clientRoleNotFound": "Client role not found",
       "linkedUserNotFound": "Linked user not found"
     },
-  "project-categories": {
+  "categories": {
       "forbidden": "Forbidden",
       "validationFailed": "Validation failed"
     },

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/drizzle/client'
-import { projectCategoriesTable } from '@/lib/drizzle/schema'
+import { expenseCategoriesTable } from '@/lib/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { requirePermission } from '@/lib/auth'
 import { z } from 'zod'
@@ -15,9 +15,9 @@ const categorySchema = z.object({
 
 const slugSchema = z.string().transform((v) => v.trim().toLowerCase())
 
-export type ProjectCategoryFormData = z.infer<typeof categorySchema>
+export type ExpenseCategoryFormData = z.infer<typeof categorySchema>
 
-export async function getProjectCategories() {
+export async function getExpenseCategories() {
   const t = await getActionT('actions.categories')
   try {
     await requirePermission('categories', 'view')
@@ -25,7 +25,7 @@ export async function getProjectCategories() {
     throw new Error(t('forbidden'))
   }
 
-  return db.select().from(projectCategoriesTable).orderBy(projectCategoriesTable.slug)
+  return db.select().from(expenseCategoriesTable).orderBy(expenseCategoriesTable.slug)
 }
 
 export async function checkSlugExists(slug: string, excludeId?: string) {
@@ -39,16 +39,16 @@ export async function checkSlugExists(slug: string, excludeId?: string) {
   }
 
   const existing = await db
-    .select({ id: projectCategoriesTable.id })
-    .from(projectCategoriesTable)
-    .where(eq(projectCategoriesTable.slug, slugResult.data))
+    .select({ id: expenseCategoriesTable.id })
+    .from(expenseCategoriesTable)
+    .where(eq(expenseCategoriesTable.slug, slugResult.data))
 
   if (existing.length === 0) return { exists: false }
   if (excludeId) return { exists: existing[0].id !== excludeId }
   return { exists: true }
 }
 
-export async function upsertProjectCategory(data: ProjectCategoryFormData, id?: string) {
+export async function upsertExpenseCategory(data: ExpenseCategoryFormData, id?: string) {
   const t = await getActionT('actions.categories')
   try {
     await requirePermission('categories', id ? 'edit' : 'create')
@@ -69,18 +69,18 @@ export async function upsertProjectCategory(data: ProjectCategoryFormData, id?: 
 
   if (id) {
     await db
-      .update(projectCategoriesTable)
+      .update(expenseCategoriesTable)
       .set({ slug, description })
-      .where(eq(projectCategoriesTable.id, id))
+      .where(eq(expenseCategoriesTable.id, id))
   } else {
-    await db.insert(projectCategoriesTable).values({ slug, description })
+    await db.insert(expenseCategoriesTable).values({ slug, description })
   }
 
   revalidatePath('/dashboard/categories')
   return { success: true as const }
 }
 
-export async function deleteProjectCategory(id: string) {
+export async function deleteExpenseCategory(id: string) {
   const t = await getActionT('actions.categories')
   try {
     await requirePermission('categories', 'delete')
@@ -88,7 +88,7 @@ export async function deleteProjectCategory(id: string) {
     return { success: false as const, error: t('forbidden') }
   }
 
-  await db.delete(projectCategoriesTable).where(eq(projectCategoriesTable.id, id))
+  await db.delete(expenseCategoriesTable).where(eq(expenseCategoriesTable.id, id))
   revalidatePath('/dashboard/categories')
   return { success: true as const }
 }

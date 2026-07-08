@@ -39,8 +39,7 @@ const defaultModules = [
     actions: ["view", "create", "edit", "delete"],
   },
   { module: "projects", actions: ["view", "create", "edit", "delete"] },
-  { module: "project-categories", actions: ["view", "create", "edit", "delete"] },
-  { module: "expense-categories", actions: ["view", "create", "edit", "delete"] },
+  { module: "categories", actions: ["view", "create", "edit", "delete"] },
   { module: "expenses", actions: ["view", "create", "edit", "delete"] },
 ]
 
@@ -95,8 +94,7 @@ async function seed() {
 
     if (
       (perm.module === "projects" ||
-        perm.module === "project-categories" ||
-        perm.module === "expense-categories" ||
+        perm.module === "categories" ||
         perm.module === "expenses") &&
       perm.action === "view"
     ) {

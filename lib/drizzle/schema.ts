@@ -272,6 +272,7 @@ export const projectTasksTable = pgTable("project_task", {
     .references(() => projectsTable.id, { onDelete: "cascade" }),
   name: text().notNull(),
   description: text(),
+  cost: decimal('cost', { precision: 10, scale: 2 }),
   status: text()
     .notNull()
     .default("todo")
