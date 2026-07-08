@@ -92,6 +92,13 @@ export type Provider = typeof providersTable.$inferSelect
 export type Product = typeof productsTable.$inferSelect
 export type Invoice = typeof invoicesTable.$inferSelect
 export type InvoiceItem = typeof invoiceItemsTable.$inferSelect
+export type ProjectCategory = typeof projectCategoriesTable.$inferSelect
+export type ExpenseCategory = typeof expenseCategoriesTable.$inferSelect
+export type Project = typeof projectsTable.$inferSelect
+export type ProjectTask = typeof projectTasksTable.$inferSelect
+export type TaskComment = typeof taskCommentsTable.$inferSelect
+export type Collaborator = typeof collaboratorsTable.$inferSelect
+export type Expense = typeof expensesTable.$inferSelect
 
 export const providersTable = pgTable("provider", {
   id: text()
@@ -144,6 +151,7 @@ export const invoicesTable = pgTable("invoice", {
   discountTotal: decimal("discount_total", { precision: 12, scale: 2 }).notNull().default("0"),
   taxTotal: decimal("tax_total", { precision: 12, scale: 2 }).notNull().default("0"),
   grandTotal: decimal("grand_total", { precision: 12, scale: 2 }).notNull(),
+  projectId: text("project_id").references(() => projectsTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
 })
@@ -214,3 +222,108 @@ export const authenticatorsTable = pgTable("authenticator", {
 }, (authenticator) => [
   primaryKey({ columns: [authenticator.userId, authenticator.credentialID] }),
 ])
+
+export const projectCategoriesTable = pgTable("project_category", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  slug: text().notNull().unique(),
+  description: text(),
+})
+
+export const expenseCategoriesTable = pgTable("expense_category", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  slug: text().notNull().unique(),
+  description: text(),
+})
+
+export const projectsTable = pgTable("project", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => clientsTable.id, { onDelete: "cascade" }),
+  categoryId: text("category_id")
+    .notNull()
+    .references(() => projectCategoriesTable.id),
+  name: text().notNull(),
+  description: text(),
+  status: text()
+    .notNull()
+    .default("active")
+    .$type<"active" | "completed" | "cancelled" | "archived">(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  location: text(),
+  budget: decimal("budget", { precision: 12, scale: 2 }),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
+})
+
+export const projectTasksTable = pgTable("project_task", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projectsTable.id, { onDelete: "cascade" }),
+  name: text().notNull(),
+  description: text(),
+  cost: decimal('cost', { precision: 10, scale: 2 }),
+  status: text()
+    .notNull()
+    .default("todo")
+    .$type<"todo" | "in_progress" | "in_review" | "blocked" | "done">(),
+  collaboratorId: text("collaborator_id").references(() => collaboratorsTable.id, { onDelete: "set null" }),
+  collaboratorToken: text("collaborator_token").unique(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
+})
+
+export const taskCommentsTable = pgTable("task_comment", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  taskId: text("task_id")
+    .notNull()
+    .references(() => projectTasksTable.id, { onDelete: "cascade" }),
+  authorId: text("author_id").notNull(),
+  authorType: text("author_type").notNull().$type<"client" | "collaborator">(),
+  content: text().notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
+})
+
+export const collaboratorsTable = pgTable("collaborator", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => clientsTable.id, { onDelete: "cascade" }),
+  name: text().notNull(),
+  email: text().notNull(),
+  phone: text(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
+})
+
+export const expensesTable = pgTable("expense", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projectsTable.id, { onDelete: "cascade" }),
+  categoryId: text("category_id")
+    .notNull()
+    .references(() => expenseCategoriesTable.id),
+  description: text().notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  expenseDate: date("expense_date").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
+})

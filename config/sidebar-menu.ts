@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Shield,
   ShieldCheck,
+  FolderTree,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -14,12 +15,18 @@ export interface SidebarItem {
   label: string
   icon: LucideIcon
   url: string
-  requiredPermission?: string
+  requiredPermission?: string | string[]
 }
 
 export interface SidebarSection {
   label: string
   items: SidebarItem[]
+}
+
+function hasPermission(item: SidebarItem, permissions?: string[]) {
+  if (!item.requiredPermission) return true
+  const required = Array.isArray(item.requiredPermission) ? item.requiredPermission : [item.requiredPermission]
+  return required.some((p) => permissions?.includes(p) ?? false)
 }
 
 function commonSections(permissions?: string[]): SidebarSection[] {
@@ -28,14 +35,12 @@ function commonSections(permissions?: string[]): SidebarSection[] {
   const navigationItems: SidebarItem[] = [
     { label: 'clients', icon: Users, url: '/dashboard/clients', requiredPermission: 'clients:view' },
     { label: 'products', icon: Package, url: '/dashboard/products', requiredPermission: 'products:view' },
+    { label: 'categories', icon: FolderTree, url: '/dashboard/categories', requiredPermission: 'categories:view' },
     { label: 'sales', icon: FolderKanban, url: '/dashboard/sales', requiredPermission: 'sales:view' },
     { label: 'reports', icon: BarChart3, url: '/dashboard/reports', requiredPermission: 'reports:view' },
   ]
 
-  const visible = navigationItems.filter((item) => {
-    if (!item.requiredPermission) return true
-    return permissions?.includes(item.requiredPermission) ?? false
-  })
+  const visible = navigationItems.filter((item) => hasPermission(item, permissions))
 
   if (visible.length > 0) {
     sections.push({ label: 'navigation', items: visible })
@@ -58,10 +63,7 @@ function superSections(permissions?: string[]): SidebarSection[] {
     { label: 'permissions', icon: ShieldCheck, url: '/dashboard/permissions', requiredPermission: 'permissions:manage' },
   ]
 
-  const visible = items.filter((item) => {
-    if (!item.requiredPermission) return true
-    return permissions?.includes(item.requiredPermission) ?? false
-  })
+  const visible = items.filter((item) => hasPermission(item, permissions))
 
   if (visible.length === 0) return []
 

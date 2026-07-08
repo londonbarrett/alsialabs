@@ -52,6 +52,7 @@
     "reports": "Reports",
     "users": "Users",
     "permissions": "Permissions",
+    "categories": "Categories",
     "profile": "Profile",
     "help": "Help",
     "support": "Support"
@@ -64,7 +65,8 @@
     "reports": "Reports",
     "permissions": "Permissions",
     "users": "Users",
-    "profile": "Profile"
+    "profile": "Profile",
+    "categories": "Categories"
   },
   "landing": {
     "title": "ALSIA Labs CRM",
@@ -194,6 +196,54 @@
     "skuInUse": "This SKU is already in use",
     "selectProvider": "Select a provider",
     "skuInUseField": "SKU already in use"
+  },
+  "project-categories": {
+    "title": "Project Categories",
+    "addCategory": "Add Category",
+    "editCategory": "Edit Category",
+    "createCategory": "Create Category",
+    "fillDetails": "Fill in the details to add a new category.",
+    "updateDetails": "Update the category details below.",
+    "noCategories": "No categories yet",
+    "slug": "Slug",
+    "description": "Description",
+    "actions": "Actions",
+    "categoryDeleted": "Category deleted",
+    "failedToDelete": "Failed to delete category",
+    "categoryUpdated": "Category updated",
+    "categoryCreated": "Category created",
+    "slugRequired": "Slug is required",
+    "slugInUse": "This slug is already in use",
+    "slugHint": "Used as i18n key (e.g. 'crop' → key 'category-names.crop')"
+  },
+  "expense-categories": {
+    "title": "Expense Categories",
+    "addCategory": "Add Category",
+    "editCategory": "Edit Category",
+    "createCategory": "Create Category",
+    "fillDetails": "Fill in the details to add a new category.",
+    "updateDetails": "Update the category details below.",
+    "noCategories": "No categories yet",
+    "slug": "Slug",
+    "description": "Description",
+    "actions": "Actions",
+    "categoryDeleted": "Category deleted",
+    "failedToDelete": "Failed to delete category",
+    "categoryUpdated": "Category updated",
+    "categoryCreated": "Category created",
+    "slugRequired": "Slug is required",
+    "slugInUse": "This slug is already in use",
+    "slugHint": "Used as i18n key (e.g. 'supplies' → key 'category-names.supplies')"
+  },
+  "category-names": {
+    "crop": "Crop",
+    "infrastructure": "Infrastructure",
+    "supplies": "Supplies",
+    "labor": "Labor",
+    "equipment": "Equipment",
+    "services": "Services",
+    "transport": "Transport",
+    "other": "Other"
   },
   "sales": {
     "title": "Sales",
@@ -361,6 +411,10 @@
       "noEmailToInvite": "Client has no email. Provide an email to invite.",
       "clientRoleNotFound": "Client role not found",
       "linkedUserNotFound": "Linked user not found"
+    },
+  "categories": {
+      "forbidden": "Forbidden",
+      "validationFailed": "Validation failed"
     },
     "products": {
       "nameRequired": "Name is required",
