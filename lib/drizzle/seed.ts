@@ -6,6 +6,8 @@ import {
   permissionsTable,
   rolePermissionsTable,
   providersTable,
+  projectCategoriesTable,
+  expenseCategoriesTable,
 } from "./schema"
 import { eq } from "drizzle-orm"
 import crypto from "crypto"
@@ -36,6 +38,10 @@ const defaultModules = [
     module: "client-activity",
     actions: ["view", "create", "edit", "delete"],
   },
+  { module: "projects", actions: ["view", "create", "edit", "delete"] },
+  { module: "project-categories", actions: ["view", "create", "edit", "delete"] },
+  { module: "expense-categories", actions: ["view", "create", "edit", "delete"] },
+  { module: "expenses", actions: ["view", "create", "edit", "delete"] },
 ]
 
 async function seed() {
@@ -86,6 +92,19 @@ async function seed() {
         .values({ roleId: adminRole.id, permissionId: perm.id })
         .onConflictDoNothing()
     }
+
+    if (
+      (perm.module === "projects" ||
+        perm.module === "project-categories" ||
+        perm.module === "expense-categories" ||
+        perm.module === "expenses") &&
+      perm.action === "view"
+    ) {
+      await db
+        .insert(rolePermissionsTable)
+        .values({ roleId: adminRole.id, permissionId: perm.id })
+        .onConflictDoNothing()
+    }
   }
 
   const clientPermissions = allPermissions.filter(
@@ -98,9 +117,57 @@ async function seed() {
       .onConflictDoNothing()
   }
 
-  console.log(
-    "Role-permissions seeded: super gets all, admin gets view/create/edit"
+  const clientProjectPerms = allPermissions.filter(
+    (p) => p.module === "projects" && ["view", "create", "edit", "delete"].includes(p.action),
   )
+  for (const perm of clientProjectPerms) {
+    await db
+      .insert(rolePermissionsTable)
+      .values({ roleId: clientRole.id, permissionId: perm.id })
+      .onConflictDoNothing()
+  }
+
+  const clientExpensePerms = allPermissions.filter(
+    (p) => p.module === "expenses" && ["view", "create", "edit", "delete"].includes(p.action),
+  )
+  for (const perm of clientExpensePerms) {
+    await db
+      .insert(rolePermissionsTable)
+      .values({ roleId: clientRole.id, permissionId: perm.id })
+      .onConflictDoNothing()
+  }
+
+  console.log(
+    "Role-permissions seeded: super gets all, admin gets view/create/edit, clients get projects and expenses"
+  )
+
+  const defaultProjectCategories = [
+    { slug: "crop" },
+    { slug: "infrastructure" },
+  ]
+  for (const cat of defaultProjectCategories) {
+    await db
+      .insert(projectCategoriesTable)
+      .values(cat)
+      .onConflictDoNothing({ target: projectCategoriesTable.slug })
+  }
+  console.log("Project categories seeded")
+
+  const defaultExpenseCategories = [
+    { slug: "supplies" },
+    { slug: "labor" },
+    { slug: "equipment" },
+    { slug: "services" },
+    { slug: "transport" },
+    { slug: "other" },
+  ]
+  for (const cat of defaultExpenseCategories) {
+    await db
+      .insert(expenseCategoriesTable)
+      .values(cat)
+      .onConflictDoNothing({ target: expenseCategoriesTable.slug })
+  }
+  console.log("Expense categories seeded")
 
   const companyName = process.env.COMPANY_NAME || "Alsia Labs"
   const existingProvider = await db

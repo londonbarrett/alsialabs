@@ -50,6 +50,13 @@
       "when": 1783117652133,
       "tag": "0006_activities_and_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783473612256,
+      "tag": "0007_projects",
+      "breakpoints": true
     }
   ]
 }
