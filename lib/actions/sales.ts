@@ -130,6 +130,7 @@ export async function getInvoices() {
       discountTotal: invoicesTable.discountTotal,
       taxTotal: invoicesTable.taxTotal,
       grandTotal: invoicesTable.grandTotal,
+      projectId: invoicesTable.projectId,
       createdAt: invoicesTable.createdAt,
       updatedAt: invoicesTable.updatedAt,
     })

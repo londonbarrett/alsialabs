@@ -52,6 +52,7 @@
     "reports": "Reportes",
     "users": "Usuarios",
     "permissions": "Permisos",
+    "project-categories": "Categorías de Proyectos",
     "profile": "Perfil",
     "help": "Ayuda",
     "support": "Soporte"
@@ -64,7 +65,8 @@
     "reports": "Reportes",
     "permissions": "Permisos",
     "users": "Usuarios",
-    "profile": "Perfil"
+    "profile": "Perfil",
+    "project-categories": "Categorías de Proyectos"
   },
   "landing": {
     "title": "ALSIA Labs CRM",
@@ -194,6 +196,25 @@
     "skuInUse": "Este SKU ya está en uso",
     "selectProvider": "Seleccionar un proveedor",
     "skuInUseField": "SKU ya en uso"
+  },
+  "project-categories": {
+    "title": "Categorías de Proyectos",
+    "addCategory": "Agregar Categoría",
+    "editCategory": "Editar Categoría",
+    "createCategory": "Crear Categoría",
+    "fillDetails": "Completa los datos para agregar una nueva categoría.",
+    "updateDetails": "Actualiza los detalles de la categoría a continuación.",
+    "noCategories": "No hay categorías aún",
+    "slug": "Slug",
+    "description": "Descripción",
+    "actions": "Acciones",
+    "categoryDeleted": "Categoría eliminada",
+    "failedToDelete": "Error al eliminar la categoría",
+    "categoryUpdated": "Categoría actualizada",
+    "categoryCreated": "Categoría creada",
+    "slugRequired": "El slug es obligatorio",
+    "slugInUse": "Este slug ya está en uso",
+    "slugHint": "Se usa como clave de traducción (ej. 'crop' → clave 'project-categories.crop')"
   },
   "sales": {
     "title": "Ventas",
@@ -361,6 +382,10 @@
       "noEmailToInvite": "El cliente no tiene correo. Proporciona un correo para invitarlo.",
       "clientRoleNotFound": "Rol de cliente no encontrado",
       "linkedUserNotFound": "Usuario vinculado no encontrado"
+    },
+  "project-categories": {
+      "forbidden": "Prohibido",
+      "validationFailed": "Error de validación"
     },
     "products": {
       "nameRequired": "El nombre es obligatorio",
