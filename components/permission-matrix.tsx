@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog'
 import { Plus, Trash2 } from 'lucide-react'
 import { manageModule, togglePermission } from '@/lib/actions/permissions'
+import { DestructiveDialog } from '@/components/common/destructive-dialog'
 import { toast } from 'sonner'
 import type { PermissionMatrixItem } from '@/lib/actions/permissions'
 
@@ -40,6 +41,8 @@ export function PermissionMatrix({ matrix, roles }: Props) {
   const [addOpen, setAddOpen] = useState(false)
   const [moduleName, setModuleName] = useState('')
   const [actionsStr, setActionsStr] = useState('')
+  const [deleteModule, setDeleteModule] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const modules = new Map<string, PermissionMatrixItem[]>()
   for (const item of matrix) {
@@ -65,12 +68,20 @@ export function PermissionMatrix({ matrix, roles }: Props) {
   }
 
   async function handleDeleteModule(name: string) {
-    const result = await manageModule({ action: 'delete', name })
+    setDeleteModule(name)
+  }
+
+  async function confirmDeleteModule() {
+    if (!deleteModule) return
+    setDeleting(true)
+    const result = await manageModule({ action: 'delete', name: deleteModule })
     if (!result.success) {
       toast.error(result.error || t('failedToDelete'))
     } else {
       toast.success(t('moduleDeleted'))
     }
+    setDeleteModule(null)
+    setDeleting(false)
   }
 
   async function handleToggle(permissionId: string, roleId: string, currentEnabled: boolean) {
@@ -171,6 +182,15 @@ export function PermissionMatrix({ matrix, roles }: Props) {
           </TableBody>
         </Table>
       </div>
+
+      <DestructiveDialog
+        open={!!deleteModule}
+        title={t('deleteModuleTitle')}
+        message={t('deleteModuleConfirm', { name: deleteModule ?? '' })}
+        onConfirm={confirmDeleteModule}
+        onCancel={() => setDeleteModule(null)}
+        loading={deleting}
+      />
     </div>
   )
 }

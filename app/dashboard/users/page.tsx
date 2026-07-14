@@ -3,7 +3,7 @@ import { forbidden } from 'next/navigation'
 import { db } from '@/lib/drizzle/client'
 import { usersTable, userRolesTable, rolesTable } from '@/lib/drizzle/schema'
 import { eq } from 'drizzle-orm'
-import { UsersTable } from '@/components/users-table'
+import { UsersTable } from '@/components/users/users-table'
 
 export default async function UsersPage() {
   const session = await auth()

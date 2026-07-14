@@ -53,6 +53,7 @@
     "users": "Usuarios",
     "permissions": "Permisos",
     "categories": "Categorías",
+    "projects": "Proyectos",
     "profile": "Perfil",
     "help": "Ayuda",
     "support": "Soporte"
@@ -66,7 +67,8 @@
     "permissions": "Permisos",
     "users": "Usuarios",
     "profile": "Perfil",
-    "categories": "Categorías"
+    "categories": "Categorías",
+    "projects": "Proyectos"
   },
   "landing": {
     "title": "ALSIA Labs CRM",
@@ -245,6 +247,84 @@
     "transport": "Transporte",
     "other": "Otro"
   },
+  "projects": {
+    "title": "Proyectos",
+    "portfolio": "Portafolio",
+    "subtitle": "Sigue el progreso, presupuestos y equipos en todas las iniciativas activas.",
+    "addProject": "Agregar Proyecto",
+    "editProject": "Editar Proyecto",
+    "createProject": "Crear Proyecto",
+    "fillDetails": "Completa los datos para crear un nuevo proyecto.",
+    "updateDetails": "Actualiza los detalles del proyecto a continuación.",
+    "noProjects": "No hay proyectos aún",
+    "name": "Nombre",
+    "category": "Categoría",
+    "description": "Descripción",
+    "statusLabel": "Estado",
+    "startDate": "Fecha de inicio",
+    "endDate": "Fecha de fin",
+    "location": "Ubicación",
+    "budget": "Presupuesto",
+    "actions": "Acciones",
+    "projectDeleted": "Proyecto eliminado",
+    "failedToDelete": "Error al eliminar el proyecto",
+    "projectUpdated": "Proyecto actualizado",
+    "projectCreated": "Proyecto creado",
+    "nameRequired": "El nombre es obligatorio",
+    "categoryRequired": "La categoría es obligatoria",
+    "startDateRequired": "La fecha de inicio es obligatoria",
+    "locationRequired": "La ubicación es obligatoria",
+    "selectCategory": "Selecciona una categoría",
+    "status": {
+      "active": "Activo",
+      "completed": "Completado",
+      "cancelled": "Cancelado",
+      "archived": "Archivado"
+    },
+    "detail": {
+      "title": "Detalles del Proyecto"
+    },
+    "card": {
+      "start": "Inicio",
+      "end": "Fin",
+      "location": "Ubicación",
+      "budget": "Presupuesto",
+      "ofBudgetUsed": "{pct}% del presupuesto usado",
+      "overBudget": "excede el presupuesto",
+      "tasks": "Tareas",
+      "doneLeft": "{done} completadas · {left} restantes",
+      "allTasksCompleted": "Todas las tareas completadas",
+      "edit": "Editar",
+      "deleteProject": "Eliminar proyecto",
+      "view": "Ver",
+      "unassigned": "Sin asignar"
+    },
+    "tasks": {
+      "title": "Tareas",
+      "addTask": "Agregar Tarea",
+      "editTask": "Editar Tarea",
+      "createTask": "Crear Tarea",
+      "fillDetails": "Completa los datos para crear una nueva tarea.",
+      "updateDetails": "Actualiza los detalles de la tarea a continuación.",
+      "noTasks": "No hay tareas aún",
+      "name": "Nombre de la tarea",
+      "description": "Descripción",
+      "cost": "Costo",
+      "statusLabel": "Estado",
+      "actions": "Acciones",
+      "taskDeleted": "Tarea eliminada",
+      "taskUpdated": "Tarea actualizada",
+      "taskCreated": "Tarea creada",
+      "nameRequired": "El nombre de la tarea es obligatorio",
+      "status": {
+        "todo": "Por hacer",
+        "in_progress": "En progreso",
+        "in_review": "En revisión",
+        "blocked": "Bloqueado",
+        "done": "Completado"
+      }
+    }
+  },
   "sales": {
     "title": "Ventas",
     "newInvoice": "Nueva Factura",
@@ -349,6 +429,8 @@
     "cancel": "Cancelar",
     "create": "Crear",
     "deleteModule": "Eliminar módulo {name}",
+    "deleteModuleTitle": "Eliminar módulo",
+    "deleteModuleConfirm": "¿Estás seguro de que deseas eliminar el módulo \"{name}\"? Esto no se puede deshacer.",
     "togglePermission": "{module} {action} para {role}",
     "moduleCreated": "Módulo creado",
     "moduleDeleted": "Módulo eliminado",
@@ -415,6 +497,12 @@
     "categories": {
       "forbidden": "Prohibido",
       "validationFailed": "Error de validación"
+    },
+    "projects": {
+      "forbidden": "Prohibido",
+      "validationFailed": "Error de validación",
+      "unauthorized": "No autorizado",
+      "notFound": "Proyecto no encontrado"
     },
     "products": {
       "nameRequired": "El nombre es obligatorio",

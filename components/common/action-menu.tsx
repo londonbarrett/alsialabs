@@ -10,14 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+import { DestructiveDialog } from '@/components/common/destructive-dialog'
 
 interface ActionMenuProps {
   entityName: string
@@ -83,24 +76,14 @@ export function ActionMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('actionMenu.deleteTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('actionMenu.confirmDelete', { name: entityName })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>
-              {t('common.cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? t('common.deleting') : t('actionMenu.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DestructiveDialog
+        open={deleteOpen}
+        title={t('actionMenu.deleteTitle')}
+        message={t('actionMenu.confirmDelete', { name: entityName })}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteOpen(false)}
+        loading={deleting}
+      />
     </>
   )
 }

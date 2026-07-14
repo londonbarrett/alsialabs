@@ -1,16 +1,16 @@
+import crypto from "crypto"
+import { eq } from "drizzle-orm"
 import { db } from "./client"
 import {
-  usersTable,
+  expenseCategoriesTable,
+  permissionsTable,
+  projectCategoriesTable,
+  providersTable,
+  rolePermissionsTable,
   rolesTable,
   userRolesTable,
-  permissionsTable,
-  rolePermissionsTable,
-  providersTable,
-  projectCategoriesTable,
-  expenseCategoriesTable,
+  usersTable,
 } from "./schema"
-import { eq } from "drizzle-orm"
-import crypto from "crypto"
 
 const roles = [
   {
@@ -39,7 +39,10 @@ const defaultModules = [
     actions: ["view", "create", "edit", "delete"],
   },
   { module: "projects", actions: ["view", "create", "edit", "delete"] },
-  { module: "categories", actions: ["view", "create", "edit", "delete"] },
+  {
+    module: "categories",
+    actions: ["view", "create", "edit", "delete"],
+  },
   { module: "expenses", actions: ["view", "create", "edit", "delete"] },
 ]
 
@@ -116,7 +119,9 @@ async function seed() {
   }
 
   const clientProjectPerms = allPermissions.filter(
-    (p) => p.module === "projects" && ["view", "create", "edit", "delete"].includes(p.action),
+    (p) =>
+      p.module === "projects" &&
+      ["view", "create", "edit", "delete"].includes(p.action)
   )
   for (const perm of clientProjectPerms) {
     await db
@@ -126,7 +131,9 @@ async function seed() {
   }
 
   const clientExpensePerms = allPermissions.filter(
-    (p) => p.module === "expenses" && ["view", "create", "edit", "delete"].includes(p.action),
+    (p) =>
+      p.module === "expenses" &&
+      ["view", "create", "edit", "delete"].includes(p.action)
   )
   for (const perm of clientExpensePerms) {
     await db

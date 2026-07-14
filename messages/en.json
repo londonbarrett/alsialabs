@@ -53,6 +53,7 @@
     "users": "Users",
     "permissions": "Permissions",
     "categories": "Categories",
+    "projects": "Projects",
     "profile": "Profile",
     "help": "Help",
     "support": "Support"
@@ -66,7 +67,8 @@
     "permissions": "Permissions",
     "users": "Users",
     "profile": "Profile",
-    "categories": "Categories"
+    "categories": "Categories",
+    "projects": "Projects"
   },
   "landing": {
     "title": "ALSIA Labs CRM",
@@ -245,6 +247,84 @@
     "transport": "Transport",
     "other": "Other"
   },
+  "projects": {
+    "title": "Projects",
+    "portfolio": "Portfolio",
+    "subtitle": "Track progress, budgets, and teams across all active initiatives.",
+    "addProject": "Add Project",
+    "editProject": "Edit Project",
+    "createProject": "Create Project",
+    "fillDetails": "Fill in the details to create a new project.",
+    "updateDetails": "Update the project details below.",
+    "noProjects": "No projects yet",
+    "name": "Name",
+    "category": "Category",
+    "description": "Description",
+    "statusLabel": "Status",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "location": "Location",
+    "budget": "Budget",
+    "actions": "Actions",
+    "projectDeleted": "Project deleted",
+    "failedToDelete": "Failed to delete project",
+    "projectUpdated": "Project updated",
+    "projectCreated": "Project created",
+    "nameRequired": "Name is required",
+    "categoryRequired": "Category is required",
+    "startDateRequired": "Start date is required",
+    "locationRequired": "Location is required",
+    "selectCategory": "Select a category",
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "archived": "Archived"
+    },
+    "detail": {
+      "title": "Project Details"
+    },
+    "card": {
+      "start": "Start",
+      "end": "End",
+      "location": "Location",
+      "budget": "Budget",
+      "ofBudgetUsed": "{pct}% of budget used",
+      "overBudget": "over budget",
+      "tasks": "Tasks",
+      "doneLeft": "{done} done · {left} left",
+      "allTasksCompleted": "All tasks completed",
+      "edit": "Edit",
+      "deleteProject": "Delete project",
+      "view": "View",
+      "unassigned": "Unassigned"
+    },
+    "tasks": {
+      "title": "Tasks",
+      "addTask": "Add Task",
+      "editTask": "Edit Task",
+      "createTask": "Create Task",
+      "fillDetails": "Fill in the details to create a new task.",
+      "updateDetails": "Update the task details below.",
+      "noTasks": "No tasks yet",
+      "name": "Task Name",
+      "description": "Description",
+      "cost": "Cost",
+      "statusLabel": "Status",
+      "actions": "Actions",
+      "taskDeleted": "Task deleted",
+      "taskUpdated": "Task updated",
+      "taskCreated": "Task created",
+      "nameRequired": "Task name is required",
+      "status": {
+        "todo": "To Do",
+        "in_progress": "In Progress",
+        "in_review": "In Review",
+        "blocked": "Blocked",
+        "done": "Done"
+      }
+    }
+  },
   "sales": {
     "title": "Sales",
     "newInvoice": "New Invoice",
@@ -349,6 +429,8 @@
     "cancel": "Cancel",
     "create": "Create",
     "deleteModule": "Delete {name} module",
+    "deleteModuleTitle": "Delete module",
+    "deleteModuleConfirm": "Are you sure you want to delete the module \"{name}\"? This cannot be undone.",
     "togglePermission": "{module} {action} for {role}",
     "moduleCreated": "Module created",
     "moduleDeleted": "Module deleted",
@@ -415,6 +497,12 @@
   "categories": {
       "forbidden": "Forbidden",
       "validationFailed": "Validation failed"
+    },
+    "projects": {
+      "forbidden": "Forbidden",
+      "validationFailed": "Validation failed",
+      "unauthorized": "Unauthorized",
+      "notFound": "Project not found"
     },
     "products": {
       "nameRequired": "Name is required",
