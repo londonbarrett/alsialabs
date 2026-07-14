@@ -52,3 +52,36 @@ The sidebar menu config SHALL include permission requirements per item.
 #### Scenario: Menu config includes required permission
 - **WHEN** the sidebar menu config is loaded
 - **THEN** each nav item optionally specifies a required permission (e.g., "clients:view")
+
+### Requirement: Role-based sidebar sections
+The sidebar SHALL organize nav items into three sections based on role and permissions: Admin (permission-gated), Navigation (everyone), and Auxiliary (everyone).
+
+**MODIFICATION**: Previously all items were in a flat "Navigation" section. They are now split into Admin (for system-management items like Users, Permissions, Clients, Products, Categories, Sales, Reports), Navigation (for user-facing items like Profile and Projects), and Auxiliary (Help, Support).
+
+#### Scenario: Admin section filtered by permissions
+- **GIVEN** a user with only `categories:view` permission
+- **WHEN** the sidebar renders
+- **THEN** the Admin section shows only "Categories"
+- **AND** items without matching permissions are hidden
+
+#### Scenario: Super user sees full Admin section
+- **GIVEN** a super user
+- **WHEN** the sidebar renders
+- **THEN** the Admin section shows Users, Permissions, Clients, Products, Categories, Sales, and Reports
+
+### Requirement: Profile nav item
+The sidebar SHALL include a Profile item in the Navigation section that links to `/dashboard/profile`.
+
+#### Scenario: Profile link visible
+- **WHEN** the sidebar renders
+- **THEN** a Profile nav item appears in the Navigation section
+- **AND** it requires no permission to see
+
+### Requirement: Category admin page permission gate
+The admin categories page SHALL require `categories:view` permission to access. Clients SHALL read categories via a separate unauthenticated server action for operational purposes.
+
+#### Scenario: Category page restricted to admins
+- **GIVEN** a user without `categories:view` permission
+- **WHEN** the user navigates to `/dashboard/categories`
+- **THEN** a forbidden error is returned
+
