@@ -2,7 +2,7 @@ import { auth, getUserPermissions, hasPermission } from '@/lib/auth'
 import { forbidden, notFound } from 'next/navigation'
 import { getProjectById } from '@/lib/actions/projects'
 import { getProjectTasks } from '@/lib/actions/project-tasks'
-import { getProjectCategories } from '@/lib/actions/project-categories'
+import { getProjectCategoriesList } from '@/lib/actions/project-categories'
 import { ProjectDetailView } from '@/components/projects/project-detail-view'
 
 interface Props {
@@ -27,7 +27,7 @@ export default async function ProjectDetailPage({ params }: Props) {
   const [tasks, permissions, categories] = await Promise.all([
     getProjectTasks(id),
     getUserPermissions(session.user.id),
-    getProjectCategories(),
+    getProjectCategoriesList(),
   ])
 
   return <ProjectDetailView project={project} tasks={tasks} permissions={permissions} categories={categories} />
