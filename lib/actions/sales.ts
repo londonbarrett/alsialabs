@@ -120,6 +120,7 @@ export async function getInvoices() {
       type: invoicesTable.type,
       invoiceNumber: invoicesTable.invoiceNumber,
       clientId: invoicesTable.clientId,
+      userId: invoicesTable.userId,
       clientName: clientsTable.name,
       status: invoicesTable.status,
       issueDate: invoicesTable.issueDate,

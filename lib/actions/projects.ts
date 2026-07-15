@@ -319,6 +319,7 @@ export async function upsertProject(data: ProjectFormData, id?: string) {
 
     await db.insert(projectsTable).values({
       clientId,
+      primaryOwnerId: session.user.id,
       categoryId,
       name,
       status,
@@ -354,6 +355,7 @@ export async function getProjectForEdit(id: string) {
     .select({
       id: projectsTable.id,
       clientId: projectsTable.clientId,
+      primaryOwnerId: projectsTable.primaryOwnerId,
       categoryId: projectsTable.categoryId,
       name: projectsTable.name,
       description: projectsTable.description,
