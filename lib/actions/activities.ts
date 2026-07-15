@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/drizzle/client"
-import { activitiesTable } from "@/lib/drizzle/schema"
+import { clientActivitiesTable } from "@/lib/drizzle/schema"
 import { eq, desc } from "drizzle-orm"
 import { requirePermission, auth, isSuperUser } from "@/lib/auth"
 import { z } from "zod"
@@ -30,8 +30,6 @@ const activitySchema = z.object({
   }, "Date cannot be in the future"),
 })
 
-const idSchema = z.uuid()
-
 export type ActivityFormData = z.infer<typeof activitySchema>
 
 export async function getActivities(clientId: string) {
@@ -41,14 +39,11 @@ export async function getActivities(clientId: string) {
     return []
   }
 
-  const idParsed = idSchema.safeParse(clientId)
-  if (!idParsed.success) return []
-
   return db
     .select()
-    .from(activitiesTable)
-    .where(eq(activitiesTable.clientId, idParsed.data))
-    .orderBy(desc(activitiesTable.activityDate))
+    .from(clientActivitiesTable)
+    .where(eq(clientActivitiesTable.clientId, clientId))
+    .orderBy(desc(clientActivitiesTable.activityDate))
 }
 
 export async function upsertActivity(
@@ -89,21 +84,17 @@ export async function upsertActivity(
   }
 
   if (activityId) {
-    const idParsed = idSchema.safeParse(activityId)
-    if (!idParsed.success)
-      return { success: false, error: t("invalidActivityId") }
-
     await db
-      .update(activitiesTable)
+      .update(clientActivitiesTable)
       .set({
         type: sanitized.type,
         subject: sanitized.subject,
         description: sanitized.description,
         activityDate: sanitized.activityDate,
       })
-      .where(eq(activitiesTable.id, idParsed.data))
+      .where(eq(clientActivitiesTable.id, activityId))
   } else {
-    await db.insert(activitiesTable).values(sanitized)
+    await db.insert(clientActivitiesTable).values(sanitized)
   }
 
   revalidatePath("/dashboard/clients")
@@ -123,13 +114,9 @@ export async function deleteActivity(activityId: string) {
     return { success: false as const, error: t("onlySuperCanDelete") }
   }
 
-  const idParsed = idSchema.safeParse(activityId)
-  if (!idParsed.success)
-    return { success: false as const, error: t("invalidActivityId") }
-
   await db
-    .delete(activitiesTable)
-    .where(eq(activitiesTable.id, idParsed.data))
+    .delete(clientActivitiesTable)
+    .where(eq(clientActivitiesTable.id, activityId))
 
   revalidatePath("/dashboard/clients")
   return { success: true as const }

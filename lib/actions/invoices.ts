@@ -4,10 +4,7 @@ import { db } from "@/lib/drizzle/client"
 import { invoicesTable, clientsTable } from "@/lib/drizzle/schema"
 import { eq, sql, and } from "drizzle-orm"
 import { requirePermission, auth } from "@/lib/auth"
-import { z } from "zod"
 import { getActionT } from "@/lib/i18n-actions"
-
-const idSchema = z.uuid()
 
 export interface ClientInvoice {
   id: string
@@ -32,9 +29,6 @@ export async function getClientInvoices(
   | { success: false; error: string }
 > {
   const t = await getActionT("actions.activities")
-  const parsed = idSchema.safeParse(clientId)
-  if (!parsed.success)
-    return { success: false, error: t("invalidClientId") }
 
   try {
     await requirePermission("client-activity", "view")

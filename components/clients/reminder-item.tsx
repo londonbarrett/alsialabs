@@ -4,10 +4,10 @@ import { useTranslations } from 'next-intl'
 import { Bell, BellOff, CheckCircle2 } from 'lucide-react'
 import { ActionMenu } from '@/components/common/action-menu'
 import { Button } from '@/components/ui/button'
-import type { Reminder } from '@/lib/drizzle/schema'
+import type { ClientReminder } from '@/lib/drizzle/schema'
 
 interface ReminderItemProps {
-  reminder: Reminder
+  reminder: ClientReminder
   onEdit: () => void
   onDelete: () => Promise<void>
   onComplete: () => Promise<void>

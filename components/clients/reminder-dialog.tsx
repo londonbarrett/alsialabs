@@ -13,12 +13,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { upsertReminder } from '@/lib/actions/reminders'
-import type { Reminder } from '@/lib/drizzle/schema'
+import type { ClientReminder } from '@/lib/drizzle/schema'
 import { toast } from 'sonner'
 
 interface ReminderDialogProps {
   clientId: string
-  reminder?: Reminder
+  reminder?: ClientReminder
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void

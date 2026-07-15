@@ -13,7 +13,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { upsertActivity } from '@/lib/actions/activities'
-import type { Activity } from '@/lib/drizzle/schema'
+import type { ClientActivity } from '@/lib/drizzle/schema'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -21,7 +21,7 @@ const activityTypes = ['call', 'email', 'meeting', 'note'] as const
 
 interface LogActivityDialogProps {
   clientId: string
-  activity?: Activity
+  activity?: ClientActivity
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/drizzle/client"
-import { remindersTable, clientsTable } from "@/lib/drizzle/schema"
+import { clientRemindersTable, clientsTable } from "@/lib/drizzle/schema"
 import { eq, desc, and, asc, gte } from "drizzle-orm"
 import { requirePermission, auth } from "@/lib/auth"
 import { z } from "zod"
@@ -22,8 +22,6 @@ const reminderSchema = z.object({
   }, "Date must be today or in the future"),
 })
 
-const idSchema = z.uuid()
-
 export type ReminderFormData = z.infer<typeof reminderSchema>
 
 export async function getReminders(clientId: string) {
@@ -33,14 +31,11 @@ export async function getReminders(clientId: string) {
     return []
   }
 
-  const idParsed = idSchema.safeParse(clientId)
-  if (!idParsed.success) return []
-
   return db
     .select()
-    .from(remindersTable)
-    .where(eq(remindersTable.clientId, idParsed.data))
-    .orderBy(desc(remindersTable.remindAt))
+    .from(clientRemindersTable)
+    .where(eq(clientRemindersTable.clientId, clientId))
+    .orderBy(desc(clientRemindersTable.remindAt))
 }
 
 export async function upsertReminder(
@@ -79,19 +74,15 @@ export async function upsertReminder(
   }
 
   if (reminderId) {
-    const idParsed = idSchema.safeParse(reminderId)
-    if (!idParsed.success)
-      return { success: false, error: t("invalidReminderId") }
-
     await db
-      .update(remindersTable)
+      .update(clientRemindersTable)
       .set({
         description: sanitized.description,
         remindAt: sanitized.remindAt,
       })
-      .where(eq(remindersTable.id, idParsed.data))
+      .where(eq(clientRemindersTable.id, reminderId))
   } else {
-    await db.insert(remindersTable).values(sanitized)
+    await db.insert(clientRemindersTable).values(sanitized)
   }
 
   revalidatePath("/dashboard/clients")
@@ -106,17 +97,13 @@ export async function completeReminder(reminderId: string) {
     return { success: false, error: t("forbidden") }
   }
 
-  const idParsed = idSchema.safeParse(reminderId)
-  if (!idParsed.success)
-    return { success: false, error: t("invalidReminderId") }
-
   await db
-    .update(remindersTable)
+    .update(clientRemindersTable)
     .set({
       completed: true,
       completedAt: new Date(),
     })
-    .where(eq(remindersTable.id, idParsed.data))
+    .where(eq(clientRemindersTable.id, reminderId))
 
   revalidatePath("/dashboard/clients")
   return { success: true }
@@ -130,13 +117,9 @@ export async function deleteReminder(reminderId: string) {
     return { success: false as const, error: t("forbidden") }
   }
 
-  const idParsed = idSchema.safeParse(reminderId)
-  if (!idParsed.success)
-    return { success: false as const, error: t("invalidReminderId") }
-
   await db
-    .delete(remindersTable)
-    .where(eq(remindersTable.id, idParsed.data))
+    .delete(clientRemindersTable)
+    .where(eq(clientRemindersTable.id, reminderId))
 
   revalidatePath("/dashboard/clients")
   return { success: true as const }
@@ -161,25 +144,25 @@ export async function getActiveReminders(): Promise<ActiveReminder[]> {
 
   const rows = await db
     .select({
-      id: remindersTable.id,
-      clientId: remindersTable.clientId,
+      id: clientRemindersTable.id,
+      clientId: clientRemindersTable.clientId,
       clientName: clientsTable.name,
-      description: remindersTable.description,
-      remindAt: remindersTable.remindAt,
-      completed: remindersTable.completed,
+      description: clientRemindersTable.description,
+      remindAt: clientRemindersTable.remindAt,
+      completed: clientRemindersTable.completed,
     })
-    .from(remindersTable)
+    .from(clientRemindersTable)
     .innerJoin(
       clientsTable,
-      eq(remindersTable.clientId, clientsTable.id)
+      eq(clientRemindersTable.clientId, clientsTable.id)
     )
     .where(
       and(
-        eq(remindersTable.completed, false),
-        gte(remindersTable.remindAt, today)
+        eq(clientRemindersTable.completed, false),
+        gte(clientRemindersTable.remindAt, today)
       )
     )
-    .orderBy(asc(remindersTable.remindAt))
+    .orderBy(asc(clientRemindersTable.remindAt))
 
   return rows
 }

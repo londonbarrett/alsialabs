@@ -2,11 +2,11 @@ import { getTranslations } from 'next-intl/server'
 import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
 import { getActivities } from "@/lib/actions/activities"
-import { getClientInvoices } from "@/lib/actions/client-invoices"
+import { getClientInvoices } from "@/lib/actions/invoices"
 import { getClientByClientId, getClients } from "@/lib/actions/clients"
 import { getReminders } from "@/lib/actions/reminders"
 import { auth, getUserPermissions } from "@/lib/auth"
-import type { Activity, Invoice, Reminder } from "@/lib/drizzle/schema"
+import type { ClientActivity, Invoice, ClientReminder } from "@/lib/drizzle/schema"
 import { forbidden } from "next/navigation"
 
 export default async function ClientProfilePage({
@@ -43,8 +43,8 @@ export default async function ClientProfilePage({
   const isClient = session.user.role === "client"
 
   let invoices: Invoice[] = []
-  let activities: Activity[] = []
-  let reminders: Reminder[] = []
+  let activities: ClientActivity[] = []
+  let reminders: ClientReminder[] = []
 
   if (canView) {
     const result = await getClientInvoices(clientId)

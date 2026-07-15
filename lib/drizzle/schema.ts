@@ -83,8 +83,8 @@ export const verificationTokensTable = pgTable("verificationToken", {
   primaryKey({ columns: [verificationToken.identifier, verificationToken.token] }),
 ])
 
-export type Activity = typeof activitiesTable.$inferSelect
-export type Reminder = typeof remindersTable.$inferSelect
+export type ClientActivity = typeof clientActivitiesTable.$inferSelect
+export type ClientReminder = typeof clientRemindersTable.$inferSelect
 export type Client = typeof clientsTable.$inferSelect
 export type Role = typeof rolesTable.$inferSelect
 export type UserRole = typeof userRolesTable.$inferSelect
@@ -99,6 +99,9 @@ export type ProjectTask = typeof projectTasksTable.$inferSelect
 export type TaskComment = typeof taskCommentsTable.$inferSelect
 export type Collaborator = typeof collaboratorsTable.$inferSelect
 export type Expense = typeof expensesTable.$inferSelect
+export type ContractorProfile = typeof contractorProfilesTable.$inferSelect
+export type ProjectOwner = typeof projectOwnersTable.$inferSelect
+export type ProjectCollaborator = typeof projectCollaboratorsTable.$inferSelect
 
 export const providersTable = pgTable("provider", {
   id: text()
@@ -144,6 +147,7 @@ export const invoicesTable = pgTable("invoice", {
   clientId: text("client_id")
     .notNull()
     .references(() => clientsTable.id),
+  userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   status: text().notNull().default("paid"),
   issueDate: date("issue_date").notNull(),
   notes: text(),
@@ -172,7 +176,7 @@ export const invoiceItemsTable = pgTable("invoice_item", {
   productId: text("product_id").references(() => productsTable.id),
 })
 
-export const activitiesTable = pgTable("activity", {
+export const clientActivitiesTable = pgTable("client_activity", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -190,7 +194,7 @@ export const activitiesTable = pgTable("activity", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
 })
 
-export const remindersTable = pgTable("reminder", {
+export const clientRemindersTable = pgTable("client_reminder", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -246,6 +250,8 @@ export const projectsTable = pgTable("project", {
   clientId: text("client_id")
     .notNull()
     .references(() => clientsTable.id, { onDelete: "cascade" }),
+  primaryOwnerId: text("primary_owner_id")
+    .references(() => usersTable.id, { onDelete: "restrict" }),
   categoryId: text("category_id")
     .notNull()
     .references(() => projectCategoriesTable.id),
@@ -278,6 +284,7 @@ export const projectTasksTable = pgTable("project_task", {
     .default("todo")
     .$type<"todo" | "in_progress" | "in_review" | "blocked" | "done">(),
   collaboratorId: text("collaborator_id").references(() => collaboratorsTable.id, { onDelete: "set null" }),
+  assigneeId: text("assignee_id").references(() => usersTable.id, { onDelete: "set null" }),
   collaboratorToken: text("collaborator_token").unique(),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
@@ -290,8 +297,9 @@ export const taskCommentsTable = pgTable("task_comment", {
   taskId: text("task_id")
     .notNull()
     .references(() => projectTasksTable.id, { onDelete: "cascade" }),
-  authorId: text("author_id").notNull(),
-  authorType: text("author_type").notNull().$type<"client" | "collaborator">(),
+  authorId: text("author_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
   content: text().notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
@@ -327,3 +335,40 @@ export const expensesTable = pgTable("expense", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
 })
+
+export const contractorProfilesTable = pgTable("contractor_profile", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+  bio: text(),
+  hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
+  portfolioLinks: text("portfolio_links"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().$onUpdate(() => new Date()),
+})
+
+export const projectOwnersTable = pgTable("project_owner", {
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projectsTable.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+}, (table) => [
+  primaryKey({ columns: [table.projectId, table.userId] }),
+])
+
+export const projectCollaboratorsTable = pgTable("project_collaborator", {
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projectsTable.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+}, (table) => [
+  primaryKey({ columns: [table.projectId, table.userId] }),
+])
