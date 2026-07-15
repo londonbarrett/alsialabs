@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { auth, getUserPermissions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { getClientByUserId } from "@/lib/actions/clients"
-import { getClientInvoices } from "@/lib/actions/client-invoices"
+import { getClientInvoices } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
 

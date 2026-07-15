@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { Phone, Mail, Calendar, FileText } from 'lucide-react'
 import { ActionMenu } from '@/components/common/action-menu'
-import type { Activity } from '@/lib/drizzle/schema'
+import type { ClientActivity } from '@/lib/drizzle/schema'
 
 const typeIcons = {
   call: Phone,
@@ -20,7 +20,7 @@ const typeColors = {
 }
 
 interface ActivityItemProps {
-  activity: Activity
+  activity: ClientActivity
   onEdit: () => void
   onDelete: () => Promise<void>
   canEdit?: boolean

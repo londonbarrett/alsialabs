@@ -26,8 +26,6 @@ const invoiceSchema = z.object({
   items: z.array(lineItemSchema).min(1, 'At least one line item is required'),
 })
 
-const idSchema = z.string().uuid()
-
 export type InvoiceFormData = z.infer<typeof invoiceSchema>
 
 function computeLineTotal(qty: number, price: number, discountPct: number, taxPct: number): {
@@ -122,6 +120,7 @@ export async function getInvoices() {
       type: invoicesTable.type,
       invoiceNumber: invoicesTable.invoiceNumber,
       clientId: invoicesTable.clientId,
+      userId: invoicesTable.userId,
       clientName: clientsTable.name,
       status: invoicesTable.status,
       issueDate: invoicesTable.issueDate,
@@ -160,14 +159,10 @@ export async function getInvoiceProducts() {
 export type InvoiceProductOption = Awaited<ReturnType<typeof getInvoiceProducts>>[number]
 
 export async function getInvoiceItems(invoiceId: string): Promise<InvoiceItemData[]> {
-  const t = await getActionT('actions.sales')
-  const parsed = idSchema.safeParse(invoiceId)
-  if (!parsed.success) throw new Error(t('invalidInvoiceId'))
-
   return db
     .select()
     .from(invoiceItemsTable)
-    .where(eq(invoiceItemsTable.invoiceId, parsed.data))
+    .where(eq(invoiceItemsTable.invoiceId, invoiceId))
 }
 
 export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
@@ -197,15 +192,10 @@ export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
     grandTotal: totals.grandTotal,
   }
 
-  const invoiceIdParsed = invoiceId ? idSchema.safeParse(invoiceId) : null
-  if (invoiceIdParsed && !invoiceIdParsed.success) {
-    return { success: false, error: t('invalidInvoiceId') }
-  }
+  if (invoiceId) {
+    await db.update(invoicesTable).set(invoiceData).where(eq(invoicesTable.id, invoiceId))
 
-  if (invoiceIdParsed) {
-    await db.update(invoicesTable).set(invoiceData).where(eq(invoicesTable.id, invoiceIdParsed.data))
-
-    await db.delete(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invoiceIdParsed.data))
+    await db.delete(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invoiceId))
 
     for (const item of fields.items) {
       const qty = parseFloat(item.quantity) || 0
@@ -215,7 +205,7 @@ export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
       const { total } = computeLineTotal(qty, price, discPct, taxPct)
 
       await db.insert(invoiceItemsTable).values({
-        invoiceId: invoiceIdParsed!.data,
+        invoiceId: invoiceId,
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
@@ -267,11 +257,8 @@ export async function deleteInvoice(invoiceId: string) {
     return { success: false as const, error: t('forbidden') }
   }
 
-  const parsed = idSchema.safeParse(invoiceId)
-  if (!parsed.success) return { success: false as const, error: t('invalidInvoiceId') }
-
   try {
-    await db.delete(invoicesTable).where(eq(invoicesTable.id, parsed.data))
+    await db.delete(invoicesTable).where(eq(invoicesTable.id, invoiceId))
   } catch {
     return { success: false as const, error: t('cannotDelete') }
   }

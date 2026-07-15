@@ -45,7 +45,6 @@ const phoneSchema = z
   .string()
   .min(1, "Phone is required")
   .transform((v) => v.trim())
-const idSchema = z.string().uuid()
 
 const inviteSchema = z.object({
   clientId: z.string().uuid("Invalid client ID"),
@@ -59,24 +58,18 @@ const inviteSchema = z.object({
 export type ClientFormData = z.infer<typeof clientSchema>
 
 export async function getClientByClientId(id: string) {
-  const parsed = idSchema.safeParse(id)
-  if (!parsed.success) return null
-
   return db
     .select()
     .from(clientsTable)
-    .where(eq(clientsTable.id, parsed.data))
+    .where(eq(clientsTable.id, id))
     .then((rows) => rows[0] ?? null)
 }
 
 export async function getClientByUserId(userId: string) {
-  const parsed = idSchema.safeParse(userId)
-  if (!parsed.success) return null
-
   return db
     .select()
     .from(clientsTable)
-    .where(eq(clientsTable.userId, parsed.data))
+    .where(eq(clientsTable.userId, userId))
     .then((rows) => rows[0] ?? null)
 }
 
@@ -112,11 +105,6 @@ export async function checkPhoneExists(
   } catch {
     return { exists: false }
   }
-  const excludeIdParsed = excludeId
-    ? idSchema.safeParse(excludeId)
-    : null
-  if (excludeIdParsed && !excludeIdParsed.success)
-    return { exists: false }
 
   const existing = await db
     .select({ id: clientsTable.id })
@@ -124,8 +112,8 @@ export async function checkPhoneExists(
     .where(eq(clientsTable.phone, phone))
 
   if (existing.length === 0) return { exists: false }
-  if (excludeIdParsed)
-    return { exists: existing[0].id !== excludeIdParsed.data }
+  if (excludeId)
+    return { exists: existing[0].id !== excludeId }
   return { exists: true }
 }
 
@@ -151,14 +139,9 @@ export async function upsertClient(
 
   const fields = parsed.data
 
-  const clientIdParsed = clientId ? idSchema.safeParse(clientId) : null
-  if (clientIdParsed && !clientIdParsed.success) {
-    return { success: false, error: t("invalidClientId") }
-  }
-
   const phoneCheck = await checkPhoneExists(
     fields.phone,
-    clientIdParsed?.data
+    clientId
   )
   if (phoneCheck.exists) {
     return {
@@ -176,17 +159,17 @@ export async function upsertClient(
     email: fields.email || null,
   }
 
-  if (clientIdParsed) {
+  if (clientId) {
     const existing = await db
       .select({ userId: clientsTable.userId })
       .from(clientsTable)
-      .where(eq(clientsTable.id, clientIdParsed.data))
+      .where(eq(clientsTable.id, clientId))
       .then((rows) => rows[0])
 
     await db
       .update(clientsTable)
       .set(sanitized)
-      .where(eq(clientsTable.id, clientIdParsed.data))
+      .where(eq(clientsTable.id, clientId))
 
     if (existing?.userId && sanitized.email) {
       await db
@@ -210,13 +193,9 @@ export async function deleteClient(clientId: string) {
     return { success: false as const, error: t("forbidden") }
   }
 
-  const idParsed = idSchema.safeParse(clientId)
-  if (!idParsed.success)
-    return { success: false as const, error: t("invalidClientId") }
-
   await db
     .delete(clientsTable)
-    .where(eq(clientsTable.id, idParsed.data))
+    .where(eq(clientsTable.id, clientId))
   revalidatePath("/dashboard/clients")
   return { success: true as const }
 }

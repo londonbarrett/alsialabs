@@ -15,21 +15,21 @@ import {
   deleteReminder,
 } from "@/lib/actions/reminders"
 import { deleteInvoice } from "@/lib/actions/sales"
-import type { Activity, Invoice, Reminder } from "@/lib/drizzle/schema"
+import type { ClientActivity, Invoice, ClientReminder } from "@/lib/drizzle/schema"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 
 type TimelineEntry =
-  | ({ kind: "activity" } & Activity)
-  | ({ kind: "reminder" } & Reminder)
+  | ({ kind: "activity" } & ClientActivity)
+  | ({ kind: "reminder" } & ClientReminder)
   | ({ kind: "invoice" } & Invoice)
 
 interface ActivityTimelineProps {
   clientId: string
-  activities: Activity[]
-  reminders: Reminder[]
+  activities: ClientActivity[]
+  reminders: ClientReminder[]
   invoices: Invoice[]
   permissions: string[]
 }
@@ -37,9 +37,9 @@ interface ActivityTimelineProps {
 function getEntryDate(entry: TimelineEntry): string {
   switch (entry.kind) {
     case "activity":
-      return (entry as Activity).activityDate
+      return (entry as ClientActivity).activityDate
     case "reminder":
-      return (entry as Reminder).remindAt
+      return (entry as ClientReminder).remindAt
     case "invoice":
       return (entry as Invoice).issueDate
   }
@@ -58,10 +58,10 @@ export function ActivityTimeline({
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
   const [editingActivity, setEditingActivity] = useState<
-    Activity | undefined
+    ClientActivity | undefined
   >()
   const [editingReminder, setEditingReminder] = useState<
-    Reminder | undefined
+    ClientReminder | undefined
   >()
   const [editingInvoice, setEditingInvoice] = useState<
     Invoice | undefined
@@ -84,7 +84,7 @@ export function ActivityTimeline({
     router.refresh()
   }
 
-  async function handleDeleteActivity(activity: Activity) {
+  async function handleDeleteActivity(activity: ClientActivity) {
     const result = await deleteActivity(activity.id)
     if (!result.success)
       toast.error(result.error || t('activities.failedToDelete'))
@@ -94,7 +94,7 @@ export function ActivityTimeline({
     }
   }
 
-  async function handleDeleteReminder(reminder: Reminder) {
+  async function handleDeleteReminder(reminder: ClientReminder) {
     const result = await deleteReminder(reminder.id)
     if (!result.success)
       toast.error(result.error || t('reminders.failedToDelete'))
@@ -104,7 +104,7 @@ export function ActivityTimeline({
     }
   }
 
-  async function handleCompleteReminder(reminder: Reminder) {
+  async function handleCompleteReminder(reminder: ClientReminder) {
     const result = await completeReminder(reminder.id)
     if (!result.success)
       toast.error(result.error || t('reminders.failedToComplete'))
