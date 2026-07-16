@@ -1,9 +1,10 @@
 import { getTranslations } from 'next-intl/server'
+import { Label } from "@/components/ui/label"
 import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
 import { getActivities } from "@/lib/actions/activities"
 import { getClientInvoices } from "@/lib/actions/invoices"
-import { getClientByClientId, getClients } from "@/lib/actions/clients"
+import { getClientByClientId } from "@/lib/actions/clients"
 import { getReminders } from "@/lib/actions/reminders"
 import { auth, getUserPermissions } from "@/lib/auth"
 import type { ClientActivity, Invoice, ClientReminder } from "@/lib/drizzle/schema"
@@ -60,15 +61,11 @@ export default async function ClientProfilePage({
     }
   }
 
-  const allClients = await getClients()
-
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <ClientSwitcher
-          clients={allClients}
-          currentClientId={clientId}
-        />
+      <div className="flex flex-col gap-2">
+        <Label>{t('clients.switchClientTo')}</Label>
+        <ClientSwitcher currentClientId={clientId} />
       </div>
       <div className="max-w-lg rounded-md border p-6">
         <div className="flex flex-col gap-4">
