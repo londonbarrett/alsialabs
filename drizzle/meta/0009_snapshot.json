@@ -1,6 +1,6 @@
 {
-  "id": "7af12b76-f4c8-43cf-a4db-96cb78bf224d",
-  "prevId": "734c1919-ece9-4f56-b4ff-1b260bd914b9",
+  "id": "62274711-2da0-4d90-8f0e-f8ebd95afe02",
+  "prevId": "7af12b76-f4c8-43cf-a4db-96cb78bf224d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1316,12 +1316,6 @@
           "primaryKey": true,
           "notNull": true
         },
-        "client_id": {
-          "name": "client_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "primary_owner_id": {
           "name": "primary_owner_id",
           "type": "text",
@@ -1394,19 +1388,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "project_client_id_client_id_fk": {
-          "name": "project_client_id_client_id_fk",
-          "tableFrom": "project",
-          "tableTo": "client",
-          "columnsFrom": [
-            "client_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "project_primary_owner_id_user_id_fk": {
           "name": "project_primary_owner_id_user_id_fk",
           "tableFrom": "project",

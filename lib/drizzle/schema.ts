@@ -1,13 +1,13 @@
 import {
+  boolean,
+  date,
+  decimal,
+  integer,
   pgTable,
+  primaryKey,
   text,
   timestamp,
-  integer,
-  primaryKey,
-  boolean,
   uniqueIndex,
-  decimal,
-  date,
 } from "drizzle-orm/pg-core"
 
 export const usersTable = pgTable("user", {
@@ -130,7 +130,6 @@ export type ExpenseCategory = typeof expenseCategoriesTable.$inferSelect
 export type Project = typeof projectsTable.$inferSelect
 export type ProjectTask = typeof projectTasksTable.$inferSelect
 export type TaskComment = typeof taskCommentsTable.$inferSelect
-export type Collaborator = typeof collaboratorsTable.$inferSelect
 export type Expense = typeof expensesTable.$inferSelect
 export type ContractorProfile =
   typeof contractorProfilesTable.$inferSelect
@@ -326,9 +325,6 @@ export const projectsTable = pgTable("project", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  clientId: text("client_id")
-    .notNull()
-    .references(() => clientsTable.id, { onDelete: "cascade" }),
   primaryOwnerId: text("primary_owner_id")
     .notNull()
     .references(() => usersTable.id, { onDelete: "restrict" }),
@@ -368,14 +364,9 @@ export const projectTasksTable = pgTable("project_task", {
     .notNull()
     .default("todo")
     .$type<"todo" | "in_progress" | "in_review" | "blocked" | "done">(),
-  collaboratorId: text("collaborator_id").references(
-    () => collaboratorsTable.id,
-    { onDelete: "set null" }
-  ),
   assigneeId: text("assignee_id").references(() => usersTable.id, {
     onDelete: "set null",
   }),
-  collaboratorToken: text("collaborator_token").unique(),
   createdAt: timestamp("created_at", { mode: "date" })
     .notNull()
     .defaultNow(),
@@ -396,25 +387,6 @@ export const taskCommentsTable = pgTable("task_comment", {
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" }),
   content: text().notNull(),
-  createdAt: timestamp("created_at", { mode: "date" })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "date" })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-})
-
-export const collaboratorsTable = pgTable("collaborator", {
-  id: text()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  clientId: text("client_id")
-    .notNull()
-    .references(() => clientsTable.id, { onDelete: "cascade" }),
-  name: text().notNull(),
-  email: text().notNull(),
-  phone: text(),
   createdAt: timestamp("created_at", { mode: "date" })
     .notNull()
     .defaultNow(),

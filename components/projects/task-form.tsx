@@ -17,9 +17,17 @@ import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { toast } from "sonner"
 
+interface ProjectMember {
+  userId: string
+  userName: string | null
+  userEmail: string | null
+  userImage: string | null
+}
+
 interface TaskFormProps {
   task?: ProjectTask
   projectId: string
+  projectMembers: ProjectMember[]
   onSuccess: () => void
   onCancel: () => void
 }
@@ -35,6 +43,7 @@ const taskStatuses = [
 export function TaskForm({
   task,
   projectId,
+  projectMembers,
   onSuccess,
   onCancel,
 }: TaskFormProps) {
@@ -45,6 +54,9 @@ export function TaskForm({
   )
   const [cost, setCost] = useState(task?.cost ?? "")
   const [status, setStatus] = useState<string>(task?.status ?? "todo")
+  const [assigneeId, setAssigneeId] = useState<string>(
+    task?.assigneeId ?? ""
+  )
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
@@ -73,6 +85,7 @@ export function TaskForm({
             | "in_review"
             | "blocked"
             | "done",
+          assigneeId: assigneeId || null,
         },
         projectId,
         task?.id
@@ -149,6 +162,25 @@ export function TaskForm({
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="assignee">{t("projects.tasks.assignee")}</Label>
+        <Select value={assigneeId} onValueChange={setAssigneeId}>
+          <SelectTrigger id="assignee">
+            <SelectValue placeholder={t("projects.tasks.unassigned")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">
+              {t("projects.tasks.unassigned")}
+            </SelectItem>
+            {projectMembers.map((m) => (
+              <SelectItem key={m.userId} value={m.userId}>
+                {m.userName || m.userEmail || m.userId}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

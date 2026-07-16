@@ -1,10 +1,10 @@
 "use server"
 
+import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
-import { invoicesTable, clientsTable } from "@/lib/drizzle/schema"
-import { eq, sql, and } from "drizzle-orm"
-import { requirePermission, auth } from "@/lib/auth"
+import { clientsTable, invoicesTable } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
+import { and, eq, sql } from "drizzle-orm"
 
 export interface ClientInvoice {
   id: string
@@ -18,6 +18,7 @@ export interface ClientInvoice {
   discountTotal: string
   taxTotal: string
   grandTotal: string
+  projectId: string | null
   createdAt: Date
   updatedAt: Date
 }

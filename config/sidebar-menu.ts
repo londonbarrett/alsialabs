@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   FolderTree,
   UserCircle,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -38,6 +39,7 @@ function adminSections(permissions?: string[]): SidebarSection[] {
     { label: 'products', icon: Package, url: '/dashboard/products', requiredPermission: 'products:view' },
     { label: 'categories', icon: FolderTree, url: '/dashboard/categories', requiredPermission: 'categories:view' },
     { label: 'sales', icon: FolderKanban, url: '/dashboard/sales', requiredPermission: 'sales:view' },
+    { label: 'contractors', icon: Wrench, url: '/dashboard/contractors', requiredPermission: 'contractors:view' },
     { label: 'reports', icon: BarChart3, url: '/dashboard/reports', requiredPermission: 'reports:view' },
   ]
 

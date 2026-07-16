@@ -1,8 +1,6 @@
 "use client"
 
-import { useState } from "react"
-import { useTranslations } from "next-intl"
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react"
+import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -11,23 +9,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ProjectDialog } from "./project-dialog"
-import { ProjectTasks } from "./project-tasks"
-import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import {
+  addProjectCollaborator,
+  addProjectOwner,
+  removeProjectCollaborator,
+  removeProjectOwner,
+} from "@/lib/actions/project-users"
+import {
+  deleteProject,
   getProjectForEdit,
   upsertProject,
-  deleteProject,
 } from "@/lib/actions/projects"
-import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import type {
+  Project as DbProject,
+  ProjectTask,
+} from "@/lib/drizzle/schema"
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
-import type { ProjectTask } from "@/lib/drizzle/schema"
-import type { Project as DbProject } from "@/lib/drizzle/schema"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
+import { ProjectCollaborators } from "./project-collaborators"
+import { ProjectDialog } from "./project-dialog"
+import { ProjectOwners } from "./project-owners"
+import { ProjectTasks } from "./project-tasks"
+
+export interface ProjectMember {
+  userId: string
+  userName: string | null
+  userEmail: string | null
+  userImage: string | null
+}
 
 interface ProjectDetailViewProps {
   project: {
     id: string
+    primaryOwnerId: string
     name: string
     categoryId: string
     description: string | null
@@ -40,6 +58,16 @@ interface ProjectDetailViewProps {
   }
   tasks: ProjectTask[]
   categories: { id: string; slug: string }[]
+  owners: ProjectMember[]
+  collaborators: ProjectMember[]
+  allUsers: {
+    id: string
+    name: string | null
+    email: string | null
+    image: string | null
+  }[]
+  currentUserId: string
+  isCurrentUserAdmin: boolean
   permissions?: string[]
 }
 
@@ -58,6 +86,11 @@ export function ProjectDetailView({
   project,
   tasks,
   categories,
+  owners,
+  collaborators,
+  allUsers,
+  currentUserId,
+  isCurrentUserAdmin,
   permissions = [],
 }: ProjectDetailViewProps) {
   const router = useRouter()
@@ -69,7 +102,14 @@ export function ProjectDetailView({
   >()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const canEdit = permissions.includes("projects:edit")
+  const isPrimaryOwner = project.primaryOwnerId === currentUserId
+  const isOwner =
+    owners.some((o) => o.userId === currentUserId) || isCurrentUserAdmin
+  const canEdit =
+    (isOwner || isCurrentUserAdmin) &&
+    permissions.includes("projects:edit")
+  const canManageUsers = isPrimaryOwner || isCurrentUserAdmin
+  const canDelete = isPrimaryOwner || isCurrentUserAdmin
 
   async function handleProjectStatusChange(status: string) {
     const result = await upsertProject(
@@ -113,6 +153,50 @@ export function ProjectDetailView({
     setProjectDialogOpen(true)
   }
 
+  async function handleAddOwner(userId: string) {
+    const result = await addProjectOwner(project.id, userId)
+    if (!result.success) {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    } else {
+      router.refresh()
+    }
+  }
+
+  async function handleRemoveOwner(userId: string) {
+    const result = await removeProjectOwner(project.id, userId)
+    if (!result.success) {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    } else {
+      router.refresh()
+    }
+  }
+
+  async function handleAddCollaborator(userId: string) {
+    const result = await addProjectCollaborator(project.id, userId)
+    if (!result.success) {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    } else {
+      router.refresh()
+    }
+  }
+
+  async function handleRemoveCollaborator(userId: string) {
+    const result = await removeProjectCollaborator(project.id, userId)
+    if (!result.success) {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    } else {
+      router.refresh()
+    }
+  }
+
+  const ownerUserIds = new Set(owners.map((o) => o.userId))
+  const collaboratorUserIds = new Set(
+    collaborators.map((c) => c.userId)
+  )
+  const availableUsers = allUsers.filter(
+    (u) => !ownerUserIds.has(u.id) && !collaboratorUserIds.has(u.id)
+  )
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center gap-4">
@@ -136,14 +220,16 @@ export function ProjectDetailView({
                 <Pencil className="h-4 w-4" />
                 {t("projects.card.edit")}
               </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <Trash2 className="h-4 w-4" />
-                {t("projects.card.deleteProject")}
-              </Button>
+              {canDelete && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {t("projects.card.deleteProject")}
+                </Button>
+              )}
             </>
           )}
           {canEdit ? (
@@ -238,11 +324,30 @@ export function ProjectDetailView({
         )}
       </div>
 
+      <ProjectOwners
+        owners={owners}
+        primaryOwnerId={project.primaryOwnerId}
+        availableUsers={availableUsers}
+        canManageUsers={canManageUsers}
+        onAddOwner={handleAddOwner}
+        onRemoveOwner={handleRemoveOwner}
+      />
+
+      <ProjectCollaborators
+        collaborators={collaborators}
+        availableUsers={availableUsers}
+        isOwner={isOwner}
+        onAddCollaborator={handleAddCollaborator}
+        onRemoveCollaborator={handleRemoveCollaborator}
+      />
+
       <ProjectTasks
         tasks={tasks}
         projectId={project.id}
         canEdit={canEdit}
+        isOwner={isOwner}
         permissions={permissions}
+        projectMembers={[...owners, ...collaborators]}
       />
 
       <ProjectDialog

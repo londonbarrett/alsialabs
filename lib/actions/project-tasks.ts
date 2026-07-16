@@ -1,16 +1,16 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { auth, isSuperUser, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
+  projectCollaboratorsTable,
+  projectOwnersTable,
   projectTasksTable,
-  projectsTable,
-  clientsTable,
 } from "@/lib/drizzle/schema"
-import { eq, and, desc } from "drizzle-orm"
-import { requirePermission, auth } from "@/lib/auth"
-import { z } from "zod"
 import { getActionT } from "@/lib/i18n-actions"
+import { and, desc, eq } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
 
 const taskSchema = z.object({
   name: z
@@ -27,9 +27,10 @@ const taskSchema = z.object({
     .enum(["todo", "in_progress", "in_review", "blocked", "done"])
     .optional()
     .default("todo"),
+  assigneeId: z.string().nullable().optional(),
 })
 
-const statusSchema = z.enum([
+const ownerStatusSchema = z.enum([
   "todo",
   "in_progress",
   "in_review",
@@ -37,36 +38,45 @@ const statusSchema = z.enum([
   "done",
 ])
 
-export type TaskFormData = z.infer<typeof taskSchema>
+const collaboratorStatusSchema = z.enum(["blocked", "in_review"])
 
-async function getClientScope(
-  sessionUserId: string,
-  role: string | null
-) {
-  if (role !== "client") return null
-  const client = await db
-    .select({ id: clientsTable.id })
-    .from(clientsTable)
-    .where(eq(clientsTable.userId, sessionUserId))
-    .then((rows) => rows[0])
-  return client?.id ?? null
-}
+export type TaskFormData = z.infer<typeof taskSchema>
 
 async function verifyProjectAccess(
   projectId: string,
   sessionUserId: string,
-  role: string | null
-) {
-  const clientId = await getClientScope(sessionUserId, role)
-  const conditions = [eq(projectsTable.id, projectId)]
-  if (clientId) {
-    conditions.push(eq(projectsTable.clientId, clientId))
-  }
-  return db
-    .select({ id: projectsTable.id })
-    .from(projectsTable)
-    .where(and(...conditions))
+  sessionRole: string | null
+): Promise<{ hasAccess: boolean; isOwner: boolean }> {
+  const session = { user: { role: sessionRole } }
+  if (isSuperUser(session)) return { hasAccess: true, isOwner: true }
+
+  const owner = await db
+    .select()
+    .from(projectOwnersTable)
+    .where(
+      and(
+        eq(projectOwnersTable.projectId, projectId),
+        eq(projectOwnersTable.userId, sessionUserId)
+      )
+    )
     .then((rows) => rows[0])
+
+  if (owner) return { hasAccess: true, isOwner: true }
+
+  const collaborator = await db
+    .select()
+    .from(projectCollaboratorsTable)
+    .where(
+      and(
+        eq(projectCollaboratorsTable.projectId, projectId),
+        eq(projectCollaboratorsTable.userId, sessionUserId)
+      )
+    )
+    .then((rows) => rows[0])
+
+  if (collaborator) return { hasAccess: true, isOwner: false }
+
+  return { hasAccess: false, isOwner: false }
 }
 
 export async function getProjectTasks(projectId: string) {
@@ -80,12 +90,12 @@ export async function getProjectTasks(projectId: string) {
   const session = await auth()
   if (!session?.user) throw new Error(t("unauthorized"))
 
-  const project = await verifyProjectAccess(
+  const access = await verifyProjectAccess(
     projectId,
     session.user.id,
     session.user.role ?? null
   )
-  if (!project) throw new Error(t("notFound"))
+  if (!access.hasAccess) throw new Error(t("notFound"))
 
   return db
     .select()
@@ -100,22 +110,28 @@ export async function upsertTask(
   taskId?: string
 ) {
   const t = await getActionT("actions.projects")
-  try {
-    await requirePermission("projects", taskId ? "edit" : "edit")
-  } catch {
-    return { success: false as const, error: t("forbidden") }
-  }
 
   const session = await auth()
   if (!session?.user)
     return { success: false as const, error: t("unauthorized") }
 
-  const project = await verifyProjectAccess(
+  const access = await verifyProjectAccess(
     projectId,
     session.user.id,
     session.user.role ?? null
   )
-  if (!project) return { success: false as const, error: t("notFound") }
+  if (!access.hasAccess)
+    return { success: false as const, error: t("notFound") }
+
+  if (!access.isOwner) {
+    return { success: false as const, error: t("forbidden") }
+  }
+
+  try {
+    await requirePermission("projects", "edit")
+  } catch {
+    return { success: false as const, error: t("forbidden") }
+  }
 
   const parsed = taskSchema.safeParse(data)
   if (!parsed.success) {
@@ -126,7 +142,7 @@ export async function upsertTask(
     }
   }
 
-  const { name, description, cost, status } = parsed.data
+  const { name, description, cost, status, assigneeId } = parsed.data
 
   if (taskId) {
     await db
@@ -136,6 +152,7 @@ export async function upsertTask(
         description: description || null,
         cost: cost || null,
         status,
+        assigneeId: assigneeId ?? null,
       })
       .where(
         and(
@@ -150,6 +167,7 @@ export async function upsertTask(
       description: description || null,
       cost: cost || null,
       status,
+      assigneeId: assigneeId ?? null,
     })
   }
 
@@ -163,37 +181,48 @@ export async function updateTaskStatus(
   status: string
 ) {
   const t = await getActionT("actions.projects")
-  try {
-    await requirePermission("projects", "edit")
-  } catch {
-    return { success: false as const, error: t("forbidden") }
-  }
 
   const session = await auth()
   if (!session?.user)
     return { success: false as const, error: t("unauthorized") }
 
-  const project = await verifyProjectAccess(
+  const access = await verifyProjectAccess(
     projectId,
     session.user.id,
     session.user.role ?? null
   )
-  if (!project) return { success: false as const, error: t("notFound") }
+  if (!access.hasAccess)
+    return { success: false as const, error: t("notFound") }
 
-  const parsed = statusSchema.safeParse(status)
-  if (!parsed.success) {
-    return { success: false as const, error: t("validationFailed") }
-  }
-
-  await db
-    .update(projectTasksTable)
-    .set({ status: parsed.data })
-    .where(
-      and(
-        eq(projectTasksTable.id, taskId),
-        eq(projectTasksTable.projectId, projectId)
+  if (access.isOwner) {
+    const parsed = ownerStatusSchema.safeParse(status)
+    if (!parsed.success) {
+      return { success: false as const, error: t("validationFailed") }
+    }
+    await db
+      .update(projectTasksTable)
+      .set({ status: parsed.data })
+      .where(
+        and(
+          eq(projectTasksTable.id, taskId),
+          eq(projectTasksTable.projectId, projectId)
+        )
       )
-    )
+  } else {
+    const parsed = collaboratorStatusSchema.safeParse(status)
+    if (!parsed.success) {
+      return { success: false as const, error: t("validationFailed") }
+    }
+    await db
+      .update(projectTasksTable)
+      .set({ status: parsed.data })
+      .where(
+        and(
+          eq(projectTasksTable.id, taskId),
+          eq(projectTasksTable.projectId, projectId)
+        )
+      )
+  }
 
   revalidatePath(`/dashboard/projects/${projectId}`)
   return { success: true as const }
@@ -201,22 +230,28 @@ export async function updateTaskStatus(
 
 export async function deleteTask(taskId: string, projectId: string) {
   const t = await getActionT("actions.projects")
-  try {
-    await requirePermission("projects", "delete")
-  } catch {
-    return { success: false as const, error: t("forbidden") }
-  }
 
   const session = await auth()
   if (!session?.user)
     return { success: false as const, error: t("unauthorized") }
 
-  const project = await verifyProjectAccess(
+  const access = await verifyProjectAccess(
     projectId,
     session.user.id,
     session.user.role ?? null
   )
-  if (!project) return { success: false as const, error: t("notFound") }
+  if (!access.hasAccess)
+    return { success: false as const, error: t("notFound") }
+
+  if (!access.isOwner) {
+    return { success: false as const, error: t("forbidden") }
+  }
+
+  try {
+    await requirePermission("projects", "delete")
+  } catch {
+    return { success: false as const, error: t("forbidden") }
+  }
 
   await db
     .delete(projectTasksTable)

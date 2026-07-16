@@ -1,3 +1,5 @@
+**NEVER commit or push changes without explicit user permission. Always ask first.**
+
 # Development Workflow
 
 Every feature goes through the OpenSpec lifecycle:
