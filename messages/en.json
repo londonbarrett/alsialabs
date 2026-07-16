@@ -54,6 +54,7 @@
     "permissions": "Permissions",
     "categories": "Categories",
     "projects": "Projects",
+    "contractors": "Contractors",
     "profile": "Profile",
     "help": "Help",
     "support": "Support"
@@ -68,7 +69,8 @@
     "users": "Users",
     "profile": "Profile",
     "categories": "Categories",
-    "projects": "Projects"
+    "projects": "Projects",
+    "contractors": "Contractors"
   },
   "landing": {
     "title": "ALSIA Labs CRM",
@@ -311,6 +313,8 @@
       "description": "Description",
       "cost": "Cost",
       "statusLabel": "Status",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
       "actions": "Actions",
       "taskDeleted": "Task deleted",
       "taskUpdated": "Task updated",
@@ -323,7 +327,31 @@
         "blocked": "Blocked",
         "done": "Done"
       }
-    }
+    },
+    "owners": "Owners",
+    "collaborators": "Collaborators",
+    "addOwner": "Add owner...",
+    "addCollaborator": "Add collaborator...",
+    "noCollaborators": "No collaborators yet",
+    "alreadyOwner": "User is already an owner",
+    "alreadyCollaborator": "User is already a collaborator",
+    "cannotRemovePrimaryOwner": "Cannot remove the primary owner",
+    "mustBeOwner": "User must be an owner to become primary owner"
+  },
+  "contractors": {
+    "title": "Contractors",
+    "subtitle": "View all contractor profiles",
+    "bio": "Bio",
+    "hourlyRate": "Hourly Rate",
+    "portfolioLinks": "Portfolio Links",
+    "createProfile": "Create Profile",
+    "editProfile": "Edit Profile",
+    "profileUpdated": "Profile updated",
+    "profileCreated": "Profile created",
+    "profileDeleted": "Profile deleted",
+    "failedToSave": "Failed to save profile",
+    "noContractors": "No contractor profiles yet",
+    "perHour": "/ hr"
   },
   "sales": {
     "title": "Sales",
@@ -494,7 +522,7 @@
       "clientRoleNotFound": "Client role not found",
       "linkedUserNotFound": "Linked user not found"
     },
-  "categories": {
+    "categories": {
       "forbidden": "Forbidden",
       "validationFailed": "Validation failed"
     },
@@ -568,6 +596,11 @@
     "reports": {
       "invalidLimit": "Invalid limit",
       "invalidDays": "Invalid days"
+    },
+    "contractors": {
+      "forbidden": "Forbidden",
+      "unauthorized": "Unauthorized",
+      "validationFailed": "Validation failed"
     },
     "import": {
       "unauthorized": "Unauthorized",

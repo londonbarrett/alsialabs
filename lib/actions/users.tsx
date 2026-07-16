@@ -38,6 +38,24 @@ export type UserWithRole = {
   roleName: string
 }
 
+export async function getAssignableUsers() {
+  const session = await auth()
+  if (!session?.user) {
+    return { success: false as const, error: "unauthorized" }
+  }
+
+  const users = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      image: usersTable.image,
+    })
+    .from(usersTable)
+
+  return { success: true as const, users }
+}
+
 export async function getUsers() {
   const t = await getActionT("actions.users")
   const session = await auth()
@@ -50,6 +68,7 @@ export async function getUsers() {
       id: usersTable.id,
       name: usersTable.name,
       email: usersTable.email,
+      image: usersTable.image,
       roleId: userRolesTable.roleId,
       roleName: rolesTable.name,
     })

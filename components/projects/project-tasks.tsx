@@ -40,7 +40,7 @@ const taskStatusColors: Record<string, string> = {
   done: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
 }
 
-const taskStatuses = [
+const allTaskStatuses = [
   "todo",
   "in_progress",
   "in_review",
@@ -48,18 +48,31 @@ const taskStatuses = [
   "done",
 ] as const
 
+const collaboratorTaskStatuses = ["blocked", "in_review"] as const
+
+interface ProjectMember {
+  userId: string
+  userName: string | null
+  userEmail: string | null
+  userImage: string | null
+}
+
 interface ProjectTasksProps {
   tasks: ProjectTask[]
   projectId: string
   canEdit: boolean
+  isOwner: boolean
   permissions: string[]
+  projectMembers: ProjectMember[]
 }
 
 export function ProjectTasks({
   tasks,
   projectId,
   canEdit,
+  isOwner,
   permissions,
+  projectMembers,
 }: ProjectTasksProps) {
   const router = useRouter()
   const t = useTranslations()
@@ -67,7 +80,16 @@ export function ProjectTasks({
   const [editingTask, setEditingTask] = useState<
     ProjectTask | undefined
   >()
-  const canMutate = canEdit || permissions.includes("projects:delete")
+  const canMutate =
+    isOwner && (canEdit || permissions.includes("projects:delete"))
+  const allowedStatuses = isOwner
+    ? allTaskStatuses
+    : collaboratorTaskStatuses
+
+  function getAssigneeName(userId: string) {
+    const member = projectMembers.find((m) => m.userId === userId)
+    return member?.userName || member?.userEmail || userId
+  }
 
   function handleSuccess() {
     router.refresh()
@@ -126,6 +148,9 @@ export function ProjectTasks({
                   {t("projects.tasks.name")}
                 </TableHead>
                 <TableHead scope="col">
+                  {t("projects.tasks.assignee")}
+                </TableHead>
+                <TableHead scope="col">
                   {t("projects.tasks.statusLabel")}
                 </TableHead>
                 <TableHead scope="col">
@@ -152,6 +177,17 @@ export function ProjectTasks({
                     </div>
                   </TableCell>
                   <TableCell>
+                    {task.assigneeId ? (
+                      <span className="text-sm">
+                        {getAssigneeName(task.assigneeId)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {t("projects.tasks.unassigned")}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     {canEdit ? (
                       <Select
                         value={task.status}
@@ -171,7 +207,7 @@ export function ProjectTasks({
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {taskStatuses.map((s) => (
+                          {allowedStatuses.map((s) => (
                             <SelectItem key={s} value={s}>
                               <span
                                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${taskStatusColors[s]}`}
@@ -230,6 +266,7 @@ export function ProjectTasks({
       <TaskDialog
         task={editingTask}
         projectId={projectId}
+        projectMembers={projectMembers}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
         onSuccess={handleSuccess}

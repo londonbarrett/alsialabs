@@ -5,16 +5,16 @@ import { db } from '@/lib/drizzle/client'
 import {
   projectsTable,
   projectCategoriesTable,
-  clientsTable,
   projectTasksTable,
   expensesTable,
-  collaboratorsTable,
+  projectOwnersTable,
+  projectCollaboratorsTable,
+  usersTable,
 } from '@/lib/drizzle/schema'
 import { eq, and, desc, inArray, sql } from 'drizzle-orm'
-import { requirePermission, auth } from '@/lib/auth'
+import { requirePermission, auth, isSuperUser } from '@/lib/auth'
 import { z } from 'zod'
 import { getActionT } from '@/lib/i18n-actions'
-import type { Project } from '@/lib/project-config'
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Name is required').transform((v) => v.trim()),
@@ -29,18 +29,36 @@ const projectSchema = z.object({
 
 export type ProjectFormData = z.infer<typeof projectSchema>
 
-async function getOwnClientId(sessionUserId: string) {
-  const client = await db
-    .select({ id: clientsTable.id })
-    .from(clientsTable)
-    .where(eq(clientsTable.userId, sessionUserId))
-    .then((rows) => rows[0])
-  return client?.id ?? null
+async function getUserProjectIds(userId: string): Promise<string[]> {
+  const [owned, collaborated] = await Promise.all([
+    db
+      .select({ projectId: projectOwnersTable.projectId })
+      .from(projectOwnersTable)
+      .where(eq(projectOwnersTable.userId, userId)),
+    db
+      .select({ projectId: projectCollaboratorsTable.projectId })
+      .from(projectCollaboratorsTable)
+      .where(eq(projectCollaboratorsTable.userId, userId)),
+  ])
+
+  const ids = new Set<string>()
+  for (const row of owned) ids.add(row.projectId)
+  for (const row of collaborated) ids.add(row.projectId)
+  return Array.from(ids)
 }
 
-async function getClientScope(sessionUserId: string, role: string | null) {
-  if (role !== 'client') return null
-  return getOwnClientId(sessionUserId)
+async function isProjectOwner(projectId: string, userId: string): Promise<boolean> {
+  const owner = await db
+    .select()
+    .from(projectOwnersTable)
+    .where(
+      and(
+        eq(projectOwnersTable.projectId, projectId),
+        eq(projectOwnersTable.userId, userId)
+      )
+    )
+    .then((rows) => rows[0])
+  return !!owner
 }
 
 export type ProjectWithCategory = Awaited<ReturnType<typeof getProjects>>[number]
@@ -54,17 +72,14 @@ export async function getProjects() {
   }
 
   const session = await auth()
-  const clientId = await getClientScope(session?.user?.id ?? '', session?.user?.role ?? null)
+  if (!session?.user) throw new Error(t('unauthorized'))
 
-  const conditions: ReturnType<typeof eq>[] = []
-  if (clientId) {
-    conditions.push(eq(projectsTable.clientId, clientId))
-  }
+  const isAdmin = isSuperUser(session)
 
-  return db
+  const projects = await db
     .select({
       id: projectsTable.id,
-      clientId: projectsTable.clientId,
+      primaryOwnerId: projectsTable.primaryOwnerId,
       categoryId: projectsTable.categoryId,
       name: projectsTable.name,
       description: projectsTable.description,
@@ -78,9 +93,15 @@ export async function getProjects() {
       categorySlug: projectCategoriesTable.slug,
     })
     .from(projectsTable)
-    .where(and(...conditions))
     .leftJoin(projectCategoriesTable, eq(projectsTable.categoryId, projectCategoriesTable.id))
     .orderBy(desc(projectsTable.createdAt))
+
+  if (isAdmin) return projects
+
+  const userProjectIds = await getUserProjectIds(session.user.id)
+  if (userProjectIds.length === 0) return []
+
+  return projects.filter((p) => userProjectIds.includes(p.id))
 }
 
 export async function getProjectsWithDetails() {
@@ -92,16 +113,14 @@ export async function getProjectsWithDetails() {
   }
 
   const session = await auth()
-  const clientId = await getClientScope(session?.user?.id ?? '', session?.user?.role ?? null)
+  if (!session?.user) throw new Error(t('unauthorized'))
 
-  const conditions: ReturnType<typeof eq>[] = []
-  if (clientId) {
-    conditions.push(eq(projectsTable.clientId, clientId))
-  }
+  const isAdmin = isSuperUser(session)
 
   const baseProjects = await db
     .select({
       id: projectsTable.id,
+      primaryOwnerId: projectsTable.primaryOwnerId,
       name: projectsTable.name,
       description: projectsTable.description,
       status: projectsTable.status,
@@ -112,16 +131,21 @@ export async function getProjectsWithDetails() {
       categorySlug: projectCategoriesTable.slug,
     })
     .from(projectsTable)
-    .where(and(...conditions))
     .leftJoin(projectCategoriesTable, eq(projectsTable.categoryId, projectCategoriesTable.id))
     .orderBy(desc(projectsTable.createdAt))
 
-  const projectIds = baseProjects.map((p) => p.id)
+  let filteredProjects = baseProjects
+  if (!isAdmin) {
+    const userProjectIds = await getUserProjectIds(session.user.id)
+    filteredProjects = baseProjects.filter((p) => userProjectIds.includes(p.id))
+  }
+
+  const projectIds = filteredProjects.map((p) => p.id)
   if (projectIds.length === 0) return []
 
   const inProgressStatuses = ['in_progress', 'in_review', 'blocked'] as const
 
-  const [taskAggs, expenseAggs, inProgressTasks, collaboratorData] = await Promise.all([
+  const [taskAggs, expenseAggs, inProgressTasks, ownerData, collaboratorData] = await Promise.all([
     db
       .select({
         projectId: projectTasksTable.projectId,
@@ -146,10 +170,11 @@ export async function getProjectsWithDetails() {
         id: projectTasksTable.id,
         projectId: projectTasksTable.projectId,
         name: projectTasksTable.name,
-        collaboratorName: collaboratorsTable.name,
+        assigneeName: usersTable.name,
+        assigneeImage: usersTable.image,
       })
       .from(projectTasksTable)
-      .leftJoin(collaboratorsTable, eq(projectTasksTable.collaboratorId, collaboratorsTable.id))
+      .leftJoin(usersTable, eq(projectTasksTable.assigneeId, usersTable.id))
       .where(
         and(
           inArray(projectTasksTable.projectId, projectIds),
@@ -161,13 +186,25 @@ export async function getProjectsWithDetails() {
 
     db
       .select({
-        id: collaboratorsTable.id,
-        projectId: projectTasksTable.projectId,
-        name: collaboratorsTable.name,
+        projectId: projectOwnersTable.projectId,
+        userId: usersTable.id,
+        name: usersTable.name,
+        image: usersTable.image,
       })
-      .from(collaboratorsTable)
-      .innerJoin(projectTasksTable, eq(projectTasksTable.collaboratorId, collaboratorsTable.id))
-      .where(inArray(projectTasksTable.projectId, projectIds)),
+      .from(projectOwnersTable)
+      .innerJoin(usersTable, eq(projectOwnersTable.userId, usersTable.id))
+      .where(inArray(projectOwnersTable.projectId, projectIds)),
+
+    db
+      .select({
+        projectId: projectCollaboratorsTable.projectId,
+        userId: usersTable.id,
+        name: usersTable.name,
+        image: usersTable.image,
+      })
+      .from(projectCollaboratorsTable)
+      .innerJoin(usersTable, eq(projectCollaboratorsTable.userId, usersTable.id))
+      .where(inArray(projectCollaboratorsTable.projectId, projectIds)),
   ])
 
   const taskMap = new Map<string, { total: number; completed: number }>()
@@ -180,33 +217,44 @@ export async function getProjectsWithDetails() {
     expenseMap.set(agg.projectId, Number(agg.total))
   }
 
-  const inProgressMap = new Map<string, { id: string; title: string; assignee: string }[]>()
+  const inProgressMap = new Map<string, { id: string; title: string; assignee: string; assigneeImage: string | null }[]>()
   for (const task of inProgressTasks) {
     const list = inProgressMap.get(task.projectId) ?? []
     list.push({
       id: task.id,
       title: task.name,
-      assignee: task.collaboratorName ?? '',
+      assignee: task.assigneeName ?? '',
+      assigneeImage: task.assigneeImage,
     })
     inProgressMap.set(task.projectId, list)
   }
 
-  const collaboratorMap = new Map<string, { id: string; name: string }[]>()
+  const ownerMap = new Map<string, { id: string; name: string; image: string | null }[]>()
+  for (const o of ownerData) {
+    const list = ownerMap.get(o.projectId) ?? []
+    if (!list.find((x) => x.id === o.userId)) {
+      list.push({ id: o.userId, name: o.name ?? '', image: o.image })
+    }
+    ownerMap.set(o.projectId, list)
+  }
+
+  const collaboratorMap = new Map<string, { id: string; name: string; image: string | null }[]>()
   for (const c of collaboratorData) {
     const list = collaboratorMap.get(c.projectId) ?? []
-    if (!list.find((x) => x.id === c.id)) {
-      list.push({ id: c.id, name: c.name })
+    if (!list.find((x) => x.id === c.userId)) {
+      list.push({ id: c.userId, name: c.name ?? '', image: c.image })
     }
     collaboratorMap.set(c.projectId, list)
   }
 
-  return baseProjects.map((p) => {
+  return filteredProjects.map((p) => {
     const tasks = taskMap.get(p.id) ?? { total: 0, completed: 0 }
     const expenses = expenseMap.get(p.id) ?? 0
     const budget = p.budget ? Number(p.budget) : 0
 
     return {
       id: p.id,
+      primaryOwnerId: p.primaryOwnerId,
       name: p.name,
       description: p.description,
       status: p.status,
@@ -219,8 +267,9 @@ export async function getProjectsWithDetails() {
       tasksTotal: tasks.total,
       tasksCompleted: tasks.completed,
       inProgressTasks: inProgressMap.get(p.id) ?? [],
+      owners: ownerMap.get(p.id) ?? [],
       collaborators: collaboratorMap.get(p.id) ?? [],
-    } satisfies Project
+    }
   })
 }
 
@@ -233,17 +282,12 @@ export async function getProjectById(id: string) {
   }
 
   const session = await auth()
-  const clientId = await getClientScope(session?.user?.id ?? '', session?.user?.role ?? null)
-
-  const conditions: ReturnType<typeof eq>[] = [eq(projectsTable.id, id)]
-  if (clientId) {
-    conditions.push(eq(projectsTable.clientId, clientId))
-  }
+  if (!session?.user) throw new Error(t('unauthorized'))
 
   const project = await db
     .select({
       id: projectsTable.id,
-      clientId: projectsTable.clientId,
+      primaryOwnerId: projectsTable.primaryOwnerId,
       categoryId: projectsTable.categoryId,
       name: projectsTable.name,
       description: projectsTable.description,
@@ -257,12 +301,27 @@ export async function getProjectById(id: string) {
       categorySlug: projectCategoriesTable.slug,
     })
     .from(projectsTable)
-    .where(and(...conditions))
+    .where(eq(projectsTable.id, id))
     .leftJoin(projectCategoriesTable, eq(projectsTable.categoryId, projectCategoriesTable.id))
     .then((rows) => rows[0])
 
   if (!project) {
     throw new Error('notFound')
+  }
+
+  if (!isSuperUser(session) && !(await isProjectOwner(id, session.user.id))) {
+    const isCollaborator = await db
+      .select()
+      .from(projectCollaboratorsTable)
+      .where(
+        and(
+          eq(projectCollaboratorsTable.projectId, id),
+          eq(projectCollaboratorsTable.userId, session.user.id)
+        )
+      )
+      .then((rows) => rows[0])
+
+    if (!isCollaborator) throw new Error(t('forbidden'))
   }
 
   return project
@@ -291,10 +350,8 @@ export async function upsertProject(data: ProjectFormData, id?: string) {
   const { name, categoryId, status, description, startDate, endDate, location, budget } = parsed.data
 
   if (id) {
-    const clientId = await getClientScope(session.user.id, session.user.role ?? null)
-    const conditions = [eq(projectsTable.id, id)]
-    if (clientId) {
-      conditions.push(eq(projectsTable.clientId, clientId))
+    if (!(await isProjectOwner(id, session.user.id)) && !isSuperUser(session)) {
+      return { success: false as const, error: t('forbidden') }
     }
 
     await db
@@ -309,25 +366,26 @@ export async function upsertProject(data: ProjectFormData, id?: string) {
         location: location || null,
         budget: budget ? budget : null,
       })
-      .where(and(...conditions))
+      .where(eq(projectsTable.id, id))
   } else {
-    const clientId = session.user.role === 'client'
-      ? await getOwnClientId(session.user.id)
-      : null
+    const [created] = await db
+      .insert(projectsTable)
+      .values({
+        primaryOwnerId: session.user.id,
+        categoryId,
+        name,
+        status,
+        description: description || null,
+        startDate,
+        endDate: endDate || null,
+        location: location || null,
+        budget: budget ? budget : null,
+      })
+      .returning({ id: projectsTable.id })
 
-    if (!clientId) return { success: false as const, error: t('forbidden') }
-
-    await db.insert(projectsTable).values({
-      clientId,
-      primaryOwnerId: session.user.id,
-      categoryId,
-      name,
-      status,
-      description: description || null,
-      startDate,
-      endDate: endDate || null,
-      location: location || null,
-      budget: budget ? budget : null,
+    await db.insert(projectOwnersTable).values({
+      projectId: created.id,
+      userId: session.user.id,
     })
   }
 
@@ -344,17 +402,11 @@ export async function getProjectForEdit(id: string) {
   }
 
   const session = await auth()
-  const clientId = await getClientScope(session?.user?.id ?? '', session?.user?.role ?? null)
-
-  const conditions = [eq(projectsTable.id, id)]
-  if (clientId) {
-    conditions.push(eq(projectsTable.clientId, clientId))
-  }
+  if (!session?.user) throw new Error(t('unauthorized'))
 
   const project = await db
     .select({
       id: projectsTable.id,
-      clientId: projectsTable.clientId,
       primaryOwnerId: projectsTable.primaryOwnerId,
       categoryId: projectsTable.categoryId,
       name: projectsTable.name,
@@ -368,11 +420,15 @@ export async function getProjectForEdit(id: string) {
       updatedAt: projectsTable.updatedAt,
     })
     .from(projectsTable)
-    .where(and(...conditions))
+    .where(eq(projectsTable.id, id))
     .then((rows) => rows[0])
 
   if (!project) {
     throw new Error('notFound')
+  }
+
+  if (!isSuperUser(session) && !(await isProjectOwner(id, session.user.id))) {
+    throw new Error(t('forbidden'))
   }
 
   return project
@@ -387,14 +443,21 @@ export async function deleteProject(id: string) {
   }
 
   const session = await auth()
-  const clientId = await getClientScope(session?.user?.id ?? '', session?.user?.role ?? null)
+  if (!session?.user) return { success: false as const, error: t('unauthorized') }
 
-  const conditions = [eq(projectsTable.id, id)]
-  if (clientId) {
-    conditions.push(eq(projectsTable.clientId, clientId))
+  const project = await db
+    .select({ primaryOwnerId: projectsTable.primaryOwnerId })
+    .from(projectsTable)
+    .where(eq(projectsTable.id, id))
+    .then((rows) => rows[0])
+
+  if (!project) return { success: false as const, error: t('notFound') }
+
+  if (project.primaryOwnerId !== session.user.id && !isSuperUser(session)) {
+    return { success: false as const, error: t('forbidden') }
   }
 
-  await db.delete(projectsTable).where(and(...conditions))
+  await db.delete(projectsTable).where(eq(projectsTable.id, id))
   revalidatePath('/dashboard/projects')
   return { success: true as const }
 }

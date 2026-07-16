@@ -1,16 +1,37 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: User can view invoices
-The system SHALL allow authenticated users with `sales:view` permission to see a table of all invoices.
+The system SHALL allow authenticated users with `sales:view` permission to see a table of invoices. Non-admin users shall only see invoices they created. Admins and super users see all invoices.
 
-#### Scenario: Sales page shows invoice list
-- **WHEN** the user navigates to the sales page
+#### Scenario: Sales page shows user's invoices
+- **WHEN** a non-admin user navigates to the sales page
 - **THEN** a table of invoices is displayed with columns: invoice number, client, type, issue date, grand total, status
-- **AND** each row has an action menu with view, edit, and delete options (based on permissions)
+- **AND** only invoices created by the current user are shown
+
+#### Scenario: Admin sees all invoices
+- **WHEN** an admin or super user navigates to the sales page
+- **THEN** all invoices are shown regardless of who created them
 
 #### Scenario: Sales nav link hidden without permission
 - **GIVEN** a user without `sales:view` permission
 - **THEN** the Sales link is not shown in the sidebar
+
+### Requirement: User can delete an invoice
+The system SHALL allow authenticated users with `sales:delete` permission to delete an invoice after confirmation. Non-admin users may only delete their own invoices.
+
+#### Scenario: User deletes own invoice
+- **WHEN** a non-admin user clicks the delete action on an invoice they created
+- **THEN** the invoice is deleted after confirmation
+
+#### Scenario: Admin deletes any invoice
+- **WHEN** an admin user clicks the delete action on any invoice
+- **THEN** the invoice is deleted after confirmation
+
+#### Scenario: User cannot delete others' invoices
+- **WHEN** a non-admin user attempts to delete an invoice they did not create
+- **THEN** the action is rejected
+
+## ADDED Requirements
 
 ### Requirement: User can create a product-type invoice
 The system SHALL allow authenticated users with `sales:create` permission to create a new invoice with product line items via a dialog form.
@@ -104,16 +125,6 @@ The system SHALL allow authenticated users with `sales:edit` permission to edit 
 - **THEN** the server action updates the invoice and replaces all line items
 - **AND** on success the dialog closes
 - **AND** the sales table reflects the updated data
-
-### Requirement: User can delete an invoice
-The system SHALL allow authenticated users with `sales:delete` permission to delete an invoice after confirmation.
-
-#### Scenario: Successful invoice deletion
-- **WHEN** the user clicks the delete action in an invoice's row action menu
-- **THEN** a confirmation dialog is shown
-- **WHEN** the user confirms the deletion
-- **THEN** the invoice and its line items are removed
-- **AND** a success toast is shown
 
 ### Requirement: Invoice numbers are auto-generated
 The system SHALL generate unique invoice numbers.

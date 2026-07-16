@@ -44,6 +44,7 @@ const defaultModules = [
     actions: ["view", "create", "edit", "delete"],
   },
   { module: "expenses", actions: ["view", "create", "edit", "delete"] },
+  { module: "contractors", actions: ["view", "create", "edit", "delete"] },
 ]
 
 async function seed() {

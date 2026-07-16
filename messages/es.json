@@ -54,6 +54,7 @@
     "permissions": "Permisos",
     "categories": "Categorías",
     "projects": "Proyectos",
+    "contractors": "Contratistas",
     "profile": "Perfil",
     "help": "Ayuda",
     "support": "Soporte"
@@ -68,7 +69,8 @@
     "users": "Usuarios",
     "profile": "Perfil",
     "categories": "Categorías",
-    "projects": "Proyectos"
+    "projects": "Proyectos",
+    "contractors": "Contratistas"
   },
   "landing": {
     "title": "ALSIA Labs CRM",
@@ -311,6 +313,8 @@
       "description": "Descripción",
       "cost": "Costo",
       "statusLabel": "Estado",
+      "assignee": "Asignado",
+      "unassigned": "Sin asignar",
       "actions": "Acciones",
       "taskDeleted": "Tarea eliminada",
       "taskUpdated": "Tarea actualizada",
@@ -323,7 +327,31 @@
         "blocked": "Bloqueado",
         "done": "Completado"
       }
-    }
+    },
+    "owners": "Propietarios",
+    "collaborators": "Colaboradores",
+    "addOwner": "Agregar propietario...",
+    "addCollaborator": "Agregar colaborador...",
+    "noCollaborators": "Aún no hay colaboradores",
+    "alreadyOwner": "El usuario ya es propietario",
+    "alreadyCollaborator": "El usuario ya es colaborador",
+    "cannotRemovePrimaryOwner": "No se puede eliminar el propietario principal",
+    "mustBeOwner": "El usuario debe ser propietario para convertirse en propietario principal"
+  },
+  "contractors": {
+    "title": "Contratistas",
+    "subtitle": "Ver todos los perfiles de contratistas",
+    "bio": "Biografía",
+    "hourlyRate": "Tarifa por hora",
+    "portfolioLinks": "Enlaces de portafolio",
+    "createProfile": "Crear perfil",
+    "editProfile": "Editar perfil",
+    "profileUpdated": "Perfil actualizado",
+    "profileCreated": "Perfil creado",
+    "profileDeleted": "Perfil eliminado",
+    "failedToSave": "Error al guardar el perfil",
+    "noContractors": "Aún no hay perfiles de contratistas",
+    "perHour": "/ hora"
   },
   "sales": {
     "title": "Ventas",

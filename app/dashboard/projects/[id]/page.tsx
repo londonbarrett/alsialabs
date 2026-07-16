@@ -1,9 +1,19 @@
-import { auth, getUserPermissions, hasPermission } from '@/lib/auth'
-import { forbidden, notFound } from 'next/navigation'
-import { getProjectById } from '@/lib/actions/projects'
-import { getProjectTasks } from '@/lib/actions/project-tasks'
-import { getProjectCategoriesList } from '@/lib/actions/project-categories'
-import { ProjectDetailView } from '@/components/projects/project-detail-view'
+import { ProjectDetailView } from "@/components/projects/project-detail-view"
+import { getProjectCategoriesList } from "@/lib/actions/project-categories"
+import { getProjectTasks } from "@/lib/actions/project-tasks"
+import {
+  getProjectCollaborators,
+  getProjectOwners,
+} from "@/lib/actions/project-users"
+import { getProjectById } from "@/lib/actions/projects"
+import { getAssignableUsers } from "@/lib/actions/users"
+import {
+  auth,
+  getUserPermissions,
+  hasPermission,
+  isSuperUser,
+} from "@/lib/auth"
+import { forbidden, notFound } from "next/navigation"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -13,7 +23,10 @@ export default async function ProjectDetailPage({ params }: Props) {
   const { id } = await params
   const session = await auth()
 
-  if (!session?.user?.id || !(await hasPermission(session.user.id, 'projects', 'view'))) {
+  if (
+    !session?.user?.id ||
+    !(await hasPermission(session.user.id, "projects", "view"))
+  ) {
     forbidden()
   }
 
@@ -24,11 +37,38 @@ export default async function ProjectDetailPage({ params }: Props) {
     notFound()
   }
 
-  const [tasks, permissions, categories] = await Promise.all([
+  const [
+    tasks,
+    permissions,
+    categories,
+    owners,
+    collaborators,
+    allUsersResult,
+  ] = await Promise.all([
     getProjectTasks(id),
     getUserPermissions(session.user.id),
     getProjectCategoriesList(),
+    getProjectOwners(id),
+    getProjectCollaborators(id),
+    getAssignableUsers().catch(() => ({
+      success: false as const,
+      users: [],
+    })),
   ])
 
-  return <ProjectDetailView project={project} tasks={tasks} permissions={permissions} categories={categories} />
+  const allUsers = allUsersResult.success ? allUsersResult.users : []
+
+  return (
+    <ProjectDetailView
+      project={project}
+      tasks={tasks}
+      permissions={permissions}
+      categories={categories}
+      owners={owners}
+      collaborators={collaborators}
+      allUsers={allUsers}
+      currentUserId={session.user.id}
+      isCurrentUserAdmin={isSuperUser(session)}
+    />
+  )
 }

@@ -1,34 +1,49 @@
-'use server'
+"use server"
 
-import { revalidatePath } from 'next/cache'
-import { db } from '@/lib/drizzle/client'
-import { invoicesTable, invoiceItemsTable, clientsTable, productsTable } from '@/lib/drizzle/schema'
-import { eq, sql } from 'drizzle-orm'
-import { requirePermission } from '@/lib/auth'
-import { z } from 'zod'
-import { getActionT } from '@/lib/i18n-actions'
+import { auth, isSuperUser, requirePermission } from "@/lib/auth"
+import { db } from "@/lib/drizzle/client"
+import {
+  clientsTable,
+  invoiceItemsTable,
+  invoicesTable,
+  productsTable,
+} from "@/lib/drizzle/schema"
+import { getActionT } from "@/lib/i18n-actions"
+import { and, eq, sql } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
 
 const lineItemSchema = z.object({
   id: z.string().optional(),
-  description: z.string().min(1, 'Description is required').transform((v) => v.trim()),
-  quantity: z.string().min(1, 'Quantity is required'),
-  unitPrice: z.string().min(1, 'Unit price is required'),
-  discountPercent: z.string().optional().default('0'),
-  taxPercent: z.string().optional().default('0'),
+  description: z
+    .string()
+    .min(1, "Description is required")
+    .transform((v) => v.trim()),
+  quantity: z.string().min(1, "Quantity is required"),
+  unitPrice: z.string().min(1, "Unit price is required"),
+  discountPercent: z.string().optional().default("0"),
+  taxPercent: z.string().optional().default("0"),
   productId: z.string().nullable().optional(),
 })
 
 const invoiceSchema = z.object({
-  type: z.enum(['product', 'service']),
-  clientId: z.string().min(1, 'Client is required'),
-  issueDate: z.string().min(1, 'Issue date is required'),
-  notes: z.string().optional().default(''),
-  items: z.array(lineItemSchema).min(1, 'At least one line item is required'),
+  type: z.enum(["product", "service"]),
+  clientId: z.string().min(1, "Client is required"),
+  issueDate: z.string().min(1, "Issue date is required"),
+  notes: z.string().optional().default(""),
+  items: z
+    .array(lineItemSchema)
+    .min(1, "At least one line item is required"),
 })
 
 export type InvoiceFormData = z.infer<typeof invoiceSchema>
 
-function computeLineTotal(qty: number, price: number, discountPct: number, taxPct: number): {
+function computeLineTotal(
+  qty: number,
+  price: number,
+  discountPct: number,
+  taxPct: number
+): {
   total: number
   discountAmount: number
   taxAmount: number
@@ -41,12 +56,14 @@ function computeLineTotal(qty: number, price: number, discountPct: number, taxPc
   return { total, discountAmount, taxAmount }
 }
 
-function computeInvoiceTotals(items: Array<{
-  quantity: string
-  unitPrice: string
-  discountPercent: string
-  taxPercent: string
-}>) {
+function computeInvoiceTotals(
+  items: Array<{
+    quantity: string
+    unitPrice: string
+    discountPercent: string
+    taxPercent: string
+  }>
+) {
   let subtotal = 0
   let discountTotal = 0
   let taxTotal = 0
@@ -82,6 +99,7 @@ export interface InvoiceWithClient {
   type: string
   invoiceNumber: string
   clientId: string
+  userId: string | null
   clientName: string | null
   status: string
   issueDate: string
@@ -90,6 +108,7 @@ export interface InvoiceWithClient {
   discountTotal: string
   taxTotal: string
   grandTotal: string
+  projectId: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -107,11 +126,46 @@ export interface InvoiceItemData {
 }
 
 export async function getInvoices() {
-  const t = await getActionT('actions.sales')
+  const t = await getActionT("actions.sales")
   try {
-    await requirePermission('sales', 'view')
+    await requirePermission("sales", "view")
   } catch {
-    throw new Error(t('forbidden'))
+    throw new Error(t("forbidden"))
+  }
+
+  const session = await auth()
+  if (!session?.user) throw new Error(t("unauthorized"))
+
+  const isAdmin = isSuperUser(session)
+
+  if (isAdmin) {
+    const invoices = await db
+      .select({
+        id: invoicesTable.id,
+        type: invoicesTable.type,
+        invoiceNumber: invoicesTable.invoiceNumber,
+        clientId: invoicesTable.clientId,
+        userId: invoicesTable.userId,
+        clientName: clientsTable.name,
+        status: invoicesTable.status,
+        issueDate: invoicesTable.issueDate,
+        notes: invoicesTable.notes,
+        subtotal: invoicesTable.subtotal,
+        discountTotal: invoicesTable.discountTotal,
+        taxTotal: invoicesTable.taxTotal,
+        grandTotal: invoicesTable.grandTotal,
+        projectId: invoicesTable.projectId,
+        createdAt: invoicesTable.createdAt,
+        updatedAt: invoicesTable.updatedAt,
+      })
+      .from(invoicesTable)
+      .leftJoin(
+        clientsTable,
+        eq(invoicesTable.clientId, clientsTable.id)
+      )
+      .orderBy(sql`${invoicesTable.createdAt} desc`)
+
+    return invoices
   }
 
   const invoices = await db
@@ -135,17 +189,18 @@ export async function getInvoices() {
     })
     .from(invoicesTable)
     .leftJoin(clientsTable, eq(invoicesTable.clientId, clientsTable.id))
+    .where(and(eq(invoicesTable.userId, session.user.id)))
     .orderBy(sql`${invoicesTable.createdAt} desc`)
 
   return invoices
 }
 
 export async function getInvoiceProducts() {
-  const t = await getActionT('actions.sales')
+  const t = await getActionT("actions.sales")
   try {
-    await requirePermission('sales', 'view')
+    await requirePermission("sales", "view")
   } catch {
-    throw new Error(t('forbidden'))
+    throw new Error(t("forbidden"))
   }
 
   return db
@@ -156,26 +211,48 @@ export async function getInvoiceProducts() {
     .from(productsTable)
 }
 
-export type InvoiceProductOption = Awaited<ReturnType<typeof getInvoiceProducts>>[number]
+export type InvoiceProductOption = Awaited<
+  ReturnType<typeof getInvoiceProducts>
+>[number]
 
-export async function getInvoiceItems(invoiceId: string): Promise<InvoiceItemData[]> {
+export async function getInvoiceItems(
+  invoiceId: string
+): Promise<InvoiceItemData[]> {
+  const t = await getActionT("actions.sales")
+  try {
+    await requirePermission("sales", "view")
+  } catch {
+    throw new Error(t("forbidden"))
+  }
+
   return db
     .select()
     .from(invoiceItemsTable)
     .where(eq(invoiceItemsTable.invoiceId, invoiceId))
 }
 
-export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
-  const t = await getActionT('actions.sales')
+export async function upsertInvoice(
+  data: InvoiceFormData,
+  invoiceId?: string
+) {
+  const t = await getActionT("actions.sales")
   try {
-    await requirePermission('sales', invoiceId ? 'edit' : 'create')
+    await requirePermission("sales", invoiceId ? "edit" : "create")
   } catch {
-    return { success: false, error: t('forbidden') }
+    return { success: false, error: t("forbidden") }
   }
+
+  const session = await auth()
+  if (!session?.user)
+    return { success: false, error: t("unauthorized") }
 
   const parsed = invoiceSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false, error: t('validationFailed'), fieldErrors: parsed.error.flatten().fieldErrors }
+    return {
+      success: false,
+      error: t("validationFailed"),
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    }
   }
 
   const fields = parsed.data
@@ -184,6 +261,7 @@ export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
   const invoiceData = {
     type: fields.type,
     clientId: fields.clientId,
+    userId: session.user.id,
     issueDate: fields.issueDate,
     notes: fields.notes || null,
     subtotal: totals.subtotal,
@@ -193,9 +271,14 @@ export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
   }
 
   if (invoiceId) {
-    await db.update(invoicesTable).set(invoiceData).where(eq(invoicesTable.id, invoiceId))
+    await db
+      .update(invoicesTable)
+      .set(invoiceData)
+      .where(eq(invoicesTable.id, invoiceId))
 
-    await db.delete(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invoiceId))
+    await db
+      .delete(invoiceItemsTable)
+      .where(eq(invoiceItemsTable.invoiceId, invoiceId))
 
     for (const item of fields.items) {
       const qty = parseFloat(item.quantity) || 0
@@ -216,9 +299,10 @@ export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
       })
     }
   } else {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     const buf = crypto.getRandomValues(new Uint8Array(8))
-    const invoiceNumber = 'ALSIA-' + Array.from(buf, (b) => chars[b % 36]).join('')
+    const invoiceNumber =
+      "ALSIA-" + Array.from(buf, (b) => chars[b % 36]).join("")
 
     const [created] = await db
       .insert(invoicesTable)
@@ -245,24 +329,42 @@ export async function upsertInvoice(data: InvoiceFormData, invoiceId?: string) {
     }
   }
 
-  revalidatePath('/dashboard/sales')
+  revalidatePath("/dashboard/sales")
   return { success: true }
 }
 
 export async function deleteInvoice(invoiceId: string) {
-  const t = await getActionT('actions.sales')
+  const t = await getActionT("actions.sales")
   try {
-    await requirePermission('sales', 'delete')
+    await requirePermission("sales", "delete")
   } catch {
-    return { success: false as const, error: t('forbidden') }
+    return { success: false as const, error: t("forbidden") }
+  }
+
+  const session = await auth()
+  if (!session?.user)
+    return { success: false as const, error: t("unauthorized") }
+
+  if (!isSuperUser(session)) {
+    const invoice = await db
+      .select({ userId: invoicesTable.userId })
+      .from(invoicesTable)
+      .where(eq(invoicesTable.id, invoiceId))
+      .then((rows) => rows[0])
+
+    if (invoice && invoice.userId !== session.user.id) {
+      return { success: false as const, error: t("forbidden") }
+    }
   }
 
   try {
-    await db.delete(invoicesTable).where(eq(invoicesTable.id, invoiceId))
+    await db
+      .delete(invoicesTable)
+      .where(eq(invoicesTable.id, invoiceId))
   } catch {
-    return { success: false as const, error: t('cannotDelete') }
+    return { success: false as const, error: t("cannotDelete") }
   }
 
-  revalidatePath('/dashboard/sales')
+  revalidatePath("/dashboard/sales")
   return { success: true as const }
 }
