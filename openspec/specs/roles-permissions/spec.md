@@ -1,4 +1,45 @@
-## Requirements
+## MODIFIED Requirements
+
+### Requirement: Sales permissions are seeded and manageable
+The system SHALL include sales module permissions that can be toggled for each role in the permission matrix.
+
+#### Scenario: Sales permissions exist after seeding
+- **WHEN** the database seed script runs
+- **THEN** `sales:view`, `sales:create`, `sales:edit`, `sales:delete`, `sales:view-invoice-history` permissions are created
+- **AND** the super role has all five sales permissions enabled
+- **AND** the admin role has `sales:view`, `sales:create`, `sales:edit`, `sales:view-invoice-history` enabled
+- **AND** the admin role does NOT have `sales:delete` enabled
+- **AND** the client role has `sales:view-invoice-history` enabled only
+
+### Requirement: Client permissions are seeded and manageable
+The system SHALL include client module permissions that can be toggled for each role in the permission matrix.
+
+#### Scenario: Client permissions exist after seeding
+- **WHEN** the database seed script runs
+- **THEN** `clients:view`, `clients:create`, `clients:edit`, `clients:delete`, `clients:invite` permissions are created
+- **AND** the super role has all client permissions enabled
+- **AND** the admin role has `clients:view`, `clients:create`, `clients:edit`, `clients:invite` enabled
+- **AND** the admin role does NOT have `clients:delete` enabled
+- **AND** the client role has no client permissions
+
+## ADDED Requirements
+
+### Requirement: Contractors permissions are seeded and manageable
+The system SHALL include contractors module permissions that can be toggled for each role in the permission matrix.
+
+#### Scenario: Contractors permissions exist after seeding
+- **WHEN** the database seed script runs
+- **THEN** `contractors:view`, `contractors:create`, `contractors:edit`, `contractors:delete` permissions are created
+- **AND** the super role has all contractors permissions enabled
+- **AND** the admin role has `contractors:view`, `contractors:create`, `contractors:edit` enabled
+- **AND** the admin role does NOT have `contractors:delete` enabled
+- **AND** the client role has no contractors permissions
+
+#### Scenario: Super can toggle contractors permissions
+- **WHEN** a super user visits the permissions page
+- **THEN** the contractors module appears in the permission matrix with view, create, edit, delete actions
+- **AND** each action is toggleable per role
+
 ### Requirement: Super manages permission modules
 The system SHALL allow super users to manage modules (add/edit/delete) with associated actions on the permissions page.
 
@@ -67,22 +108,6 @@ The system SHALL restrict `/dashboard/permissions` to super users only.
 - **WHEN** an admin user navigates to `/dashboard/permissions`
 - **THEN** they see a 403 forbidden page
 
-### Requirement: Sales permissions are seeded and manageable
-The system SHALL include sales module permissions that can be toggled for each role in the permission matrix.
-
-#### Scenario: Sales permissions exist after seeding
-- **WHEN** the database seed script runs
-- **THEN** `sales:view`, `sales:create`, `sales:edit`, `sales:delete`, `sales:view-invoice-history` permissions are created
-- **AND** the super role has all five sales permissions enabled
-- **AND** the admin role has `sales:view`, `sales:create`, `sales:edit`, `sales:view-invoice-history` enabled
-- **AND** the admin role does NOT have `sales:delete` enabled
-- **AND** the client role has `sales:view-invoice-history` enabled only
-
-#### Scenario: Super can toggle sales permissions
-- **WHEN** a super user visits the permissions page
-- **THEN** the sales module appears in the permission matrix with view, create, edit, delete, view-invoice-history actions
-- **AND** each action is toggleable per role
-
 ### Requirement: sales:view-invoice-history is seeded for client and admin roles
 The system SHALL include `sales:view-invoice-history` in the database seed for both client and admin roles.
 
@@ -100,16 +125,8 @@ The system SHALL show `sales:view-invoice-history` as a toggleable permission un
 - **THEN** the sales module shows a `view-invoice-history` action in the permission matrix
 - **AND** it is toggleable per role
 
-### Requirement: Client permissions are seeded and manageable
-The system SHALL include client module permissions that can be toggled for each role in the permission matrix.
-
-#### Scenario: Client permissions exist after seeding
-- **WHEN** the database seed script runs
-- **THEN** `clients:view`, `clients:create`, `clients:edit`, `clients:delete`, `clients:invite` permissions are created
-- **AND** the super role has all client permissions enabled
-- **AND** the admin role has `clients:view`, `clients:create`, `clients:edit`, `clients:invite` enabled
-- **AND** the admin role does NOT have `clients:delete` enabled
-- **AND** the client role has no client permissions
+### Requirement: Delete button hidden without clients:delete
+The system SHALL hide the delete action for clients when the user does not have `clients:delete` permission.
 
 #### Scenario: Delete button hidden without clients:delete
 - **GIVEN** a user lacks `clients:delete` permission
@@ -120,4 +137,3 @@ The system SHALL include client module permissions that can be toggled for each 
 - **GIVEN** a user has `sales:view-invoice-history` permission
 - **WHEN** viewing a client row
 - **THEN** the "View" action is visible in the action menu
-
