@@ -210,6 +210,19 @@ function ComboboxCollection({
   )
 }
 
+function ComboboxStatus({
+  className,
+  ...props
+}: ComboboxPrimitive.Status.Props) {
+  return (
+    <ComboboxPrimitive.Status
+      data-slot="combobox-status"
+      className={cn("px-2 py-1.5 text-xs text-muted-foreground", className)}
+      {...props}
+    />
+  )
+}
+
 function ComboboxEmpty({
   className,
   ...props
@@ -314,6 +327,7 @@ export {
   ComboboxLabel,
   ComboboxCollection,
   ComboboxEmpty,
+  ComboboxStatus,
   ComboboxSeparator,
   ComboboxChips,
   ComboboxChip,

@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { useTranslations } from "next-intl"
+import { ClientCombobox } from "@/components/clients/client-combobox"
+import {
+  LineItemsTable,
+  type LineItem,
+} from "@/components/sales/line-items-table"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -13,19 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ClientCombobox } from "@/components/clients/client-combobox"
-import { Plus } from "lucide-react"
-import { upsertInvoice, getInvoiceItems } from "@/lib/actions/sales"
+import { Spinner } from "@/components/ui/spinner"
+import { getInvoiceItems, upsertInvoice } from "@/lib/actions/sales"
 import type { Invoice } from "@/lib/drizzle/schema"
+import { Plus } from "lucide-react"
+import { useTranslations } from "next-intl"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import {
-  LineItemsTable,
-  type LineItem,
-} from "@/components/sales/line-items-table"
 
 interface InvoiceFormProps {
   invoice?: Invoice
-  clients: Array<{ id: string; name: string }>
   products: Array<{ id: string; name: string }>
   selectedClientId?: string
   onSuccess: () => void
@@ -54,7 +53,6 @@ function createEmptyItem(
 
 export function InvoiceForm({
   invoice,
-  clients,
   products,
   selectedClientId,
   onSuccess,
@@ -93,8 +91,8 @@ export function InvoiceForm({
           }))
         )
       })
-      .catch(() => toast.error(t('sales.failedToLoadItems')))
-  }, [invoice?.id])
+      .catch(() => toast.error(t("sales.failedToLoadItems")))
+  }, [invoice?.id, t])
 
   function updateItem(
     key: string,
@@ -162,12 +160,12 @@ export function InvoiceForm({
     e.preventDefault()
 
     if (!clientId) {
-      toast.error(t('sales.selectClient'))
+      toast.error(t("sales.selectClient"))
       return
     }
 
     if (items.length === 0) {
-      toast.error(t('sales.lineItemsRequired'))
+      toast.error(t("sales.lineItemsRequired"))
       return
     }
 
@@ -191,13 +189,17 @@ export function InvoiceForm({
         invoice?.id
       )
       if (result.success) {
-        toast.success(invoice ? t('sales.invoiceUpdated') : t('sales.invoiceCreated'))
+        toast.success(
+          invoice
+            ? t("sales.invoiceUpdated")
+            : t("sales.invoiceCreated")
+        )
         onSuccess()
       } else {
-        toast.error(result.error || t('common.somethingWentWrong'))
+        toast.error(result.error || t("common.somethingWentWrong"))
       }
     } catch {
-      toast.error(t('common.somethingWentWrong'))
+      toast.error(t("common.somethingWentWrong"))
     }
     setSaving(false)
   }
@@ -206,7 +208,7 @@ export function InvoiceForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="type">{t('sales.type')}</Label>
+          <Label htmlFor="type">{t("sales.type")}</Label>
           <Select
             value={type}
             onValueChange={(v: "product" | "service") => setType(v)}
@@ -215,17 +217,20 @@ export function InvoiceForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="product">{t('sales.product')}</SelectItem>
-              <SelectItem value="service">{t('sales.service')}</SelectItem>
+              <SelectItem value="product">
+                {t("sales.product")}
+              </SelectItem>
+              <SelectItem value="service">
+                {t("sales.service")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         {selectedClientId && !invoice ? null : (
           <div className="flex flex-col gap-2">
-            <Label htmlFor="client">{t('sales.client')}</Label>
+            <Label htmlFor="client">{t("sales.client")}</Label>
             <ClientCombobox
-              clients={clients}
               value={clientId}
               onValueChange={(id) => setClientId(id ?? "")}
             />
@@ -233,7 +238,7 @@ export function InvoiceForm({
         )}
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="issueDate">{t('sales.issueDate')}</Label>
+          <Label htmlFor="issueDate">{t("sales.issueDate")}</Label>
           <Input
             id="issueDate"
             type="date"
@@ -245,7 +250,7 @@ export function InvoiceForm({
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <Label>{t('sales.lineItems')}</Label>
+          <Label>{t("sales.lineItems")}</Label>
           <Button
             type="button"
             variant="outline"
@@ -253,7 +258,7 @@ export function InvoiceForm({
             onClick={addItem}
           >
             <Plus className="mr-1 h-3 w-3" />
-            {t('sales.addItem')}
+            {t("sales.addItem")}
           </Button>
         </div>
 
@@ -275,14 +280,18 @@ export function InvoiceForm({
 
       <div className="flex flex-col gap-1 border-t pt-3 text-sm">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t('sales.subtotal')}</span>
+          <span className="text-muted-foreground">
+            {t("sales.subtotal")}
+          </span>
           <span className="font-mono">
             ${totals.subtotal.toFixed(2)}
           </span>
         </div>
         {totals.discountTotal > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{t('sales.discount')}</span>
+            <span className="text-muted-foreground">
+              {t("sales.discount")}
+            </span>
             <span className="font-mono text-destructive">
               -${totals.discountTotal.toFixed(2)}
             </span>
@@ -290,7 +299,9 @@ export function InvoiceForm({
         )}
         {totals.taxTotal > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">{t('sales.tax')}</span>
+            <span className="text-muted-foreground">
+              {t("sales.tax")}
+            </span>
             <span className="font-mono">
               ${totals.taxTotal.toFixed(2)}
             </span>
@@ -311,11 +322,13 @@ export function InvoiceForm({
           onClick={onCancel}
           disabled={saving}
         >
-          {t('sales.cancel')}
+          {t("sales.cancel")}
         </Button>
         <Button type="submit" disabled={saving}>
           {saving && <Spinner data-icon="inline-start" />}
-          {invoice ? t('sales.saveChanges') : t('sales.createInvoiceBtn')}
+          {invoice
+            ? t("sales.saveChanges")
+            : t("sales.createInvoiceBtn")}
         </Button>
       </div>
     </form>

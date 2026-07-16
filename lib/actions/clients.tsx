@@ -8,7 +8,7 @@ import {
   userRolesTable,
   rolesTable,
 } from "@/lib/drizzle/schema"
-import { eq } from "drizzle-orm"
+import { eq, ilike, or } from "drizzle-orm"
 import { requirePermission } from "@/lib/auth"
 import { z } from "zod"
 import crypto from "crypto"
@@ -85,8 +85,35 @@ export async function getClients() {
     .select({
       id: clientsTable.id,
       name: clientsTable.name,
+      phone: clientsTable.phone,
     })
     .from(clientsTable)
+}
+
+export async function searchClients(query: string) {
+  const t = await getActionT("actions.clients")
+  try {
+    await requirePermission("clients", "view")
+  } catch {
+    throw new Error(t("forbidden"))
+  }
+
+  if (!query.trim()) return []
+
+  return db
+    .select({
+      id: clientsTable.id,
+      name: clientsTable.name,
+      phone: clientsTable.phone,
+    })
+    .from(clientsTable)
+    .where(
+      or(
+        ilike(clientsTable.name, `%${query}%`),
+        ilike(clientsTable.phone, `%${query}%`),
+      )
+    )
+    .limit(20)
 }
 
 export type ClientOption = Awaited<

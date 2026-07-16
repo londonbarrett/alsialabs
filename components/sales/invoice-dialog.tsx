@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { getClients, type ClientOption } from "@/lib/actions/clients"
 import {
   getInvoiceProducts,
   type InvoiceProductOption,
@@ -26,7 +25,6 @@ interface InvoiceDialogProps {
 }
 
 type State = {
-  clients: ClientOption[]
   products: InvoiceProductOption[]
   loading: boolean
 }
@@ -35,7 +33,6 @@ type Action =
   | { type: "load" }
   | {
       type: "loaded"
-      clients: ClientOption[]
       products: InvoiceProductOption[]
     }
 
@@ -45,7 +42,6 @@ function reducer(state: State, action: Action): State {
       return { ...state, loading: true }
     case "loaded":
       return {
-        clients: action.clients,
         products: action.products,
         loading: false,
       }
@@ -53,7 +49,6 @@ function reducer(state: State, action: Action): State {
 }
 
 const initialState: State = {
-  clients: [],
   products: [],
   loading: false,
 }
@@ -70,16 +65,14 @@ export function InvoiceDialog({
   useEffect(() => {
     if (!open) return
     dispatch({ type: "load" })
-    Promise.all([
-      getClients().catch(() => []),
-      getInvoiceProducts().catch(() => []),
-    ]).then(([clientsData, productsData]) => {
-      dispatch({
-        type: "loaded",
-        clients: clientsData,
-        products: productsData,
+    getInvoiceProducts()
+      .catch(() => [])
+      .then((productsData) => {
+        dispatch({
+          type: "loaded",
+          products: productsData,
+        })
       })
-    })
   }, [open])
 
   const loading = open && state.loading
@@ -105,7 +98,6 @@ export function InvoiceDialog({
         ) : (
           <InvoiceForm
             invoice={invoice}
-            clients={state.clients}
             products={state.products}
             selectedClientId={selectedClientId}
             onSuccess={() => {
