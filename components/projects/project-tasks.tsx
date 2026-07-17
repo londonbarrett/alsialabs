@@ -17,7 +17,7 @@ import {
   updateTaskStatus,
 } from "@/lib/actions/project-tasks"
 import type { ProjectTask } from "@/lib/drizzle/schema"
-import { Plus } from "lucide-react"
+import { ListTodo, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -121,7 +121,10 @@ export function ProjectTasks({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          {t("projects.tasks.title")}
+          <span className="flex items-center gap-2">
+            <ListTodo className="h-4 w-4" />
+            {t("projects.tasks.title")}
+          </span>
           {canEdit && (
             <Button onClick={openNew} size="sm">
               <Plus />

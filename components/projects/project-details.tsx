@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Calendar, Crown, FileText, MapPin, Pencil, Tag, Trash2, Wallet } from "lucide-react"
+import { Calendar, ClipboardList, Crown, FileText, MapPin, Pencil, Tag, Trash2, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
 import type { ProjectMember } from "./project-detail-view"
 
@@ -43,7 +43,10 @@ export function ProjectDetails({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("projects.detail.title")}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <ClipboardList className="h-4 w-4" />
+          {t("projects.detail.title")}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-6">
