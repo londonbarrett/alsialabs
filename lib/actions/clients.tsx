@@ -1,18 +1,18 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   clientsTable,
-  usersTable,
-  userRolesTable,
   rolesTable,
+  userRolesTable,
+  usersTable,
 } from "@/lib/drizzle/schema"
-import { eq, ilike, or } from "drizzle-orm"
-import { requirePermission } from "@/lib/auth"
-import { z } from "zod"
-import crypto from "crypto"
 import { getActionT } from "@/lib/i18n-actions"
+import crypto from "crypto"
+import { eq, ilike, or } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
 
 const clientSchema = z.object({
   name: z
@@ -110,7 +110,7 @@ export async function searchClients(query: string) {
     .where(
       or(
         ilike(clientsTable.name, `%${query}%`),
-        ilike(clientsTable.phone, `%${query}%`),
+        ilike(clientsTable.phone, `%${query}%`)
       )
     )
     .limit(20)
@@ -139,8 +139,7 @@ export async function checkPhoneExists(
     .where(eq(clientsTable.phone, phone))
 
   if (existing.length === 0) return { exists: false }
-  if (excludeId)
-    return { exists: existing[0].id !== excludeId }
+  if (excludeId) return { exists: existing[0].id !== excludeId }
   return { exists: true }
 }
 
@@ -166,10 +165,7 @@ export async function upsertClient(
 
   const fields = parsed.data
 
-  const phoneCheck = await checkPhoneExists(
-    fields.phone,
-    clientId
-  )
+  const phoneCheck = await checkPhoneExists(fields.phone, clientId)
   if (phoneCheck.exists) {
     return {
       success: false,
@@ -220,9 +216,7 @@ export async function deleteClient(clientId: string) {
     return { success: false as const, error: t("forbidden") }
   }
 
-  await db
-    .delete(clientsTable)
-    .where(eq(clientsTable.id, clientId))
+  await db.delete(clientsTable).where(eq(clientsTable.id, clientId))
   revalidatePath("/dashboard/clients")
   return { success: true as const }
 }
@@ -268,14 +262,14 @@ export async function inviteClient(data: {
     }
   }
 
-  const clientRole = await db
+  const userRole = await db
     .select({ id: rolesTable.id })
     .from(rolesTable)
-    .where(eq(rolesTable.name, "client"))
+    .where(eq(rolesTable.name, "user"))
     .then((rows) => rows[0])
 
-  if (!clientRole) {
-    return { success: false, error: t("clientRoleNotFound") }
+  if (!userRole) {
+    return { success: false, error: t("userRoleNotFound") }
   }
 
   if (client.userId) {
@@ -318,7 +312,7 @@ export async function inviteClient(data: {
 
   await db.insert(userRolesTable).values({
     userId,
-    roleId: clientRole.id,
+    roleId: userRole.id,
   })
 
   await db

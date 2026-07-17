@@ -521,7 +521,7 @@
       "phoneAlreadyExistsField": "Phone number already in use",
       "clientNotFound": "Client not found",
       "noEmailToInvite": "Client has no email. Provide an email to invite.",
-      "clientRoleNotFound": "Client role not found",
+      "userRoleNotFound": "User role not found",
       "linkedUserNotFound": "Linked user not found"
     },
     "categories": {

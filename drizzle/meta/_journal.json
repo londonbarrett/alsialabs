@@ -71,6 +71,13 @@
       "when": 1784163223842,
       "tag": "0009_wonderful_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784412800000,
+      "tag": "0010_rename_client_role_to_user",
+      "breakpoints": true
     }
   ]
 }

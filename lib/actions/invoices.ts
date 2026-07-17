@@ -43,7 +43,7 @@ export async function getClientInvoices(
 
   const role = session.user.role
 
-  if (role === "client") {
+  if (role === "user") {
     const ownClient = await db
       .select({ id: clientsTable.id })
       .from(clientsTable)
