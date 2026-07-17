@@ -90,7 +90,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const t = useTranslations()
   const tc = useTranslations("category-names")
   const status = statusConfig[project.status]
-  const primaryOwner = project.owners.find((o) => o.id === project.primaryOwnerId)
+  const primaryOwner = project.owners.find(
+    (o) => o.id === project.primaryOwnerId
+  )
   const spendPct =
     project.budget > 0
       ? Math.min(
@@ -114,21 +116,20 @@ export function ProjectCard({ project }: ProjectCardProps) {
     <Card className="group flex flex-col gap-0 overflow-hidden py-0 transition-shadow hover:shadow-lg">
       {/* Header */}
       <CardHeader className="gap-3 border-b bg-muted/30 py-5 [.border-b]:pb-5">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
           <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {tc(project.category)}
           </span>
           <CardTitle className="text-lg leading-tight text-balance">
-            {project.name}
+            <Link
+              href={`/dashboard/projects/${project.id}`}
+              className="hover:underline"
+            >
+              {project.name}
+            </Link>
           </CardTitle>
           {primaryOwner && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Avatar className="size-4">
-                <AvatarImage src={primaryOwner.image ?? undefined} />
-                <AvatarFallback className="text-[8px]">
-                  {initials(primaryOwner.name)}
-                </AvatarFallback>
-              </Avatar>
               <Crown className="size-3 text-amber-500" />
               <span>{primaryOwner.name}</span>
             </div>

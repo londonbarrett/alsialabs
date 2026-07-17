@@ -7,8 +7,8 @@ import {
   userRolesTable,
   rolesTable,
 } from "@/lib/drizzle/schema"
-import { eq } from "drizzle-orm"
-import { auth, isSuperUser } from "@/lib/auth"
+import { eq, ilike, or, and } from "drizzle-orm"
+import { auth, isSuperUser, requirePermission } from "@/lib/auth"
 import { z } from "zod"
 import { getActionT } from "@/lib/i18n-actions"
 
@@ -54,6 +54,67 @@ export async function getAssignableUsers() {
     .from(usersTable)
 
   return { success: true as const, users }
+}
+
+export type UserOption = {
+  id: string
+  name: string | null
+  email: string | null
+  image: string | null
+}
+
+export async function searchUsers(query: string): Promise<UserOption[]> {
+  const t = await getActionT("actions.users")
+  try {
+    await requirePermission("projects", "view")
+  } catch {
+    throw new Error(t("forbidden"))
+  }
+
+  if (!query.trim()) return []
+
+  const userRole = await db
+    .select({ id: rolesTable.id })
+    .from(rolesTable)
+    .where(eq(rolesTable.name, "user"))
+    .then((rows) => rows[0])
+
+  if (!userRole) return []
+
+  return db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      image: usersTable.image,
+    })
+    .from(usersTable)
+    .innerJoin(userRolesTable, eq(usersTable.id, userRolesTable.userId))
+    .where(
+      and(
+        eq(userRolesTable.roleId, userRole.id),
+        or(
+          ilike(usersTable.name, `%${query}%`),
+          ilike(usersTable.email, `%${query}%`)
+        )
+      )
+    )
+    .limit(20)
+}
+
+export async function getUserById(userId: string): Promise<UserOption | null> {
+  const user = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      image: usersTable.image,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .then((rows) => rows[0])
+
+  return user ?? null
 }
 
 export async function getUsers() {

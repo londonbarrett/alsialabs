@@ -24,13 +24,14 @@ import type {
   Project as DbProject,
   ProjectTask,
 } from "@/lib/drizzle/schema"
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import { ProjectCollaborators } from "./project-collaborators"
+import { ProjectDetails } from "./project-details"
 import { ProjectDialog } from "./project-dialog"
 import { ProjectOwners } from "./project-owners"
 import { ProjectTasks } from "./project-tasks"
@@ -95,7 +96,6 @@ export function ProjectDetailView({
 }: ProjectDetailViewProps) {
   const router = useRouter()
   const t = useTranslations()
-  const tc = useTranslations("category-names")
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<
     DbProject | undefined
@@ -110,6 +110,10 @@ export function ProjectDetailView({
     permissions.includes("projects:edit")
   const canManageUsers = isPrimaryOwner || isCurrentUserAdmin
   const canDelete = isPrimaryOwner || isCurrentUserAdmin
+
+  const primaryOwner = owners.find(
+    (o) => o.userId === project.primaryOwnerId
+  )
 
   async function handleProjectStatusChange(status: string) {
     const result = await upsertProject(
@@ -214,24 +218,6 @@ export function ProjectDetailView({
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {canEdit && (
-            <>
-              <Button variant="outline" size="sm" onClick={handleEdit}>
-                <Pencil className="h-4 w-4" />
-                {t("projects.card.edit")}
-              </Button>
-              {canDelete && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t("projects.card.deleteProject")}
-                </Button>
-              )}
-            </>
-          )}
           {canEdit ? (
             <Select
               value={project.status}
@@ -275,59 +261,18 @@ export function ProjectDetailView({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 rounded-lg border p-4">
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.category")}
-          </p>
-          <p className="text-sm font-medium">
-            {project.categorySlug ? tc(project.categorySlug) : "—"}
-          </p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.startDate")}
-          </p>
-          <p className="text-sm font-medium">{project.startDate}</p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.endDate")}
-          </p>
-          <p className="text-sm font-medium">
-            {project.endDate || "—"}
-          </p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.location")}
-          </p>
-          <p className="text-sm font-medium">
-            {project.location || "—"}
-          </p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.budget")}
-          </p>
-          <p className="text-sm font-medium">
-            {project.budget ? `$${project.budget}` : "—"}
-          </p>
-        </div>
-        {project.description && (
-          <div className="col-span-3">
-            <p className="mb-1 text-xs text-muted-foreground">
-              {t("projects.description")}
-            </p>
-            <p className="text-sm">{project.description}</p>
-          </div>
-        )}
-      </div>
+      <ProjectDetails
+        project={project}
+        primaryOwner={primaryOwner}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        onEdit={handleEdit}
+        onDelete={() => setDeleteDialogOpen(true)}
+      />
 
       <ProjectOwners
         owners={owners}
         primaryOwnerId={project.primaryOwnerId}
-        availableUsers={availableUsers}
         canManageUsers={canManageUsers}
         onAddOwner={handleAddOwner}
         onRemoveOwner={handleRemoveOwner}
@@ -335,7 +280,6 @@ export function ProjectDetailView({
 
       <ProjectCollaborators
         collaborators={collaborators}
-        availableUsers={availableUsers}
         isOwner={isOwner}
         onAddCollaborator={handleAddCollaborator}
         onRemoveCollaborator={handleRemoveCollaborator}
@@ -346,6 +290,11 @@ export function ProjectDetailView({
         projectId={project.id}
         canEdit={canEdit}
         isOwner={isOwner}
+        isCollaborator={
+          !isOwner &&
+          collaborators.some((c) => c.userId === currentUserId)
+        }
+        currentUserId={currentUserId}
         permissions={permissions}
         projectMembers={[...owners, ...collaborators]}
       />
