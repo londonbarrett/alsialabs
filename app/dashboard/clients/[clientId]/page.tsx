@@ -1,13 +1,17 @@
-import { getTranslations } from 'next-intl/server'
-import { Label } from "@/components/ui/label"
-import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
+import { ClientSwitcher } from "@/components/clients/client-switcher"
+import { Label } from "@/components/ui/label"
 import { getActivities } from "@/lib/actions/activities"
-import { getClientInvoices } from "@/lib/actions/invoices"
 import { getClientByClientId } from "@/lib/actions/clients"
+import { getClientInvoices } from "@/lib/actions/invoices"
 import { getReminders } from "@/lib/actions/reminders"
 import { auth, getUserPermissions } from "@/lib/auth"
-import type { ClientActivity, Invoice, ClientReminder } from "@/lib/drizzle/schema"
+import type {
+  ClientActivity,
+  ClientReminder,
+  Invoice,
+} from "@/lib/drizzle/schema"
+import { getTranslations } from "next-intl/server"
 import { forbidden } from "next/navigation"
 
 export default async function ClientProfilePage({
@@ -29,10 +33,10 @@ export default async function ClientProfilePage({
     return (
       <div className="flex flex-1 flex-col gap-6 p-6">
         <h1 className="text-2xl font-semibold tracking-tight">
-          {t('clients.clientNotFound')}
+          {t("clients.clientNotFound")}
         </h1>
         <p className="text-muted-foreground">
-          {t('clients.clientNotFoundDesc')}
+          {t("clients.clientNotFoundDesc")}
         </p>
       </div>
     )
@@ -41,7 +45,7 @@ export default async function ClientProfilePage({
   const permissions = await getUserPermissions(session.user.id)
 
   const canView = permissions.includes("client-activity:view")
-  const isClient = session.user.role === "client"
+  const isUser = session.user.role === "user"
 
   let invoices: Invoice[] = []
   let activities: ClientActivity[] = []
@@ -53,7 +57,7 @@ export default async function ClientProfilePage({
       invoices = result.data as Invoice[]
     }
 
-    if (!isClient) {
+    if (!isUser) {
       ;[activities, reminders] = await Promise.all([
         getActivities(clientId),
         getReminders(clientId),
@@ -64,33 +68,43 @@ export default async function ClientProfilePage({
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex flex-col gap-2">
-        <Label>{t('clients.switchClientTo')}</Label>
+        <Label>{t("clients.switchClientTo")}</Label>
         <ClientSwitcher currentClientId={clientId} />
       </div>
       <div className="max-w-lg rounded-md border p-6">
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">{t('common.name')}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("common.name")}
+            </p>
             <p className="text-base font-medium">{client.name}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">{t('clients.phone')}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("clients.phone")}
+            </p>
             <p className="text-base font-medium">{client.phone}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">{t('clients.email')}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("clients.email")}
+            </p>
             <p className="text-base font-medium">
               {client.email ?? "—"}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">{t('clients.location')}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("clients.location")}
+            </p>
             <p className="text-base font-medium">
               {client.location ?? "—"}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">{t('clients.comments')}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("clients.comments")}
+            </p>
             <p className="text-base font-medium">
               {client.comments ?? "—"}
             </p>

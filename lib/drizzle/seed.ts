@@ -21,7 +21,7 @@ const roles = [
     name: "admin",
     description: "Can manage clients and access most features",
   },
-  { name: "client", description: "Limited access, own data only" },
+  { name: "user", description: "Limited access, own data only" },
 ]
 
 const defaultModules = [
@@ -44,7 +44,10 @@ const defaultModules = [
     actions: ["view", "create", "edit", "delete"],
   },
   { module: "expenses", actions: ["view", "create", "edit", "delete"] },
-  { module: "contractors", actions: ["view", "create", "edit", "delete"] },
+  {
+    module: "contractors",
+    actions: ["view", "create", "edit", "delete"],
+  },
 ]
 
 async function seed() {
@@ -60,7 +63,7 @@ async function seed() {
 
   const superRole = seededRoles.find((r) => r.name === "super")!
   const adminRole = seededRoles.find((r) => r.name === "admin")!
-  const clientRole = seededRoles.find((r) => r.name === "client")!
+  const userRole = seededRoles.find((r) => r.name === "user")!
 
   for (const mod of defaultModules) {
     for (const action of mod.actions) {
@@ -109,42 +112,42 @@ async function seed() {
     }
   }
 
-  const clientPermissions = allPermissions.filter(
+  const userPermissions = allPermissions.filter(
     (p) => p.module === "client-activity" && p.action === "view"
   )
-  for (const perm of clientPermissions) {
+  for (const perm of userPermissions) {
     await db
       .insert(rolePermissionsTable)
-      .values({ roleId: clientRole.id, permissionId: perm.id })
+      .values({ roleId: userRole.id, permissionId: perm.id })
       .onConflictDoNothing()
   }
 
-  const clientProjectPerms = allPermissions.filter(
+  const userProjectPerms = allPermissions.filter(
     (p) =>
       p.module === "projects" &&
       ["view", "create", "edit", "delete"].includes(p.action)
   )
-  for (const perm of clientProjectPerms) {
+  for (const perm of userProjectPerms) {
     await db
       .insert(rolePermissionsTable)
-      .values({ roleId: clientRole.id, permissionId: perm.id })
+      .values({ roleId: userRole.id, permissionId: perm.id })
       .onConflictDoNothing()
   }
 
-  const clientExpensePerms = allPermissions.filter(
+  const userExpensePerms = allPermissions.filter(
     (p) =>
       p.module === "expenses" &&
       ["view", "create", "edit", "delete"].includes(p.action)
   )
-  for (const perm of clientExpensePerms) {
+  for (const perm of userExpensePerms) {
     await db
       .insert(rolePermissionsTable)
-      .values({ roleId: clientRole.id, permissionId: perm.id })
+      .values({ roleId: userRole.id, permissionId: perm.id })
       .onConflictDoNothing()
   }
 
   console.log(
-    "Role-permissions seeded: super gets all, admin gets view/create/edit, clients get projects and expenses"
+    "Role-permissions seeded: super gets all, admin gets view/create/edit, users get projects and expenses"
   )
 
   const defaultProjectCategories = [
