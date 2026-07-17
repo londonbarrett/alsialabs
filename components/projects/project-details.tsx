@@ -132,7 +132,7 @@ export function ProjectDetails({
       {(canEdit || canDelete) && (
         <CardFooter className="flex justify-end gap-2">
           {canEdit && (
-            <Button variant="outline" size="sm" onClick={onEdit}>
+            <Button variant="secondary" size="sm" onClick={onEdit}>
               <Pencil className="h-4 w-4" />
               {t("projects.card.edit")}
             </Button>
