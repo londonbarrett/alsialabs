@@ -331,11 +331,16 @@
         "done": "Done"
       }
     },
-    "owners": "Owners",
+    "owners": "Co-owners",
     "collaborators": "Collaborators",
     "addOwner": "Add owner...",
     "addCollaborator": "Add collaborator...",
     "noCollaborators": "No collaborators yet",
+    "noAdditionalOwners": "No additional owners",
+    "searchUser": "Search user...",
+    "searching": "Searching...",
+    "noUsersFound": "No users found",
+    "invite": "Invite",
     "alreadyOwner": "User is already an owner",
     "alreadyCollaborator": "User is already a collaborator",
     "cannotRemovePrimaryOwner": "Cannot remove the primary owner",

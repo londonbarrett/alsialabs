@@ -331,11 +331,16 @@
         "done": "Completado"
       }
     },
-    "owners": "Propietarios",
+    "owners": "Co-propietarios",
     "collaborators": "Colaboradores",
     "addOwner": "Agregar propietario...",
     "addCollaborator": "Agregar colaborador...",
     "noCollaborators": "Aún no hay colaboradores",
+    "noAdditionalOwners": "No hay propietarios adicionales",
+    "searchUser": "Buscar usuario...",
+    "searching": "Buscando...",
+    "noUsersFound": "No se encontraron usuarios",
+    "invite": "Invitar",
     "alreadyOwner": "El usuario ya es propietario",
     "alreadyCollaborator": "El usuario ya es colaborador",
     "cannotRemovePrimaryOwner": "No se puede eliminar el propietario principal",

@@ -273,7 +273,6 @@ export function ProjectDetailView({
       <ProjectOwners
         owners={owners}
         primaryOwnerId={project.primaryOwnerId}
-        availableUsers={availableUsers}
         canManageUsers={canManageUsers}
         onAddOwner={handleAddOwner}
         onRemoveOwner={handleRemoveOwner}
