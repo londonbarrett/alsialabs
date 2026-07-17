@@ -263,6 +263,7 @@
     "noProjects": "No projects yet",
     "name": "Name",
     "category": "Category",
+    "primaryOwner": "Primary Owner",
     "description": "Description",
     "statusLabel": "Status",
     "startDate": "Start Date",

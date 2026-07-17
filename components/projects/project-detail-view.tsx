@@ -1,7 +1,6 @@
 "use client"
 
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
-import { Money } from "@/components/common/money"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -32,6 +31,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import { ProjectCollaborators } from "./project-collaborators"
+import { ProjectDetails } from "./project-details"
 import { ProjectDialog } from "./project-dialog"
 import { ProjectOwners } from "./project-owners"
 import { ProjectTasks } from "./project-tasks"
@@ -96,7 +96,6 @@ export function ProjectDetailView({
 }: ProjectDetailViewProps) {
   const router = useRouter()
   const t = useTranslations()
-  const tc = useTranslations("category-names")
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<
     DbProject | undefined
@@ -111,6 +110,10 @@ export function ProjectDetailView({
     permissions.includes("projects:edit")
   const canManageUsers = isPrimaryOwner || isCurrentUserAdmin
   const canDelete = isPrimaryOwner || isCurrentUserAdmin
+
+  const primaryOwner = owners.find(
+    (o) => o.userId === project.primaryOwnerId
+  )
 
   async function handleProjectStatusChange(status: string) {
     const result = await upsertProject(
@@ -276,54 +279,10 @@ export function ProjectDetailView({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 rounded-lg border p-4">
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.category")}
-          </p>
-          <p className="text-sm font-medium">
-            {project.categorySlug ? tc(project.categorySlug) : "—"}
-          </p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.startDate")}
-          </p>
-          <p className="text-sm font-medium">{project.startDate}</p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.endDate")}
-          </p>
-          <p className="text-sm font-medium">
-            {project.endDate || "—"}
-          </p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.location")}
-          </p>
-          <p className="text-sm font-medium">
-            {project.location || "—"}
-          </p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            {t("projects.budget")}
-          </p>
-          <p className="text-sm font-medium">
-            <Money value={project.budget} />
-          </p>
-        </div>
-        {project.description && (
-          <div className="col-span-3">
-            <p className="mb-1 text-xs text-muted-foreground">
-              {t("projects.description")}
-            </p>
-            <p className="text-sm">{project.description}</p>
-          </div>
-        )}
-      </div>
+      <ProjectDetails
+        project={project}
+        primaryOwner={primaryOwner}
+      />
 
       <ProjectOwners
         owners={owners}

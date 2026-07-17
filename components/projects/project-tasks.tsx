@@ -3,6 +3,7 @@
 import { ActionMenu } from "@/components/common/action-menu"
 import { Money } from "@/components/common/money"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -117,130 +118,132 @@ export function ProjectTasks({
   }
 
   return (
-    <>
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
           {t("projects.tasks.title")}
-        </h2>
-        {canEdit && (
-          <Button onClick={openNew} size="sm">
-            <Plus />
-            {t("projects.tasks.addTask")}
-          </Button>
-        )}
-      </div>
+          {canEdit && (
+            <Button onClick={openNew} size="sm">
+              <Plus />
+              {t("projects.tasks.addTask")}
+            </Button>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
 
-      {tasks.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          {t("projects.tasks.noTasks")}
-        </p>
-      ) : (
-        <div className="overflow-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead scope="col">
-                  {t("projects.tasks.name")}
-                </TableHead>
-                <TableHead scope="col">
-                  {t("projects.tasks.assignee")}
-                </TableHead>
-                <TableHead scope="col">
-                  {t("projects.tasks.statusLabel")}
-                </TableHead>
-                <TableHead scope="col">
-                  {t("projects.tasks.cost")}
-                </TableHead>
-                {canMutate && (
+        {tasks.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {t("projects.tasks.noTasks")}
+          </p>
+        ) : (
+          <div className="overflow-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
                   <TableHead scope="col">
-                    {t("projects.tasks.actions")}
+                    {t("projects.tasks.name")}
                   </TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.map((task) => (
-                <TableRow key={task.id}>
-                  <TableCell className="font-medium">
-                    <div>
-                      <p>{task.name}</p>
-                      {task.description && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {task.description}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {task.assigneeId ? (
-                      <span className="text-sm">
-                        {getAssigneeName(task.assigneeId)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {t("projects.tasks.unassigned")}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {(() => {
-                      const allowed = getTaskAllowedStatuses(task)
-                      if (!allowed) {
-                        return (
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${taskStatusColors[task.status]}`}
-                          >
-                            {t(`projects.tasks.status.${task.status}`)}
-                          </span>
-                        )
-                      }
-                      return (
-                        <TaskStatusSelect
-                          status={task.status}
-                          allowedStatuses={allowed}
-                          onStatusChange={(v) =>
-                            handleTaskStatusChange(task.id, v)
-                          }
-                        />
-                      )
-                    })()}
-                  </TableCell>
-                  <TableCell>
-                    {task.cost ? <Money value={task.cost} /> : "—"}
-                  </TableCell>
+                  <TableHead scope="col">
+                    {t("projects.tasks.assignee")}
+                  </TableHead>
+                  <TableHead scope="col">
+                    {t("projects.tasks.statusLabel")}
+                  </TableHead>
+                  <TableHead scope="col">
+                    {t("projects.tasks.cost")}
+                  </TableHead>
                   {canMutate && (
-                    <TableCell>
-                      <ActionMenu
-                        entityName={task.name}
-                        onEdit={() => openEdit(task)}
-                        onDelete={async () => {
-                          const result = await deleteTask(
-                            task.id,
-                            projectId
-                          )
-                          if (!result.success)
-                            toast.error(
-                              result.error ||
-                                t("common.somethingWentWrong")
-                            )
-                          else
-                            toast.success(
-                              t("projects.tasks.taskDeleted")
-                            )
-                        }}
-                        canEdit={canEdit}
-                        canDelete={permissions.includes(
-                          "projects:delete"
-                        )}
-                      />
-                    </TableCell>
+                    <TableHead scope="col">
+                      {t("projects.tasks.actions")}
+                    </TableHead>
                   )}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+              </TableHeader>
+              <TableBody>
+                {tasks.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell className="font-medium">
+                      <div>
+                        <p>{task.name}</p>
+                        {task.description && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {task.description}
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {task.assigneeId ? (
+                        <span className="text-sm">
+                          {getAssigneeName(task.assigneeId)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {t("projects.tasks.unassigned")}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const allowed = getTaskAllowedStatuses(task)
+                        if (!allowed) {
+                          return (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${taskStatusColors[task.status]}`}
+                            >
+                              {t(`projects.tasks.status.${task.status}`)}
+                            </span>
+                          )
+                        }
+                        return (
+                          <TaskStatusSelect
+                            status={task.status}
+                            allowedStatuses={allowed}
+                            onStatusChange={(v) =>
+                              handleTaskStatusChange(task.id, v)
+                            }
+                          />
+                        )
+                      })()}
+                    </TableCell>
+                    <TableCell>
+                      {task.cost ? <Money value={task.cost} /> : "—"}
+                    </TableCell>
+                    {canMutate && (
+                      <TableCell>
+                        <ActionMenu
+                          entityName={task.name}
+                          onEdit={() => openEdit(task)}
+                          onDelete={async () => {
+                            const result = await deleteTask(
+                              task.id,
+                              projectId
+                            )
+                            if (!result.success)
+                              toast.error(
+                                result.error ||
+                                  t("common.somethingWentWrong")
+                              )
+                            else
+                              toast.success(
+                                t("projects.tasks.taskDeleted")
+                              )
+                          }}
+                          canEdit={canEdit}
+                          canDelete={permissions.includes(
+                            "projects:delete"
+                          )}
+                        />
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
 
       <TaskDialog
         task={editingTask}
@@ -250,6 +253,6 @@ export function ProjectTasks({
         onOpenChange={handleOpenChange}
         onSuccess={handleSuccess}
       />
-    </>
+    </Card>
   )
 }
