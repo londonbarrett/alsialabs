@@ -30,21 +30,12 @@ const projectSchema = z.object({
 export type ProjectFormData = z.infer<typeof projectSchema>
 
 async function getUserProjectIds(userId: string): Promise<string[]> {
-  const [owned, collaborated] = await Promise.all([
-    db
-      .select({ projectId: projectOwnersTable.projectId })
-      .from(projectOwnersTable)
-      .where(eq(projectOwnersTable.userId, userId)),
-    db
-      .select({ projectId: projectCollaboratorsTable.projectId })
-      .from(projectCollaboratorsTable)
-      .where(eq(projectCollaboratorsTable.userId, userId)),
-  ])
+  const owned = await db
+    .select({ projectId: projectOwnersTable.projectId })
+    .from(projectOwnersTable)
+    .where(eq(projectOwnersTable.userId, userId))
 
-  const ids = new Set<string>()
-  for (const row of owned) ids.add(row.projectId)
-  for (const row of collaborated) ids.add(row.projectId)
-  return Array.from(ids)
+  return owned.map((row) => row.projectId)
 }
 
 async function isProjectOwner(projectId: string, userId: string): Promise<boolean> {
@@ -310,18 +301,7 @@ export async function getProjectById(id: string) {
   }
 
   if (!isSuperUser(session) && !(await isProjectOwner(id, session.user.id))) {
-    const isCollaborator = await db
-      .select()
-      .from(projectCollaboratorsTable)
-      .where(
-        and(
-          eq(projectCollaboratorsTable.projectId, id),
-          eq(projectCollaboratorsTable.userId, session.user.id)
-        )
-      )
-      .then((rows) => rows[0])
-
-    if (!isCollaborator) throw new Error(t('forbidden'))
+    throw new Error(t('forbidden'))
   }
 
   return project

@@ -24,7 +24,7 @@ import type {
   Project as DbProject,
   ProjectTask,
 } from "@/lib/drizzle/schema"
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -218,24 +218,6 @@ export function ProjectDetailView({
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {canEdit && (
-            <>
-              <Button variant="outline" size="sm" onClick={handleEdit}>
-                <Pencil className="h-4 w-4" />
-                {t("projects.card.edit")}
-              </Button>
-              {canDelete && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t("projects.card.deleteProject")}
-                </Button>
-              )}
-            </>
-          )}
           {canEdit ? (
             <Select
               value={project.status}
@@ -282,6 +264,10 @@ export function ProjectDetailView({
       <ProjectDetails
         project={project}
         primaryOwner={primaryOwner}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        onEdit={handleEdit}
+        onDelete={() => setDeleteDialogOpen(true)}
       />
 
       <ProjectOwners
