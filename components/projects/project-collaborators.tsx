@@ -3,26 +3,14 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
-import { Card, CardContent } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, X } from "lucide-react"
 import { useTranslations } from "next-intl"
 import type { ProjectMember } from "./project-detail-view"
+import { UserInviteInput } from "./user-invite-input"
 
 interface ProjectCollaboratorsProps {
   collaborators: ProjectMember[]
-  availableUsers: {
-    id: string
-    name: string | null
-    email: string | null
-    image: string | null
-  }[]
   isOwner: boolean
   onAddCollaborator: (userId: string) => void
   onRemoveCollaborator: (userId: string) => void
@@ -39,7 +27,6 @@ function initials(name: string) {
 
 export function ProjectCollaborators({
   collaborators,
-  availableUsers,
   isOwner,
   onAddCollaborator,
   onRemoveCollaborator,
@@ -48,29 +35,13 @@ export function ProjectCollaborators({
 
   return (
     <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Users className="h-4 w-4" />
+          {t("projects.collaborators")}
+        </CardTitle>
+      </CardHeader>
       <CardContent>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <Users className="h-4 w-4" />
-            {t("projects.collaborators")}
-          </h3>
-          {isOwner && availableUsers.length > 0 && (
-            <Select onValueChange={onAddCollaborator}>
-              <SelectTrigger className="h-7 w-40">
-                <SelectValue
-                  placeholder={t("projects.addCollaborator")}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {availableUsers.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name || u.email || u.id}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
         <div className="flex flex-wrap gap-2">
           {collaborators.length === 0 && (
             <p className="text-sm text-muted-foreground">
@@ -100,6 +71,14 @@ export function ProjectCollaborators({
             </div>
           ))}
         </div>
+        {isOwner && (
+          <div className="mt-3">
+            <UserInviteInput
+              onSelect={onAddCollaborator}
+              placeholder={t("projects.addCollaborator")}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   )

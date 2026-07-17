@@ -280,7 +280,6 @@ export function ProjectDetailView({
 
       <ProjectCollaborators
         collaborators={collaborators}
-        availableUsers={availableUsers}
         isOwner={isOwner}
         onAddCollaborator={handleAddCollaborator}
         onRemoveCollaborator={handleRemoveCollaborator}
