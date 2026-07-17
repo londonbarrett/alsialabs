@@ -3,13 +3,6 @@
 import { ActionMenu } from "@/components/common/action-menu"
 import { Button } from "@/components/ui/button"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Table,
   TableBody,
   TableCell,
@@ -28,17 +21,10 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import { TaskDialog } from "./task-dialog"
-
-const taskStatusColors: Record<string, string> = {
-  todo: "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400",
-  in_progress:
-    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  in_review:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  blocked:
-    "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  done: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-}
+import {
+  TaskStatusSelect,
+  taskStatusColors,
+} from "./task-status-select"
 
 const allTaskStatuses = [
   "todo",
@@ -62,6 +48,8 @@ interface ProjectTasksProps {
   projectId: string
   canEdit: boolean
   isOwner: boolean
+  isCollaborator: boolean
+  currentUserId: string
   permissions: string[]
   projectMembers: ProjectMember[]
 }
@@ -71,6 +59,8 @@ export function ProjectTasks({
   projectId,
   canEdit,
   isOwner,
+  isCollaborator,
+  currentUserId,
   permissions,
   projectMembers,
 }: ProjectTasksProps) {
@@ -82,9 +72,13 @@ export function ProjectTasks({
   >()
   const canMutate =
     isOwner && (canEdit || permissions.includes("projects:delete"))
-  const allowedStatuses = isOwner
-    ? allTaskStatuses
-    : collaboratorTaskStatuses
+
+  function getTaskAllowedStatuses(task: ProjectTask) {
+    if (isOwner) return allTaskStatuses
+    if (isCollaborator && task.assigneeId === currentUserId)
+      return collaboratorTaskStatuses
+    return null
+  }
 
   function getAssigneeName(userId: string) {
     const member = projectMembers.find((m) => m.userId === userId)
@@ -188,43 +182,27 @@ export function ProjectTasks({
                     )}
                   </TableCell>
                   <TableCell>
-                    {canEdit ? (
-                      <Select
-                        value={task.status}
-                        onValueChange={(v) =>
-                          handleTaskStatusChange(task.id, v)
-                        }
-                      >
-                        <SelectTrigger className="h-7 w-35">
-                          <SelectValue>
-                            <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${taskStatusColors[task.status]}`}
-                            >
-                              {t(
-                                `projects.tasks.status.${task.status}`
-                              )}
-                            </span>
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allowedStatuses.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              <span
-                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${taskStatusColors[s]}`}
-                              >
-                                {t(`projects.tasks.status.${s}`)}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${taskStatusColors[task.status]}`}
-                      >
-                        {t(`projects.tasks.status.${task.status}`)}
-                      </span>
-                    )}
+                    {(() => {
+                      const allowed = getTaskAllowedStatuses(task)
+                      if (!allowed) {
+                        return (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${taskStatusColors[task.status]}`}
+                          >
+                            {t(`projects.tasks.status.${task.status}`)}
+                          </span>
+                        )
+                      }
+                      return (
+                        <TaskStatusSelect
+                          status={task.status}
+                          allowedStatuses={allowed}
+                          onStatusChange={(v) =>
+                            handleTaskStatusChange(task.id, v)
+                          }
+                        />
+                      )
+                    })()}
                   </TableCell>
                   <TableCell>
                     {task.cost ? `$${task.cost}` : "—"}

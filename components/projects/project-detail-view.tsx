@@ -346,6 +346,11 @@ export function ProjectDetailView({
         projectId={project.id}
         canEdit={canEdit}
         isOwner={isOwner}
+        isCollaborator={
+          !isOwner &&
+          collaborators.some((c) => c.userId === currentUserId)
+        }
+        currentUserId={currentUserId}
         permissions={permissions}
         projectMembers={[...owners, ...collaborators]}
       />
