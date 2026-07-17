@@ -1,6 +1,7 @@
 "use client"
 
 import { ActionMenu } from "@/components/common/action-menu"
+import { Money } from "@/components/common/money"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -205,7 +206,7 @@ export function ProjectTasks({
                     })()}
                   </TableCell>
                   <TableCell>
-                    {task.cost ? `$${task.cost}` : "—"}
+                    {task.cost ? <Money value={task.cost} /> : "—"}
                   </TableCell>
                   {canMutate && (
                     <TableCell>

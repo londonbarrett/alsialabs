@@ -1,6 +1,7 @@
 "use client"
 
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
+import { Money } from "@/components/common/money"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -311,7 +312,7 @@ export function ProjectDetailView({
             {t("projects.budget")}
           </p>
           <p className="text-sm font-medium">
-            {project.budget ? `$${project.budget}` : "—"}
+            <Money value={project.budget} />
           </p>
         </div>
         {project.description && (
