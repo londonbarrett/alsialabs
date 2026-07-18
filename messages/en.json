@@ -287,7 +287,11 @@
       "archived": "Archived"
     },
     "detail": {
-      "title": "Project Details"
+      "title": "Project Details",
+      "tabs": {
+        "people": "People",
+        "details": "Details"
+      }
     },
     "card": {
       "start": "Start",
