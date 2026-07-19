@@ -50,7 +50,7 @@ function MemberPill({
   onRemove?: () => void
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-full border px-3 py-1.5">
+    <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
       <Avatar className="size-6">
         <AvatarImage src={member.userImage ?? undefined} />
         <AvatarFallback className="text-[10px]">
@@ -82,6 +82,7 @@ export function ProjectPeople({
 }: ProjectPeopleProps) {
   const router = useRouter()
   const t = useTranslations()
+  const primaryOwner = owners.find((o) => o.userId === primaryOwnerId)
   const additionalOwners = owners.filter(
     (o) => o.userId !== primaryOwnerId
   )
@@ -134,6 +135,14 @@ export function ProjectPeople({
         <div>
           <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
             <Crown className="h-4 w-4 text-muted-foreground" />
+            {t("projects.primaryOwner")}
+          </h3>
+          {primaryOwner && <MemberPill member={primaryOwner} />}
+        </div>
+
+        <div>
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
+            <Users className="h-4 w-4 text-muted-foreground" />
             {t("projects.owners")}
           </h3>
           <div className="flex flex-wrap gap-2">
