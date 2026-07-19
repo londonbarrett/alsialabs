@@ -1,5 +1,6 @@
 "use client"
 
+import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { Money } from "@/components/common/money"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,36 +10,71 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  deleteProject,
+  getProjectForEdit,
+} from "@/lib/actions/projects"
+import type { Project as DbProject } from "@/lib/drizzle/schema"
 import { Calendar, ClipboardList, Crown, FileText, MapPin, Pencil, Tag, Trash2, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 import type { ProjectMember } from "./project-detail-view"
+import { ProjectDialog } from "./project-dialog"
 
 interface ProjectDetailsProps {
   project: {
+    id: string
+    name: string
+    categoryId: string
     categorySlug: string | null
     startDate: string
     endDate: string | null
     location: string | null
     budget: string | null
     description: string | null
+    status: string
   }
+  categories: { id: string; slug: string }[]
   primaryOwner: ProjectMember | undefined
   canEdit: boolean
   canDelete: boolean
-  onEdit: () => void
-  onDelete: () => void
 }
 
 export function ProjectDetails({
   project,
+  categories,
   primaryOwner,
   canEdit,
   canDelete,
-  onEdit,
-  onDelete,
 }: ProjectDetailsProps) {
+  const router = useRouter()
   const t = useTranslations()
   const tc = useTranslations("category-names")
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false)
+  const [editingProject, setEditingProject] = useState<DbProject | undefined>()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleEdit() {
+    const full = await getProjectForEdit(project.id)
+    setEditingProject(full)
+    setProjectDialogOpen(true)
+  }
+
+  async function handleDelete() {
+    setDeleteDialogOpen(false)
+    setDeleting(true)
+    const result = await deleteProject(project.id)
+    if (!result.success) {
+      toast.error(result.error || t("common.somethingWentWrong"))
+      setDeleting(false)
+    } else {
+      toast.success(t("projects.projectDeleted"))
+      router.push("/dashboard/projects")
+    }
+  }
 
   return (
     <Card>
@@ -132,7 +168,7 @@ export function ProjectDetails({
       {(canEdit || canDelete) && (
         <CardFooter className="flex justify-end gap-2">
           {canEdit && (
-            <Button variant="secondary" size="sm" onClick={onEdit}>
+            <Button variant="secondary" size="sm" onClick={handleEdit}>
               <Pencil className="h-4 w-4" />
               {t("projects.card.edit")}
             </Button>
@@ -141,7 +177,7 @@ export function ProjectDetails({
             <Button
               variant="destructive"
               size="sm"
-              onClick={onDelete}
+              onClick={() => setDeleteDialogOpen(true)}
             >
               <Trash2 className="h-4 w-4" />
               {t("projects.card.deleteProject")}
@@ -149,6 +185,29 @@ export function ProjectDetails({
           )}
         </CardFooter>
       )}
+
+      <ProjectDialog
+        project={editingProject}
+        categories={categories}
+        open={projectDialogOpen}
+        onOpenChange={(open) => {
+          setProjectDialogOpen(open)
+          if (!open) setEditingProject(undefined)
+        }}
+        onSuccess={() => {
+          router.refresh()
+          setEditingProject(undefined)
+        }}
+      />
+
+      <DestructiveDialog
+        open={deleteDialogOpen}
+        title={t("actionMenu.deleteTitle")}
+        message={t("actionMenu.confirmDelete", { name: project.name })}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteDialogOpen(false)}
+        loading={deleting}
+      />
     </Card>
   )
 }

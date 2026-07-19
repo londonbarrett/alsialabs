@@ -1,39 +1,23 @@
-"use client"
-
-import { DestructiveDialog } from "@/components/common/destructive-dialog"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import type { ProjectTask } from "@/lib/drizzle/schema"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  addProjectCollaborator,
-  addProjectOwner,
-  removeProjectCollaborator,
-  removeProjectOwner,
-} from "@/lib/actions/project-users"
-import {
-  deleteProject,
-  getProjectForEdit,
-  upsertProject,
-} from "@/lib/actions/projects"
-import type {
-  Project as DbProject,
-  ProjectTask,
-} from "@/lib/drizzle/schema"
-import { ArrowLeft } from "lucide-react"
+  ArrowLeft,
+  ClipboardList,
+  ListTodo,
+  MapPin,
+  Users,
+} from "lucide-react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { toast } from "sonner"
-import { ProjectCollaborators } from "./project-collaborators"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import { ProjectDetails } from "./project-details"
-import { ProjectDialog } from "./project-dialog"
-import { ProjectOwners } from "./project-owners"
+import { ProjectPeople } from "./project-people"
 import { ProjectTasks } from "./project-tasks"
 
 export interface ProjectMember {
@@ -89,19 +73,11 @@ export function ProjectDetailView({
   categories,
   owners,
   collaborators,
-  allUsers,
   currentUserId,
   isCurrentUserAdmin,
   permissions = [],
 }: ProjectDetailViewProps) {
-  const router = useRouter()
   const t = useTranslations()
-  const [projectDialogOpen, setProjectDialogOpen] = useState(false)
-  const [editingProject, setEditingProject] = useState<
-    DbProject | undefined
-  >()
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const isPrimaryOwner = project.primaryOwnerId === currentUserId
   const isOwner =
     owners.some((o) => o.userId === currentUserId) || isCurrentUserAdmin
@@ -113,92 +89,6 @@ export function ProjectDetailView({
 
   const primaryOwner = owners.find(
     (o) => o.userId === project.primaryOwnerId
-  )
-
-  async function handleProjectStatusChange(status: string) {
-    const result = await upsertProject(
-      {
-        name: project.name,
-        categoryId: project.categoryId,
-        description: project.description ?? "",
-        startDate: project.startDate,
-        endDate: project.endDate ?? "",
-        location: project.location ?? "",
-        budget: project.budget ?? "",
-        status: status as
-          | "active"
-          | "completed"
-          | "cancelled"
-          | "archived",
-      },
-      project.id
-    )
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    }
-  }
-
-  async function handleDelete() {
-    setDeleteDialogOpen(false)
-    setDeleting(true)
-    const result = await deleteProject(project.id)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-      setDeleting(false)
-    } else {
-      toast.success(t("projects.projectDeleted"))
-      router.push("/dashboard/projects")
-    }
-  }
-
-  async function handleEdit() {
-    const full = await getProjectForEdit(project.id)
-    setEditingProject(full)
-    setProjectDialogOpen(true)
-  }
-
-  async function handleAddOwner(userId: string) {
-    const result = await addProjectOwner(project.id, userId)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    } else {
-      router.refresh()
-    }
-  }
-
-  async function handleRemoveOwner(userId: string) {
-    const result = await removeProjectOwner(project.id, userId)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    } else {
-      router.refresh()
-    }
-  }
-
-  async function handleAddCollaborator(userId: string) {
-    const result = await addProjectCollaborator(project.id, userId)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    } else {
-      router.refresh()
-    }
-  }
-
-  async function handleRemoveCollaborator(userId: string) {
-    const result = await removeProjectCollaborator(project.id, userId)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    } else {
-      router.refresh()
-    }
-  }
-
-  const ownerUserIds = new Set(owners.map((o) => o.userId))
-  const collaboratorUserIds = new Set(
-    collaborators.map((c) => c.userId)
-  )
-  const availableUsers = allUsers.filter(
-    (u) => !ownerUserIds.has(u.id) && !collaboratorUserIds.has(u.id)
   )
 
   return (
@@ -213,114 +103,73 @@ export function ProjectDetailView({
           <h1 className="text-2xl font-semibold tracking-tight">
             {project.name}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {t("projects.detail.title")}
-          </p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          {canEdit ? (
-            <Select
-              value={project.status}
-              onValueChange={handleProjectStatusChange}
-            >
-              <SelectTrigger className="h-7 w-37">
-                <SelectValue>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[project.status]}`}
-                  >
-                    {t(`projects.status.${project.status}`)}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {(
-                  [
-                    "active",
-                    "completed",
-                    "cancelled",
-                    "archived",
-                  ] as const
-                ).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[s]}`}
-                    >
-                      {t(`projects.status.${s}`)}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[project.status] ?? "bg-gray-100 text-gray-800"}`}
-            >
-              {t(`projects.status.${project.status}`)}
-            </span>
+          {project.location && (
+            <p className="flex items-center gap-1 text-sm text-muted-foreground">
+              <MapPin className="h-3 w-3" />
+              {project.location}
+            </p>
           )}
+        </div>
+        <div className="ml-auto">
+          <Badge className={statusColors[project.status]}>
+            {t(`projects.status.${project.status}`)}
+          </Badge>
         </div>
       </div>
 
-      <ProjectDetails
-        project={project}
-        primaryOwner={primaryOwner}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        onEdit={handleEdit}
-        onDelete={() => setDeleteDialogOpen(true)}
-      />
+      <Tabs className="gap-4" defaultValue="tasks">
+        <TabsList>
+          <TabsTrigger value="details">
+            <ClipboardList />
+            {t("projects.detail.tabs.details")}
+          </TabsTrigger>
+          <TabsTrigger value="people">
+            <Users />
+            {t("projects.detail.tabs.people")}
+          </TabsTrigger>
+          <TabsTrigger value="tasks">
+            <ListTodo />
+            {t("projects.tasks.title")}
+          </TabsTrigger>
+        </TabsList>
 
-      <ProjectOwners
-        owners={owners}
-        primaryOwnerId={project.primaryOwnerId}
-        canManageUsers={canManageUsers}
-        onAddOwner={handleAddOwner}
-        onRemoveOwner={handleRemoveOwner}
-      />
+        <TabsContent value="tasks">
+          <ProjectTasks
+            tasks={tasks}
+            projectId={project.id}
+            canEdit={canEdit}
+            isOwner={isOwner}
+            isCollaborator={
+              !isOwner &&
+              collaborators.some((c) => c.userId === currentUserId)
+            }
+            currentUserId={currentUserId}
+            permissions={permissions}
+            projectMembers={[...owners, ...collaborators]}
+          />
+        </TabsContent>
 
-      <ProjectCollaborators
-        collaborators={collaborators}
-        isOwner={isOwner}
-        onAddCollaborator={handleAddCollaborator}
-        onRemoveCollaborator={handleRemoveCollaborator}
-      />
+        <TabsContent value="people">
+          <ProjectPeople
+            projectId={project.id}
+            owners={owners}
+            collaborators={collaborators}
+            primaryOwnerId={project.primaryOwnerId}
+            canManageUsers={canManageUsers}
+            isOwner={isOwner}
+          />
+        </TabsContent>
 
-      <ProjectTasks
-        tasks={tasks}
-        projectId={project.id}
-        canEdit={canEdit}
-        isOwner={isOwner}
-        isCollaborator={
-          !isOwner &&
-          collaborators.some((c) => c.userId === currentUserId)
-        }
-        currentUserId={currentUserId}
-        permissions={permissions}
-        projectMembers={[...owners, ...collaborators]}
-      />
-
-      <ProjectDialog
-        project={editingProject}
-        categories={categories}
-        open={projectDialogOpen}
-        onOpenChange={(open) => {
-          setProjectDialogOpen(open)
-          if (!open) setEditingProject(undefined)
-        }}
-        onSuccess={() => {
-          router.refresh()
-          setEditingProject(undefined)
-        }}
-      />
-
-      <DestructiveDialog
-        open={deleteDialogOpen}
-        title={t("actionMenu.deleteTitle")}
-        message={t("actionMenu.confirmDelete", { name: project.name })}
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteDialogOpen(false)}
-        loading={deleting}
-      />
+        <TabsContent value="details">
+          <ProjectDetails
+            project={project}
+            categories={categories}
+            primaryOwner={primaryOwner}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
