@@ -136,7 +136,7 @@ export async function getProjectsWithDetails() {
 
   const inProgressStatuses = ['in_progress', 'in_review', 'blocked'] as const
 
-  const [taskAggs, expenseAggs, inProgressTasks, ownerData, collaboratorData] = await Promise.all([
+  const [taskAggs, expenseAggs, taskCostAggs, inProgressTasks, ownerData, collaboratorData] = await Promise.all([
     db
       .select({
         projectId: projectTasksTable.projectId,
@@ -155,6 +155,15 @@ export async function getProjectsWithDetails() {
       .from(expensesTable)
       .where(inArray(expensesTable.projectId, projectIds))
       .groupBy(expensesTable.projectId),
+
+    db
+      .select({
+        projectId: projectTasksTable.projectId,
+        total: sql<string>`coalesce(sum(${projectTasksTable.cost}), '0')`,
+      })
+      .from(projectTasksTable)
+      .where(inArray(projectTasksTable.projectId, projectIds))
+      .groupBy(projectTasksTable.projectId),
 
     db
       .select({
@@ -208,6 +217,11 @@ export async function getProjectsWithDetails() {
     expenseMap.set(agg.projectId, Number(agg.total))
   }
 
+  const taskCostMap = new Map<string, number>()
+  for (const agg of taskCostAggs) {
+    taskCostMap.set(agg.projectId, Number(agg.total))
+  }
+
   const inProgressMap = new Map<string, { id: string; title: string; assignee: string; assigneeImage: string | null }[]>()
   for (const task of inProgressTasks) {
     const list = inProgressMap.get(task.projectId) ?? []
@@ -240,7 +254,7 @@ export async function getProjectsWithDetails() {
 
   return filteredProjects.map((p) => {
     const tasks = taskMap.get(p.id) ?? { total: 0, completed: 0 }
-    const expenses = expenseMap.get(p.id) ?? 0
+    const expenses = (expenseMap.get(p.id) ?? 0) + (taskCostMap.get(p.id) ?? 0)
     const budget = p.budget ? Number(p.budget) : 0
 
     return {

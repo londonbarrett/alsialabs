@@ -290,7 +290,8 @@
       "title": "Detalles del Proyecto",
       "tabs": {
         "people": "Personas",
-        "details": "Detalles"
+        "details": "Detalles",
+        "expenses": "Gastos"
       }
     },
     "card": {
@@ -334,6 +335,31 @@
         "blocked": "Bloqueado",
         "done": "Completado"
       }
+    },
+    "expenses": {
+      "title": "Gastos",
+      "addExpense": "Agregar Gasto",
+      "editExpense": "Editar Gasto",
+      "createExpense": "Crear Gasto",
+      "fillDetails": "Completa los datos para agregar un nuevo gasto.",
+      "updateDetails": "Actualiza los detalles del gasto a continuación.",
+      "noExpenses": "Aún no hay gastos",
+      "description": "Descripción",
+      "type": "Tipo",
+      "task": "Tarea",
+      "category": "Categoría",
+      "selectCategory": "Seleccionar categoría",
+      "amount": "Monto",
+      "date": "Fecha",
+      "total": "Total",
+      "actions": "Acciones",
+      "expenseDeleted": "Gasto eliminado",
+      "expenseUpdated": "Gasto actualizado",
+      "expenseCreated": "Gasto creado",
+      "descriptionRequired": "La descripción es obligatoria",
+      "categoryRequired": "La categoría es obligatoria",
+      "amountRequired": "El monto es obligatorio",
+      "dateRequired": "La fecha es obligatoria"
     },
     "owners": "Co-propietarios",
     "collaborators": "Colaboradores",
@@ -535,6 +561,10 @@
       "linkedUserNotFound": "Usuario vinculado no encontrado"
     },
     "categories": {
+      "forbidden": "Prohibido",
+      "validationFailed": "Error de validación"
+    },
+    "expenses": {
       "forbidden": "Prohibido",
       "validationFailed": "Error de validación"
     },

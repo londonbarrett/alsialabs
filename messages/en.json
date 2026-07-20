@@ -290,7 +290,8 @@
       "title": "Project Details",
       "tabs": {
         "people": "People",
-        "details": "Details"
+        "details": "Details",
+        "expenses": "Expenses"
       }
     },
     "card": {
@@ -334,6 +335,31 @@
         "blocked": "Blocked",
         "done": "Done"
       }
+    },
+    "expenses": {
+      "title": "Expenses",
+      "addExpense": "Add Expense",
+      "editExpense": "Edit Expense",
+      "createExpense": "Create Expense",
+      "fillDetails": "Fill in the details to add a new expense.",
+      "updateDetails": "Update the expense details below.",
+      "noExpenses": "No expenses yet",
+      "description": "Description",
+      "type": "Type",
+      "task": "Task",
+      "category": "Category",
+      "selectCategory": "Select a category",
+      "amount": "Amount",
+      "date": "Date",
+      "total": "Total",
+      "actions": "Actions",
+      "expenseDeleted": "Expense deleted",
+      "expenseUpdated": "Expense updated",
+      "expenseCreated": "Expense created",
+      "descriptionRequired": "Description is required",
+      "categoryRequired": "Category is required",
+      "amountRequired": "Amount is required",
+      "dateRequired": "Date is required"
     },
     "owners": "Co-owners",
     "collaborators": "Collaborators",
@@ -535,6 +561,10 @@
       "linkedUserNotFound": "Linked user not found"
     },
     "categories": {
+      "forbidden": "Forbidden",
+      "validationFailed": "Validation failed"
+    },
+    "expenses": {
       "forbidden": "Forbidden",
       "validationFailed": "Validation failed"
     },
