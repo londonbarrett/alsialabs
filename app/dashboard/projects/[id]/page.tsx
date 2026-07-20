@@ -1,4 +1,5 @@
 import { ProjectDetailView } from "@/components/projects/project-detail-view"
+import { getExpensesByProjectId } from "@/lib/actions/expenses"
 import { getProjectCategoriesList } from "@/lib/actions/project-categories"
 import { getProjectTasks } from "@/lib/actions/project-tasks"
 import {
@@ -7,6 +8,8 @@ import {
 } from "@/lib/actions/project-users"
 import { getProjectById } from "@/lib/actions/projects"
 import { getAssignableUsers } from "@/lib/actions/users"
+import { db } from "@/lib/drizzle/client"
+import { expenseCategoriesTable } from "@/lib/drizzle/schema"
 import {
   auth,
   getUserPermissions,
@@ -44,6 +47,8 @@ export default async function ProjectDetailPage({ params }: Props) {
     owners,
     collaborators,
     allUsersResult,
+    expenses,
+    expenseCategories,
   ] = await Promise.all([
     getProjectTasks(id),
     getUserPermissions(session.user.id),
@@ -54,6 +59,8 @@ export default async function ProjectDetailPage({ params }: Props) {
       success: false as const,
       users: [],
     })),
+    getExpensesByProjectId(id).catch(() => []),
+    db.select().from(expenseCategoriesTable).orderBy(expenseCategoriesTable.slug),
   ])
 
   const allUsers = allUsersResult.success ? allUsersResult.users : []
@@ -67,6 +74,8 @@ export default async function ProjectDetailPage({ params }: Props) {
       owners={owners}
       collaborators={collaborators}
       allUsers={allUsers}
+      expenses={expenses}
+      expenseCategories={expenseCategories}
       currentUserId={session.user.id}
       isCurrentUserAdmin={isSuperUser(session)}
     />

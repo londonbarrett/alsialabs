@@ -1,11 +1,13 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { ProjectTask } from "@/lib/drizzle/schema"
+import type { ExpenseWithCategory } from "@/lib/actions/expenses"
 import {
   ArrowLeft,
   ClipboardList,
   ListTodo,
   MapPin,
+  Receipt,
   Users,
 } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -19,6 +21,7 @@ import {
 import { ProjectDetails } from "./project-details"
 import { ProjectPeople } from "./project-people"
 import { ProjectTasks } from "./project-tasks"
+import { ProjectExpenses } from "./expenses/project-expenses"
 
 export interface ProjectMember {
   userId: string
@@ -51,6 +54,8 @@ interface ProjectDetailViewProps {
     email: string | null
     image: string | null
   }[]
+  expenses: ExpenseWithCategory[]
+  expenseCategories: { id: string; slug: string }[]
   currentUserId: string
   isCurrentUserAdmin: boolean
   permissions?: string[]
@@ -73,6 +78,8 @@ export function ProjectDetailView({
   categories,
   owners,
   collaborators,
+  expenses,
+  expenseCategories,
   currentUserId,
   isCurrentUserAdmin,
   permissions = [],
@@ -131,6 +138,10 @@ export function ProjectDetailView({
             <ListTodo />
             {t("projects.tasks.title")}
           </TabsTrigger>
+          <TabsTrigger value="expenses">
+            <Receipt />
+            {t("projects.detail.tabs.expenses")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks">
@@ -167,6 +178,17 @@ export function ProjectDetailView({
             primaryOwner={primaryOwner}
             canEdit={canEdit}
             canDelete={canDelete}
+          />
+        </TabsContent>
+
+        <TabsContent value="expenses">
+          <ProjectExpenses
+            expenses={expenses}
+            projectId={project.id}
+            budget={project.budget}
+            categories={expenseCategories}
+            canEdit={!!permissions.includes("expenses:create") || canEdit}
+            canDelete={!!permissions.includes("expenses:delete") || canDelete}
           />
         </TabsContent>
       </Tabs>
