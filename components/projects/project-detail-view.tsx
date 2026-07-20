@@ -184,6 +184,7 @@ export function ProjectDetailView({
         <TabsContent value="expenses">
           <ProjectExpenses
             expenses={expenses}
+            tasks={tasks}
             projectId={project.id}
             budget={project.budget}
             categories={expenseCategories}

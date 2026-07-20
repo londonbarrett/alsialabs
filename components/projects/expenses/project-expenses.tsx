@@ -18,6 +18,7 @@ import {
 import { Money } from '@/components/common/money'
 import { ActionMenu } from '@/components/common/action-menu'
 import { deleteExpense, type ExpenseWithCategory } from '@/lib/actions/expenses'
+import type { ProjectTask } from '@/lib/drizzle/schema'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -25,6 +26,7 @@ import { ExpenseDialog } from './expense-dialog'
 
 interface ProjectExpensesProps {
   expenses: ExpenseWithCategory[]
+  tasks: ProjectTask[]
   projectId: string
   budget: string | null
   categories: { id: string; slug: string }[]
@@ -34,6 +36,7 @@ interface ProjectExpensesProps {
 
 export function ProjectExpenses({
   expenses,
+  tasks,
   projectId,
   budget,
   categories,
@@ -66,7 +69,11 @@ export function ProjectExpenses({
     if (!open) setEditingExpense(undefined)
   }
 
-  const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
+  const taskCosts = tasks.filter((t) => t.cost && Number(t.cost) > 0)
+  const expenseTotal = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
+  const taskCostTotal = taskCosts.reduce((sum, t) => sum + Number(t.cost), 0)
+  const total = expenseTotal + taskCostTotal
+  const hasItems = expenses.length > 0 || taskCosts.length > 0
   const budgetNum = budget ? Number(budget) : 0
   const spendPct = budgetNum > 0 ? Math.min(100, Math.round((total / budgetNum) * 100)) : 0
   const overBudget = budgetNum > 0 && total > budgetNum
@@ -117,11 +124,7 @@ export function ProjectExpenses({
             <Separator className="my-4" />
           </>
         )}
-        {expenses.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            {t('projects.expenses.noExpenses')}
-          </p>
-        ) : (
+        {hasItems ? (
           <>
             <div className="overflow-auto rounded-md border">
               <Table>
@@ -131,7 +134,7 @@ export function ProjectExpenses({
                       {t('projects.expenses.description')}
                     </TableHead>
                     <TableHead scope="col">
-                      {t('projects.expenses.category')}
+                      {t('projects.expenses.type')}
                     </TableHead>
                     <TableHead scope="col">
                       {t('projects.expenses.amount')}
@@ -147,13 +150,36 @@ export function ProjectExpenses({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {taskCosts.map((task) => (
+                    <TableRow key={`task-${task.id}`}>
+                      <TableCell className="font-medium">
+                        {task.name}
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                          {t('projects.expenses.task')}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Money value={task.cost} />
+                      </TableCell>
+                      <TableCell>
+                        {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : '—'}
+                      </TableCell>
+                      {(canEdit || canDelete) && <TableCell />}
+                    </TableRow>
+                  ))}
                   {expenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell className="font-medium">
                         {expense.description}
                       </TableCell>
                       <TableCell>
-                        {expense.categorySlug ? tc(expense.categorySlug) : '—'}
+                        {expense.categorySlug ? (
+                          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
+                            {tc(expense.categorySlug)}
+                          </span>
+                        ) : '—'}
                       </TableCell>
                       <TableCell>
                         <Money value={expense.amount} />
@@ -190,6 +216,10 @@ export function ProjectExpenses({
               </p>
             </div>
           </>
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {t('projects.expenses.noExpenses')}
+          </p>
         )}
       </CardContent>
 

@@ -345,6 +345,8 @@
       "updateDetails": "Actualiza los detalles del gasto a continuación.",
       "noExpenses": "Aún no hay gastos",
       "description": "Descripción",
+      "type": "Tipo",
+      "task": "Tarea",
       "category": "Categoría",
       "selectCategory": "Seleccionar categoría",
       "amount": "Monto",
