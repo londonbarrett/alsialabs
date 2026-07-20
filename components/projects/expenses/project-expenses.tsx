@@ -1,12 +1,15 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { Plus, Receipt, Wallet } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
+import { ActionMenu } from "@/components/common/action-menu"
+import { Money } from "@/components/common/money"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import {
   Table,
   TableBody,
@@ -14,15 +17,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Money } from '@/components/common/money'
-import { ActionMenu } from '@/components/common/action-menu'
-import { deleteExpense, type ExpenseWithCategory } from '@/lib/actions/expenses'
-import type { ProjectTask } from '@/lib/drizzle/schema'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
-import { ExpenseDialog } from './expense-dialog'
+} from "@/components/ui/table"
+import {
+  deleteExpense,
+  type ExpenseWithCategory,
+} from "@/lib/actions/expenses"
+import type { ProjectTask } from "@/lib/drizzle/schema"
+import { cn } from "@/lib/utils"
+import { Plus, Receipt, Wallet } from "lucide-react"
+import { useTranslations } from "next-intl"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
+import { ExpenseDialog } from "./expense-dialog"
 
 interface ProjectExpensesProps {
   expenses: ExpenseWithCategory[]
@@ -45,9 +52,11 @@ export function ProjectExpenses({
 }: ProjectExpensesProps) {
   const router = useRouter()
   const t = useTranslations()
-  const tc = useTranslations('category-names')
+  const tc = useTranslations("category-names")
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingExpense, setEditingExpense] = useState<ExpenseWithCategory | undefined>()
+  const [editingExpense, setEditingExpense] = useState<
+    ExpenseWithCategory | undefined
+  >()
 
   function handleSuccess() {
     router.refresh()
@@ -70,12 +79,21 @@ export function ProjectExpenses({
   }
 
   const taskCosts = tasks.filter((t) => t.cost && Number(t.cost) > 0)
-  const expenseTotal = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
-  const taskCostTotal = taskCosts.reduce((sum, t) => sum + Number(t.cost), 0)
+  const expenseTotal = expenses.reduce(
+    (sum, e) => sum + Number(e.amount),
+    0
+  )
+  const taskCostTotal = taskCosts.reduce(
+    (sum, t) => sum + Number(t.cost),
+    0
+  )
   const total = expenseTotal + taskCostTotal
   const hasItems = expenses.length > 0 || taskCosts.length > 0
   const budgetNum = budget ? Number(budget) : 0
-  const spendPct = budgetNum > 0 ? Math.min(100, Math.round((total / budgetNum) * 100)) : 0
+  const spendPct =
+    budgetNum > 0
+      ? Math.min(100, Math.round((total / budgetNum) * 100))
+      : 0
   const overBudget = budgetNum > 0 && total > budgetNum
 
   return (
@@ -84,12 +102,12 @@ export function ProjectExpenses({
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Receipt className="h-4 w-4" />
-            {t('projects.expenses.title')}
+            {t("projects.expenses.title")}
           </span>
           {canEdit && (
             <Button onClick={openNew} size="sm">
               <Plus />
-              {t('projects.expenses.addExpense')}
+              {t("projects.expenses.addExpense")}
             </Button>
           )}
         </CardTitle>
@@ -97,31 +115,41 @@ export function ProjectExpenses({
       <CardContent>
         {budgetNum > 0 && (
           <>
-            <div className="flex flex-col gap-2">
+            <div className="mb-6 flex flex-col gap-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 font-medium">
                   <Wallet className="size-4 text-muted-foreground" />
-                  {t('projects.card.budget')}
+                  {t("projects.card.budget")}
                 </span>
-                <span className={cn('tabular-nums', overBudget && 'text-red-600 dark:text-red-400')}>
-                  <Money value={total} />{' '}
-                  <span className="text-muted-foreground">/ <Money value={budgetNum} /></span>
+                <span
+                  className={cn(
+                    "tabular-nums",
+                    overBudget && "text-red-600 dark:text-red-400"
+                  )}
+                >
+                  <Money value={total} />{" "}
+                  <span className="text-muted-foreground">
+                    / <Money value={budgetNum} />
+                  </span>
                 </span>
               </div>
               <Progress
                 value={spendPct}
-                className={cn(overBudget && '[&_[data-slot=progress-indicator]]:bg-red-500')}
+                className={cn(
+                  overBudget &&
+                    "[&_[data-slot=progress-indicator]]:bg-red-500"
+                )}
               />
               <p className="text-xs text-muted-foreground">
-                {t('projects.card.ofBudgetUsed', { pct: spendPct })}
+                {t("projects.card.ofBudgetUsed", { pct: spendPct })}
                 {overBudget && (
                   <span className="text-red-600 dark:text-red-400">
-                    {' '}· {t('projects.card.overBudget')}
+                    {" "}
+                    · {t("projects.card.overBudget")}
                   </span>
                 )}
               </p>
             </div>
-            <Separator className="my-4" />
           </>
         )}
         {hasItems ? (
@@ -131,20 +159,20 @@ export function ProjectExpenses({
                 <TableHeader>
                   <TableRow>
                     <TableHead scope="col">
-                      {t('projects.expenses.description')}
+                      {t("projects.expenses.description")}
                     </TableHead>
                     <TableHead scope="col">
-                      {t('projects.expenses.type')}
+                      {t("projects.expenses.type")}
                     </TableHead>
                     <TableHead scope="col">
-                      {t('projects.expenses.amount')}
+                      {t("projects.expenses.amount")}
                     </TableHead>
                     <TableHead scope="col">
-                      {t('projects.expenses.date')}
+                      {t("projects.expenses.date")}
                     </TableHead>
                     {(canEdit || canDelete) && (
                       <TableHead scope="col">
-                        {t('common.actions')}
+                        {t("common.actions")}
                       </TableHead>
                     )}
                   </TableRow>
@@ -157,14 +185,18 @@ export function ProjectExpenses({
                       </TableCell>
                       <TableCell>
                         <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                          {t('projects.expenses.task')}
+                          {t("projects.expenses.task")}
                         </span>
                       </TableCell>
                       <TableCell>
                         <Money value={task.cost} />
                       </TableCell>
                       <TableCell>
-                        {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : '—'}
+                        {task.createdAt
+                          ? new Date(
+                              task.createdAt
+                            ).toLocaleDateString()
+                          : "—"}
                       </TableCell>
                       {(canEdit || canDelete) && <TableCell />}
                     </TableRow>
@@ -179,25 +211,37 @@ export function ProjectExpenses({
                           <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
                             {tc(expense.categorySlug)}
                           </span>
-                        ) : '—'}
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell>
                         <Money value={expense.amount} />
                       </TableCell>
-                      <TableCell>
-                        {expense.expenseDate}
-                      </TableCell>
+                      <TableCell>{expense.expenseDate}</TableCell>
                       {(canEdit || canDelete) && (
                         <TableCell>
                           <ActionMenu
                             entityName={expense.description}
-                            onEdit={canEdit ? () => openEdit(expense) : undefined}
+                            onEdit={
+                              canEdit
+                                ? () => openEdit(expense)
+                                : undefined
+                            }
                             onDelete={async () => {
-                              const result = await deleteExpense(expense.id, projectId)
+                              const result = await deleteExpense(
+                                expense.id,
+                                projectId
+                              )
                               if (!result.success) {
-                                toast.error(result.error || t('common.somethingWentWrong'))
+                                toast.error(
+                                  result.error ||
+                                    t("common.somethingWentWrong")
+                                )
                               } else {
-                                toast.success(t('projects.expenses.expenseDeleted'))
+                                toast.success(
+                                  t("projects.expenses.expenseDeleted")
+                                )
                               }
                             }}
                             canEdit={canEdit}
@@ -212,13 +256,13 @@ export function ProjectExpenses({
             </div>
             <div className="mt-4 flex justify-end">
               <p className="text-sm text-muted-foreground">
-                {t('projects.expenses.total')}: <Money value={total} />
+                {t("projects.expenses.total")}: <Money value={total} />
               </p>
             </div>
           </>
         ) : (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            {t('projects.expenses.noExpenses')}
+            {t("projects.expenses.noExpenses")}
           </p>
         )}
       </CardContent>
