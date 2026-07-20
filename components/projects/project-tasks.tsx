@@ -3,7 +3,12 @@
 import { ActionMenu } from "@/components/common/action-menu"
 import { Money } from "@/components/common/money"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -36,7 +41,12 @@ const allTaskStatuses = [
   "done",
 ] as const
 
-const collaboratorTaskStatuses = ["blocked", "in_review"] as const
+const collaboratorTaskStatuses = [
+  "todo",
+  "in_progress",
+  "blocked",
+  "in_review",
+] as const
 
 interface ProjectMember {
   userId: string
@@ -77,6 +87,7 @@ export function ProjectTasks({
 
   function getTaskAllowedStatuses(task: ProjectTask) {
     if (isOwner) return allTaskStatuses
+    if (task.status === "done") return null
     if (isCollaborator && task.assigneeId === currentUserId)
       return collaboratorTaskStatuses
     return null
@@ -134,7 +145,6 @@ export function ProjectTasks({
         </CardTitle>
       </CardHeader>
       <CardContent>
-
         {tasks.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             {t("projects.tasks.noTasks")}
@@ -195,7 +205,9 @@ export function ProjectTasks({
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${taskStatusColors[task.status]}`}
                             >
-                              {t(`projects.tasks.status.${task.status}`)}
+                              {t(
+                                `projects.tasks.status.${task.status}`
+                              )}
                             </span>
                           )
                         }

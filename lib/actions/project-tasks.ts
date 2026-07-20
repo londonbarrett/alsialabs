@@ -6,9 +6,10 @@ import {
   projectCollaboratorsTable,
   projectOwnersTable,
   projectTasksTable,
+  projectsTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -38,7 +39,7 @@ const ownerStatusSchema = z.enum([
   "done",
 ])
 
-const collaboratorStatusSchema = z.enum(["blocked", "in_review"])
+const collaboratorStatusSchema = z.enum(["todo", "in_progress", "blocked", "in_review"])
 
 export type TaskFormData = z.infer<typeof taskSchema>
 
@@ -209,6 +210,25 @@ export async function updateTaskStatus(
         )
       )
   } else {
+    const currentTask = await db
+      .select({ status: projectTasksTable.status })
+      .from(projectTasksTable)
+      .where(
+        and(
+          eq(projectTasksTable.id, taskId),
+          eq(projectTasksTable.projectId, projectId)
+        )
+      )
+      .then((rows) => rows[0])
+
+    if (!currentTask) {
+      return { success: false as const, error: t("notFound") }
+    }
+
+    if (currentTask.status === "done") {
+      return { success: false as const, error: t("forbidden") }
+    }
+
     const parsed = collaboratorStatusSchema.safeParse(status)
     if (!parsed.success) {
       return { success: false as const, error: t("validationFailed") }
@@ -264,4 +284,67 @@ export async function deleteTask(taskId: string, projectId: string) {
 
   revalidatePath(`/dashboard/projects/${projectId}`)
   return { success: true as const }
+}
+
+export type MyTask = Awaited<ReturnType<typeof getMyTasks>>[number]
+
+export async function getMyTasks(
+  statusFilter?: string,
+  projectIdFilter?: string
+) {
+  const t = await getActionT("actions.projects")
+
+  try {
+    await requirePermission("projects", "view")
+  } catch {
+    throw new Error(t("forbidden"))
+  }
+
+  const session = await auth()
+  if (!session?.user) throw new Error(t("unauthorized"))
+
+  const isSuper = isSuperUser(session)
+
+  const conditions = []
+  if (!isSuper) {
+    conditions.push(eq(projectTasksTable.assigneeId, session.user.id))
+  }
+  if (statusFilter) {
+    const validStatuses = ["todo", "in_progress", "in_review", "blocked", "done"] as const
+    if (validStatuses.includes(statusFilter as typeof validStatuses[number])) {
+      conditions.push(eq(projectTasksTable.status, statusFilter as typeof validStatuses[number]))
+    }
+  }
+  if (projectIdFilter) {
+    conditions.push(eq(projectTasksTable.projectId, projectIdFilter))
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined
+
+  return db
+    .select({
+      id: projectTasksTable.id,
+      projectId: projectTasksTable.projectId,
+      projectName: projectsTable.name,
+      name: projectTasksTable.name,
+      description: projectTasksTable.description,
+      cost: projectTasksTable.cost,
+      status: projectTasksTable.status,
+      assigneeId: projectTasksTable.assigneeId,
+      isOwner: sql<boolean>`coalesce((
+        select true from ${projectOwnersTable}
+        where ${projectOwnersTable.projectId} = ${projectTasksTable.projectId}
+        and ${projectOwnersTable.userId} = ${session.user.id}
+        limit 1
+      ), false)`,
+      createdAt: projectTasksTable.createdAt,
+      updatedAt: projectTasksTable.updatedAt,
+    })
+    .from(projectTasksTable)
+    .innerJoin(
+      projectsTable,
+      eq(projectTasksTable.projectId, projectsTable.id)
+    )
+    .where(where)
+    .orderBy(desc(projectTasksTable.createdAt))
 }
