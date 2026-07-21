@@ -36,6 +36,7 @@ import {
 
 export type ProjectTaskWithCommentCount = ProjectTask & {
   commentCount: number
+  assigneeName: string | null
 }
 
 const allTaskStatuses = [
@@ -105,9 +106,8 @@ export function ProjectTasks({
     return null
   }
 
-  function getAssigneeName(userId: string) {
-    const member = projectMembers.find((m) => m.userId === userId)
-    return member?.userName || member?.userEmail || userId
+  function getAssigneeName(task: ProjectTaskWithCommentCount) {
+    return task.assigneeName || task.assigneeId
   }
 
   function handleSuccess() {
@@ -215,7 +215,7 @@ export function ProjectTasks({
                     <TableCell>
                       {task.assigneeId ? (
                         <span className="text-sm">
-                          {getAssigneeName(task.assigneeId)}
+                          {getAssigneeName(task)}
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">

@@ -8,6 +8,7 @@ import {
   projectTasksTable,
   projectsTable,
   taskCommentsTable,
+  usersTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
 import { and, count, desc, eq, sql } from "drizzle-orm"
@@ -117,12 +118,14 @@ export async function getProjectTasks(projectId: string) {
       cost: projectTasksTable.cost,
       status: projectTasksTable.status,
       assigneeId: projectTasksTable.assigneeId,
+      assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       createdAt: projectTasksTable.createdAt,
       updatedAt: projectTasksTable.updatedAt,
       commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
     })
     .from(projectTasksTable)
     .leftJoin(commentCounts, eq(projectTasksTable.id, commentCounts.taskId))
+    .leftJoin(usersTable, eq(projectTasksTable.assigneeId, usersTable.id))
     .where(eq(projectTasksTable.projectId, projectId))
     .orderBy(desc(projectTasksTable.createdAt))
 }
@@ -362,6 +365,7 @@ export async function getMyTasks(
       cost: projectTasksTable.cost,
       status: projectTasksTable.status,
       assigneeId: projectTasksTable.assigneeId,
+      assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       isOwner: sql<boolean>`coalesce((
         select true from ${projectOwnersTable}
         where ${projectOwnersTable.projectId} = ${projectTasksTable.projectId}
@@ -378,6 +382,7 @@ export async function getMyTasks(
       eq(projectTasksTable.projectId, projectsTable.id)
     )
     .leftJoin(commentCounts, eq(projectTasksTable.id, commentCounts.taskId))
+    .leftJoin(usersTable, eq(projectTasksTable.assigneeId, usersTable.id))
     .where(where)
     .orderBy(desc(projectTasksTable.createdAt))
 }
