@@ -198,7 +198,10 @@ export function ProjectTasks({
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => (
-                  <TableRow key={task.id} onDoubleClick={() => setCommentsTask(task)}>
+                  <TableRow
+                    key={task.id}
+                    onDoubleClick={() => setCommentsTask(task)}
+                  >
                     <TableCell className="font-medium">
                       <div>
                         <p>{task.name}</p>
@@ -250,8 +253,7 @@ export function ProjectTasks({
                     </TableCell>
                     <TableCell>
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="secondary"
                         onClick={() => setCommentsTask(task)}
                         className="gap-1.5"
                       >
