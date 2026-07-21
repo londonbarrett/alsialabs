@@ -343,6 +343,7 @@
         "send": "Enviar",
         "noComments": "Aún no hay comentarios",
         "commentDeleted": "Comentario eliminado",
+        "edited": "editado",
         "deleteConfirm": "¿Eliminar este comentario?"
       }
     },

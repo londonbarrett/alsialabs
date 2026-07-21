@@ -101,6 +101,7 @@ export async function getTaskComments(taskId: string) {
       authorImage: usersTable.image,
       content: taskCommentsTable.content,
       createdAt: taskCommentsTable.createdAt,
+      updatedAt: taskCommentsTable.updatedAt,
     })
     .from(taskCommentsTable)
     .innerJoin(
@@ -163,6 +164,7 @@ export async function createComment(taskId: string, content: string) {
       authorImage: usersTable.image,
       content: taskCommentsTable.content,
       createdAt: taskCommentsTable.createdAt,
+      updatedAt: taskCommentsTable.updatedAt,
     })
     .from(taskCommentsTable)
     .innerJoin(
@@ -186,8 +188,83 @@ export async function createComment(taskId: string, content: string) {
         authorImage: user?.image ?? null,
         content: inserted.content,
         createdAt: inserted.createdAt,
+        updatedAt: inserted.updatedAt,
       },
     },
+  }
+}
+
+export async function updateComment(
+  commentId: string,
+  taskId: string,
+  content: string
+) {
+  const t = await getActionT("actions.projects")
+
+  const session = await auth()
+  if (!session?.user)
+    return { success: false as const, error: t("unauthorized") }
+
+  const projectId = await getProjectIdForTask(taskId)
+  if (!projectId)
+    return { success: false as const, error: t("notFound") }
+
+  const access = await verifyProjectAccess(
+    projectId,
+    session.user.id,
+    session.user.role ?? null
+  )
+  if (!access.hasAccess)
+    return { success: false as const, error: t("notFound") }
+
+  const parsed = commentSchema.safeParse({ taskId, content })
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      error: t("validationFailed"),
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    }
+  }
+
+  const comment = await db
+    .select({ authorId: taskCommentsTable.authorId })
+    .from(taskCommentsTable)
+    .where(eq(taskCommentsTable.id, commentId))
+    .then((rows) => rows[0])
+
+  if (!comment) return { success: false as const, error: t("notFound") }
+
+  if (comment.authorId !== session.user.id)
+    return { success: false as const, error: t("forbidden") }
+
+  await db
+    .update(taskCommentsTable)
+    .set({ content: parsed.data.content })
+    .where(eq(taskCommentsTable.id, commentId))
+
+  const comments = await db
+    .select({
+      id: taskCommentsTable.id,
+      taskId: taskCommentsTable.taskId,
+      authorId: taskCommentsTable.authorId,
+      authorName: usersTable.name,
+      authorImage: usersTable.image,
+      content: taskCommentsTable.content,
+      createdAt: taskCommentsTable.createdAt,
+      updatedAt: taskCommentsTable.updatedAt,
+    })
+    .from(taskCommentsTable)
+    .innerJoin(
+      usersTable,
+      eq(taskCommentsTable.authorId, usersTable.id)
+    )
+    .where(eq(taskCommentsTable.taskId, taskId))
+    .orderBy(asc(taskCommentsTable.createdAt))
+
+  revalidatePath(`/dashboard/projects/${projectId}`)
+  return {
+    success: true as const,
+    data: { taskId, comments },
   }
 }
 
@@ -236,6 +313,7 @@ export async function deleteComment(commentId: string, taskId: string) {
       authorImage: usersTable.image,
       content: taskCommentsTable.content,
       createdAt: taskCommentsTable.createdAt,
+      updatedAt: taskCommentsTable.updatedAt,
     })
     .from(taskCommentsTable)
     .innerJoin(

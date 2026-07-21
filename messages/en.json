@@ -343,6 +343,7 @@
         "send": "Send",
         "noComments": "No comments yet",
         "commentDeleted": "Comment deleted",
+        "edited": "edited",
         "deleteConfirm": "Delete this comment?"
       }
     },

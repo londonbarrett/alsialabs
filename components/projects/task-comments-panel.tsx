@@ -1,6 +1,10 @@
 "use client"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -15,10 +19,17 @@ import {
   createComment,
   deleteComment,
   getTaskComments,
+  updateComment,
 } from "@/lib/actions/task-comments"
-import { MessageSquare, Send, Trash2 } from "lucide-react"
+import { MessageSquare, Pencil, Send, Trash2 } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useCallback, useEffect, useRef, useState, useTransition } from "react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react"
 import { toast } from "sonner"
 
 interface TaskCommentWithAuthor {
@@ -29,6 +40,7 @@ interface TaskCommentWithAuthor {
   authorImage: string | null
   content: string
   createdAt: Date
+  updatedAt: Date
 }
 
 interface TaskCommentsPanelProps {
@@ -80,6 +92,8 @@ export function TaskCommentsPanel({
   const t = useTranslations()
   const [comments, setComments] = useState<TaskCommentWithAuthor[]>([])
   const [newComment, setNewComment] = useState("")
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState("")
   const [isPending, startTransition] = useTransition()
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -110,7 +124,10 @@ export function TaskCommentsPanel({
     createComment,
     {
       onSuccess: (data) => {
-        const d = data as { taskId: string; comments: TaskCommentWithAuthor[] }
+        const d = data as {
+          taskId: string
+          comments: TaskCommentWithAuthor[]
+        }
         setComments(d.comments)
         setNewComment("")
         onCommentCountChange?.(d.taskId, 1)
@@ -133,6 +150,21 @@ export function TaskCommentsPanel({
     }
   )
 
+  const { isPending: isUpdating, execute: executeUpdate } = useAction(
+    updateComment,
+    {
+      onSuccess: (data) => {
+        const d = data as {
+          taskId: string
+          comments: TaskCommentWithAuthor[]
+        }
+        setComments(d.comments)
+        setEditingId(null)
+        setEditContent("")
+      },
+    }
+  )
+
   function handleSend() {
     const content = newComment.trim()
     if (!content) return
@@ -143,14 +175,32 @@ export function TaskCommentsPanel({
     executeDelete(commentId, taskId)
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleEditStart(comment: TaskCommentWithAuthor) {
+    setEditingId(comment.id)
+    setEditContent(comment.content)
+  }
+
+  function handleEditCancel() {
+    setEditingId(null)
+    setEditContent("")
+  }
+
+  function handleEditSave() {
+    if (!editingId || !editContent.trim()) return
+    executeUpdate(editingId, taskId, editContent.trim())
+  }
+
+  function handleEditKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
-      handleSend()
+      handleEditSave()
+    }
+    if (e.key === "Escape") {
+      handleEditCancel()
     }
   }
 
-  const sending = isCreating || isDeleting
+  const sending = isCreating || isDeleting || isUpdating
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -164,7 +214,7 @@ export function TaskCommentsPanel({
             {taskName}
           </SheetTitle>
           {description && (
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+            <p className="text-sm wrap-break-word whitespace-pre-wrap text-muted-foreground">
               {description}
             </p>
           )}
@@ -187,35 +237,88 @@ export function TaskCommentsPanel({
               {comments.map((comment) => (
                 <div key={comment.id} className="group flex gap-3">
                   <Avatar size="sm">
-                    <AvatarImage src={comment.authorImage ?? undefined} />
+                    <AvatarImage
+                      src={comment.authorImage ?? undefined}
+                    />
                     <AvatarFallback>
                       {getInitials(comment.authorName)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
                       <span className="text-sm font-medium">
                         {comment.authorName || t("auth.user")}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {formatRelativeTime(new Date(comment.createdAt))}
+                        {formatRelativeTime(
+                          new Date(comment.createdAt)
+                        )}
+                        {comment.updatedAt > comment.createdAt && (
+                          <> ({t("projects.tasks.comments.edited")})</>
+                        )}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-                      {comment.content}
-                    </p>
+                    {editingId === comment.id ? (
+                      <div className="mt-1 flex flex-col gap-2">
+                        <Textarea
+                          value={editContent}
+                          onChange={(e) =>
+                            setEditContent(e.target.value)
+                          }
+                          onKeyDown={handleEditKeyDown}
+                          rows={2}
+                          className="resize-none text-sm"
+                          autoFocus
+                        />
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            onClick={handleEditSave}
+                            disabled={!editContent.trim() || isUpdating}
+                          >
+                            {t("common.save")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleEditCancel}
+                            disabled={isUpdating}
+                          >
+                            {t("common.cancel")}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm wrap-break-word whitespace-pre-wrap">
+                        {comment.content}
+                      </p>
+                    )}
                   </div>
-                  {(comment.authorId === currentUserId || isOwner) && (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="opacity-0 group-hover:opacity-100 shrink-0"
-                      onClick={() => handleDelete(comment.id)}
-                      disabled={sending}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
-                  )}
+                  {comment.authorId === currentUserId &&
+                    editingId !== comment.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="shrink-0 opacity-0 group-hover:opacity-100"
+                        onClick={() => handleEditStart(comment)}
+                        disabled={sending}
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    )}
+                  {comment.authorId === currentUserId || isOwner
+                    ? editingId !== comment.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0 opacity-0 group-hover:opacity-100"
+                          onClick={() => handleDelete(comment.id)}
+                          disabled={sending}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      )
+                    : null}
                 </div>
               ))}
             </div>
@@ -227,7 +330,12 @@ export function TaskCommentsPanel({
             <Textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
               placeholder={t("projects.tasks.comments.addComment")}
               rows={2}
               className="resize-none"
