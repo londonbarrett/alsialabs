@@ -22,7 +22,9 @@ import {
   deleteExpense,
   type ExpenseWithCategory,
 } from "@/lib/actions/expenses"
+import { deleteTask } from "@/lib/actions/project-tasks"
 import type { ProjectTask } from "@/lib/drizzle/schema"
+import type { ProjectMember } from "@/components/projects/project-detail-view"
 import { cn } from "@/lib/utils"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -30,6 +32,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import { ExpenseDialog } from "./expense-dialog"
+import { TaskDialog } from "../task-dialog"
 
 interface ProjectExpensesProps {
   expenses: ExpenseWithCategory[]
@@ -39,6 +42,7 @@ interface ProjectExpensesProps {
   categories: { id: string; slug: string }[]
   canEdit: boolean
   canDelete: boolean
+  projectMembers: ProjectMember[]
 }
 
 export function ProjectExpenses({
@@ -49,6 +53,7 @@ export function ProjectExpenses({
   categories,
   canEdit,
   canDelete,
+  projectMembers,
 }: ProjectExpensesProps) {
   const router = useRouter()
   const t = useTranslations()
@@ -57,10 +62,15 @@ export function ProjectExpenses({
   const [editingExpense, setEditingExpense] = useState<
     ExpenseWithCategory | undefined
   >()
+  const [editingTask, setEditingTask] = useState<
+    ProjectTask | undefined
+  >()
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false)
 
   function handleSuccess() {
     router.refresh()
     setEditingExpense(undefined)
+    setEditingTask(undefined)
   }
 
   function openNew() {
@@ -71,6 +81,16 @@ export function ProjectExpenses({
   function openEdit(expense: ExpenseWithCategory) {
     setEditingExpense(expense)
     setDialogOpen(true)
+  }
+
+  function openEditTask(task: ProjectTask) {
+    setEditingTask(task)
+    setTaskDialogOpen(true)
+  }
+
+  function handleTaskDialogOpenChange(open: boolean) {
+    setTaskDialogOpen(open)
+    if (!open) setEditingTask(undefined)
   }
 
   function handleOpenChange(open: boolean) {
@@ -198,7 +218,36 @@ export function ProjectExpenses({
                             ).toLocaleDateString()
                           : "—"}
                       </TableCell>
-                      {(canEdit || canDelete) && <TableCell />}
+                      {(canEdit || canDelete) && (
+                        <TableCell>
+                          <ActionMenu
+                            entityName={task.name}
+                            onEdit={
+                              canEdit
+                                ? () => openEditTask(task)
+                                : undefined
+                            }
+                            onDelete={async () => {
+                              const result = await deleteTask(
+                                task.id,
+                                projectId
+                              )
+                              if (!result.success) {
+                                toast.error(
+                                  result.error ||
+                                    t("common.somethingWentWrong")
+                                )
+                              } else {
+                                toast.success(
+                                  t("projects.tasks.taskDeleted")
+                                )
+                              }
+                            }}
+                            canEdit={canEdit}
+                            canDelete={canDelete}
+                          />
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                   {expenses.map((expense) => (
@@ -273,6 +322,15 @@ export function ProjectExpenses({
         categories={categories}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
+        onSuccess={handleSuccess}
+      />
+
+      <TaskDialog
+        task={editingTask}
+        projectId={projectId}
+        projectMembers={projectMembers}
+        open={taskDialogOpen}
+        onOpenChange={handleTaskDialogOpenChange}
         onSuccess={handleSuccess}
       />
     </Card>
