@@ -6,6 +6,7 @@ import { Toaster } from "sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "next-themes"
 import { SessionProvider } from "@/components/session-provider"
+import { LoadingProvider } from "@/components/loading-provider"
 import { NextIntlClientProvider } from "next-intl"
 import { getLocale, getMessages } from "next-intl/server"
 
@@ -42,16 +43,23 @@ export default async function RootLayout({
       )}
     >
       <body className="flex min-h-full flex-col">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <NextIntlClientProvider messages={messages}>
-            <SessionProvider>
-              <TooltipProvider delayDuration={0}>
-                {children}
-              </TooltipProvider>
-              <Toaster richColors />
-            </SessionProvider>
-          </NextIntlClientProvider>
-        </ThemeProvider>
+        <LoadingProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <NextIntlClientProvider messages={messages}>
+              <SessionProvider>
+                <TooltipProvider delayDuration={0}>
+                  {children}
+                </TooltipProvider>
+                <Toaster richColors />
+              </SessionProvider>
+            </NextIntlClientProvider>
+          </ThemeProvider>
+        </LoadingProvider>
       </body>
     </html>
   )
