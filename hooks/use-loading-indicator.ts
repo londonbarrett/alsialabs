@@ -1,7 +1,7 @@
 "use client"
 
 import { useContext } from "react"
-import { LoadingContext } from "@/components/loading-provider"
+import { LoadingContext } from "@/components/common/app-loading-indicator"
 
 function useLoadingIndicator() {
   const context = useContext(LoadingContext)

@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useState } from "react"
-import { LoadingBar } from "@/components/common/loading-bar"
+import { LoadingBar } from "./loading-bar"
 
 type LoadingContextValue = {
   isLoading: boolean

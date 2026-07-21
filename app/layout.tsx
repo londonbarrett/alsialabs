@@ -6,7 +6,7 @@ import { Toaster } from "sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "next-themes"
 import { SessionProvider } from "@/components/session-provider"
-import { LoadingProvider } from "@/components/loading-provider"
+import { LoadingProvider } from "@/components/common/app-loading-indicator"
 import { NextIntlClientProvider } from "next-intl"
 import { getLocale, getMessages } from "next-intl/server"
 
