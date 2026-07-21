@@ -22,16 +22,21 @@ import {
   updateTaskStatus,
 } from "@/lib/actions/project-tasks"
 import type { ProjectTask } from "@/lib/drizzle/schema"
-import { ListTodo, Plus } from "lucide-react"
+import { ListTodo, MessageSquare, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
+import { TaskCommentsPanel } from "./task-comments-panel"
 import { TaskDialog } from "./task-dialog"
 import {
   TaskStatusSelect,
   taskStatusColors,
 } from "./task-status-select"
+
+export type ProjectTaskWithCommentCount = ProjectTask & {
+  commentCount: number
+}
 
 const allTaskStatuses = [
   "todo",
@@ -56,8 +61,9 @@ interface ProjectMember {
 }
 
 interface ProjectTasksProps {
-  tasks: ProjectTask[]
+  initialTasks: ProjectTaskWithCommentCount[]
   projectId: string
+  projectName: string
   canEdit: boolean
   isOwner: boolean
   isCollaborator: boolean
@@ -67,8 +73,9 @@ interface ProjectTasksProps {
 }
 
 export function ProjectTasks({
-  tasks,
+  initialTasks,
   projectId,
+  projectName,
   canEdit,
   isOwner,
   isCollaborator,
@@ -78,9 +85,14 @@ export function ProjectTasks({
 }: ProjectTasksProps) {
   const router = useRouter()
   const t = useTranslations()
+  const [tasks, setTasks] =
+    useState<ProjectTaskWithCommentCount[]>(initialTasks)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<
     ProjectTask | undefined
+  >()
+  const [commentsTask, setCommentsTask] = useState<
+    ProjectTaskWithCommentCount | undefined
   >()
   const canMutate =
     isOwner && (canEdit || permissions.includes("projects:delete"))
@@ -111,6 +123,16 @@ export function ProjectTasks({
   function openEdit(task: ProjectTask) {
     setEditingTask(task)
     setDialogOpen(true)
+  }
+
+  function handleCommentCountChange(taskId: string, delta: number) {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, commentCount: Math.max(0, t.commentCount + delta) }
+          : t
+      )
+    )
   }
 
   function handleOpenChange(open: boolean) {
@@ -166,6 +188,7 @@ export function ProjectTasks({
                   <TableHead scope="col">
                     {t("projects.tasks.cost")}
                   </TableHead>
+                  <TableHead scope="col" className="w-12" />
                   {canMutate && (
                     <TableHead scope="col">
                       {t("projects.tasks.actions")}
@@ -175,7 +198,7 @@ export function ProjectTasks({
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => (
-                  <TableRow key={task.id}>
+                  <TableRow key={task.id} onDoubleClick={() => setCommentsTask(task)}>
                     <TableCell className="font-medium">
                       <div>
                         <p>{task.name}</p>
@@ -225,6 +248,19 @@ export function ProjectTasks({
                     <TableCell>
                       {task.cost ? <Money value={task.cost} /> : "—"}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setCommentsTask(task)}
+                        className="gap-1.5"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        <span className="text-xs text-muted-foreground">
+                          {task.commentCount}
+                        </span>
+                      </Button>
+                    </TableCell>
                     {canMutate && (
                       <TableCell>
                         <ActionMenu
@@ -268,6 +304,22 @@ export function ProjectTasks({
         onOpenChange={handleOpenChange}
         onSuccess={handleSuccess}
       />
+
+      {commentsTask && (
+        <TaskCommentsPanel
+          taskId={commentsTask.id}
+          taskName={commentsTask.name}
+          projectName={projectName}
+          description={commentsTask.description}
+          open={!!commentsTask}
+          onOpenChange={(open) => {
+            if (!open) setCommentsTask(undefined)
+          }}
+          currentUserId={currentUserId}
+          isOwner={isOwner}
+          onCommentCountChange={handleCommentCountChange}
+        />
+      )}
     </Card>
   )
 }

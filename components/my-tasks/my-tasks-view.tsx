@@ -106,6 +106,16 @@ export function MyTasksView({
     return null
   }
 
+  function handleCommentCountChange(taskId: string, delta: number) {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, commentCount: Math.max(0, t.commentCount + delta) }
+          : t
+      )
+    )
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <header className="flex flex-col gap-2">
@@ -164,8 +174,11 @@ export function MyTasksView({
       <MyTasksList
         tasks={tasks}
         isPending={isPending}
+        currentUserId={currentUserId}
+        isSuperUser={isSuperUser}
         getTaskAllowedStatuses={getTaskAllowedStatuses}
         onStatusChange={handleStatusChange}
+        onCommentCountChange={handleCommentCountChange}
       />
     </div>
   )

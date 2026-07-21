@@ -7,6 +7,7 @@ import {
   projectOwnersTable,
   projectTasksTable,
   projectsTable,
+  taskCommentsTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
 import { and, desc, eq, sql } from "drizzle-orm"
@@ -99,7 +100,21 @@ export async function getProjectTasks(projectId: string) {
   if (!access.hasAccess) throw new Error(t("notFound"))
 
   return db
-    .select()
+    .select({
+      id: projectTasksTable.id,
+      projectId: projectTasksTable.projectId,
+      name: projectTasksTable.name,
+      description: projectTasksTable.description,
+      cost: projectTasksTable.cost,
+      status: projectTasksTable.status,
+      assigneeId: projectTasksTable.assigneeId,
+      createdAt: projectTasksTable.createdAt,
+      updatedAt: projectTasksTable.updatedAt,
+      commentCount: sql<number>`coalesce((
+        select count(*)::int from ${taskCommentsTable}
+        where ${taskCommentsTable.taskId} = ${projectTasksTable.id}
+      ), 0)`,
+    })
     .from(projectTasksTable)
     .where(eq(projectTasksTable.projectId, projectId))
     .orderBy(desc(projectTasksTable.createdAt))
@@ -337,6 +352,10 @@ export async function getMyTasks(
         and ${projectOwnersTable.userId} = ${session.user.id}
         limit 1
       ), false)`,
+      commentCount: sql<number>`coalesce((
+        select count(*)::int from ${taskCommentsTable}
+        where ${taskCommentsTable.taskId} = ${projectTasksTable.id}
+      ), 0)`,
       createdAt: projectTasksTable.createdAt,
       updatedAt: projectTasksTable.updatedAt,
     })

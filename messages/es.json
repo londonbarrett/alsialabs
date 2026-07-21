@@ -336,6 +336,14 @@
         "in_review": "En revisión",
         "blocked": "Bloqueado",
         "done": "Completado"
+      },
+      "comments": {
+        "title": "Comentarios",
+        "addComment": "Agregar un comentario...",
+        "send": "Enviar",
+        "noComments": "Aún no hay comentarios",
+        "commentDeleted": "Comentario eliminado",
+        "deleteConfirm": "¿Eliminar este comentario?"
       }
     },
     "expenses": {

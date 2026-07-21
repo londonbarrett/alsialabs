@@ -1,10 +1,12 @@
 "use client"
 
 import { Money } from "@/components/common/money"
+import { TaskCommentsPanel } from "@/components/projects/task-comments-panel"
 import {
   TaskStatusSelect,
   taskStatusColors,
 } from "@/components/projects/task-status-select"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
@@ -15,22 +17,35 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { MyTask } from "@/lib/actions/project-tasks"
+import { MessageSquare } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { useState } from "react"
 
 interface MyTasksListProps {
   tasks: MyTask[]
   isPending: boolean
+  currentUserId: string
+  isSuperUser: boolean
   getTaskAllowedStatuses: (task: MyTask) => readonly string[] | null
-  onStatusChange: (taskId: string, projectId: string, status: string) => void
+  onStatusChange: (
+    taskId: string,
+    projectId: string,
+    status: string
+  ) => void
+  onCommentCountChange?: (taskId: string, delta: number) => void
 }
 
 export function MyTasksList({
   tasks,
   isPending,
+  currentUserId,
+  isSuperUser,
   getTaskAllowedStatuses,
   onStatusChange,
+  onCommentCountChange,
 }: MyTasksListProps) {
   const t = useTranslations()
+  const [commentsTask, setCommentsTask] = useState<MyTask | undefined>()
 
   return (
     <Card>
@@ -53,14 +68,13 @@ export function MyTasksList({
                   <TableHead scope="col">
                     {t("myTasks.statusLabel")}
                   </TableHead>
-                  <TableHead scope="col">
-                    {t("myTasks.cost")}
-                  </TableHead>
+                  <TableHead scope="col">{t("myTasks.cost")}</TableHead>
+                  <TableHead scope="col" className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => (
-                  <TableRow key={task.id}>
+                  <TableRow key={task.id} onDoubleClick={() => setCommentsTask(task)}>
                     <TableCell className="font-medium">
                       <div>
                         <p>{task.name}</p>
@@ -95,11 +109,7 @@ export function MyTasksList({
                             status={task.status}
                             allowedStatuses={allowed}
                             onStatusChange={(v) =>
-                              onStatusChange(
-                                task.id,
-                                task.projectId,
-                                v
-                              )
+                              onStatusChange(task.id, task.projectId, v)
                             }
                           />
                         )
@@ -112,6 +122,19 @@ export function MyTasksList({
                         "\u2014"
                       )}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setCommentsTask(task)}
+                        className="gap-1.5"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        <span className="text-xs text-muted-foreground">
+                          {task.commentCount}
+                        </span>
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -119,6 +142,22 @@ export function MyTasksList({
           </div>
         )}
       </CardContent>
+
+      {commentsTask && (
+        <TaskCommentsPanel
+          taskId={commentsTask.id}
+          taskName={commentsTask.name}
+          projectName={commentsTask.projectName}
+          description={commentsTask.description}
+          open={!!commentsTask}
+          onOpenChange={(open) => {
+            if (!open) setCommentsTask(undefined)
+          }}
+          currentUserId={currentUserId}
+          isOwner={isSuperUser || commentsTask.isOwner}
+          onCommentCountChange={onCommentCountChange}
+        />
+      )}
     </Card>
   )
 }
