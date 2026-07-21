@@ -63,7 +63,7 @@ export function MyTasksList({
                     {t("myTasks.taskName")}
                   </TableHead>
                   <TableHead scope="col">
-                    {t("myTasks.project")}
+                    {t("myTasks.project")} ({t("myTasks.owner")})
                   </TableHead>
                   <TableHead scope="col">
                     {t("myTasks.statusLabel")}

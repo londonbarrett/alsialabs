@@ -355,11 +355,29 @@ export async function getMyTasks(
     .groupBy(taskCommentsTable.taskId)
     .as("task_comment_counts")
 
+  const primaryOwners = db
+    .select({
+      projectId: projectOwnersTable.projectId,
+      userId: sql<string>`min(${projectOwnersTable.userId})`.as("userId"),
+    })
+    .from(projectOwnersTable)
+    .groupBy(projectOwnersTable.projectId)
+    .as("primary_owners")
+
+  const ownerUsers = db
+    .select({
+      userId: usersTable.id,
+      userName: usersTable.name,
+      userEmail: usersTable.email,
+    })
+    .from(usersTable)
+    .as("owner_users")
+
   return db
     .select({
       id: projectTasksTable.id,
       projectId: projectTasksTable.projectId,
-      projectName: projectsTable.name,
+      projectName: sql<string>`concat(${projectsTable.name}, ' (', coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail}, '—'), ')')`,
       name: projectTasksTable.name,
       description: projectTasksTable.description,
       cost: projectTasksTable.cost,
@@ -383,6 +401,8 @@ export async function getMyTasks(
     )
     .leftJoin(commentCounts, eq(projectTasksTable.id, commentCounts.taskId))
     .leftJoin(usersTable, eq(projectTasksTable.assigneeId, usersTable.id))
+    .leftJoin(primaryOwners, eq(projectTasksTable.projectId, primaryOwners.projectId))
+    .leftJoin(ownerUsers, eq(primaryOwners.userId, ownerUsers.userId))
     .where(where)
     .orderBy(desc(projectTasksTable.createdAt))
 }

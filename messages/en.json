@@ -412,6 +412,7 @@
     "noTasks": "No tasks assigned to you",
     "taskName": "Task",
     "project": "Project",
+    "owner": "Owner",
     "statusLabel": "Status",
     "cost": "Cost"
   },
