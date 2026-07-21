@@ -14,7 +14,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
-import { useAction } from "@/hooks/use-action"
+import { useServerAction } from "@/hooks/use-server-action"
 import {
   createComment,
   deleteComment,
@@ -120,9 +120,8 @@ export function TaskCommentsPanel({
     }
   }, [comments])
 
-  const { isPending: isCreating, execute: executeCreate } = useAction(
-    createComment,
-    {
+  const { isPending: isCreating, execute: executeCreate } =
+    useServerAction(createComment, {
       onSuccess: (data) => {
         const d = data as {
           taskId: string
@@ -132,12 +131,10 @@ export function TaskCommentsPanel({
         setNewComment("")
         onCommentCountChange?.(d.taskId, 1)
       },
-    }
-  )
+    })
 
-  const { isPending: isDeleting, execute: executeDelete } = useAction(
-    deleteComment,
-    {
+  const { isPending: isDeleting, execute: executeDelete } =
+    useServerAction(deleteComment, {
       onSuccess: (data) => {
         const d = data as {
           taskId: string
@@ -147,12 +144,10 @@ export function TaskCommentsPanel({
         onCommentCountChange?.(d.taskId, -1)
         toast.success(t("projects.tasks.comments.commentDeleted"))
       },
-    }
-  )
+    })
 
-  const { isPending: isUpdating, execute: executeUpdate } = useAction(
-    updateComment,
-    {
+  const { isPending: isUpdating, execute: executeUpdate } =
+    useServerAction(updateComment, {
       onSuccess: (data) => {
         const d = data as {
           taskId: string
@@ -162,8 +157,7 @@ export function TaskCommentsPanel({
         setEditingId(null)
         setEditContent("")
       },
-    }
-  )
+    })
 
   function handleSend() {
     const content = newComment.trim()
