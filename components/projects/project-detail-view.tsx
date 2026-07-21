@@ -1,6 +1,11 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { ProjectTask } from "@/lib/drizzle/schema"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import type { ExpenseWithCategory } from "@/lib/actions/expenses"
 import {
   ArrowLeft,
@@ -12,16 +17,11 @@ import {
 } from "lucide-react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+import { ProjectExpenses } from "./expenses/project-expenses"
 import { ProjectDetails } from "./project-details"
 import { ProjectPeople } from "./project-people"
+import type { ProjectTaskWithCommentCount } from "./project-tasks"
 import { ProjectTasks } from "./project-tasks"
-import { ProjectExpenses } from "./expenses/project-expenses"
 
 export interface ProjectMember {
   userId: string
@@ -44,7 +44,7 @@ interface ProjectDetailViewProps {
     budget: string | null
     categorySlug: string | null
   }
-  tasks: ProjectTask[]
+  tasks: ProjectTaskWithCommentCount[]
   categories: { id: string; slug: string }[]
   owners: ProjectMember[]
   collaborators: ProjectMember[]
@@ -146,8 +146,9 @@ export function ProjectDetailView({
 
         <TabsContent value="tasks">
           <ProjectTasks
-            tasks={tasks}
+            initialTasks={tasks}
             projectId={project.id}
+            projectName={project.name}
             canEdit={canEdit}
             isOwner={isOwner}
             isCollaborator={
@@ -188,8 +189,12 @@ export function ProjectDetailView({
             projectId={project.id}
             budget={project.budget}
             categories={expenseCategories}
-            canEdit={!!permissions.includes("expenses:create") || canEdit}
-            canDelete={!!permissions.includes("expenses:delete") || canDelete}
+            canEdit={
+              !!permissions.includes("expenses:create") || canEdit
+            }
+            canDelete={
+              !!permissions.includes("expenses:delete") || canDelete
+            }
           />
         </TabsContent>
       </Tabs>

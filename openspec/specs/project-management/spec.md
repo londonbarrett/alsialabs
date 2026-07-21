@@ -163,6 +163,143 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 - **WHEN** the user confirms
 - **THEN** the task is deleted and the table refreshes
 
+#### Scenario: Task row shows comment count
+
+- **GIVEN** a user viewing the task table
+- **WHEN** tasks are displayed
+- **THEN** each task row shows a comment count next to a MessageSquare icon
+- **AND** the count is always visible, including 0
+
+#### Scenario: Double-click task row opens comments
+
+- **GIVEN** a user viewing the task table
+- **WHEN** the user double-clicks anywhere on a task row
+- **THEN** the comments panel opens as a slide-over Sheet
+
+### Requirement: Task comments
+
+The system SHALL allow project members (owners and collaborators) to have conversations on tasks. Comments are displayed in a slide-over Sheet panel. Only the comment author or project owners can delete comments. Only the comment author can edit their own comments.
+
+#### Scenario: Open comments panel via button
+
+- **GIVEN** a user viewing the task table
+- **WHEN** the user clicks the comment count button on a task row
+- **THEN** the comments panel opens as a slide-over Sheet
+
+#### Scenario: Open comments panel via double-click
+
+- **GIVEN** a user viewing the task table
+- **WHEN** the user double-clicks anywhere on a task row
+- **THEN** the comments panel opens as a slide-over Sheet
+
+#### Scenario: Comments panel header layout
+
+- **GIVEN** a user with the comments panel open
+- **WHEN** the panel header is displayed
+- **THEN** the project name is shown as description text (muted)
+- **AND** the task name is shown as the title (bold, with MessageSquare icon)
+- **AND** the task description is shown below as muted text
+
+#### Scenario: View comments
+
+- **GIVEN** a user with the comments panel open
+- **WHEN** the panel loads
+- **THEN** existing comments are displayed in chronological order
+- **AND** each comment shows the author's avatar, name, relative timestamp, and content
+- **AND** if the comment has been edited, "(edited)" is shown after the timestamp
+
+#### Scenario: Add a comment
+
+- **GIVEN** a user with the comments panel open
+- **WHEN** the user types a comment and clicks Send (or presses Enter)
+- **THEN** the comment is created with the current user as author
+- **AND** the comments list updates to show the new comment
+- **AND** the comment count on the task row increments
+
+#### Scenario: Edit own comment in place
+
+- **GIVEN** a user viewing a comment they authored
+- **WHEN** the user hovers over the comment
+- **THEN** a pencil (edit) icon appears
+- **WHEN** the user clicks the edit icon
+- **THEN** the comment content becomes an editable textarea
+- **AND** Save and Cancel buttons appear below the textarea
+- **WHEN** the user modifies the content and clicks Save (or presses Enter)
+- **THEN** the comment is updated and "(edited)" appears in the timestamp
+- **WHEN** the user clicks Cancel (or presses Escape)
+- **THEN** the edit is discarded and the original content is shown
+
+#### Scenario: Cannot edit other users' comments
+
+- **GIVEN** a user viewing a comment authored by another user
+- **WHEN** the user hovers over the comment
+- **THEN** the edit icon is not shown
+
+#### Scenario: Delete own comment (author)
+
+- **GIVEN** a user viewing a comment they authored
+- **WHEN** the user hovers over the comment
+- **THEN** a trash (delete) icon appears
+- **WHEN** the user clicks the delete icon
+- **THEN** the comment is deleted and the comments list updates
+- **AND** the comment count on the task row decrements
+
+#### Scenario: Owner deletes any comment
+
+- **GIVEN** a user who is an owner of the project
+- **WHEN** the user hovers over any comment
+- **THEN** a trash (delete) icon appears
+- **WHEN** the user clicks the delete icon
+- **THEN** the comment is deleted
+
+#### Scenario: Collaborator cannot delete others' comments
+
+- **GIVEN** a user who is a collaborator (not an owner) of the project
+- **WHEN** the user hovers over a comment authored by another user
+- **THEN** the delete icon is not shown
+
+### Requirement: My Tasks page
+
+The system SHALL provide a "My Tasks" page accessible from the sidebar that shows all tasks assigned to the current user across all projects they have access to.
+
+#### Scenario: Navigate to My Tasks
+
+- **GIVEN** a user logged into the dashboard
+- **WHEN** the user clicks "My Tasks" in the sidebar
+- **THEN** the user is navigated to `/dashboard/my-tasks`
+
+#### Scenario: View assigned tasks
+
+- **GIVEN** a user on the My Tasks page
+- **WHEN** the page loads
+- **THEN** a table is displayed with all tasks assigned to the current user
+- **AND** each row shows task name, project name, status, cost, and comment count
+
+#### Scenario: Filter tasks by status
+
+- **GIVEN** a user on the My Tasks page
+- **WHEN** the user selects a status from the filter dropdown
+- **THEN** only tasks with the selected status are shown
+
+#### Scenario: Filter tasks by project
+
+- **GIVEN** a user on the My Tasks page
+- **WHEN** the user selects a project from the filter dropdown
+- **THEN** only tasks from the selected project are shown
+
+#### Scenario: Change task status from My Tasks
+
+- **GIVEN** a user on the My Tasks page viewing a task they are assigned to
+- **WHEN** the user selects a different status from the inline status dropdown
+- **THEN** the task status changes immediately
+- **AND** collaborators cannot set status to "done" (restricted to todo, in_progress, in_review, blocked)
+
+#### Scenario: Open comments from My Tasks
+
+- **GIVEN** a user on the My Tasks page
+- **WHEN** the user double-clicks a task row or clicks the comment count button
+- **THEN** the comments panel opens as a slide-over Sheet
+
 ### Requirement: User-scoped project queries
 
 Projects SHALL be scoped to the authenticated user. Users only see projects they own. Collaborators cannot see project details. Admins and super users see all projects.

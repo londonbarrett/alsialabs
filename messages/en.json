@@ -55,6 +55,7 @@
     "categories": "Categories",
     "projects": "Projects",
     "contractors": "Contractors",
+    "myTasks": "My Tasks",
     "profile": "Profile",
     "help": "Help",
     "support": "Support"
@@ -70,7 +71,8 @@
     "profile": "Profile",
     "categories": "Categories",
     "projects": "Projects",
-    "contractors": "Contractors"
+    "contractors": "Contractors",
+    "myTasks": "My Tasks"
   },
   "landing": {
     "title": "ALSIA Labs CRM",
@@ -334,6 +336,15 @@
         "in_review": "In Review",
         "blocked": "Blocked",
         "done": "Done"
+      },
+      "comments": {
+        "title": "Comments",
+        "addComment": "Add a comment...",
+        "send": "Send",
+        "noComments": "No comments yet",
+        "commentDeleted": "Comment deleted",
+        "edited": "edited",
+        "deleteConfirm": "Delete this comment?"
       }
     },
     "expenses": {
@@ -390,6 +401,19 @@
     "failedToSave": "Failed to save profile",
     "noContractors": "No contractor profiles yet",
     "perHour": "/ hr"
+  },
+  "myTasks": {
+    "title": "My Tasks",
+    "subtitle": "All tasks assigned to you across all projects.",
+    "filterStatus": "Filter by status",
+    "filterProject": "Filter by project",
+    "allStatuses": "All statuses",
+    "allProjects": "All projects",
+    "noTasks": "No tasks assigned to you",
+    "taskName": "Task",
+    "project": "Project",
+    "statusLabel": "Status",
+    "cost": "Cost"
   },
   "sales": {
     "title": "Sales",

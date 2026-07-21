@@ -90,3 +90,12 @@ The admin categories page SHALL require `categories:view` permission to access. 
 - **GIVEN** a user without `categories:view` permission
 - **WHEN** the user navigates to `/dashboard/categories`
 - **THEN** a forbidden error is returned
+
+### Requirement: My Tasks sidebar item
+The sidebar SHALL include a "My Tasks" item in the Navigation section that links to `/dashboard/my-tasks`. It requires `projects:view` permission.
+
+#### Scenario: My Tasks link visible
+- **WHEN** the sidebar renders
+- **THEN** a "My Tasks" nav item appears in the Navigation section
+- **AND** it uses the ListTodo icon
+- **AND** it requires `projects:view` permission to see
