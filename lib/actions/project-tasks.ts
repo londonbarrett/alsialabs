@@ -103,7 +103,7 @@ export async function getProjectTasks(projectId: string) {
   const commentCounts = db
     .select({
       taskId: taskCommentsTable.taskId,
-      cnt: count().as("cnt"),
+      cnt: sql<number>`count(*)::int`.as("cnt"),
     })
     .from(taskCommentsTable)
     .groupBy(taskCommentsTable.taskId)
@@ -349,7 +349,7 @@ export async function getMyTasks(
   const commentCounts = db
     .select({
       taskId: taskCommentsTable.taskId,
-      cnt: count().as("cnt"),
+      cnt: sql<number>`count(*)::int`.as("cnt"),
     })
     .from(taskCommentsTable)
     .groupBy(taskCommentsTable.taskId)

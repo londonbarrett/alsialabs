@@ -20,7 +20,13 @@ import {
   getTaskComments,
   updateComment,
 } from "@/lib/actions/task-comments"
-import { MessageSquare, Pencil, Send, Trash2 } from "lucide-react"
+import {
+  MessageSquare,
+  Pencil,
+  RefreshCw,
+  Send,
+  Trash2,
+} from "lucide-react"
 import { useTranslations } from "next-intl"
 import {
   useCallback,
@@ -139,6 +145,7 @@ export function TaskCommentsPanel({
 
   useEffect(() => {
     if (open) {
+      setLoading(true)
       startTransition(() => {
         fetchComments()
       })
@@ -245,14 +252,27 @@ export function TaskCommentsPanel({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex flex-col gap-0 p-0">
         <SheetHeader className="border-b px-4 py-3">
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <MessageSquare className="h-4 w-4" />
-            {taskName}
-          </SheetTitle>
+          <SheetTitle className="text-base">{taskName}</SheetTitle>
           {description && (
             <SheetDescription>{description}</SheetDescription>
           )}
         </SheetHeader>
+
+        <div className="flex items-center justify-between px-4 pt-2">
+          <span className="text-sm font-medium">
+            {t("projects.tasks.comments.title")}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => fetchComments()}
+            disabled={loading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+            />
+          </Button>
+        </div>
 
         <div
           ref={scrollRef}
