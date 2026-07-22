@@ -195,6 +195,7 @@ export function ProjectDetailView({
             canDelete={
               !!permissions.includes("expenses:delete") || canDelete
             }
+            projectMembers={[...owners, ...collaborators]}
           />
         </TabsContent>
       </Tabs>

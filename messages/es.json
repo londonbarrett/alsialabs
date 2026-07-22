@@ -412,6 +412,7 @@
     "noTasks": "No hay tareas asignadas a ti",
     "taskName": "Tarea",
     "project": "Proyecto",
+    "owner": "Propietario",
     "statusLabel": "Estado",
     "cost": "Costo"
   },

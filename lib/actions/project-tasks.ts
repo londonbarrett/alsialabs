@@ -8,9 +8,10 @@ import {
   projectTasksTable,
   projectsTable,
   taskCommentsTable,
+  usersTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { and, desc, eq, sql } from "drizzle-orm"
+import { and, count, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -99,6 +100,15 @@ export async function getProjectTasks(projectId: string) {
   )
   if (!access.hasAccess) throw new Error(t("notFound"))
 
+  const commentCounts = db
+    .select({
+      taskId: taskCommentsTable.taskId,
+      cnt: sql<number>`count(*)::int`.as("cnt"),
+    })
+    .from(taskCommentsTable)
+    .groupBy(taskCommentsTable.taskId)
+    .as("task_comment_counts")
+
   return db
     .select({
       id: projectTasksTable.id,
@@ -108,14 +118,14 @@ export async function getProjectTasks(projectId: string) {
       cost: projectTasksTable.cost,
       status: projectTasksTable.status,
       assigneeId: projectTasksTable.assigneeId,
+      assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       createdAt: projectTasksTable.createdAt,
       updatedAt: projectTasksTable.updatedAt,
-      commentCount: sql<number>`coalesce((
-        select count(*)::int from ${taskCommentsTable}
-        where ${taskCommentsTable.taskId} = ${projectTasksTable.id}
-      ), 0)`,
+      commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
     })
     .from(projectTasksTable)
+    .leftJoin(commentCounts, eq(projectTasksTable.id, commentCounts.taskId))
+    .leftJoin(usersTable, eq(projectTasksTable.assigneeId, usersTable.id))
     .where(eq(projectTasksTable.projectId, projectId))
     .orderBy(desc(projectTasksTable.createdAt))
 }
@@ -336,26 +346,51 @@ export async function getMyTasks(
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
+  const commentCounts = db
+    .select({
+      taskId: taskCommentsTable.taskId,
+      cnt: sql<number>`count(*)::int`.as("cnt"),
+    })
+    .from(taskCommentsTable)
+    .groupBy(taskCommentsTable.taskId)
+    .as("task_comment_counts")
+
+  const primaryOwners = db
+    .select({
+      projectId: projectOwnersTable.projectId,
+      userId: sql<string>`min(${projectOwnersTable.userId})`.as("userId"),
+    })
+    .from(projectOwnersTable)
+    .groupBy(projectOwnersTable.projectId)
+    .as("primary_owners")
+
+  const ownerUsers = db
+    .select({
+      userId: usersTable.id,
+      userName: usersTable.name,
+      userEmail: usersTable.email,
+    })
+    .from(usersTable)
+    .as("owner_users")
+
   return db
     .select({
       id: projectTasksTable.id,
       projectId: projectTasksTable.projectId,
-      projectName: projectsTable.name,
+      projectName: sql<string>`concat(${projectsTable.name}, ' (', coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail}, '—'), ')')`,
       name: projectTasksTable.name,
       description: projectTasksTable.description,
       cost: projectTasksTable.cost,
       status: projectTasksTable.status,
       assigneeId: projectTasksTable.assigneeId,
+      assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       isOwner: sql<boolean>`coalesce((
         select true from ${projectOwnersTable}
         where ${projectOwnersTable.projectId} = ${projectTasksTable.projectId}
         and ${projectOwnersTable.userId} = ${session.user.id}
         limit 1
       ), false)`,
-      commentCount: sql<number>`coalesce((
-        select count(*)::int from ${taskCommentsTable}
-        where ${taskCommentsTable.taskId} = ${projectTasksTable.id}
-      ), 0)`,
+      commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
       createdAt: projectTasksTable.createdAt,
       updatedAt: projectTasksTable.updatedAt,
     })
@@ -364,6 +399,10 @@ export async function getMyTasks(
       projectsTable,
       eq(projectTasksTable.projectId, projectsTable.id)
     )
+    .leftJoin(commentCounts, eq(projectTasksTable.id, commentCounts.taskId))
+    .leftJoin(usersTable, eq(projectTasksTable.assigneeId, usersTable.id))
+    .leftJoin(primaryOwners, eq(projectTasksTable.projectId, primaryOwners.projectId))
+    .leftJoin(ownerUsers, eq(primaryOwners.userId, ownerUsers.userId))
     .where(where)
     .orderBy(desc(projectTasksTable.createdAt))
 }

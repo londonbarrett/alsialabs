@@ -127,7 +127,7 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 - **THEN** a dialog opens with fields for name, description, cost, status, and assignee
 - **AND** the assignee dropdown shows project owners and collaborators
 - **WHEN** the user fills required fields and submits
-- **THEN** the task appears in the task table with the assignee name displayed
+- **THEN** the task appears in the task table with the assignee's name (not UUID)
 
 #### Scenario: Collaborator can change task status to blocked or in_review
 
@@ -169,6 +169,7 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 - **WHEN** tasks are displayed
 - **THEN** each task row shows a comment count next to a MessageSquare icon
 - **AND** the count is always visible, including 0
+- **AND** the count is always a number (not a string)
 
 #### Scenario: Double-click task row opens comments
 
@@ -212,8 +213,7 @@ The system SHALL allow project members (owners and collaborators) to have conver
 
 - **GIVEN** a user with the comments panel open
 - **WHEN** the user types a comment and clicks Send (or presses Enter)
-- **THEN** the comment is created with the current user as author
-- **AND** the comments list updates to show the new comment
+- **THEN** the comment appears immediately via optimistic update
 - **AND** the comment count on the task row increments
 
 #### Scenario: Edit own comment in place
@@ -225,7 +225,8 @@ The system SHALL allow project members (owners and collaborators) to have conver
 - **THEN** the comment content becomes an editable textarea
 - **AND** Save and Cancel buttons appear below the textarea
 - **WHEN** the user modifies the content and clicks Save (or presses Enter)
-- **THEN** the comment is updated and "(edited)" appears in the timestamp
+- **THEN** the comment is updated immediately via optimistic update
+- **AND** "(edited)" appears in the timestamp
 - **WHEN** the user clicks Cancel (or presses Escape)
 - **THEN** the edit is discarded and the original content is shown
 
@@ -241,7 +242,7 @@ The system SHALL allow project members (owners and collaborators) to have conver
 - **WHEN** the user hovers over the comment
 - **THEN** a trash (delete) icon appears
 - **WHEN** the user clicks the delete icon
-- **THEN** the comment is deleted and the comments list updates
+- **THEN** the comment is removed immediately via optimistic update
 - **AND** the comment count on the task row decrements
 
 #### Scenario: Owner deletes any comment
@@ -258,6 +259,13 @@ The system SHALL allow project members (owners and collaborators) to have conver
 - **WHEN** the user hovers over a comment authored by another user
 - **THEN** the delete icon is not shown
 
+#### Scenario: Refresh comments
+
+- **GIVEN** a user with the comments panel open
+- **WHEN** the user clicks the refresh button in the panel header
+- **THEN** the comments list is re-fetched from the server
+- **AND** a loading spinner is shown during the fetch
+
 ### Requirement: My Tasks page
 
 The system SHALL provide a "My Tasks" page accessible from the sidebar that shows all tasks assigned to the current user across all projects they have access to.
@@ -273,7 +281,7 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 - **GIVEN** a user on the My Tasks page
 - **WHEN** the page loads
 - **THEN** a table is displayed with all tasks assigned to the current user
-- **AND** each row shows task name, project name, status, cost, and comment count
+- **AND** each row shows task name, project name (formatted as "Project (Owner)" for owner context), status, cost, and comment count
 
 #### Scenario: Filter tasks by status
 

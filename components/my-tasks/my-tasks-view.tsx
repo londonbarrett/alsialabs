@@ -1,9 +1,7 @@
 "use client"
 
 import { MyTasksList } from "@/components/my-tasks/my-tasks-list"
-import {
-  taskStatusColors,
-} from "@/components/projects/task-status-select"
+import { taskStatusColors } from "@/components/projects/task-status-select"
 import {
   Select,
   SelectContent,
@@ -119,12 +117,12 @@ export function MyTasksView({
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <header className="flex flex-col gap-2">
-        <p className="text-sm text-muted-foreground">
-          {t("myTasks.subtitle")}
-        </p>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
           {t("myTasks.title")}
         </h1>
+        <p className="text-sm text-muted-foreground">
+          {t("myTasks.subtitle")}
+        </p>
       </header>
 
       <div className="flex flex-wrap gap-3">
