@@ -122,7 +122,7 @@ export function TaskCommentsPanel({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
   const [loading, setLoading] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const fetchComments = useCallback(async () => {
@@ -308,7 +308,7 @@ export function TaskCommentsPanel({
                           <Button
                             size="sm"
                             onClick={handleEditSave}
-                            disabled={!editContent.trim() || isPending}
+                            disabled={!editContent.trim()}
                           >
                             {t("common.save")}
                           </Button>
@@ -316,7 +316,6 @@ export function TaskCommentsPanel({
                             size="sm"
                             variant="ghost"
                             onClick={handleEditCancel}
-                            disabled={isPending}
                           >
                             {t("common.cancel")}
                           </Button>
@@ -335,7 +334,6 @@ export function TaskCommentsPanel({
                         size="icon-sm"
                         className="shrink-0 opacity-0 group-hover:opacity-100"
                         onClick={() => handleEditStart(comment)}
-                        disabled={isPending}
                       >
                         <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
@@ -347,7 +345,6 @@ export function TaskCommentsPanel({
                           size="icon-sm"
                           className="shrink-0 opacity-0 group-hover:opacity-100"
                           onClick={() => handleDelete(comment.id)}
-                          disabled={isPending}
                         >
                           <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                         </Button>
@@ -377,7 +374,7 @@ export function TaskCommentsPanel({
             <Button
               size="icon"
               onClick={handleSend}
-              disabled={!newComment.trim() || isPending}
+              disabled={!newComment.trim()}
               className="shrink-0"
             >
               <Send className="h-4 w-4" />
