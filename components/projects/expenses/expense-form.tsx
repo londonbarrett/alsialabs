@@ -119,7 +119,7 @@ export function ExpenseForm({
           value={amount}
           onChange={setAmount}
           error={errors.amount}
-          type="number"
+          type="money"
         />
       </div>
 
