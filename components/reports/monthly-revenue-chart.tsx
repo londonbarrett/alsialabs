@@ -94,14 +94,12 @@ export function MonthlyRevenueChart({ data }: MonthlyRevenueChartProps) {
           fill="var(--color-productRevenue)"
           radius={[4, 4, 0, 0]}
           stackId="a"
-          activeBar={false}
         />
         <Bar
           dataKey="serviceRevenue"
           fill="var(--color-serviceRevenue)"
           radius={[4, 4, 0, 0]}
           stackId="a"
-          activeBar={false}
         />
       </BarChart>
     </ChartContainer>
