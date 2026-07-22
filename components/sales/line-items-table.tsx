@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/common/money-input'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -102,13 +103,10 @@ export function LineItemsTable({ type, items, products, onUpdate, onRemove, onPr
                     />
                   </td>
                   <td className="py-1.5 px-2">
-                    <Input
+                    <MoneyInput
                       className="h-8 text-xs"
-                      type="number"
-                      step="any"
-                      min="0"
                       value={item.unitPrice}
-                      onChange={(e) => onUpdate(item.key, 'unitPrice', e.target.value)}
+                      onChange={(v) => onUpdate(item.key, 'unitPrice', v)}
                     />
                   </td>
                   <td className="py-1.5 px-2">

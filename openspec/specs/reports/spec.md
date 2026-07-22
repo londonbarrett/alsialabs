@@ -1,15 +1,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: Access control
-The reports page SHALL only be accessible to users with the `reports:view` permission AND an admin or super role. Non-admin users with `reports:view` permission SHALL be denied access.
+The reports page SHALL only be accessible to users with the `reports:view` permission.
 
-#### Scenario: Admin can access reports
-- **WHEN** an admin or super user with `reports:view` permission visits `/dashboard/reports`
+#### Scenario: User with permission can access reports
+- **WHEN** a user with `reports:view` permission visits `/dashboard/reports`
 - **THEN** the reports page SHALL render normally
-
-#### Scenario: Non-admin user is denied
-- **WHEN** a user with `reports:view` permission but not an admin or super role visits `/dashboard/reports`
-- **THEN** they SHALL receive a 403 Forbidden response
 
 #### Scenario: Unauthorized user receives 403
 - **WHEN** a user without `reports:view` permission visits `/dashboard/reports`
