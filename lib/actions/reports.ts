@@ -2,7 +2,7 @@
 
 import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
-import { clientsTable, invoicesTable } from "@/lib/drizzle/schema"
+import { clientsTable, invoiceItemsTable, invoicesTable } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
 import { sql } from "drizzle-orm"
 import { z } from "zod"
@@ -21,15 +21,27 @@ export async function getMonthlyRevenue() {
     .select({
       month: sql<string>`to_char(${invoicesTable.issueDate}, 'YYYY-MM')`,
       type: invoicesTable.type,
-      revenue: sql<string>`sum(${invoicesTable.grandTotal})`,
+      revenue: sql<string>`sum(${invoiceItemsTable.total})`,
+      quantity: sql<string>`sum(${invoiceItemsTable.quantity})`,
     })
     .from(invoicesTable)
+    .innerJoin(
+      invoiceItemsTable,
+      sql`${invoiceItemsTable.invoiceId} = ${invoicesTable.id}`
+    )
+    .where(sql`${invoiceItemsTable.unitPrice} > 0`)
     .groupBy(sql`1`, invoicesTable.type)
     .orderBy(sql`1`)
 
   const map = new Map<
     string,
-    { month: string; productRevenue: number; serviceRevenue: number }
+    {
+      month: string
+      productRevenue: number
+      serviceRevenue: number
+      productQuantity: number
+      serviceQuantity: number
+    }
   >()
 
   for (const row of rows) {
@@ -38,13 +50,17 @@ export async function getMonthlyRevenue() {
         month: row.month,
         productRevenue: 0,
         serviceRevenue: 0,
+        productQuantity: 0,
+        serviceQuantity: 0,
       })
     }
     const entry = map.get(row.month)!
     if (row.type === "product") {
       entry.productRevenue += Number(row.revenue)
+      entry.productQuantity += Number(row.quantity)
     } else {
       entry.serviceRevenue += Number(row.revenue)
+      entry.serviceQuantity += Number(row.quantity)
     }
   }
 
