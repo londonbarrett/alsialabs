@@ -11,7 +11,6 @@ import {
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
 import { and, asc, eq } from "drizzle-orm"
-import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 const commentSchema = z.object({
@@ -155,32 +154,10 @@ export async function createComment(taskId: string, content: string) {
     .where(eq(usersTable.id, session.user.id))
     .then((rows) => rows[0])
 
-  const comments = await db
-    .select({
-      id: taskCommentsTable.id,
-      taskId: taskCommentsTable.taskId,
-      authorId: taskCommentsTable.authorId,
-      authorName: usersTable.name,
-      authorImage: usersTable.image,
-      content: taskCommentsTable.content,
-      createdAt: taskCommentsTable.createdAt,
-      updatedAt: taskCommentsTable.updatedAt,
-    })
-    .from(taskCommentsTable)
-    .innerJoin(
-      usersTable,
-      eq(taskCommentsTable.authorId, usersTable.id)
-    )
-    .where(eq(taskCommentsTable.taskId, taskId))
-    .orderBy(asc(taskCommentsTable.createdAt))
-
-  revalidatePath(`/dashboard/projects/${projectId}`)
   return {
     success: true as const,
     data: {
-      taskId,
-      comments,
-      newComment: {
+      comment: {
         id: inserted.id,
         taskId: inserted.taskId,
         authorId: inserted.authorId,
@@ -242,7 +219,7 @@ export async function updateComment(
     .set({ content: parsed.data.content })
     .where(eq(taskCommentsTable.id, commentId))
 
-  const comments = await db
+  const [updated] = await db
     .select({
       id: taskCommentsTable.id,
       taskId: taskCommentsTable.taskId,
@@ -258,13 +235,11 @@ export async function updateComment(
       usersTable,
       eq(taskCommentsTable.authorId, usersTable.id)
     )
-    .where(eq(taskCommentsTable.taskId, taskId))
-    .orderBy(asc(taskCommentsTable.createdAt))
+    .where(eq(taskCommentsTable.id, commentId))
 
-  revalidatePath(`/dashboard/projects/${projectId}`)
   return {
     success: true as const,
-    data: { taskId, comments },
+    data: { comment: updated },
   }
 }
 
@@ -304,32 +279,10 @@ export async function deleteComment(commentId: string, taskId: string) {
     .delete(taskCommentsTable)
     .where(eq(taskCommentsTable.id, commentId))
 
-  const comments = await db
-    .select({
-      id: taskCommentsTable.id,
-      taskId: taskCommentsTable.taskId,
-      authorId: taskCommentsTable.authorId,
-      authorName: usersTable.name,
-      authorImage: usersTable.image,
-      content: taskCommentsTable.content,
-      createdAt: taskCommentsTable.createdAt,
-      updatedAt: taskCommentsTable.updatedAt,
-    })
-    .from(taskCommentsTable)
-    .innerJoin(
-      usersTable,
-      eq(taskCommentsTable.authorId, usersTable.id)
-    )
-    .where(eq(taskCommentsTable.taskId, taskId))
-    .orderBy(asc(taskCommentsTable.createdAt))
-
-  revalidatePath(`/dashboard/projects/${projectId}`)
   return {
     success: true as const,
     data: {
-      taskId,
-      comments,
-      deletedCommentId: commentId,
+      commentId,
     },
   }
 }

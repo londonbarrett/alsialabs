@@ -14,7 +14,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
-import { useServerAction } from "@/hooks/use-server-action"
 import {
   createComment,
   deleteComment,
@@ -26,6 +25,7 @@ import { useTranslations } from "next-intl"
 import {
   useCallback,
   useEffect,
+  useOptimistic,
   useRef,
   useState,
   useTransition,
@@ -41,6 +41,29 @@ interface TaskCommentWithAuthor {
   content: string
   createdAt: Date
   updatedAt: Date
+}
+
+type CommentAction =
+  | { type: "add"; comment: TaskCommentWithAuthor }
+  | { type: "delete"; commentId: string }
+  | { type: "update"; commentId: string; content: string }
+
+function commentReducer(
+  state: TaskCommentWithAuthor[],
+  action: CommentAction
+): TaskCommentWithAuthor[] {
+  switch (action.type) {
+    case "add":
+      return [...state, action.comment]
+    case "delete":
+      return state.filter((c) => c.id !== action.commentId)
+    case "update":
+      return state.map((c) =>
+        c.id === action.commentId
+          ? { ...c, content: action.content, updatedAt: new Date() }
+          : c
+      )
+  }
 }
 
 interface TaskCommentsPanelProps {
@@ -91,18 +114,26 @@ export function TaskCommentsPanel({
 }: TaskCommentsPanelProps) {
   const t = useTranslations()
   const [comments, setComments] = useState<TaskCommentWithAuthor[]>([])
+  const [optimisticComments, addOptimistic] = useOptimistic(
+    comments,
+    commentReducer
+  )
   const [newComment, setNewComment] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
+  const [loading, setLoading] = useState(false)
   const [isPending, startTransition] = useTransition()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const fetchComments = useCallback(async () => {
     try {
+      setLoading(true)
       const result = await getTaskComments(taskId)
       setComments(result)
     } catch {
       toast.error(t("common.somethingWentWrong"))
+    } finally {
+      setLoading(false)
     }
   }, [taskId, t])
 
@@ -112,61 +143,56 @@ export function TaskCommentsPanel({
         fetchComments()
       })
     }
-  }, [open, fetchComments, startTransition])
+  }, [open, fetchComments])
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [comments])
-
-  const { isPending: isCreating, execute: executeCreate } =
-    useServerAction(createComment, {
-      onSuccess: (data) => {
-        const d = data as {
-          taskId: string
-          comments: TaskCommentWithAuthor[]
-        }
-        setComments(d.comments)
-        setNewComment("")
-        onCommentCountChange?.(d.taskId, 1)
-      },
-    })
-
-  const { isPending: isDeleting, execute: executeDelete } =
-    useServerAction(deleteComment, {
-      onSuccess: (data) => {
-        const d = data as {
-          taskId: string
-          comments: TaskCommentWithAuthor[]
-        }
-        setComments(d.comments)
-        onCommentCountChange?.(d.taskId, -1)
-        toast.success(t("projects.tasks.comments.commentDeleted"))
-      },
-    })
-
-  const { isPending: isUpdating, execute: executeUpdate } =
-    useServerAction(updateComment, {
-      onSuccess: (data) => {
-        const d = data as {
-          taskId: string
-          comments: TaskCommentWithAuthor[]
-        }
-        setComments(d.comments)
-        setEditingId(null)
-        setEditContent("")
-      },
-    })
+  }, [optimisticComments])
 
   function handleSend() {
     const content = newComment.trim()
     if (!content) return
-    executeCreate(taskId, content)
+
+    const existingComment = comments.find(
+      (c) => c.authorId === currentUserId
+    )
+    const tempComment: TaskCommentWithAuthor = {
+      id: `temp-${Date.now()}`,
+      taskId,
+      authorId: currentUserId,
+      authorName: existingComment?.authorName ?? null,
+      authorImage: existingComment?.authorImage ?? null,
+      content,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    setNewComment("")
+
+    startTransition(async () => {
+      addOptimistic({ type: "add", comment: tempComment })
+      const result = await createComment(taskId, content)
+      if (result.success) {
+        setComments((prev) => [...prev, result.data.comment])
+        onCommentCountChange?.(taskId, 1)
+      } else {
+        toast.error(result.error || t("common.somethingWentWrong"))
+      }
+    })
   }
 
   function handleDelete(commentId: string) {
-    executeDelete(commentId, taskId)
+    startTransition(async () => {
+      addOptimistic({ type: "delete", commentId })
+      const result = await deleteComment(commentId, taskId)
+      if (result.success) {
+        setComments((prev) => prev.filter((c) => c.id !== commentId))
+        onCommentCountChange?.(taskId, -1)
+      } else {
+        toast.error(result.error || t("common.somethingWentWrong"))
+      }
+    })
   }
 
   function handleEditStart(comment: TaskCommentWithAuthor) {
@@ -181,7 +207,28 @@ export function TaskCommentsPanel({
 
   function handleEditSave() {
     if (!editingId || !editContent.trim()) return
-    executeUpdate(editingId, taskId, editContent.trim())
+
+    const content = editContent.trim()
+    setEditingId(null)
+    setEditContent("")
+
+    startTransition(async () => {
+      addOptimistic({
+        type: "update",
+        commentId: editingId,
+        content,
+      })
+      const result = await updateComment(editingId, taskId, content)
+      if (result.success) {
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === result.data.comment.id ? result.data.comment : c
+          )
+        )
+      } else {
+        toast.error(result.error || t("common.somethingWentWrong"))
+      }
+    })
   }
 
   function handleEditKeyDown(e: React.KeyboardEvent) {
@@ -194,23 +241,16 @@ export function TaskCommentsPanel({
     }
   }
 
-  const sending = isCreating || isDeleting || isUpdating
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex flex-col gap-0 p-0">
         <SheetHeader className="border-b px-4 py-3">
-          <SheetDescription className="truncate">
-            {projectName}
-          </SheetDescription>
           <SheetTitle className="flex items-center gap-2 text-base">
             <MessageSquare className="h-4 w-4" />
             {taskName}
           </SheetTitle>
           {description && (
-            <p className="text-sm wrap-break-word whitespace-pre-wrap text-muted-foreground">
-              {description}
-            </p>
+            <SheetDescription>{description}</SheetDescription>
           )}
         </SheetHeader>
 
@@ -218,17 +258,17 @@ export function TaskCommentsPanel({
           ref={scrollRef}
           className="flex-1 overflow-y-auto px-4 py-3"
         >
-          {isPending ? (
+          {loading ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               {t("common.loading")}
             </p>
-          ) : comments.length === 0 ? (
+          ) : optimisticComments.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               {t("projects.tasks.comments.noComments")}
             </p>
           ) : (
             <div className="flex flex-col gap-4">
-              {comments.map((comment) => (
+              {optimisticComments.map((comment) => (
                 <div key={comment.id} className="group flex gap-3">
                   <Avatar size="sm">
                     <AvatarImage
@@ -268,7 +308,7 @@ export function TaskCommentsPanel({
                           <Button
                             size="sm"
                             onClick={handleEditSave}
-                            disabled={!editContent.trim() || isUpdating}
+                            disabled={!editContent.trim() || isPending}
                           >
                             {t("common.save")}
                           </Button>
@@ -276,7 +316,7 @@ export function TaskCommentsPanel({
                             size="sm"
                             variant="ghost"
                             onClick={handleEditCancel}
-                            disabled={isUpdating}
+                            disabled={isPending}
                           >
                             {t("common.cancel")}
                           </Button>
@@ -295,7 +335,7 @@ export function TaskCommentsPanel({
                         size="icon-sm"
                         className="shrink-0 opacity-0 group-hover:opacity-100"
                         onClick={() => handleEditStart(comment)}
-                        disabled={sending}
+                        disabled={isPending}
                       >
                         <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
@@ -307,7 +347,7 @@ export function TaskCommentsPanel({
                           size="icon-sm"
                           className="shrink-0 opacity-0 group-hover:opacity-100"
                           onClick={() => handleDelete(comment.id)}
-                          disabled={sending}
+                          disabled={isPending}
                         >
                           <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                         </Button>
@@ -337,7 +377,7 @@ export function TaskCommentsPanel({
             <Button
               size="icon"
               onClick={handleSend}
-              disabled={!newComment.trim() || sending}
+              disabled={!newComment.trim() || isPending}
               className="shrink-0"
             >
               <Send className="h-4 w-4" />
