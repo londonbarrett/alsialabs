@@ -1,6 +1,6 @@
 "use server"
 
-import { auth, isSuperUser } from "@/lib/auth"
+import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import { clientsTable, invoicesTable } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
@@ -15,7 +15,7 @@ export async function getMonthlyRevenue() {
 
   const session = await auth()
   if (!session?.user) throw new Error(t("unauthorized"))
-  if (!isSuperUser(session)) throw new Error(t("forbidden"))
+  await requirePermission("reports", "view")
 
   const rows = await db
     .select({
@@ -56,7 +56,7 @@ export async function getTopClientsByRevenue(limit = 10) {
 
   const session = await auth()
   if (!session?.user) throw new Error(t("unauthorized"))
-  if (!isSuperUser(session)) throw new Error(t("forbidden"))
+  await requirePermission("reports", "view")
 
   const { data, error } = limitSchema.safeParse(limit)
   if (error) throw new Error(t("invalidLimit"))
@@ -82,7 +82,7 @@ export async function getInactiveClients(days: number | null) {
 
   const session = await auth()
   if (!session?.user) throw new Error(t("unauthorized"))
-  if (!isSuperUser(session)) throw new Error(t("forbidden"))
+  await requirePermission("reports", "view")
 
   const { data, error } = daysSchema.safeParse(days)
   if (error) throw new Error(t("invalidDays"))

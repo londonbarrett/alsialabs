@@ -661,6 +661,7 @@
       "forbidden": "Forbidden"
     },
     "reports": {
+      "forbidden": "Forbidden",
       "invalidLimit": "Invalid limit",
       "invalidDays": "Invalid days"
     },
