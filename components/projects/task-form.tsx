@@ -140,7 +140,7 @@ export function TaskForm({
           value={cost}
           onChange={setCost}
           error={errors.cost}
-          type="number"
+          type="money"
         />
 
         <div className="flex flex-col gap-2">
