@@ -11,7 +11,6 @@ import {
   ShieldUser,
   UserCircle,
   Users,
-  Wrench,
   type LucideIcon,
 } from "lucide-react"
 
@@ -72,12 +71,6 @@ function adminSections(permissions?: string[]): SidebarSection[] {
       icon: ChartNoAxesCombined,
       url: "/dashboard/sales",
       requiredPermission: "sales:view",
-    },
-    {
-      label: "contractors",
-      icon: Wrench,
-      url: "/dashboard/contractors",
-      requiredPermission: "contractors:view",
     },
     {
       label: "activity",

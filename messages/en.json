@@ -54,7 +54,6 @@
     "permissions": "Permissions",
     "categories": "Categories",
     "projects": "Projects",
-    "contractors": "Contractors",
     "myTasks": "My Tasks",
     "profile": "Profile",
     "help": "Help",
@@ -71,7 +70,6 @@
     "profile": "Profile",
     "categories": "Categories",
     "projects": "Projects",
-    "contractors": "Contractors",
     "myTasks": "My Tasks"
   },
   "landing": {
@@ -387,21 +385,6 @@
     "cannotRemovePrimaryOwner": "Cannot remove the primary owner",
     "mustBeOwner": "User must be an owner to become primary owner"
   },
-  "contractors": {
-    "title": "Contractors",
-    "subtitle": "View all contractor profiles",
-    "bio": "Bio",
-    "hourlyRate": "Hourly Rate",
-    "portfolioLinks": "Portfolio Links",
-    "createProfile": "Create Profile",
-    "editProfile": "Edit Profile",
-    "profileUpdated": "Profile updated",
-    "profileCreated": "Profile created",
-    "profileDeleted": "Profile deleted",
-    "failedToSave": "Failed to save profile",
-    "noContractors": "No contractor profiles yet",
-    "perHour": "/ hr"
-  },
   "myTasks": {
     "title": "My Tasks",
     "subtitle": "All tasks assigned to you across all projects.",
@@ -673,11 +656,6 @@
       "forbidden": "Forbidden",
       "invalidLimit": "Invalid limit",
       "invalidDays": "Invalid days"
-    },
-    "contractors": {
-      "forbidden": "Forbidden",
-      "unauthorized": "Unauthorized",
-      "validationFailed": "Validation failed"
     },
     "import": {
       "unauthorized": "Unauthorized",

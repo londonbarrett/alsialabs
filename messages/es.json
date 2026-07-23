@@ -54,7 +54,6 @@
     "permissions": "Permisos",
     "categories": "Categorías",
     "projects": "Proyectos",
-    "contractors": "Contratistas",
     "myTasks": "Mis Tareas",
     "profile": "Perfil",
     "help": "Ayuda",
@@ -71,7 +70,6 @@
     "profile": "Perfil",
     "categories": "Categorías",
     "projects": "Proyectos",
-    "contractors": "Contratistas",
     "myTasks": "Mis Tareas"
   },
   "landing": {
@@ -386,21 +384,6 @@
     "alreadyCollaborator": "El usuario ya es colaborador",
     "cannotRemovePrimaryOwner": "No se puede eliminar el propietario principal",
     "mustBeOwner": "El usuario debe ser propietario para convertirse en propietario principal"
-  },
-  "contractors": {
-    "title": "Contratistas",
-    "subtitle": "Ver todos los perfiles de contratistas",
-    "bio": "Biografía",
-    "hourlyRate": "Tarifa por hora",
-    "portfolioLinks": "Enlaces de portafolio",
-    "createProfile": "Crear perfil",
-    "editProfile": "Editar perfil",
-    "profileUpdated": "Perfil actualizado",
-    "profileCreated": "Perfil creado",
-    "profileDeleted": "Perfil eliminado",
-    "failedToSave": "Error al guardar el perfil",
-    "noContractors": "Aún no hay perfiles de contratistas",
-    "perHour": "/ hora"
   },
   "myTasks": {
     "title": "Mis Tareas",
