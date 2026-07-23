@@ -34,7 +34,7 @@ function formatCurrency(value: number) {
 }
 
 export function MonthlyRevenueChart({ data }: MonthlyRevenueChartProps) {
-  const t = useTranslations('reports')
+  const t = useTranslations('activity')
 
   const revenueConfig = {
     productRevenue: {

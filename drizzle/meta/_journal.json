@@ -78,6 +78,13 @@
       "when": 1784412800000,
       "tag": "0010_rename_client_role_to_user",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784842817905,
+      "tag": "0011_superb_the_hood",
+      "breakpoints": true
     }
   ]
 }

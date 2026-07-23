@@ -131,8 +131,6 @@ export type Project = typeof projectsTable.$inferSelect
 export type ProjectTask = typeof projectTasksTable.$inferSelect
 export type TaskComment = typeof taskCommentsTable.$inferSelect
 export type Expense = typeof expensesTable.$inferSelect
-export type ContractorProfile =
-  typeof contractorProfilesTable.$inferSelect
 export type ProjectOwner = typeof projectOwnersTable.$inferSelect
 export type ProjectCollaborator =
   typeof projectCollaboratorsTable.$inferSelect
@@ -409,26 +407,6 @@ export const expensesTable = pgTable("expense", {
   description: text().notNull(),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   expenseDate: date("expense_date").notNull(),
-  createdAt: timestamp("created_at", { mode: "date" })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "date" })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-})
-
-export const contractorProfilesTable = pgTable("contractor_profile", {
-  id: text()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  userId: text("user_id")
-    .notNull()
-    .unique()
-    .references(() => usersTable.id, { onDelete: "cascade" }),
-  bio: text(),
-  hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
-  portfolioLinks: text("portfolio_links"),
   createdAt: timestamp("created_at", { mode: "date" })
     .notNull()
     .defaultNow(),

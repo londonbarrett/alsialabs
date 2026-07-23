@@ -33,7 +33,7 @@ const defaultModules = [
   { module: "sales", actions: ["view", "create", "edit", "delete"] },
   { module: "permissions", actions: ["manage"] },
   { module: "users", actions: ["manage"] },
-  { module: "reports", actions: ["view"] },
+  { module: "activity", actions: ["view"] },
   {
     module: "client-activity",
     actions: ["view", "create", "edit", "delete"],
@@ -44,10 +44,6 @@ const defaultModules = [
     actions: ["view", "create", "edit", "delete"],
   },
   { module: "expenses", actions: ["view", "create", "edit", "delete"] },
-  {
-    module: "contractors",
-    actions: ["view", "create", "edit", "delete"],
-  },
 ]
 
 async function seed() {
@@ -89,7 +85,7 @@ async function seed() {
       (perm.module === "clients" ||
         perm.module === "products" ||
         perm.module === "sales" ||
-        perm.module === "reports" ||
+        perm.module === "activity" ||
         perm.module === "client-activity") &&
       perm.action !== "delete"
     ) {

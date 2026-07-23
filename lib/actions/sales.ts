@@ -9,7 +9,7 @@ import {
   productsTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { and, eq, sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -133,41 +133,6 @@ export async function getInvoices() {
     throw new Error(t("forbidden"))
   }
 
-  const session = await auth()
-  if (!session?.user) throw new Error(t("unauthorized"))
-
-  const isAdmin = isSuperUser(session)
-
-  if (isAdmin) {
-    const invoices = await db
-      .select({
-        id: invoicesTable.id,
-        type: invoicesTable.type,
-        invoiceNumber: invoicesTable.invoiceNumber,
-        clientId: invoicesTable.clientId,
-        userId: invoicesTable.userId,
-        clientName: clientsTable.name,
-        status: invoicesTable.status,
-        issueDate: invoicesTable.issueDate,
-        notes: invoicesTable.notes,
-        subtotal: invoicesTable.subtotal,
-        discountTotal: invoicesTable.discountTotal,
-        taxTotal: invoicesTable.taxTotal,
-        grandTotal: invoicesTable.grandTotal,
-        projectId: invoicesTable.projectId,
-        createdAt: invoicesTable.createdAt,
-        updatedAt: invoicesTable.updatedAt,
-      })
-      .from(invoicesTable)
-      .leftJoin(
-        clientsTable,
-        eq(invoicesTable.clientId, clientsTable.id)
-      )
-      .orderBy(sql`${invoicesTable.createdAt} desc`)
-
-    return invoices
-  }
-
   const invoices = await db
     .select({
       id: invoicesTable.id,
@@ -189,7 +154,6 @@ export async function getInvoices() {
     })
     .from(invoicesTable)
     .leftJoin(clientsTable, eq(invoicesTable.clientId, clientsTable.id))
-    .where(and(eq(invoicesTable.userId, session.user.id)))
     .orderBy(sql`${invoicesTable.createdAt} desc`)
 
   return invoices
@@ -367,4 +331,89 @@ export async function deleteInvoice(invoiceId: string) {
 
   revalidatePath("/dashboard/sales")
   return { success: true as const }
+}
+
+const limitSchema = z.number().int().positive().max(100)
+
+export async function getMonthlyRevenue() {
+  const t = await getActionT("actions.sales")
+
+  const session = await auth()
+  if (!session?.user) throw new Error(t("unauthorized"))
+  await requirePermission("sales", "view")
+
+  const rows = await db
+    .select({
+      month: sql<string>`to_char(${invoicesTable.issueDate}, 'YYYY-MM')`,
+      type: invoicesTable.type,
+      revenue: sql<string>`sum(${invoiceItemsTable.total})`,
+      quantity: sql<string>`sum(${invoiceItemsTable.quantity})`,
+    })
+    .from(invoicesTable)
+    .innerJoin(
+      invoiceItemsTable,
+      sql`${invoiceItemsTable.invoiceId} = ${invoicesTable.id}`
+    )
+    .where(sql`${invoiceItemsTable.unitPrice} > 0`)
+    .groupBy(sql`1`, invoicesTable.type)
+    .orderBy(sql`1`)
+
+  const map = new Map<
+    string,
+    {
+      month: string
+      productRevenue: number
+      serviceRevenue: number
+      productQuantity: number
+      serviceQuantity: number
+    }
+  >()
+
+  for (const row of rows) {
+    if (!map.has(row.month)) {
+      map.set(row.month, {
+        month: row.month,
+        productRevenue: 0,
+        serviceRevenue: 0,
+        productQuantity: 0,
+        serviceQuantity: 0,
+      })
+    }
+    const entry = map.get(row.month)!
+    if (row.type === "product") {
+      entry.productRevenue += Number(row.revenue)
+      entry.productQuantity += Number(row.quantity)
+    } else {
+      entry.serviceRevenue += Number(row.revenue)
+      entry.serviceQuantity += Number(row.quantity)
+    }
+  }
+
+  return Array.from(map.values())
+}
+
+export async function getTopClientsByRevenue(limit = 10) {
+  const t = await getActionT("actions.sales")
+
+  const session = await auth()
+  if (!session?.user) throw new Error(t("unauthorized"))
+  await requirePermission("sales", "view")
+
+  const { data, error } = limitSchema.safeParse(limit)
+  if (error) throw new Error(t("invalidLimit"))
+  return db
+    .select({
+      clientId: clientsTable.id,
+      clientName: clientsTable.name,
+      totalRevenue: sql<string>`sum(${invoicesTable.grandTotal})`,
+      invoiceCount: sql<number>`count(${invoicesTable.id})`,
+    })
+    .from(invoicesTable)
+    .innerJoin(
+      clientsTable,
+      sql`${invoicesTable.clientId} = ${clientsTable.id}`
+    )
+    .groupBy(clientsTable.id, clientsTable.name)
+    .orderBy(sql`sum(${invoicesTable.grandTotal}) desc`)
+    .limit(data)
 }

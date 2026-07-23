@@ -1,8 +1,9 @@
 "use client"
 
+import { PageHeader } from "@/components/common/page-header"
 import { Button } from "@/components/ui/button"
 import type { Project } from "@/lib/types"
-import { Plus } from "lucide-react"
+import { FolderKanban, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -55,29 +56,21 @@ export function ProjectListView({
         </div>
       ) : (
         <div className="flex flex-1 flex-col gap-6 p-6">
-          <div className="flex justify-between">
-            <header className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-muted-foreground">
-                {t("projects.portfolio")}
-              </p>
-              <h1 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">
-                {t("projects.title")}
-              </h1>
-              <p className="max-w-prose text-pretty text-muted-foreground">
-                {t("projects.subtitle")}
-              </p>
-            </header>
+          <PageHeader
+            title={t("projects.title")}
+            subtitle={t("projects.subtitle")}
+            icon={FolderKanban}
+          >
             {permissions.includes("projects:create") && (
               <Button
                 onClick={openNew}
                 aria-label={t("projects.addProject")}
-                className="self-start"
               >
                 <Plus />
                 {t("projects.addProject")}
               </Button>
             )}
-          </div>
+          </PageHeader>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {projects.map((project) => (

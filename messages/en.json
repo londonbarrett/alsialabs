@@ -49,12 +49,11 @@
     "clients": "Clients",
     "products": "Products",
     "sales": "Sales",
-    "reports": "Reports",
+    "activity": "Activity",
     "users": "Users",
     "permissions": "Permissions",
     "categories": "Categories",
     "projects": "Projects",
-    "contractors": "Contractors",
     "myTasks": "My Tasks",
     "profile": "Profile",
     "help": "Help",
@@ -65,13 +64,12 @@
     "clients": "Clients",
     "products": "Products",
     "sales": "Sales",
-    "reports": "Reports",
+    "activity": "Activity",
     "permissions": "Permissions",
     "users": "Users",
     "profile": "Profile",
     "categories": "Categories",
     "projects": "Projects",
-    "contractors": "Contractors",
     "myTasks": "My Tasks"
   },
   "landing": {
@@ -387,21 +385,6 @@
     "cannotRemovePrimaryOwner": "Cannot remove the primary owner",
     "mustBeOwner": "User must be an owner to become primary owner"
   },
-  "contractors": {
-    "title": "Contractors",
-    "subtitle": "View all contractor profiles",
-    "bio": "Bio",
-    "hourlyRate": "Hourly Rate",
-    "portfolioLinks": "Portfolio Links",
-    "createProfile": "Create Profile",
-    "editProfile": "Edit Profile",
-    "profileUpdated": "Profile updated",
-    "profileCreated": "Profile created",
-    "profileDeleted": "Profile deleted",
-    "failedToSave": "Failed to save profile",
-    "noContractors": "No contractor profiles yet",
-    "perHour": "/ hr"
-  },
   "myTasks": {
     "title": "My Tasks",
     "subtitle": "All tasks assigned to you across all projects.",
@@ -418,6 +401,7 @@
   },
   "sales": {
     "title": "Sales",
+    "subtitle": "Manage your invoices and track sales performance",
     "newInvoice": "New Invoice",
     "editInvoice": "Edit Invoice",
     "createInvoice": "Create Invoice",
@@ -459,8 +443,9 @@
     "noItems": "No items added yet.",
     "failedToLoadItems": "Failed to load invoice items"
   },
-  "reports": {
-    "title": "Reports",
+  "activity": {
+    "title": "Activity",
+    "subtitle": "View analytics, reminders, and client activity",
     "monthlyRevenue": "Monthly Revenue",
     "topClients": "Top Clients by Revenue",
     "activeReminders": "Active Reminders",
@@ -671,11 +656,6 @@
       "forbidden": "Forbidden",
       "invalidLimit": "Invalid limit",
       "invalidDays": "Invalid days"
-    },
-    "contractors": {
-      "forbidden": "Forbidden",
-      "unauthorized": "Unauthorized",
-      "validationFailed": "Validation failed"
     },
     "import": {
       "unauthorized": "Unauthorized",

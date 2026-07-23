@@ -1,16 +1,16 @@
 import {
+  BellRing,
+  ChartNoAxesCombined,
   FolderKanban,
-  BarChart3,
-  Users,
-  Package,
-  LifeBuoy,
-  MessageSquare,
-  Shield,
-  ShieldCheck,
   FolderTree,
-  UserCircle,
-  Wrench,
+  LifeBuoy,
   ListTodo,
+  MessageSquare,
+  Package,
+  ShieldCheck,
+  ShieldUser,
+  UserCircle,
+  Users,
   type LucideIcon,
 } from "lucide-react"
 
@@ -38,7 +38,7 @@ function adminSections(permissions?: string[]): SidebarSection[] {
   const items: SidebarItem[] = [
     {
       label: "users",
-      icon: Shield,
+      icon: ShieldUser,
       url: "/dashboard/users",
       requiredPermission: "users:manage",
     },
@@ -68,21 +68,15 @@ function adminSections(permissions?: string[]): SidebarSection[] {
     },
     {
       label: "sales",
-      icon: FolderKanban,
+      icon: ChartNoAxesCombined,
       url: "/dashboard/sales",
       requiredPermission: "sales:view",
     },
     {
-      label: "contractors",
-      icon: Wrench,
-      url: "/dashboard/contractors",
-      requiredPermission: "contractors:view",
-    },
-    {
-      label: "reports",
-      icon: BarChart3,
-      url: "/dashboard/reports",
-      requiredPermission: "reports:view",
+      label: "activity",
+      icon: BellRing,
+      url: "/dashboard/activity",
+      requiredPermission: "activity:view",
     },
   ]
 

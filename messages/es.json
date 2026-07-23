@@ -49,12 +49,11 @@
     "clients": "Clientes",
     "products": "Productos",
     "sales": "Ventas",
-    "reports": "Reportes",
+    "activity": "Actividad",
     "users": "Usuarios",
     "permissions": "Permisos",
     "categories": "Categorías",
     "projects": "Proyectos",
-    "contractors": "Contratistas",
     "myTasks": "Mis Tareas",
     "profile": "Perfil",
     "help": "Ayuda",
@@ -65,13 +64,12 @@
     "clients": "Clientes",
     "products": "Productos",
     "sales": "Ventas",
-    "reports": "Reportes",
+    "activity": "Actividad",
     "permissions": "Permisos",
     "users": "Usuarios",
     "profile": "Perfil",
     "categories": "Categorías",
     "projects": "Proyectos",
-    "contractors": "Contratistas",
     "myTasks": "Mis Tareas"
   },
   "landing": {
@@ -387,21 +385,6 @@
     "cannotRemovePrimaryOwner": "No se puede eliminar el propietario principal",
     "mustBeOwner": "El usuario debe ser propietario para convertirse en propietario principal"
   },
-  "contractors": {
-    "title": "Contratistas",
-    "subtitle": "Ver todos los perfiles de contratistas",
-    "bio": "Biografía",
-    "hourlyRate": "Tarifa por hora",
-    "portfolioLinks": "Enlaces de portafolio",
-    "createProfile": "Crear perfil",
-    "editProfile": "Editar perfil",
-    "profileUpdated": "Perfil actualizado",
-    "profileCreated": "Perfil creado",
-    "profileDeleted": "Perfil eliminado",
-    "failedToSave": "Error al guardar el perfil",
-    "noContractors": "Aún no hay perfiles de contratistas",
-    "perHour": "/ hora"
-  },
   "myTasks": {
     "title": "Mis Tareas",
     "subtitle": "Todas las tareas asignadas a ti en todos los proyectos.",
@@ -418,6 +401,7 @@
   },
   "sales": {
     "title": "Ventas",
+    "subtitle": "Gestiona tus facturas y rastrea el rendimiento de ventas",
     "newInvoice": "Nueva Factura",
     "editInvoice": "Editar Factura",
     "createInvoice": "Crear Factura",
@@ -459,8 +443,9 @@
     "noItems": "No se han agregado artículos.",
     "failedToLoadItems": "Error al cargar los artículos de la factura"
   },
-  "reports": {
-    "title": "Reportes",
+  "activity": {
+    "title": "Actividad",
+    "subtitle": "Visualiza analíticas, recordatorios y actividad de clientes",
     "monthlyRevenue": "Ingresos Mensuales",
     "topClients": "Principales Clientes por Ingresos",
     "activeReminders": "Recordatorios Activos",
