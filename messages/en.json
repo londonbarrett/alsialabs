@@ -474,13 +474,20 @@
     "days90": "90 days",
     "noPurchases": "No purchases",
     "name": "Name",
+    "email": "Email",
     "phone": "Phone",
     "location": "Location",
     "lastInvoice": "Last Invoice",
     "never": "Never",
     "allClientsActive": "All clients are active.",
+    "actions": "Actions",
+    "logActivity": "Log Activity",
+    "addReminder": "Add Reminder",
     "noRevenueData": "No revenue data yet.",
-    "noClientRevenue": "No client revenue data yet."
+    "noClientRevenue": "No client revenue data yet.",
+    "quantity": "units",
+    "edit": "Edit",
+    "markAsDone": "Done"
   },
   "users": {
     "title": "Users",

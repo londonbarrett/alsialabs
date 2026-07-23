@@ -21,6 +21,8 @@ export interface MonthlyRevenue {
   month: string
   productRevenue: number
   serviceRevenue: number
+  productQuantity: number
+  serviceQuantity: number
 }
 
 interface MonthlyRevenueChartProps {
@@ -69,14 +71,16 @@ export function MonthlyRevenueChart({ data }: MonthlyRevenueChartProps) {
         <ChartTooltip
           content={
             <ChartTooltipContent
-              formatter={(value, name) => {
+              formatter={(value, name, item) => {
                 const key = String(name)
                 const label = revenueConfig[key as keyof typeof revenueConfig]?.label ?? key
+                const quantityKey = key === 'productRevenue' ? 'productQuantity' : 'serviceQuantity'
+                const quantity = item?.payload?.[quantityKey] ?? 0
                 return (
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">{label}</span>
                     <span className="font-mono font-medium text-foreground tabular-nums">
-                      {formatCurrency(Number(value))}
+                      {formatCurrency(Number(value))} · {quantity} {t('quantity')}
                     </span>
                   </div>
                 )
