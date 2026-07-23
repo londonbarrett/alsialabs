@@ -95,7 +95,7 @@ export function InactiveClientsCard() {
                 <TableHead>{t('reports.email')}</TableHead>
                 <TableHead>{t('reports.phone')}</TableHead>
                 <TableHead>{t('reports.lastInvoice')}</TableHead>
-                <TableHead className="w-24"><span className="sr-only">{t('reports.actions')}</span></TableHead>
+                <TableHead>{t('reports.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
