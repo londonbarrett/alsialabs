@@ -14,7 +14,7 @@ The reports page SHALL only be accessible to users with the `reports:view` permi
 ## ADDED Requirements
 
 ### Requirement: User can view monthly revenue chart
-The system SHALL display a stacked bar chart showing monthly revenue split by invoice type (product/service).
+The system SHALL display a stacked bar chart showing monthly revenue split by invoice type (product/service). Revenue SHALL be computed from invoice items, excluding items with `unit_price = 0`. The chart tooltip SHALL display quantity sold alongside revenue for each bar segment.
 
 #### Scenario: Revenue chart shows data grouped by month and type
 - **WHEN** an admin with `reports:view` permission visits the reports page
@@ -28,6 +28,14 @@ The system SHALL display a stacked bar chart showing monthly revenue split by in
 #### Scenario: Revenue chart shows empty state
 - **WHEN** there are no invoices in the system
 - **THEN** the chart area SHALL display a placeholder message indicating no data
+
+#### Scenario: Tooltip shows quantity sold alongside revenue
+- **WHEN** a user hovers over a bar segment in the monthly revenue chart
+- **THEN** the tooltip SHALL display both the revenue amount and the quantity sold for that segment
+
+#### Scenario: Items with zero unit price are excluded
+- **WHEN** an invoice item has `unit_price = 0`
+- **THEN** that item SHALL NOT be included in the revenue or quantity calculations
 
 ### Requirement: User can view top clients by revenue
 The system SHALL display a horizontal bar chart ranking the top 10 clients by total invoice amount.
@@ -90,9 +98,15 @@ The system SHALL display a card listing all non-completed reminders whose remind
 - **WHEN** a user clicks a client name in the reminders list
 - **THEN** they SHALL be taken to that client's detail page
 
-#### Scenario: Double-click navigates to client profile
+#### Scenario: Double-click opens edit reminder dialog
 - **WHEN** a user double-clicks anywhere on a reminder row
-- **THEN** they SHALL be taken to that client's detail page
+- **THEN** the edit reminder dialog SHALL open pre-filled with that reminder's data
+
+#### Scenario: User can mark a reminder as done
+- **WHEN** a user clicks the check button on a reminder row
+- **THEN** the reminder SHALL be marked as completed
+- **AND** the reminder SHALL be removed from the active reminders list
+- **AND** a success toast SHALL be displayed
 
 #### Scenario: Empty state shows no reminders message
 - **WHEN** there are no active reminders

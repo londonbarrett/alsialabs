@@ -481,7 +481,9 @@
     "allClientsActive": "All clients are active.",
     "noRevenueData": "No revenue data yet.",
     "noClientRevenue": "No client revenue data yet.",
-    "quantity": "units"
+    "quantity": "units",
+    "edit": "Edit",
+    "markAsDone": "Done"
   },
   "users": {
     "title": "Users",

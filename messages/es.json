@@ -481,7 +481,9 @@
     "allClientsActive": "Todos los clientes están activos.",
     "noRevenueData": "No hay datos de ingresos aún.",
     "noClientRevenue": "No hay datos de ingresos de clientes aún.",
-    "quantity": "unidades"
+    "quantity": "unidades",
+    "edit": "Editar",
+    "markAsDone": "Hecho"
   },
   "users": {
     "title": "Usuarios",
