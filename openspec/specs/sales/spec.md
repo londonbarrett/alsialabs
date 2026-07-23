@@ -1,16 +1,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: User can view invoices
-The system SHALL allow authenticated users with `sales:view` permission to see a table of invoices. Non-admin users shall only see invoices they created. Admins and super users see all invoices.
+The system SHALL allow authenticated users with `sales:view` permission to see a table of all invoices regardless of who created them.
 
-#### Scenario: Sales page shows user's invoices
-- **WHEN** a non-admin user navigates to the sales page
-- **THEN** a table of invoices is displayed with columns: invoice number, client, type, issue date, grand total, status
-- **AND** only invoices created by the current user are shown
-
-#### Scenario: Admin sees all invoices
-- **WHEN** an admin or super user navigates to the sales page
-- **THEN** all invoices are shown regardless of who created them
+#### Scenario: Sales page shows all invoices
+- **WHEN** a user with `sales:view` permission navigates to the sales page
+- **THEN** a table of all invoices is displayed with columns: invoice number, client, type, issue date, grand total, status
 
 #### Scenario: Sales nav link hidden without permission
 - **GIVEN** a user without `sales:view` permission
@@ -182,3 +177,40 @@ The form component SHALL be a reusable component that can be used outside the di
 - **THEN** it renders all fields and line items correctly
 - **AND** accepts an optional `invoice` prop for edit mode
 - **AND** accepts an `onSubmit` callback for custom submission handling
+
+### Requirement: User can view monthly revenue chart
+The sales page SHALL display a stacked bar chart showing monthly revenue split by invoice type (product/service). Revenue SHALL be computed from invoice items, excluding items with `unit_price = 0`. The chart tooltip SHALL display quantity sold alongside revenue for each bar segment.
+
+#### Scenario: Revenue chart shows data grouped by month and type
+- **WHEN** a user with `sales:view` permission visits the sales page
+- **THEN** they see a stacked bar chart with months on the x-axis and revenue on the y-axis
+- **AND** each month's bar is split into product revenue and service revenue segments
+
+#### Scenario: Revenue chart shows all available data
+- **WHEN** there are invoices dating back multiple years
+- **THEN** the chart SHALL display every month that has invoice data, ordered chronologically
+
+#### Scenario: Revenue chart shows empty state
+- **WHEN** there are no invoices in the system
+- **THEN** the chart area SHALL display a placeholder message indicating no data
+
+#### Scenario: Tooltip shows quantity sold alongside revenue
+- **WHEN** a user hovers over a bar segment in the monthly revenue chart
+- **THEN** the tooltip SHALL display both the revenue amount and the quantity sold for that segment
+
+#### Scenario: Items with zero unit price are excluded
+- **WHEN** an invoice item has `unit_price = 0`
+- **THEN** that item SHALL NOT be included in the revenue or quantity calculations
+
+### Requirement: User can view top clients by revenue
+The sales page SHALL display a horizontal bar chart ranking the top 10 clients by total invoice amount.
+
+#### Scenario: Top clients chart shows highest revenue clients
+- **WHEN** a user with `sales:view` permission visits the sales page
+- **THEN** they see a horizontal bar chart with client names on the y-axis and total revenue on the x-axis
+- **AND** clients are ordered from highest to lowest revenue
+- **AND** at most 10 clients are shown
+
+#### Scenario: Top clients chart shows empty state
+- **WHEN** there are no invoices in the system
+- **THEN** the chart area SHALL display a placeholder message indicating no data

@@ -3,7 +3,7 @@
 ### Requirement: Role-based sidebar sections
 The sidebar SHALL organize nav items into three sections based on role and permissions: Admin (permission-gated), Navigation (everyone), and Auxiliary (everyone).
 
-**MODIFICATION**: Previously all items were in a flat "Navigation" section. They are now split into Admin (for system-management items like Users, Permissions, Clients, Products, Categories, Contractors, Sales, Reports), Navigation (for user-facing items like Profile and Projects), and Auxiliary (Help, Support).
+**MODIFICATION**: Previously all items were in a flat "Navigation" section. They are now split into Admin (for system-management items like Users, Permissions, Clients, Products, Categories, Sales, Activity), Navigation (for user-facing items like Profile and Projects), and Auxiliary (Help, Support).
 
 #### Scenario: Admin section filtered by permissions
 - **GIVEN** a user with only `categories:view` permission
@@ -14,13 +14,13 @@ The sidebar SHALL organize nav items into three sections based on role and permi
 #### Scenario: Super user sees full Admin section
 - **GIVEN** a super user
 - **WHEN** the sidebar renders
-- **THEN** the Admin section shows Users, Permissions, Clients, Products, Categories, Contractors, Sales, and Reports
+- **THEN** the Admin section shows Users, Permissions, Clients, Products, Categories, Sales, and Activity
 
-#### Scenario: Contractors link in admin section
-- **GIVEN** a user with `contractors:view` permission
+#### Scenario: Activity link in admin section
+- **GIVEN** a user with `activity:view` permission
 - **WHEN** the sidebar renders
-- **THEN** the "Contractors" link is visible in the Admin section with a Wrench icon
-- **AND** clicking it navigates to `/dashboard/contractors`
+- **THEN** the "Activity" link is visible in the Admin section with a BarChart3 icon
+- **AND** clicking it navigates to `/dashboard/activity`
 
 ## ADDED Requirements
 
