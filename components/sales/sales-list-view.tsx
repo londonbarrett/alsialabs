@@ -1,9 +1,23 @@
 "use client"
 
-import { useState } from "react"
-import { useTranslations } from "next-intl"
-import { Plus, FolderKanban } from "lucide-react"
+import { ActionMenu } from "@/components/common/action-menu"
+import { PageHeader } from "@/components/common/page-header"
+import { InvoiceDialog } from "@/components/sales/invoice-dialog"
+import {
+  MonthlyRevenueChart,
+  type MonthlyRevenue,
+} from "@/components/sales/monthly-revenue-chart"
+import {
+  TopClientsChart,
+  type TopClient,
+} from "@/components/sales/top-clients-chart"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -12,27 +26,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { PageHeader } from "@/components/common/page-header"
-import { InvoiceDialog } from "@/components/sales/invoice-dialog"
-import { ActionMenu } from "@/components/common/action-menu"
 import { deleteInvoice } from "@/lib/actions/sales"
-import {
-  MonthlyRevenueChart,
-  type MonthlyRevenue,
-} from "@/components/reports/monthly-revenue-chart"
-import {
-  TopClientsChart,
-  type TopClient,
-} from "@/components/reports/top-clients-chart"
 import type { Invoice } from "@/lib/drizzle/schema"
-import { toast } from "sonner"
+import { FolderKanban, Plus } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 
 interface SalesListViewProps {
   invoices: Array<Invoice & { clientName: string | null }>
@@ -113,7 +113,7 @@ export function SalesListView({
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>{t("reports.monthlyRevenue")}</CardTitle>
+                  <CardTitle>{t("activity.monthlyRevenue")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <MonthlyRevenueChart data={monthlyRevenue} />
@@ -121,7 +121,7 @@ export function SalesListView({
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle>{t("reports.topClients")}</CardTitle>
+                  <CardTitle>{t("activity.topClients")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <TopClientsChart data={topClients} />

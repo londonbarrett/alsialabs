@@ -79,10 +79,10 @@ function adminSections(permissions?: string[]): SidebarSection[] {
       requiredPermission: "contractors:view",
     },
     {
-      label: "reports",
+      label: "activity",
       icon: BarChart3,
-      url: "/dashboard/reports",
-      requiredPermission: "reports:view",
+      url: "/dashboard/activity",
+      requiredPermission: "activity:view",
     },
   ]
 

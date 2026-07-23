@@ -36,7 +36,7 @@ export function ActiveRemindersCard({
   reminders,
 }: ActiveRemindersCardProps) {
   const router = useRouter()
-  const t = useTranslations("reports")
+  const t = useTranslations("activity")
   const tReminders = useTranslations("reminders")
   const [editingReminder, setEditingReminder] =
     useState<ActiveReminder | null>(null)

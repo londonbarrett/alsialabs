@@ -8,5 +8,5 @@ export default async function DashboardPage() {
     redirect("/dashboard/profile")
   }
 
-  redirect("/dashboard/reports")
+  redirect("/dashboard/activity")
 }

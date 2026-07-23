@@ -31,7 +31,7 @@ function formatCurrency(value: number) {
 }
 
 export function TopClientsChart({ data }: TopClientsChartProps) {
-  const t = useTranslations('reports')
+  const t = useTranslations('activity')
 
   const clientsConfig = {
     totalRevenue: {

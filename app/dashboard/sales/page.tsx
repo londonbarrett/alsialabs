@@ -2,8 +2,8 @@ import { SalesListView } from "@/components/sales/sales-list-view"
 import {
   getMonthlyRevenue,
   getTopClientsByRevenue,
-} from "@/lib/actions/reports"
-import { getInvoices } from "@/lib/actions/sales"
+  getInvoices,
+} from "@/lib/actions/sales"
 import { auth, getUserPermissions, hasPermission } from "@/lib/auth"
 import { forbidden } from "next/navigation"
 

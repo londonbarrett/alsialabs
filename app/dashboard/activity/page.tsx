@@ -1,19 +1,19 @@
-import { ReportsView } from "@/components/reports/reports-view"
+import { ActivityView } from "@/components/activity/activity-view"
 import { getActiveReminders } from "@/lib/actions/reminders"
 import { auth, hasPermission } from "@/lib/auth"
 import { forbidden } from "next/navigation"
 
-export default async function ReportsPage() {
+export default async function ActivityPage() {
   const session = await auth()
 
   if (
     !session?.user?.id ||
-    !(await hasPermission(session.user.id, "reports", "view"))
+    !(await hasPermission(session.user.id, "activity", "view"))
   ) {
     forbidden()
   }
 
   const activeReminders = await getActiveReminders()
 
-  return <ReportsView activeReminders={activeReminders} />
+  return <ActivityView activeReminders={activeReminders} />
 }

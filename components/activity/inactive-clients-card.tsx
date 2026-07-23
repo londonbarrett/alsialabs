@@ -30,7 +30,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { LogActivityDialog } from '@/components/clients/log-activity-dialog'
 import { ReminderDialog } from '@/components/clients/reminder-dialog'
-import { getInactiveClients } from '@/lib/actions/reports'
+import { getInactiveClients } from '@/lib/actions/activity'
 
 export interface InactiveClient {
   clientId: string
@@ -63,7 +63,7 @@ export function InactiveClientsCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('reports.inactiveClients')}</CardTitle>
+        <CardTitle>{t('activity.inactiveClients')}</CardTitle>
         <CardAction>
           <Select value={period} onValueChange={handlePeriodChange}>
             <SelectTrigger className="w-40">
@@ -71,10 +71,10 @@ export function InactiveClientsCard() {
             </SelectTrigger>
             <SelectContent>
               {[
-                { value: '30', label: t('reports.days30') },
-                { value: '60', label: t('reports.days60') },
-                { value: '90', label: t('reports.days90') },
-                { value: 'none', label: t('reports.noPurchases') },
+                { value: '30', label: t('activity.days30') },
+                { value: '60', label: t('activity.days60') },
+                { value: '90', label: t('activity.days90') },
+                { value: 'none', label: t('activity.noPurchases') },
               ].map((p) => (
                 <SelectItem key={p.value} value={p.value}>
                   {p.label}
@@ -91,11 +91,11 @@ export function InactiveClientsCard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('reports.name')}</TableHead>
-                <TableHead>{t('reports.email')}</TableHead>
-                <TableHead>{t('reports.phone')}</TableHead>
-                <TableHead>{t('reports.lastInvoice')}</TableHead>
-                <TableHead>{t('reports.actions')}</TableHead>
+                <TableHead>{t('activity.name')}</TableHead>
+                <TableHead>{t('activity.email')}</TableHead>
+                <TableHead>{t('activity.phone')}</TableHead>
+                <TableHead>{t('activity.lastInvoice')}</TableHead>
+                <TableHead>{t('activity.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -116,13 +116,13 @@ export function InactiveClientsCard() {
                   </TableCell>
                   <TableCell>{c.email ?? '-'}</TableCell>
                   <TableCell>{c.phone ?? '-'}</TableCell>
-                  <TableCell>{c.lastInvoiceDate ?? t('reports.never')}</TableCell>
+                  <TableCell>{c.lastInvoiceDate ?? t('activity.never')}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title={t('reports.logActivity')}
+                        title={t('activity.logActivity')}
                         onClick={(e) => {
                           e.stopPropagation()
                           setActivityClientId(c.clientId)
@@ -133,7 +133,7 @@ export function InactiveClientsCard() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title={t('reports.addReminder')}
+                        title={t('activity.addReminder')}
                         onClick={(e) => {
                           e.stopPropagation()
                           setReminderClientId(c.clientId)
@@ -148,7 +148,7 @@ export function InactiveClientsCard() {
             </TableBody>
           </Table>
         ) : (
-          <p className="text-muted-foreground text-sm">{t('reports.allClientsActive')}</p>
+          <p className="text-muted-foreground text-sm">{t('activity.allClientsActive')}</p>
         )}
       </CardContent>
       {activityClientId && (

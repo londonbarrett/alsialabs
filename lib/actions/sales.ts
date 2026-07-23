@@ -332,3 +332,88 @@ export async function deleteInvoice(invoiceId: string) {
   revalidatePath("/dashboard/sales")
   return { success: true as const }
 }
+
+const limitSchema = z.number().int().positive().max(100)
+
+export async function getMonthlyRevenue() {
+  const t = await getActionT("actions.sales")
+
+  const session = await auth()
+  if (!session?.user) throw new Error(t("unauthorized"))
+  await requirePermission("sales", "view")
+
+  const rows = await db
+    .select({
+      month: sql<string>`to_char(${invoicesTable.issueDate}, 'YYYY-MM')`,
+      type: invoicesTable.type,
+      revenue: sql<string>`sum(${invoiceItemsTable.total})`,
+      quantity: sql<string>`sum(${invoiceItemsTable.quantity})`,
+    })
+    .from(invoicesTable)
+    .innerJoin(
+      invoiceItemsTable,
+      sql`${invoiceItemsTable.invoiceId} = ${invoicesTable.id}`
+    )
+    .where(sql`${invoiceItemsTable.unitPrice} > 0`)
+    .groupBy(sql`1`, invoicesTable.type)
+    .orderBy(sql`1`)
+
+  const map = new Map<
+    string,
+    {
+      month: string
+      productRevenue: number
+      serviceRevenue: number
+      productQuantity: number
+      serviceQuantity: number
+    }
+  >()
+
+  for (const row of rows) {
+    if (!map.has(row.month)) {
+      map.set(row.month, {
+        month: row.month,
+        productRevenue: 0,
+        serviceRevenue: 0,
+        productQuantity: 0,
+        serviceQuantity: 0,
+      })
+    }
+    const entry = map.get(row.month)!
+    if (row.type === "product") {
+      entry.productRevenue += Number(row.revenue)
+      entry.productQuantity += Number(row.quantity)
+    } else {
+      entry.serviceRevenue += Number(row.revenue)
+      entry.serviceQuantity += Number(row.quantity)
+    }
+  }
+
+  return Array.from(map.values())
+}
+
+export async function getTopClientsByRevenue(limit = 10) {
+  const t = await getActionT("actions.sales")
+
+  const session = await auth()
+  if (!session?.user) throw new Error(t("unauthorized"))
+  await requirePermission("sales", "view")
+
+  const { data, error } = limitSchema.safeParse(limit)
+  if (error) throw new Error(t("invalidLimit"))
+  return db
+    .select({
+      clientId: clientsTable.id,
+      clientName: clientsTable.name,
+      totalRevenue: sql<string>`sum(${invoicesTable.grandTotal})`,
+      invoiceCount: sql<number>`count(${invoicesTable.id})`,
+    })
+    .from(invoicesTable)
+    .innerJoin(
+      clientsTable,
+      sql`${invoicesTable.clientId} = ${clientsTable.id}`
+    )
+    .groupBy(clientsTable.id, clientsTable.name)
+    .orderBy(sql`sum(${invoicesTable.grandTotal}) desc`)
+    .limit(data)
+}

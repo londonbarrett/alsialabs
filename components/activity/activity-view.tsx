@@ -7,12 +7,12 @@ import { InactiveClientsCard } from "./inactive-clients-card"
 import { ActiveRemindersCard } from "./active-reminders-card"
 import type { ActiveReminder } from "@/lib/actions/reminders"
 
-interface ReportsViewProps {
+interface ActivityViewProps {
   activeReminders: ActiveReminder[]
 }
 
-export function ReportsView({ activeReminders }: ReportsViewProps) {
-  const t = useTranslations('reports')
+export function ActivityView({ activeReminders }: ActivityViewProps) {
+  const t = useTranslations('activity')
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader title={t('title')} subtitle={t('subtitle')} icon={BarChart3} />

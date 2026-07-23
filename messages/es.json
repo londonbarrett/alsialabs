@@ -49,7 +49,7 @@
     "clients": "Clientes",
     "products": "Productos",
     "sales": "Ventas",
-    "reports": "Reportes",
+    "activity": "Actividad",
     "users": "Usuarios",
     "permissions": "Permisos",
     "categories": "Categorías",
@@ -65,7 +65,7 @@
     "clients": "Clientes",
     "products": "Productos",
     "sales": "Ventas",
-    "reports": "Reportes",
+    "activity": "Actividad",
     "permissions": "Permisos",
     "users": "Usuarios",
     "profile": "Perfil",
@@ -460,8 +460,8 @@
     "noItems": "No se han agregado artículos.",
     "failedToLoadItems": "Error al cargar los artículos de la factura"
   },
-  "reports": {
-    "title": "Reportes",
+  "activity": {
+    "title": "Actividad",
     "subtitle": "Visualiza analíticas, recordatorios y actividad de clientes",
     "monthlyRevenue": "Ingresos Mensuales",
     "topClients": "Principales Clientes por Ingresos",
