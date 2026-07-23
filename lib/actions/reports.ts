@@ -119,6 +119,7 @@ export async function getInactiveClients(days: number | null) {
     .select({
       clientId: clientsTable.id,
       clientName: clientsTable.name,
+      email: clientsTable.email,
       phone: clientsTable.phone,
       location: clientsTable.location,
       lastInvoiceDate: sql<string>`max(${invoicesTable.issueDate})`,
@@ -131,6 +132,7 @@ export async function getInactiveClients(days: number | null) {
     .groupBy(
       clientsTable.id,
       clientsTable.name,
+      clientsTable.email,
       clientsTable.phone,
       clientsTable.location
     )

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Bell, NotebookPen } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -26,11 +27,15 @@ import {
   CardAction,
   CardContent,
 } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { LogActivityDialog } from '@/components/clients/log-activity-dialog'
+import { ReminderDialog } from '@/components/clients/reminder-dialog'
 import { getInactiveClients } from '@/lib/actions/reports'
 
 export interface InactiveClient {
   clientId: string
   clientName: string
+  email: string | null
   phone: string | null
   location: string | null
   lastInvoiceDate: string | null
@@ -42,6 +47,8 @@ export function InactiveClientsCard() {
   const [period, setPeriod] = useState('30')
   const [clients, setClients] = useState<InactiveClient[]>([])
   const [loading, setLoading] = useState(true)
+  const [activityClientId, setActivityClientId] = useState<string | null>(null)
+  const [reminderClientId, setReminderClientId] = useState<string | null>(null)
 
   useEffect(() => {
     getInactiveClients(period === 'none' ? null : Number(period))
@@ -86,9 +93,11 @@ export function InactiveClientsCard() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('reports.name')}</TableHead>
+                <TableHead>{t('reports.email')}</TableHead>
                 <TableHead>{t('reports.phone')}</TableHead>
                 <TableHead>{t('reports.location')}</TableHead>
                 <TableHead>{t('reports.lastInvoice')}</TableHead>
+                <TableHead className="w-24"><span className="sr-only">{t('reports.actions')}</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -107,9 +116,36 @@ export function InactiveClientsCard() {
                       {c.clientName}
                     </Link>
                   </TableCell>
+                  <TableCell>{c.email ?? '-'}</TableCell>
                   <TableCell>{c.phone ?? '-'}</TableCell>
                   <TableCell>{c.location ?? '-'}</TableCell>
                   <TableCell>{c.lastInvoiceDate ?? t('reports.never')}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title={t('reports.logActivity')}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActivityClientId(c.clientId)
+                        }}
+                      >
+                        <NotebookPen />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title={t('reports.addReminder')}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setReminderClientId(c.clientId)
+                        }}
+                      >
+                        <Bell />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -118,6 +154,32 @@ export function InactiveClientsCard() {
           <p className="text-muted-foreground text-sm">{t('reports.allClientsActive')}</p>
         )}
       </CardContent>
+      {activityClientId && (
+        <LogActivityDialog
+          clientId={activityClientId}
+          open={!!activityClientId}
+          onOpenChange={(open) => {
+            if (!open) setActivityClientId(null)
+          }}
+          onSuccess={() => {
+            setActivityClientId(null)
+            router.refresh()
+          }}
+        />
+      )}
+      {reminderClientId && (
+        <ReminderDialog
+          clientId={reminderClientId}
+          open={!!reminderClientId}
+          onOpenChange={(open) => {
+            if (!open) setReminderClientId(null)
+          }}
+          onSuccess={() => {
+            setReminderClientId(null)
+            router.refresh()
+          }}
+        />
+      )}
     </Card>
   )
 }
