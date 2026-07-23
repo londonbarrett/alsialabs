@@ -133,41 +133,6 @@ export async function getInvoices() {
     throw new Error(t("forbidden"))
   }
 
-  const session = await auth()
-  if (!session?.user) throw new Error(t("unauthorized"))
-
-  const isAdmin = isSuperUser(session)
-
-  if (isAdmin) {
-    const invoices = await db
-      .select({
-        id: invoicesTable.id,
-        type: invoicesTable.type,
-        invoiceNumber: invoicesTable.invoiceNumber,
-        clientId: invoicesTable.clientId,
-        userId: invoicesTable.userId,
-        clientName: clientsTable.name,
-        status: invoicesTable.status,
-        issueDate: invoicesTable.issueDate,
-        notes: invoicesTable.notes,
-        subtotal: invoicesTable.subtotal,
-        discountTotal: invoicesTable.discountTotal,
-        taxTotal: invoicesTable.taxTotal,
-        grandTotal: invoicesTable.grandTotal,
-        projectId: invoicesTable.projectId,
-        createdAt: invoicesTable.createdAt,
-        updatedAt: invoicesTable.updatedAt,
-      })
-      .from(invoicesTable)
-      .leftJoin(
-        clientsTable,
-        eq(invoicesTable.clientId, clientsTable.id)
-      )
-      .orderBy(sql`${invoicesTable.createdAt} desc`)
-
-    return invoices
-  }
-
   const invoices = await db
     .select({
       id: invoicesTable.id,
@@ -189,7 +154,6 @@ export async function getInvoices() {
     })
     .from(invoicesTable)
     .leftJoin(clientsTable, eq(invoicesTable.clientId, clientsTable.id))
-    .where(and(eq(invoicesTable.userId, session.user.id)))
     .orderBy(sql`${invoicesTable.createdAt} desc`)
 
   return invoices
