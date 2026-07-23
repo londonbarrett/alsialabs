@@ -37,7 +37,6 @@ export interface InactiveClient {
   clientName: string
   email: string | null
   phone: string | null
-  location: string | null
   lastInvoiceDate: string | null
 }
 
@@ -95,7 +94,6 @@ export function InactiveClientsCard() {
                 <TableHead>{t('reports.name')}</TableHead>
                 <TableHead>{t('reports.email')}</TableHead>
                 <TableHead>{t('reports.phone')}</TableHead>
-                <TableHead>{t('reports.location')}</TableHead>
                 <TableHead>{t('reports.lastInvoice')}</TableHead>
                 <TableHead className="w-24"><span className="sr-only">{t('reports.actions')}</span></TableHead>
               </TableRow>
@@ -118,7 +116,6 @@ export function InactiveClientsCard() {
                   </TableCell>
                   <TableCell>{c.email ?? '-'}</TableCell>
                   <TableCell>{c.phone ?? '-'}</TableCell>
-                  <TableCell>{c.location ?? '-'}</TableCell>
                   <TableCell>{c.lastInvoiceDate ?? t('reports.never')}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">

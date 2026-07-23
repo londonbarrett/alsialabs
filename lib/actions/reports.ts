@@ -121,7 +121,6 @@ export async function getInactiveClients(days: number | null) {
       clientName: clientsTable.name,
       email: clientsTable.email,
       phone: clientsTable.phone,
-      location: clientsTable.location,
       lastInvoiceDate: sql<string>`max(${invoicesTable.issueDate})`,
     })
     .from(clientsTable)
@@ -133,8 +132,7 @@ export async function getInactiveClients(days: number | null) {
       clientsTable.id,
       clientsTable.name,
       clientsTable.email,
-      clientsTable.phone,
-      clientsTable.location
+      clientsTable.phone
     )
     .having(having)
     .orderBy(
