@@ -418,6 +418,7 @@
   },
   "sales": {
     "title": "Sales",
+    "subtitle": "Manage your invoices and track sales performance",
     "newInvoice": "New Invoice",
     "editInvoice": "Edit Invoice",
     "createInvoice": "Create Invoice",
@@ -461,6 +462,7 @@
   },
   "reports": {
     "title": "Reports",
+    "subtitle": "View analytics, reminders, and client activity",
     "monthlyRevenue": "Monthly Revenue",
     "topClients": "Top Clients by Revenue",
     "activeReminders": "Active Reminders",

@@ -1,11 +1,7 @@
+import { ReportsView } from "@/components/reports/reports-view"
+import { getActiveReminders } from "@/lib/actions/reminders"
 import { auth, hasPermission } from "@/lib/auth"
 import { forbidden } from "next/navigation"
-import {
-  getMonthlyRevenue,
-  getTopClientsByRevenue,
-} from "@/lib/actions/reports"
-import { getActiveReminders } from "@/lib/actions/reminders"
-import { ReportsView } from "@/components/reports/reports-view"
 
 export default async function ReportsPage() {
   const session = await auth()
@@ -17,18 +13,7 @@ export default async function ReportsPage() {
     forbidden()
   }
 
-  const [monthlyRevenue, topClients, activeReminders] =
-    await Promise.all([
-      getMonthlyRevenue(),
-      getTopClientsByRevenue(10),
-      getActiveReminders(),
-    ])
+  const activeReminders = await getActiveReminders()
 
-  return (
-    <ReportsView
-      monthlyRevenue={monthlyRevenue}
-      topClients={topClients}
-      activeReminders={activeReminders}
-    />
-  )
+  return <ReportsView activeReminders={activeReminders} />
 }

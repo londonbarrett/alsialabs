@@ -418,6 +418,7 @@
   },
   "sales": {
     "title": "Ventas",
+    "subtitle": "Gestiona tus facturas y rastrea el rendimiento de ventas",
     "newInvoice": "Nueva Factura",
     "editInvoice": "Editar Factura",
     "createInvoice": "Crear Factura",
@@ -461,6 +462,7 @@
   },
   "reports": {
     "title": "Reportes",
+    "subtitle": "Visualiza analíticas, recordatorios y actividad de clientes",
     "monthlyRevenue": "Ingresos Mensuales",
     "topClients": "Principales Clientes por Ingresos",
     "activeReminders": "Recordatorios Activos",

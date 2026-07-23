@@ -9,11 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { PageHeader } from "@/components/common/page-header"
 import type { MyTask } from "@/lib/actions/project-tasks"
 import {
   getMyTasks,
   updateTaskStatus,
 } from "@/lib/actions/project-tasks"
+import { ListTodo } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useMemo, useState, useTransition } from "react"
 import { toast } from "sonner"
@@ -116,14 +118,11 @@ export function MyTasksView({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-          {t("myTasks.title")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("myTasks.subtitle")}
-        </p>
-      </header>
+      <PageHeader
+        title={t("myTasks.title")}
+        subtitle={t("myTasks.subtitle")}
+        icon={ListTodo}
+      />
 
       <div className="flex flex-wrap gap-3">
         <Select

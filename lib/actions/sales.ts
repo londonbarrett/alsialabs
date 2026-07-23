@@ -9,7 +9,7 @@ import {
   productsTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { and, eq, sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 

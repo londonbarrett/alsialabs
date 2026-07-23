@@ -1,9 +1,9 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useState } from "react"
+import { useTranslations } from "next-intl"
+import { Plus, FolderKanban } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   Table,
   TableBody,
@@ -11,24 +11,48 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { InvoiceDialog } from '@/components/sales/invoice-dialog'
-import { ActionMenu } from '@/components/common/action-menu'
-import { deleteInvoice } from '@/lib/actions/sales'
-import type { Invoice } from '@/lib/drizzle/schema'
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+} from "@/components/ui/table"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { PageHeader } from "@/components/common/page-header"
+import { InvoiceDialog } from "@/components/sales/invoice-dialog"
+import { ActionMenu } from "@/components/common/action-menu"
+import { deleteInvoice } from "@/lib/actions/sales"
+import {
+  MonthlyRevenueChart,
+  type MonthlyRevenue,
+} from "@/components/reports/monthly-revenue-chart"
+import {
+  TopClientsChart,
+  type TopClient,
+} from "@/components/reports/top-clients-chart"
+import type { Invoice } from "@/lib/drizzle/schema"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 interface SalesListViewProps {
   invoices: Array<Invoice & { clientName: string | null }>
   permissions?: string[]
+  monthlyRevenue?: MonthlyRevenue[]
+  topClients?: TopClient[]
 }
 
-export function SalesListView({ invoices, permissions = [] }: SalesListViewProps) {
+export function SalesListView({
+  invoices,
+  permissions = [],
+  monthlyRevenue = [],
+  topClients = [],
+}: SalesListViewProps) {
   const router = useRouter()
   const t = useTranslations()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingInvoice, setEditingInvoice] = useState<Invoice | undefined>()
+  const [editingInvoice, setEditingInvoice] = useState<
+    Invoice | undefined
+  >()
 
   function handleSuccess() {
     router.refresh()
@@ -40,7 +64,7 @@ export function SalesListView({ invoices, permissions = [] }: SalesListViewProps
     setDialogOpen(true)
   }
 
-  function openEdit(invoice: typeof invoices[number]) {
+  function openEdit(invoice: (typeof invoices)[number]) {
     setEditingInvoice(invoice as Invoice)
     setDialogOpen(true)
   }
@@ -53,60 +77,130 @@ export function SalesListView({ invoices, permissions = [] }: SalesListViewProps
   return (
     <>
       {invoices.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full gap-4">
-          <p className="text-muted-foreground">{t('sales.noInvoices')}</p>
-          {permissions.includes('sales:create') && (
-            <Button onClick={openNew} aria-label={t('sales.newInvoice')}>
+        <div className="flex h-full flex-col items-center justify-center gap-4">
+          <p className="text-muted-foreground">
+            {t("sales.noInvoices")}
+          </p>
+          {permissions.includes("sales:create") && (
+            <Button
+              onClick={openNew}
+              aria-label={t("sales.newInvoice")}
+            >
               <Plus />
-              {t('sales.newInvoice')}
+              {t("sales.newInvoice")}
             </Button>
           )}
         </div>
       ) : (
-        <div className="flex flex-col p-6 gap-4 flex-1">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold tracking-tight">{t('sales.title')}</h1>
-            {permissions.includes('sales:create') && (
-              <Button onClick={openNew} aria-label={t('sales.newInvoice')}>
+        <div className="flex flex-1 flex-col gap-6 p-6">
+          <PageHeader
+            title={t("sales.title")}
+            subtitle={t("sales.subtitle")}
+            icon={FolderKanban}
+          >
+            {permissions.includes("sales:create") && (
+              <Button
+                onClick={openNew}
+                aria-label={t("sales.newInvoice")}
+              >
                 <Plus />
-                {t('sales.newInvoice')}
+                {t("sales.newInvoice")}
               </Button>
             )}
-          </div>
+          </PageHeader>
 
-            <div className="rounded-md border overflow-auto max-h-[calc(100vh-10rem)]" role="region" aria-label={t('sales.title')}>
+          {(monthlyRevenue.length > 0 || topClients.length > 0) && (
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("reports.monthlyRevenue")}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <MonthlyRevenueChart data={monthlyRevenue} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("reports.topClients")}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TopClientsChart data={topClients} />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <div
+            className="max-h-[calc(100vh-10rem)] overflow-auto rounded-md border"
+            role="region"
+            aria-label={t("sales.title")}
+          >
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">{t('sales.invoiceHash')}</TableHead>
-                  <TableHead scope="col">{t('sales.client')}</TableHead>
-                  <TableHead scope="col">{t('sales.type')}</TableHead>
-                  <TableHead scope="col">{t('sales.date')}</TableHead>
-                  <TableHead scope="col">{t('sales.total')}</TableHead>
-                  <TableHead scope="col">{t('sales.status')}</TableHead>
-                  <TableHead scope="col">{t('sales.actions')}</TableHead>
+                  <TableHead scope="col">
+                    {t("sales.invoiceHash")}
+                  </TableHead>
+                  <TableHead scope="col">{t("sales.client")}</TableHead>
+                  <TableHead scope="col">{t("sales.type")}</TableHead>
+                  <TableHead scope="col">{t("sales.date")}</TableHead>
+                  <TableHead scope="col">{t("sales.total")}</TableHead>
+                  <TableHead scope="col">{t("sales.status")}</TableHead>
+                  <TableHead scope="col">
+                    {t("sales.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invoices.map((inv) => (
-                  <TableRow key={inv.id} className="select-none" onDoubleClick={() => permissions.includes('sales:edit') && openEdit(inv)}>
-                    <TableCell className="font-mono text-xs">{inv.invoiceNumber}</TableCell>
-                    <TableCell>{inv.clientName ?? '—'}</TableCell>
-                    <TableCell className="capitalize">{inv.type}</TableCell>
+                  <TableRow
+                    key={inv.id}
+                    className="select-none"
+                    onDoubleClick={() =>
+                      permissions.includes("sales:edit") &&
+                      openEdit(inv)
+                    }
+                  >
+                    <TableCell className="font-mono text-xs">
+                      {inv.invoiceNumber}
+                    </TableCell>
+                    <TableCell>{inv.clientName ?? "—"}</TableCell>
+                    <TableCell className="capitalize">
+                      {inv.type}
+                    </TableCell>
                     <TableCell>{inv.issueDate}</TableCell>
-                    <TableCell>${parseFloat(inv.grandTotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell className="capitalize">{inv.status}</TableCell>
+                    <TableCell>
+                      $
+                      {parseFloat(inv.grandTotal).toLocaleString(
+                        "en-US",
+                        { minimumFractionDigits: 2 }
+                      )}
+                    </TableCell>
+                    <TableCell className="capitalize">
+                      {inv.status}
+                    </TableCell>
                     <TableCell>
                       <ActionMenu
                         entityName={`invoice ${inv.invoiceNumber}`}
-                        onEdit={permissions.includes('sales:edit') ? () => openEdit(inv) : undefined}
+                        onEdit={
+                          permissions.includes("sales:edit")
+                            ? () => openEdit(inv)
+                            : undefined
+                        }
                         onDelete={async () => {
                           const result = await deleteInvoice(inv.id)
-                          if (!result.success) toast.error(result.error || t('sales.failedToDelete'))
-                          else toast.success(t('sales.invoiceDeleted'))
+                          if (!result.success)
+                            toast.error(
+                              result.error || t("sales.failedToDelete")
+                            )
+                          else toast.success(t("sales.invoiceDeleted"))
                         }}
-                        canDelete={permissions.includes('sales:delete')}
-                        onView={() => toast.info(t('sales.invoicePrefix') + inv.invoiceNumber)}
+                        canDelete={permissions.includes("sales:delete")}
+                        onView={() =>
+                          toast.info(
+                            t("sales.invoicePrefix") + inv.invoiceNumber
+                          )
+                        }
                       />
                     </TableCell>
                   </TableRow>

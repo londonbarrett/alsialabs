@@ -11,7 +11,6 @@ export default function ProjectsPage() {
         <div className="flex flex-1 flex-col gap-6 p-6">
           <div className="flex justify-between">
             <header className="flex flex-col gap-2">
-              <div className="h-4 w-20 animate-pulse rounded bg-muted" />
               <div className="h-8 w-40 animate-pulse rounded bg-muted md:h-9" />
               <div className="h-5 w-80 animate-pulse rounded bg-muted md:w-96" />
             </header>
