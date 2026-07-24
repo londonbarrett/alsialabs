@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Field } from '@/components/form-field'
 import { upsertClient, checkPhoneExists } from '@/lib/actions/clients'
+import { useLoadingIndicator } from '@/hooks/use-loading-indicator'
 import type { Client } from '@/lib/drizzle/schema'
 import { toast } from 'sonner'
 
@@ -27,6 +28,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   const [phoneExists, setPhoneExists] = useState(false)
   const phoneTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [, startTransition] = useTransition()
+  const { start: startLoading, stop: stopLoading } = useLoadingIndicator()
 
   const debouncedPhoneCheck = useCallback((value: string) => {
     if (phoneTimer.current) clearTimeout(phoneTimer.current)
@@ -77,6 +79,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
     setSaving(true)
     onSuccess(data)
 
+    startLoading()
     startTransition(async () => {
       const result = await upsertClient(data, client?.id)
       if (result.success) {
@@ -85,6 +88,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
         toast.error(result.error || t('common.somethingWentWrong'))
       }
       setSaving(false)
+      stopLoading()
     })
   }
 

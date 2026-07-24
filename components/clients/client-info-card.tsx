@@ -3,6 +3,13 @@
 import { useState } from "react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Pencil } from "lucide-react"
 import { ClientDialog } from "@/components/clients/client-dialog"
 import type { Client } from "@/lib/drizzle/schema"
@@ -18,19 +25,21 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
 
   return (
     <>
-      <div className="max-w-lg rounded-md border p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">{t("common.details")}</h2>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setDialogOpen(true)}
-            aria-label={t("clients.editClient")}
-          >
-            <Pencil />
-          </Button>
-        </div>
-        <div className="flex flex-col gap-4">
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>{t("common.details")}</CardTitle>
+          <CardAction>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setDialogOpen(true)}
+              aria-label={t("clients.editClient")}
+            >
+              <Pencil />
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
           <div>
             <p className="text-sm text-muted-foreground">{t("common.name")}</p>
             <p className="text-base font-medium">{displayClient.name}</p>
@@ -65,8 +74,8 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
               {displayClient.comments ?? "—"}
             </p>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       <ClientDialog
         client={displayClient}
         open={dialogOpen}
