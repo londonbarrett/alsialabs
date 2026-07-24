@@ -1,17 +1,18 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Field } from '@/components/form-field'
 import { upsertClient, checkPhoneExists } from '@/lib/actions/clients'
+import { useLoadingIndicator } from '@/hooks/use-loading-indicator'
 import type { Client } from '@/lib/drizzle/schema'
 import { toast } from 'sonner'
 
 interface ClientFormProps {
   client?: Client
-  onSuccess: () => void
+  onSuccess: (data: Omit<Client, 'id' | 'userId'>) => void
   onCancel: () => void
 }
 
@@ -26,6 +27,8 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   const [saving, setSaving] = useState(false)
   const [phoneExists, setPhoneExists] = useState(false)
   const phoneTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [, startTransition] = useTransition()
+  const { start: startLoading, stop: stopLoading } = useLoadingIndicator()
 
   const debouncedPhoneCheck = useCallback((value: string) => {
     if (phoneTimer.current) clearTimeout(phoneTimer.current)
@@ -65,29 +68,28 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
       return
     }
 
+    const data = {
+      name: name.trim(),
+      phone: phone.trim(),
+      location: location.trim(),
+      comments: comments.trim(),
+      email: email.trim(),
+    }
+
     setSaving(true)
-    try {
-      const result = await upsertClient(
-        { name: name.trim(), phone: phone.trim(), location: location.trim(), comments: comments.trim(), email: email.trim() },
-        client?.id,
-      )
+    onSuccess(data)
+
+    startLoading()
+    startTransition(async () => {
+      const result = await upsertClient(data, client?.id)
       if (result.success) {
         toast.success(client ? t('clients.clientUpdated') : t('clients.clientCreated'))
-        onSuccess()
       } else {
-        if (result.fieldErrors) {
-          const mapped: Record<string, string> = {}
-          for (const [key, msgs] of Object.entries(result.fieldErrors)) {
-            if (msgs && msgs.length > 0) mapped[key] = msgs[0]
-          }
-          setErrors(mapped)
-        }
         toast.error(result.error || t('common.somethingWentWrong'))
       }
-    } catch {
-      toast.error(t('common.somethingWentWrong'))
-    }
-    setSaving(false)
+      setSaving(false)
+      stopLoading()
+    })
   }
 
   return (

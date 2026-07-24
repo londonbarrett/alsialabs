@@ -24,20 +24,19 @@ The system SHALL include client module permissions that can be toggled for each 
 
 ## ADDED Requirements
 
-### Requirement: Contractors permissions are seeded and manageable
-The system SHALL include contractors module permissions that can be toggled for each role in the permission matrix.
+### Requirement: Activity permissions are seeded and manageable
+The system SHALL include activity module permissions that can be toggled for each role in the permission matrix.
 
-#### Scenario: Contractors permissions exist after seeding
+#### Scenario: Activity permissions exist after seeding
 - **WHEN** the database seed script runs
-- **THEN** `contractors:view`, `contractors:create`, `contractors:edit`, `contractors:delete` permissions are created
-- **AND** the super role has all contractors permissions enabled
-- **AND** the admin role has `contractors:view`, `contractors:create`, `contractors:edit` enabled
-- **AND** the admin role does NOT have `contractors:delete` enabled
-- **AND** the client role has no contractors permissions
+- **THEN** `activity:view` permission is created
+- **AND** the super role has `activity:view` enabled
+- **AND** the admin role has `activity:view` enabled
+- **AND** the user role has no activity permissions
 
-#### Scenario: Super can toggle contractors permissions
+#### Scenario: Super can toggle activity permissions
 - **WHEN** a super user visits the permissions page
-- **THEN** the contractors module appears in the permission matrix with view, create, edit, delete actions
+- **THEN** the activity module appears in the permission matrix with view action
 - **AND** each action is toggleable per role
 
 ### Requirement: Super manages permission modules

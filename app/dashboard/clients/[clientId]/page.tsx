@@ -1,6 +1,7 @@
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
+import { ClientInfoCard } from "@/components/clients/client-info-card"
 import { ClientSwitcher } from "@/components/clients/client-switcher"
-import { Label } from "@/components/ui/label"
+import { PageHeader } from "@/components/common/page-header"
 import { getActivities } from "@/lib/actions/activities"
 import { getClientByClientId } from "@/lib/actions/clients"
 import { getClientInvoices } from "@/lib/actions/invoices"
@@ -11,6 +12,7 @@ import type {
   ClientReminder,
   Invoice,
 } from "@/lib/drizzle/schema"
+import { Users } from "lucide-react"
 import { getTranslations } from "next-intl/server"
 import { forbidden } from "next/navigation"
 
@@ -67,50 +69,10 @@ export default async function ClientProfilePage({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
-      <div className="flex flex-col gap-2">
-        <Label>{t("clients.switchClientTo")}</Label>
-        <ClientSwitcher currentClientId={clientId} />
-      </div>
-      <div className="max-w-lg rounded-md border p-6">
-        <div className="flex flex-col gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("common.name")}
-            </p>
-            <p className="text-base font-medium">{client.name}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("clients.phone")}
-            </p>
-            <p className="text-base font-medium">{client.phone}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("clients.email")}
-            </p>
-            <p className="text-base font-medium">
-              {client.email ?? "—"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("clients.location")}
-            </p>
-            <p className="text-base font-medium">
-              {client.location ?? "—"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("clients.comments")}
-            </p>
-            <p className="text-base font-medium">
-              {client.comments ?? "—"}
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader title={client.name} icon={Users}>
+        <ClientSwitcher />
+      </PageHeader>
+      <ClientInfoCard client={client} />
 
       {canView && (
         <ActivityTimeline

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/drizzle/client"
 import { clientRemindersTable, clientsTable } from "@/lib/drizzle/schema"
-import { eq, desc, and, asc, gte } from "drizzle-orm"
+import { eq, desc, and, asc, gte, sql } from "drizzle-orm"
 import { requirePermission, auth } from "@/lib/auth"
 import { z } from "zod"
 import { getActionT } from "@/lib/i18n-actions"
@@ -34,8 +34,16 @@ export async function getReminders(clientId: string) {
   return db
     .select()
     .from(clientRemindersTable)
-    .where(eq(clientRemindersTable.clientId, clientId))
-    .orderBy(desc(clientRemindersTable.remindAt))
+    .where(
+      and(
+        eq(clientRemindersTable.clientId, clientId),
+        eq(clientRemindersTable.completed, false)
+      )
+    )
+    .orderBy(
+      sql`CASE WHEN ${clientRemindersTable.remindAt} < CURRENT_DATE THEN 0 ELSE 1 END`,
+      desc(clientRemindersTable.remindAt)
+    )
 }
 
 export async function upsertReminder(
@@ -156,13 +164,11 @@ export async function getActiveReminders(): Promise<ActiveReminder[]> {
       clientsTable,
       eq(clientRemindersTable.clientId, clientsTable.id)
     )
-    .where(
-      and(
-        eq(clientRemindersTable.completed, false),
-        gte(clientRemindersTable.remindAt, today)
-      )
+    .where(eq(clientRemindersTable.completed, false))
+    .orderBy(
+      sql`CASE WHEN ${clientRemindersTable.remindAt} < ${today} THEN 0 ELSE 1 END`,
+      asc(clientRemindersTable.remindAt)
     )
-    .orderBy(asc(clientRemindersTable.remindAt))
 
   return rows
 }

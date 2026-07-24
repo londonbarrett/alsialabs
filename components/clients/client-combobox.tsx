@@ -106,6 +106,7 @@ export function ClientCombobox({
         <ComboboxInput
           placeholder={placeholder ?? t('selectClient')}
           aria-invalid={!!error || undefined}
+          showClear
         />
         <ComboboxContent>
           {isPending && (
