@@ -1,6 +1,6 @@
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
 import { ClientSwitcher } from "@/components/clients/client-switcher"
-import { Label } from "@/components/ui/label"
+import { PageHeader } from "@/components/common/page-header"
 import { getActivities } from "@/lib/actions/activities"
 import { getClientByClientId } from "@/lib/actions/clients"
 import { getClientInvoices } from "@/lib/actions/invoices"
@@ -11,6 +11,7 @@ import type {
   ClientReminder,
   Invoice,
 } from "@/lib/drizzle/schema"
+import { Users } from "lucide-react"
 import { getTranslations } from "next-intl/server"
 import { forbidden } from "next/navigation"
 
@@ -67,10 +68,9 @@ export default async function ClientProfilePage({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
-      <div className="flex flex-col gap-2">
-        <Label>{t("clients.switchClientTo")}</Label>
+      <PageHeader title={client.name} icon={Users}>
         <ClientSwitcher currentClientId={clientId} />
-      </div>
+      </PageHeader>
       <div className="max-w-lg rounded-md border p-6">
         <div className="flex flex-col gap-4">
           <div>
