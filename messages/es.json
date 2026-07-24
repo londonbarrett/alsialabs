@@ -26,7 +26,8 @@
     "subject": "Asunto",
     "role": "Rol",
     "total": "Total",
-    "status": "Estado"
+    "status": "Estado",
+    "details": "Detalles"
   },
   "auth": {
     "signIn": "Iniciar sesión",

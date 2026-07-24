@@ -1,4 +1,5 @@
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
+import { ClientInfoCard } from "@/components/clients/client-info-card"
 import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { PageHeader } from "@/components/common/page-header"
 import { getActivities } from "@/lib/actions/activities"
@@ -71,46 +72,7 @@ export default async function ClientProfilePage({
       <PageHeader title={client.name} icon={Users}>
         <ClientSwitcher />
       </PageHeader>
-      <div className="max-w-lg rounded-md border p-6">
-        <div className="flex flex-col gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("common.name")}
-            </p>
-            <p className="text-base font-medium">{client.name}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("clients.phone")}
-            </p>
-            <p className="text-base font-medium">{client.phone}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("clients.email")}
-            </p>
-            <p className="text-base font-medium">
-              {client.email ?? "—"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("clients.location")}
-            </p>
-            <p className="text-base font-medium">
-              {client.location ?? "—"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {t("clients.comments")}
-            </p>
-            <p className="text-base font-medium">
-              {client.comments ?? "—"}
-            </p>
-          </div>
-        </div>
-      </div>
+      <ClientInfoCard client={client} />
 
       {canView && (
         <ActivityTimeline

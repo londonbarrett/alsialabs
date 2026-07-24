@@ -26,7 +26,8 @@
     "subject": "Subject",
     "role": "Role",
     "total": "Total",
-    "status": "Status"
+    "status": "Status",
+    "details": "Details"
   },
   "auth": {
     "signIn": "Sign in",
