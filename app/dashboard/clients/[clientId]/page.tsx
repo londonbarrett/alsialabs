@@ -69,7 +69,7 @@ export default async function ClientProfilePage({
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <PageHeader title={client.name} icon={Users}>
-        <ClientSwitcher currentClientId={clientId} />
+        <ClientSwitcher />
       </PageHeader>
       <div className="max-w-lg rounded-md border p-6">
         <div className="flex flex-col gap-4">
