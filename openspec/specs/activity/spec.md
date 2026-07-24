@@ -42,16 +42,17 @@ The system SHALL display a table of clients who have not made a purchase within 
 - **THEN** the table SHALL display "All clients are active" message
 
 ### Requirement: User can view active future reminders
-The system SHALL display a card listing all non-completed reminders whose remind-at date is today or in the future, ordered by nearest date first.
+The system SHALL display a card listing all non-completed reminders, ordered with expired reminders first, then by nearest date.
 
 #### Scenario: Reminders show client name, description, and date
 - **WHEN** an authorized user visits the activity page
 - **THEN** they see an "Active Reminders" card
 - **AND** each reminder SHALL show the client name, description, and date
 
-#### Scenario: Reminders are ordered by nearest date first
-- **WHEN** there are multiple active reminders
-- **THEN** they SHALL be ordered by remind-at date ascending (soonest first)
+#### Scenario: Expired reminders appear first
+- **WHEN** there are active reminders with dates before today
+- **THEN** they SHALL appear at the top of the list
+- **AND** non-expired reminders SHALL appear after, ordered by remind-at date ascending
 
 #### Scenario: Overdue reminders are visually distinguished
 - **WHEN** a reminder's date is before today
@@ -74,3 +75,20 @@ The system SHALL display a card listing all non-completed reminders whose remind
 #### Scenario: Empty state shows no reminders message
 - **WHEN** there are no active reminders
 - **THEN** the card SHALL display "No active reminders" message
+
+### Requirement: User can edit clients from inactive clients card
+The system SHALL allow users to edit client details directly from the inactive clients table.
+
+#### Scenario: Edit button on each row
+- **WHEN** the inactive clients table is displayed
+- **THEN** each row SHALL have an edit button (pencil icon)
+
+#### Scenario: Edit opens client dialog
+- **WHEN** a user clicks the edit button on an inactive client row
+- **THEN** the ClientDialog opens pre-filled with that client's data
+
+#### Scenario: Edit updates client optimistically
+- **WHEN** a user saves changes in the edit dialog
+- **THEN** the client's row updates immediately with the new values
+- **AND** the dialog closes
+- **AND** the server action runs in the background
