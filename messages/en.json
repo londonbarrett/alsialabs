@@ -122,7 +122,10 @@
     "clientNotFoundDesc": "The requested client does not exist.",
     "inviting": "Inviting...",
     "sendInvitation": "Send Invitation",
-    "emailPlaceholder": "client@example.com"
+    "emailPlaceholder": "client@example.com",
+    "searchPlaceholder": "Search clients...",
+    "noResults": "No clients match your search.",
+    "subtitle": "View and manage your clients."
   },
   "activities": {
     "title": "Activity",

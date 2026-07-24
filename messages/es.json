@@ -122,7 +122,10 @@
     "clientNotFoundDesc": "El cliente solicitado no existe.",
     "inviting": "Invitando...",
     "sendInvitation": "Enviar Invitación",
-    "emailPlaceholder": "cliente@ejemplo.com"
+    "emailPlaceholder": "cliente@ejemplo.com",
+    "searchPlaceholder": "Buscar clientes...",
+    "noResults": "Ningún cliente coincide con tu búsqueda.",
+    "subtitle": "Visualiza y gestiona tus clientes."
   },
   "activities": {
     "title": "Actividad",
