@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useTranslations } from "next-intl"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Pencil } from "lucide-react"
 import { ClientDialog } from "@/components/clients/client-dialog"
@@ -14,7 +13,7 @@ interface ClientInfoCardProps {
 
 export function ClientInfoCard({ client }: ClientInfoCardProps) {
   const t = useTranslations()
-  const router = useRouter()
+  const [displayClient, setDisplayClient] = useState(client)
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
@@ -34,41 +33,46 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
         <div className="flex flex-col gap-4">
           <div>
             <p className="text-sm text-muted-foreground">{t("common.name")}</p>
-            <p className="text-base font-medium">{client.name}</p>
+            <p className="text-base font-medium">{displayClient.name}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
               {t("clients.phone")}
             </p>
-            <p className="text-base font-medium">{client.phone}</p>
+            <p className="text-base font-medium">{displayClient.phone}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
               {t("clients.email")}
             </p>
-            <p className="text-base font-medium">{client.email ?? "—"}</p>
+            <p className="text-base font-medium">
+              {displayClient.email ?? "—"}
+            </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
               {t("clients.location")}
             </p>
-            <p className="text-base font-medium">{client.location ?? "—"}</p>
+            <p className="text-base font-medium">
+              {displayClient.location ?? "—"}
+            </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
               {t("clients.comments")}
             </p>
-            <p className="text-base font-medium">{client.comments ?? "—"}</p>
+            <p className="text-base font-medium">
+              {displayClient.comments ?? "—"}
+            </p>
           </div>
         </div>
       </div>
       <ClientDialog
-        client={client}
+        client={displayClient}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSuccess={() => {
-          router.refresh()
-          setDialogOpen(false)
+        onSuccess={(data) => {
+          setDisplayClient((prev) => ({ ...prev, ...data }))
         }}
       />
     </>

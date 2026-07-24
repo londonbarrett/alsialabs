@@ -15,7 +15,7 @@ interface ClientDialogProps {
   client?: Client
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
+  onSuccess: (data: Omit<Client, 'id' | 'userId'>) => void
 }
 
 export function ClientDialog({ client, open, onOpenChange, onSuccess }: ClientDialogProps) {
@@ -31,8 +31,8 @@ export function ClientDialog({ client, open, onOpenChange, onSuccess }: ClientDi
         </DialogHeader>
         <ClientForm
           client={client}
-          onSuccess={() => {
-            onSuccess()
+          onSuccess={(data) => {
+            onSuccess(data)
             onOpenChange(false)
           }}
           onCancel={() => onOpenChange(false)}
