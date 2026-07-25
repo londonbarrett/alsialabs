@@ -22,17 +22,47 @@ import {
   deleteExpense,
   type ExpenseWithCategory,
 } from "@/lib/actions/expenses"
-import { deleteTask } from "@/lib/actions/project-tasks"
+import { deleteTask, upsertTask } from "@/lib/actions/project-tasks"
 import type { ProjectTask } from "@/lib/drizzle/schema"
 import type { ProjectMember } from "@/components/projects/project-detail-view"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import { cn } from "@/lib/utils"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useReducer, useState, useTransition } from "react"
 import { toast } from "sonner"
 import { ExpenseDialog } from "./expense-dialog"
 import { TaskDialog } from "../task-dialog"
+
+type TaskAction =
+  | { type: "add"; task: ProjectTask }
+  | { type: "update"; task: ProjectTask }
+  | { type: "replaceTemp"; tempId: string; task: ProjectTask }
+  | { type: "delete"; taskId: string }
+  | { type: "reset"; tasks: ProjectTask[] }
+
+function taskReducer(
+  state: ProjectTask[],
+  action: TaskAction
+): ProjectTask[] {
+  switch (action.type) {
+    case "add":
+      return [action.task, ...state]
+    case "update":
+      return state.map((t) =>
+        t.id === action.task.id ? action.task : t
+      )
+    case "replaceTemp":
+      return state.map((t) =>
+        t.id === action.tempId ? action.task : t
+      )
+    case "delete":
+      return state.filter((t) => t.id !== action.taskId)
+    case "reset":
+      return action.tasks
+  }
+}
 
 interface ProjectExpensesProps {
   expenses: ExpenseWithCategory[]
@@ -57,7 +87,10 @@ export function ProjectExpenses({
 }: ProjectExpensesProps) {
   const router = useRouter()
   const t = useTranslations()
-  const tc = useTranslations("category-names")
+  const { start: startLoading, stop: stopLoading } =
+    useLoadingIndicator()
+  const [localTasks, dispatch] = useReducer(taskReducer, tasks)
+  const [, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<
     ExpenseWithCategory | undefined
@@ -71,6 +104,70 @@ export function ProjectExpenses({
     router.refresh()
     setEditingExpense(undefined)
     setEditingTask(undefined)
+  }
+
+  async function handleTaskSubmit(data: {
+    name: string
+    description: string
+    cost: string
+    status: string
+    assigneeId: string | null
+  }) {
+    const isEdit = !!editingTask
+    setEditingTask(undefined)
+    setTaskDialogOpen(false)
+    const taskStatus = data.status as
+      | "todo"
+      | "in_progress"
+      | "in_review"
+      | "blocked"
+      | "done"
+
+    const optimisticTask: ProjectTask = {
+      id: editingTask?.id ?? `temp-${Date.now()}`,
+      projectId,
+      name: data.name,
+      description: data.description || null,
+      cost: data.cost || null,
+      status: taskStatus,
+      assigneeId: data.assigneeId,
+      createdAt: editingTask?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+    }
+
+    dispatch({ type: isEdit ? "update" : "add", task: optimisticTask })
+
+    startLoading()
+    const result = await upsertTask(
+      { ...data, status: taskStatus },
+      projectId,
+      editingTask?.id
+    )
+    stopLoading()
+
+    if (result.success && result.data) {
+      startTransition(() => {
+        dispatch({
+          type: "replaceTemp",
+          tempId: optimisticTask.id,
+          task: result.data!,
+        })
+      })
+      toast.success(
+        isEdit
+          ? t("projects.tasks.taskUpdated")
+          : t("projects.tasks.taskCreated")
+      )
+    } else {
+      if (!isEdit) {
+        startTransition(() => {
+          dispatch({ type: "delete", taskId: optimisticTask.id })
+        })
+      }
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
+
+    return result
   }
 
   function openNew() {
@@ -98,7 +195,33 @@ export function ProjectExpenses({
     if (!open) setEditingExpense(undefined)
   }
 
-  const taskCosts = tasks.filter((t) => t.cost && Number(t.cost) > 0)
+  async function handleDeleteTask(taskId: string) {
+    dispatch({ type: "delete", taskId })
+    startLoading()
+    const result = await deleteTask(taskId, projectId)
+    stopLoading()
+    if (!result.success) {
+      toast.error(result.error || t("common.somethingWentWrong"))
+      startTransition(() => {
+        dispatch({ type: "reset", tasks })
+      })
+    } else {
+      toast.success(t("projects.tasks.taskDeleted"))
+    }
+  }
+
+  async function handleDeleteExpense(expenseId: string) {
+    const result = await deleteExpense(expenseId, projectId)
+    if (!result.success) {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    } else {
+      toast.success(t("projects.expenses.expenseDeleted"))
+    }
+  }
+
+  const taskCosts = localTasks.filter(
+    (t) => t.cost && Number(t.cost) > 0
+  )
   const expenseTotal = expenses.reduce(
     (sum, e) => sum + Number(e.amount),
     0
@@ -227,22 +350,7 @@ export function ProjectExpenses({
                                 ? () => openEditTask(task)
                                 : undefined
                             }
-                            onDelete={async () => {
-                              const result = await deleteTask(
-                                task.id,
-                                projectId
-                              )
-                              if (!result.success) {
-                                toast.error(
-                                  result.error ||
-                                    t("common.somethingWentWrong")
-                                )
-                              } else {
-                                toast.success(
-                                  t("projects.tasks.taskDeleted")
-                                )
-                              }
-                            }}
+                            onDelete={() => handleDeleteTask(task.id)}
                             canEdit={canEdit}
                             canDelete={canDelete}
                           />
@@ -258,7 +366,9 @@ export function ProjectExpenses({
                       <TableCell>
                         {expense.categorySlug ? (
                           <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
-                            {tc(expense.categorySlug)}
+                            {t(
+                              `category-names.${expense.categorySlug}` as any
+                            )}
                           </span>
                         ) : (
                           "—"
@@ -277,22 +387,7 @@ export function ProjectExpenses({
                                 ? () => openEdit(expense)
                                 : undefined
                             }
-                            onDelete={async () => {
-                              const result = await deleteExpense(
-                                expense.id,
-                                projectId
-                              )
-                              if (!result.success) {
-                                toast.error(
-                                  result.error ||
-                                    t("common.somethingWentWrong")
-                                )
-                              } else {
-                                toast.success(
-                                  t("projects.expenses.expenseDeleted")
-                                )
-                              }
-                            }}
+                            onDelete={() => handleDeleteExpense(expense.id)}
                             canEdit={canEdit}
                             canDelete={canDelete}
                           />
@@ -327,11 +422,10 @@ export function ProjectExpenses({
 
       <TaskDialog
         task={editingTask}
-        projectId={projectId}
         projectMembers={projectMembers}
         open={taskDialogOpen}
         onOpenChange={handleTaskDialogOpenChange}
-        onSuccess={handleSuccess}
+        onSubmit={handleTaskSubmit}
       />
     </Card>
   )

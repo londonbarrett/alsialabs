@@ -10,12 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Spinner } from "@/components/ui/spinner"
-import { upsertTask } from "@/lib/actions/project-tasks"
 import type { ProjectTask } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
-import { toast } from "sonner"
 
 interface ProjectMember {
   userId: string
@@ -26,9 +23,18 @@ interface ProjectMember {
 
 interface TaskFormProps {
   task?: ProjectTask
-  projectId: string
   projectMembers: ProjectMember[]
-  onSuccess: () => void
+  onSubmit: (data: {
+    name: string
+    description: string
+    cost: string
+    status: string
+    assigneeId: string | null
+  }) => Promise<{
+    success: boolean
+    fieldErrors?: Record<string, string[]>
+    error?: string
+  }>
   onCancel: () => void
 }
 
@@ -42,9 +48,8 @@ const taskStatuses = [
 
 export function TaskForm({
   task,
-  projectId,
   projectMembers,
-  onSuccess,
+  onSubmit,
   onCancel,
 }: TaskFormProps) {
   const t = useTranslations()
@@ -58,7 +63,6 @@ export function TaskForm({
     task?.assigneeId ?? ""
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState(false)
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
@@ -68,51 +72,17 @@ export function TaskForm({
     return Object.keys(fieldErrors).length === 0
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
 
-    setSaving(true)
-    try {
-      const result = await upsertTask(
-        {
-          name: name.trim(),
-          description: description.trim(),
-          cost: cost.trim(),
-          status: status as
-            | "todo"
-            | "in_progress"
-            | "in_review"
-            | "blocked"
-            | "done",
-          assigneeId: assigneeId || null,
-        },
-        projectId,
-        task?.id
-      )
-      if (result.success) {
-        toast.success(
-          task
-            ? t("projects.tasks.taskUpdated")
-            : t("projects.tasks.taskCreated")
-        )
-        onSuccess()
-      } else {
-        if (result.fieldErrors) {
-          const mapped: Record<string, string> = {}
-          for (const [key, msgs] of Object.entries(
-            result.fieldErrors
-          )) {
-            if (msgs && msgs.length > 0) mapped[key] = msgs[0]
-          }
-          setErrors(mapped)
-        }
-        toast.error(result.error || t("common.somethingWentWrong"))
-      }
-    } catch {
-      toast.error(t("common.somethingWentWrong"))
-    }
-    setSaving(false)
+    onSubmit({
+      name: name.trim(),
+      description: description.trim(),
+      cost: cost.trim(),
+      status,
+      assigneeId: assigneeId || null,
+    })
   }
 
   return (
@@ -188,12 +158,10 @@ export function TaskForm({
           type="button"
           variant="outline"
           onClick={onCancel}
-          disabled={saving}
         >
           {t("common.cancel")}
         </Button>
-        <Button type="submit" disabled={saving}>
-          {saving && <Spinner data-icon="inline-start" />}
+        <Button type="submit">
           {task
             ? t("common.saveChanges")
             : t("projects.tasks.createTask")}

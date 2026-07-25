@@ -11,7 +11,7 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { and, count, desc, eq, sql } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -41,7 +41,12 @@ const ownerStatusSchema = z.enum([
   "done",
 ])
 
-const collaboratorStatusSchema = z.enum(["todo", "in_progress", "blocked", "in_review"])
+const collaboratorStatusSchema = z.enum([
+  "todo",
+  "in_progress",
+  "blocked",
+  "in_review",
+])
 
 export type TaskFormData = z.infer<typeof taskSchema>
 
@@ -124,8 +129,14 @@ export async function getProjectTasks(projectId: string) {
       commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
     })
     .from(projectTasksTable)
-    .leftJoin(commentCounts, eq(projectTasksTable.id, commentCounts.taskId))
-    .leftJoin(usersTable, eq(projectTasksTable.assigneeId, usersTable.id))
+    .leftJoin(
+      commentCounts,
+      eq(projectTasksTable.id, commentCounts.taskId)
+    )
+    .leftJoin(
+      usersTable,
+      eq(projectTasksTable.assigneeId, usersTable.id)
+    )
     .where(eq(projectTasksTable.projectId, projectId))
     .orderBy(desc(projectTasksTable.createdAt))
 }
@@ -170,8 +181,10 @@ export async function upsertTask(
 
   const { name, description, cost, status, assigneeId } = parsed.data
 
+  let taskRow: typeof projectTasksTable.$inferSelect
+
   if (taskId) {
-    await db
+    const rows = await db
       .update(projectTasksTable)
       .set({
         name,
@@ -186,19 +199,40 @@ export async function upsertTask(
           eq(projectTasksTable.projectId, projectId)
         )
       )
+      .returning()
+    taskRow = rows[0]
   } else {
-    await db.insert(projectTasksTable).values({
-      projectId,
-      name,
-      description: description || null,
-      cost: cost || null,
-      status,
-      assigneeId: assigneeId ?? null,
-    })
+    const rows = await db
+      .insert(projectTasksTable)
+      .values({
+        projectId,
+        name,
+        description: description || null,
+        cost: cost || null,
+        status,
+        assigneeId: assigneeId ?? null,
+      })
+      .returning()
+    taskRow = rows[0]
   }
 
+  const assignee = taskRow.assigneeId
+    ? await db
+        .select({ name: usersTable.name, email: usersTable.email })
+        .from(usersTable)
+        .where(eq(usersTable.id, taskRow.assigneeId))
+        .then((rows) => rows[0])
+    : null
+
   revalidatePath(`/dashboard/projects/${projectId}`)
-  return { success: true as const }
+  return {
+    success: true as const,
+    data: {
+      ...taskRow,
+      assigneeName: assignee ? assignee.name || assignee.email : null,
+      commentCount: 0,
+    },
+  }
 }
 
 export async function updateTaskStatus(
@@ -335,9 +369,24 @@ export async function getMyTasks(
     conditions.push(eq(projectTasksTable.assigneeId, session.user.id))
   }
   if (statusFilter) {
-    const validStatuses = ["todo", "in_progress", "in_review", "blocked", "done"] as const
-    if (validStatuses.includes(statusFilter as typeof validStatuses[number])) {
-      conditions.push(eq(projectTasksTable.status, statusFilter as typeof validStatuses[number]))
+    const validStatuses = [
+      "todo",
+      "in_progress",
+      "in_review",
+      "blocked",
+      "done",
+    ] as const
+    if (
+      validStatuses.includes(
+        statusFilter as (typeof validStatuses)[number]
+      )
+    ) {
+      conditions.push(
+        eq(
+          projectTasksTable.status,
+          statusFilter as (typeof validStatuses)[number]
+        )
+      )
     }
   }
   if (projectIdFilter) {
@@ -358,7 +407,9 @@ export async function getMyTasks(
   const primaryOwners = db
     .select({
       projectId: projectOwnersTable.projectId,
-      userId: sql<string>`min(${projectOwnersTable.userId})`.as("userId"),
+      userId: sql<string>`min(${projectOwnersTable.userId})`.as(
+        "userId"
+      ),
     })
     .from(projectOwnersTable)
     .groupBy(projectOwnersTable.projectId)
@@ -399,9 +450,18 @@ export async function getMyTasks(
       projectsTable,
       eq(projectTasksTable.projectId, projectsTable.id)
     )
-    .leftJoin(commentCounts, eq(projectTasksTable.id, commentCounts.taskId))
-    .leftJoin(usersTable, eq(projectTasksTable.assigneeId, usersTable.id))
-    .leftJoin(primaryOwners, eq(projectTasksTable.projectId, primaryOwners.projectId))
+    .leftJoin(
+      commentCounts,
+      eq(projectTasksTable.id, commentCounts.taskId)
+    )
+    .leftJoin(
+      usersTable,
+      eq(projectTasksTable.assigneeId, usersTable.id)
+    )
+    .leftJoin(
+      primaryOwners,
+      eq(projectTasksTable.projectId, primaryOwners.projectId)
+    )
     .leftJoin(ownerUsers, eq(primaryOwners.userId, ownerUsers.userId))
     .where(where)
     .orderBy(desc(projectTasksTable.createdAt))
