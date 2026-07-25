@@ -251,7 +251,25 @@ export async function updateTaskStatus(
     session.user.id,
     session.user.role ?? null
   )
-  if (!access.hasAccess)
+
+  const currentTask = await db
+    .select({ status: projectTasksTable.status, assigneeId: projectTasksTable.assigneeId })
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.id, taskId),
+        eq(projectTasksTable.projectId, projectId)
+      )
+    )
+    .then((rows) => rows[0])
+
+  if (!currentTask) {
+    return { success: false as const, error: t("notFound") }
+  }
+
+  const isAssignee = currentTask.assigneeId === session.user.id
+
+  if (!access.hasAccess && !isAssignee)
     return { success: false as const, error: t("notFound") }
 
   if (access.isOwner) {
@@ -269,21 +287,6 @@ export async function updateTaskStatus(
         )
       )
   } else {
-    const currentTask = await db
-      .select({ status: projectTasksTable.status })
-      .from(projectTasksTable)
-      .where(
-        and(
-          eq(projectTasksTable.id, taskId),
-          eq(projectTasksTable.projectId, projectId)
-        )
-      )
-      .then((rows) => rows[0])
-
-    if (!currentTask) {
-      return { success: false as const, error: t("notFound") }
-    }
-
     if (currentTask.status === "done") {
       return { success: false as const, error: t("forbidden") }
     }
