@@ -20,20 +20,28 @@ interface ProjectMember {
 
 interface TaskDialogProps {
   task?: ProjectTask
-  projectId: string
   projectMembers: ProjectMember[]
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
+  onSubmit: (data: {
+    name: string
+    description: string
+    cost: string
+    status: string
+    assigneeId: string | null
+  }) => Promise<{
+    success: boolean
+    fieldErrors?: Record<string, string[]>
+    error?: string
+  }>
 }
 
 export function TaskDialog({
   task,
-  projectId,
   projectMembers,
   open,
   onOpenChange,
-  onSuccess,
+  onSubmit,
 }: TaskDialogProps) {
   const t = useTranslations("projects.tasks")
   return (
@@ -49,12 +57,8 @@ export function TaskDialog({
         </DialogHeader>
         <TaskForm
           task={task}
-          projectId={projectId}
           projectMembers={projectMembers}
-          onSuccess={() => {
-            onSuccess()
-            onOpenChange(false)
-          }}
+          onSubmit={onSubmit}
           onCancel={() => onOpenChange(false)}
         />
       </DialogContent>

@@ -17,15 +17,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import {
   deleteTask,
   updateTaskStatus,
+  upsertTask,
 } from "@/lib/actions/project-tasks"
 import type { ProjectTask } from "@/lib/drizzle/schema"
 import { ListTodo, MessageSquare, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useReducer, useState, useTransition } from "react"
 import { toast } from "sonner"
 import { TaskCommentsPanel } from "./task-comments-panel"
 import { TaskDialog } from "./task-dialog"
@@ -53,6 +54,61 @@ const collaboratorTaskStatuses = [
   "blocked",
   "in_review",
 ] as const
+
+type TaskAction =
+  | { type: "add"; task: ProjectTaskWithCommentCount }
+  | { type: "update"; task: ProjectTaskWithCommentCount }
+  | {
+      type: "replaceTemp"
+      tempId: string
+      task: ProjectTaskWithCommentCount
+    }
+  | { type: "delete"; taskId: string }
+  | { type: "updateStatus"; taskId: string; status: string }
+  | { type: "updateCommentCount"; taskId: string; delta: number }
+  | { type: "reset"; tasks: ProjectTaskWithCommentCount[] }
+
+// TODO: Move reducer to another file
+function taskReducer(
+  state: ProjectTaskWithCommentCount[],
+  action: TaskAction
+): ProjectTaskWithCommentCount[] {
+  switch (action.type) {
+    case "add":
+      return [action.task, ...state]
+    case "update":
+      return state.map((t) =>
+        t.id === action.task.id ? action.task : t
+      )
+    case "replaceTemp":
+      return state.map((t) =>
+        t.id === action.tempId ? action.task : t
+      )
+    case "delete":
+      return state.filter((t) => t.id !== action.taskId)
+    case "updateStatus":
+      return state.map((t) =>
+        t.id === action.taskId
+          ? {
+              ...t,
+              status:
+                action.status as ProjectTaskWithCommentCount["status"],
+            }
+          : t
+      )
+    case "updateCommentCount":
+      return state.map((t) =>
+        t.id === action.taskId
+          ? {
+              ...t,
+              commentCount: Math.max(0, t.commentCount + action.delta),
+            }
+          : t
+      )
+    case "reset":
+      return action.tasks
+  }
+}
 
 interface ProjectMember {
   userId: string
@@ -84,10 +140,11 @@ export function ProjectTasks({
   permissions,
   projectMembers,
 }: ProjectTasksProps) {
-  const router = useRouter()
   const t = useTranslations()
-  const [tasks, setTasks] =
-    useState<ProjectTaskWithCommentCount[]>(initialTasks)
+  const { start: startLoading, stop: stopLoading } =
+    useLoadingIndicator()
+  const [tasks, dispatch] = useReducer(taskReducer, initialTasks)
+  const [, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<
     ProjectTask | undefined
@@ -110,9 +167,86 @@ export function ProjectTasks({
     return task.assigneeName || task.assigneeId
   }
 
-  function handleSuccess() {
-    router.refresh()
+  async function handleTaskSubmit(data: {
+    name: string
+    description: string
+    cost: string
+    status: string
+    assigneeId: string | null
+  }) {
+    const isEdit = !!editingTask
     setEditingTask(undefined)
+    setDialogOpen(false)
+    const taskStatus = data.status as
+      | "todo"
+      | "in_progress"
+      | "in_review"
+      | "blocked"
+      | "done"
+
+    const optimisticTask: ProjectTaskWithCommentCount = {
+      id: editingTask?.id ?? `temp-${Date.now()}`,
+      projectId,
+      name: data.name,
+      description: data.description || null,
+      cost: data.cost || null,
+      status: taskStatus,
+      assigneeId: data.assigneeId,
+      assigneeName:
+        projectMembers.find((m) => m.userId === data.assigneeId)
+          ?.userName ?? null,
+      commentCount: editingTask
+        ? (tasks.find((t) => t.id === editingTask.id)?.commentCount ??
+          0)
+        : 0,
+      createdAt: editingTask?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+    }
+
+    dispatch({ type: isEdit ? "update" : "add", task: optimisticTask })
+
+    startLoading()
+    const result = await upsertTask(
+      { ...data, status: taskStatus },
+      projectId,
+      editingTask?.id
+    )
+    stopLoading()
+
+    if (result.success && result.data) {
+      const assignee = projectMembers.find(
+        (m) => m.userId === result.data!.assigneeId
+      )
+      const realTask: ProjectTaskWithCommentCount = {
+        ...result.data!,
+        assigneeName:
+          assignee?.userName ??
+          assignee?.userEmail ??
+          result.data!.assigneeName,
+        commentCount: optimisticTask.commentCount,
+      }
+      startTransition(() => {
+        dispatch({
+          type: "replaceTemp",
+          tempId: optimisticTask.id,
+          task: realTask,
+        })
+      })
+      toast.success(
+        isEdit
+          ? t("projects.tasks.taskUpdated")
+          : t("projects.tasks.taskCreated")
+      )
+    } else {
+      if (!isEdit) {
+        startTransition(() => {
+          dispatch({ type: "delete", taskId: optimisticTask.id })
+        })
+      }
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
+
+    return result
   }
 
   function openNew() {
@@ -125,28 +259,39 @@ export function ProjectTasks({
     setDialogOpen(true)
   }
 
-  function handleCommentCountChange(taskId: string, delta: number) {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, commentCount: Math.max(0, t.commentCount + delta) }
-          : t
-      )
-    )
-  }
-
   function handleOpenChange(open: boolean) {
     setDialogOpen(open)
     if (!open) setEditingTask(undefined)
+  }
+
+  async function handleDeleteTask(taskId: string) {
+    dispatch({ type: "delete", taskId })
+    startLoading()
+    const result = await deleteTask(taskId, projectId)
+    stopLoading()
+    if (!result.success) {
+      toast.error(result.error || t("common.somethingWentWrong"))
+      startTransition(() => {
+        dispatch({ type: "reset", tasks: initialTasks })
+      })
+    } else {
+      toast.success(t("projects.tasks.taskDeleted"))
+    }
   }
 
   async function handleTaskStatusChange(
     taskId: string,
     status: string
   ) {
+    dispatch({ type: "updateStatus", taskId, status })
+    startLoading()
     const result = await updateTaskStatus(taskId, projectId, status)
+    stopLoading()
     if (!result.success) {
       toast.error(result.error || t("common.somethingWentWrong"))
+      startTransition(() => {
+        dispatch({ type: "reset", tasks: initialTasks })
+      })
     }
   }
 
@@ -268,21 +413,7 @@ export function ProjectTasks({
                         <ActionMenu
                           entityName={task.name}
                           onEdit={() => openEdit(task)}
-                          onDelete={async () => {
-                            const result = await deleteTask(
-                              task.id,
-                              projectId
-                            )
-                            if (!result.success)
-                              toast.error(
-                                result.error ||
-                                  t("common.somethingWentWrong")
-                              )
-                            else
-                              toast.success(
-                                t("projects.tasks.taskDeleted")
-                              )
-                          }}
+                          onDelete={() => handleDeleteTask(task.id)}
                           canEdit={canEdit}
                           canDelete={permissions.includes(
                             "projects:delete"
@@ -300,11 +431,10 @@ export function ProjectTasks({
 
       <TaskDialog
         task={editingTask}
-        projectId={projectId}
         projectMembers={projectMembers}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
-        onSuccess={handleSuccess}
+        onSubmit={handleTaskSubmit}
       />
 
       {commentsTask && (
@@ -319,7 +449,9 @@ export function ProjectTasks({
           }}
           currentUserId={currentUserId}
           isOwner={isOwner}
-          onCommentCountChange={handleCommentCountChange}
+          onCommentCountChange={(taskId, delta) =>
+            dispatch({ type: "updateCommentCount", taskId, delta })
+          }
         />
       )}
     </Card>

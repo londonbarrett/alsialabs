@@ -1,5 +1,6 @@
 "use client"
 
+import { PageHeader } from "@/components/common/page-header"
 import { MyTasksList } from "@/components/my-tasks/my-tasks-list"
 import { taskStatusColors } from "@/components/projects/task-status-select"
 import {
@@ -9,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PageHeader } from "@/components/common/page-header"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { MyTask } from "@/lib/actions/project-tasks"
 import {
   getMyTasks,
@@ -46,6 +47,8 @@ export function MyTasksView({
   isSuperUser,
 }: MyTasksViewProps) {
   const t = useTranslations()
+  const { start: showLoading, stop: hideLoading } =
+    useLoadingIndicator()
   const [tasks, setTasks] = useState(initialTasks)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [projectFilter, setProjectFilter] = useState<string>("all")
@@ -90,11 +93,20 @@ export function MyTasksView({
     projectId: string,
     status: string
   ) {
-    const result = await updateTaskStatus(taskId, projectId, status)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    } else {
-      applyFilters(statusFilter, projectFilter)
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: status as MyTask["status"] } : t))
+    )
+    showLoading()
+    try {
+      const result = await updateTaskStatus(taskId, projectId, status)
+      if (!result.success) {
+        toast.error(result.error || t("common.somethingWentWrong"))
+        applyFilters(statusFilter, projectFilter)
+      } else {
+        toast.success(t("projects.tasks.statusChanged"))
+      }
+    } finally {
+      hideLoading()
     }
   }
 

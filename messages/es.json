@@ -331,6 +331,7 @@
       "taskDeleted": "Tarea eliminada",
       "taskUpdated": "Tarea actualizada",
       "taskCreated": "Tarea creada",
+      "statusChanged": "Estado actualizado",
       "nameRequired": "El nombre de la tarea es obligatorio",
       "status": {
         "todo": "Por hacer",

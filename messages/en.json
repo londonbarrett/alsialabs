@@ -331,6 +331,7 @@
       "taskDeleted": "Task deleted",
       "taskUpdated": "Task updated",
       "taskCreated": "Task created",
+      "statusChanged": "Status updated",
       "nameRequired": "Task name is required",
       "status": {
         "todo": "To Do",

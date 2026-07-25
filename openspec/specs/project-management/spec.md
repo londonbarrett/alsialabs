@@ -118,7 +118,7 @@ The system SHALL provide a combobox input for searching existing users and invit
 
 ### Requirement: Task management
 
-The system SHALL allow owners to manage tasks on their projects. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header.
+The system SHALL allow owners to manage tasks on their projects. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change) use optimistic updates with useReducer for instant UI feedback, global loading indicator during server requests, and success toasts on completion.
 
 #### Scenario: Create task
 
@@ -127,13 +127,22 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 - **THEN** a dialog opens with fields for name, description, cost, status, and assignee
 - **AND** the assignee dropdown shows project owners and collaborators
 - **WHEN** the user fills required fields and submits
-- **THEN** the task appears in the task table with the assignee's name (not UUID)
+- **THEN** the task appears immediately in the task table via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the task was created
 
 #### Scenario: Collaborator can change task status to blocked or in_review
 
 - **GIVEN** a user who is a collaborator of a project
 - **WHEN** the user views the task table
 - **THEN** the status dropdown (TaskStatusSelect component) is restricted to "blocked" and "in_review" options only
+
+#### Scenario: Assignee can change task status
+
+- **GIVEN** a user who is assigned to a task but is not an owner or collaborator of the project
+- **WHEN** the user views the task in My Tasks
+- **THEN** the status dropdown is available with collaborator-level restrictions (in_progress, blocked, in_review)
+- **AND** the status cannot be changed to "done" if already done
 
 #### Scenario: Collaborator cannot create or delete tasks
 
@@ -145,7 +154,9 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 
 - **GIVEN** a user who is an owner of the project
 - **WHEN** the user selects a different status from the inline status dropdown on a task row
-- **THEN** the task status changes immediately without a page reload
+- **THEN** the task status changes immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the status change
 
 #### Scenario: Edit task
 
@@ -153,7 +164,9 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 - **WHEN** the user clicks "Edit" on a task's action menu
 - **THEN** a dialog opens with the task's current values pre-filled
 - **WHEN** the user modifies fields and submits
-- **THEN** the task is updated and the table refreshes
+- **THEN** the task updates immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the task was updated
 
 #### Scenario: Delete task
 
@@ -161,7 +174,9 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 - **WHEN** the user clicks "Delete" on a task's action menu
 - **THEN** a confirmation dialog appears
 - **WHEN** the user confirms
-- **THEN** the task is deleted and the table refreshes
+- **THEN** the task is removed immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the task was deleted
 
 #### Scenario: Task row shows comment count
 
@@ -268,7 +283,7 @@ The system SHALL allow project members (owners and collaborators) to have conver
 
 ### Requirement: My Tasks page
 
-The system SHALL provide a "My Tasks" page accessible from the sidebar that shows all tasks assigned to the current user across all projects they have access to.
+The system SHALL provide a "My Tasks" page accessible from the sidebar that shows all tasks assigned to the current user across all projects they have access to. Status changes use optimistic updates with global loading indicator and success toasts.
 
 #### Scenario: Navigate to My Tasks
 
@@ -299,8 +314,10 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 
 - **GIVEN** a user on the My Tasks page viewing a task they are assigned to
 - **WHEN** the user selects a different status from the inline status dropdown
-- **THEN** the task status changes immediately
-- **AND** collaborators cannot set status to "done" (restricted to todo, in_progress, in_review, blocked)
+- **THEN** the task status changes immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the status change
+- **AND** assignees can update their own task status (not just owners and collaborators)
 
 #### Scenario: Open comments from My Tasks
 
