@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/table"
 import { deleteInvoice } from "@/lib/actions/sales"
 import type { Invoice } from "@/lib/drizzle/schema"
-import { FolderKanban, Plus } from "lucide-react"
+import { ChartNoAxesCombined, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -96,7 +96,7 @@ export function SalesListView({
           <PageHeader
             title={t("sales.title")}
             subtitle={t("sales.subtitle")}
-            icon={FolderKanban}
+            icon={ChartNoAxesCombined}
           >
             {permissions.includes("sales:create") && (
               <Button
