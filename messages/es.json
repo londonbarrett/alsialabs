@@ -207,14 +207,15 @@
     "selectProvider": "Seleccionar un proveedor",
     "skuInUseField": "SKU ya en uso"
   },
-  "project-categories": {
-    "title": "Categorías de Proyectos",
+  "categories": {
+    "title": "Categorías",
     "addCategory": "Agregar Categoría",
     "editCategory": "Editar Categoría",
     "createCategory": "Crear Categoría",
     "fillDetails": "Completa los datos para agregar una nueva categoría.",
     "updateDetails": "Actualiza los detalles de la categoría a continuación.",
     "noCategories": "No hay categorías aún",
+    "name": "Nombre",
     "slug": "Slug",
     "description": "Descripción",
     "actions": "Acciones",
@@ -222,38 +223,23 @@
     "failedToDelete": "Error al eliminar la categoría",
     "categoryUpdated": "Categoría actualizada",
     "categoryCreated": "Categoría creada",
+    "nameRequired": "El nombre es obligatorio",
     "slugRequired": "El slug es obligatorio",
-    "slugInUse": "Este slug ya está en uso",
-    "slugHint": "Se usa como clave de traducción (ej. 'crop' → clave 'category-names.crop')"
+    "slugInUse": "Este slug ya está en uso"
   },
-  "expense-categories": {
-    "title": "Categorías de Gastos",
-    "addCategory": "Agregar Categoría",
-    "editCategory": "Editar Categoría",
-    "createCategory": "Crear Categoría",
-    "fillDetails": "Completa los datos para agregar una nueva categoría.",
-    "updateDetails": "Actualiza los detalles de la categoría a continuación.",
-    "noCategories": "No hay categorías aún",
-    "slug": "Slug",
-    "description": "Descripción",
-    "actions": "Acciones",
-    "categoryDeleted": "Categoría eliminada",
-    "failedToDelete": "Error al eliminar la categoría",
-    "categoryUpdated": "Categoría actualizada",
-    "categoryCreated": "Categoría creada",
-    "slugRequired": "El slug es obligatorio",
-    "slugInUse": "Este slug ya está en uso",
-    "slugHint": "Se usa como clave de traducción (ej. 'supplies' → clave 'category-names.supplies')"
-  },
-  "category-names": {
+  "categoryNames": {
     "crop": "Cultivo",
     "infrastructure": "Infraestructura",
-    "supplies": "Insumos",
+    "supplies": "Suministros",
     "labor": "Mano de obra",
     "equipment": "Equipo",
     "services": "Servicios",
     "transport": "Transporte",
     "other": "Otro"
+  },
+  "taxonomyNames": {
+    "project": "Categorías de Proyecto",
+    "expense": "Categorías de Gasto"
   },
   "projects": {
     "title": "Proyectos",

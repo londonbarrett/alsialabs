@@ -8,18 +8,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { ExpenseCategoryForm } from './expense-category-form'
-import type { ExpenseCategory } from '@/lib/drizzle/schema'
+import { CategoryForm } from './category-form'
+import type { Category } from '@/lib/drizzle/schema'
 
-interface ExpenseCategoryDialogProps {
-  category?: ExpenseCategory
+interface CategoryDialogProps {
+  category?: Category
+  taxonomyId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }
 
-export function ExpenseCategoryDialog({ category, open, onOpenChange, onSuccess }: ExpenseCategoryDialogProps) {
-  const t = useTranslations('expense-categories')
+export function CategoryDialog({ category, taxonomyId, open, onOpenChange, onSuccess }: CategoryDialogProps) {
+  const t = useTranslations('categories')
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onInteractOutside={(e) => e.preventDefault()}>
@@ -29,8 +30,9 @@ export function ExpenseCategoryDialog({ category, open, onOpenChange, onSuccess 
             {category ? t('updateDetails') : t('fillDetails')}
           </DialogDescription>
         </DialogHeader>
-        <ExpenseCategoryForm
+        <CategoryForm
           category={category}
+          taxonomyId={taxonomyId}
           onSuccess={() => {
             onSuccess()
             onOpenChange(false)

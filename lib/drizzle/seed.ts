@@ -2,12 +2,12 @@ import crypto from "crypto"
 import { eq } from "drizzle-orm"
 import { db } from "./client"
 import {
-  expenseCategoriesTable,
+  categoryTable,
   permissionsTable,
-  projectCategoriesTable,
   providersTable,
   rolePermissionsTable,
   rolesTable,
+  taxonomyTable,
   userRolesTable,
   usersTable,
 } from "./schema"
@@ -146,31 +146,47 @@ async function seed() {
     "Role-permissions seeded: super gets all, admin gets view/create/edit, users get projects and expenses"
   )
 
+  const defaultTaxonomies = [
+    { slug: "project", name: "Project Categories" },
+    { slug: "expense", name: "Expense Categories" },
+  ]
+  for (const tax of defaultTaxonomies) {
+    await db
+      .insert(taxonomyTable)
+      .values(tax)
+      .onConflictDoNothing({ target: taxonomyTable.slug })
+  }
+  console.log("Taxonomies seeded")
+
+  const seededTaxonomies = await db.select().from(taxonomyTable)
+  const projectTaxonomy = seededTaxonomies.find((t) => t.slug === "project")!
+  const expenseTaxonomy = seededTaxonomies.find((t) => t.slug === "expense")!
+
   const defaultProjectCategories = [
-    { slug: "crop" },
-    { slug: "infrastructure" },
+    { slug: "crop", name: "Crop" },
+    { slug: "infrastructure", name: "Infrastructure" },
   ]
   for (const cat of defaultProjectCategories) {
     await db
-      .insert(projectCategoriesTable)
-      .values(cat)
-      .onConflictDoNothing({ target: projectCategoriesTable.slug })
+      .insert(categoryTable)
+      .values({ ...cat, taxonomyId: projectTaxonomy.id })
+      .onConflictDoNothing({ target: [categoryTable.taxonomyId, categoryTable.slug] })
   }
   console.log("Project categories seeded")
 
   const defaultExpenseCategories = [
-    { slug: "supplies" },
-    { slug: "labor" },
-    { slug: "equipment" },
-    { slug: "services" },
-    { slug: "transport" },
-    { slug: "other" },
+    { slug: "supplies", name: "Supplies" },
+    { slug: "labor", name: "Labor" },
+    { slug: "equipment", name: "Equipment" },
+    { slug: "services", name: "Services" },
+    { slug: "transport", name: "Transport" },
+    { slug: "other", name: "Other" },
   ]
   for (const cat of defaultExpenseCategories) {
     await db
-      .insert(expenseCategoriesTable)
-      .values(cat)
-      .onConflictDoNothing({ target: expenseCategoriesTable.slug })
+      .insert(categoryTable)
+      .values({ ...cat, taxonomyId: expenseTaxonomy.id })
+      .onConflictDoNothing({ target: [categoryTable.taxonomyId, categoryTable.slug] })
   }
   console.log("Expense categories seeded")
 

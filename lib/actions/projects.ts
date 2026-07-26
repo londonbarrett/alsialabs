@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/drizzle/client'
 import {
   projectsTable,
-  projectCategoriesTable,
+  categoryTable,
   projectTasksTable,
   expensesTable,
   projectOwnersTable,
@@ -81,10 +81,11 @@ export async function getProjects() {
       budget: projectsTable.budget,
       createdAt: projectsTable.createdAt,
       updatedAt: projectsTable.updatedAt,
-      categorySlug: projectCategoriesTable.slug,
+      categorySlug: categoryTable.slug,
+      categoryName: categoryTable.name,
     })
     .from(projectsTable)
-    .leftJoin(projectCategoriesTable, eq(projectsTable.categoryId, projectCategoriesTable.id))
+    .leftJoin(categoryTable, eq(projectsTable.categoryId, categoryTable.id))
     .orderBy(desc(projectsTable.createdAt))
 
   if (isAdmin) return projects
@@ -119,10 +120,11 @@ export async function getProjectsWithDetails() {
       endDate: projectsTable.endDate,
       location: projectsTable.location,
       budget: projectsTable.budget,
-      categorySlug: projectCategoriesTable.slug,
+      categorySlug: categoryTable.slug,
+      categoryName: categoryTable.name,
     })
     .from(projectsTable)
-    .leftJoin(projectCategoriesTable, eq(projectsTable.categoryId, projectCategoriesTable.id))
+    .leftJoin(categoryTable, eq(projectsTable.categoryId, categoryTable.id))
     .orderBy(desc(projectsTable.createdAt))
 
   let filteredProjects = baseProjects
@@ -263,7 +265,7 @@ export async function getProjectsWithDetails() {
       name: p.name,
       description: p.description,
       status: p.status,
-      category: p.categorySlug ?? '—',
+      categorySlug: p.categorySlug,
       startDate: p.startDate,
       endDate: p.endDate ?? '',
       location: p.location,
@@ -303,11 +305,12 @@ export async function getProjectById(id: string) {
       budget: projectsTable.budget,
       createdAt: projectsTable.createdAt,
       updatedAt: projectsTable.updatedAt,
-      categorySlug: projectCategoriesTable.slug,
+      categorySlug: categoryTable.slug,
+      categoryName: categoryTable.name,
     })
     .from(projectsTable)
     .where(eq(projectsTable.id, id))
-    .leftJoin(projectCategoriesTable, eq(projectsTable.categoryId, projectCategoriesTable.id))
+    .leftJoin(categoryTable, eq(projectsTable.categoryId, categoryTable.id))
     .then((rows) => rows[0])
 
   if (!project) {

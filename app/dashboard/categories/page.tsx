@@ -1,9 +1,10 @@
+import { TaxonomyTabs } from "@/components/categories/taxonomy-tabs"
+import {
+  getCategoriesByTaxonomy,
+  getTaxonomies,
+} from "@/lib/actions/categories"
 import { auth, getUserPermissions } from "@/lib/auth"
 import { forbidden } from "next/navigation"
-import { getProjectCategories } from "@/lib/actions/project-categories"
-import { getExpenseCategories } from "@/lib/actions/expense-categories"
-import { ProjectCategoryListView } from "@/components/project-categories/project-category-list-view"
-import { ExpenseCategoryListView } from "@/components/expense-categories/expense-category-list-view"
 
 export default async function CategoriesPage() {
   const session = await auth()
@@ -18,21 +19,25 @@ export default async function CategoriesPage() {
     forbidden()
   }
 
-  const [projectCategories, expenseCategories] = await Promise.all([
-    getProjectCategories(),
-    getExpenseCategories(),
-  ])
+  const taxonomies = await getTaxonomies()
+
+  const categoriesResults = await Promise.all(
+    taxonomies.map((t) => getCategoriesByTaxonomy(t.slug))
+  )
+
+  const categoriesByTaxonomy: Record<
+    string,
+    (typeof categoriesResults)[number]
+  > = {}
+  taxonomies.forEach((t, i) => {
+    categoriesByTaxonomy[t.id] = categoriesResults[i]
+  })
 
   return (
-    <div className="flex flex-col">
-      <ProjectCategoryListView
-        categories={projectCategories}
-        permissions={permissions}
-      />
-      <ExpenseCategoryListView
-        categories={expenseCategories}
-        permissions={permissions}
-      />
-    </div>
+    <TaxonomyTabs
+      taxonomies={taxonomies}
+      categoriesByTaxonomy={categoriesByTaxonomy}
+      permissions={permissions}
+    />
   )
 }

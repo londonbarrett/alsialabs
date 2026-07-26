@@ -12,7 +12,7 @@ import { ProjectDialog } from "./project-dialog"
 
 interface ProjectListViewProps {
   projects: Project[]
-  categories: { id: string; slug: string }[]
+  categories: { id: string; slug: string; name: string }[]
   permissions?: string[]
 }
 

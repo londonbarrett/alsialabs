@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import { auth, getUserPermissions } from "@/lib/auth"
 import { getProjectsWithDetails } from "@/lib/actions/projects"
-import { getProjectCategoriesList } from "@/lib/actions/project-categories"
+import { getCategoriesByTaxonomyList } from "@/lib/actions/categories"
 import { ProjectListView } from "@/components/projects/project-list-view"
 
 export default function ProjectsPage() {
@@ -33,7 +33,7 @@ async function ProjectsContent() {
 
   const [projects, categories, permissions] = await Promise.all([
     getProjectsWithDetails(),
-    getProjectCategoriesList(),
+    getCategoriesByTaxonomyList("project"),
     getUserPermissions(session?.user?.id ?? ""),
   ])
 

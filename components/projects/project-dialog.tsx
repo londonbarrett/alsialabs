@@ -13,7 +13,7 @@ import type { Project } from "@/lib/drizzle/schema"
 
 interface ProjectDialogProps {
   project?: Project
-  categories: { id: string; slug: string }[]
+  categories: { id: string; slug: string; name: string }[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void

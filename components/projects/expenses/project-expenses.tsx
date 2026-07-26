@@ -69,7 +69,7 @@ interface ProjectExpensesProps {
   tasks: ProjectTask[]
   projectId: string
   budget: string | null
-  categories: { id: string; slug: string }[]
+  categories: { id: string; slug: string; name: string }[]
   canEdit: boolean
   canDelete: boolean
   projectMembers: ProjectMember[]
@@ -366,9 +366,13 @@ export function ProjectExpenses({
                       <TableCell>
                         {expense.categorySlug ? (
                           <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
-                            {t(
-                              `category-names.${expense.categorySlug}` as any
-                            )}
+                            {t.has(
+                              `categoryNames.${expense.categorySlug}`
+                            )
+                              ? t(
+                                  `categoryNames.${expense.categorySlug}`
+                                )
+                              : expense.categoryName}
                           </span>
                         ) : (
                           "—"
@@ -387,7 +391,9 @@ export function ProjectExpenses({
                                 ? () => openEdit(expense)
                                 : undefined
                             }
-                            onDelete={() => handleDeleteExpense(expense.id)}
+                            onDelete={() =>
+                              handleDeleteExpense(expense.id)
+                            }
                             canEdit={canEdit}
                             canDelete={canDelete}
                           />

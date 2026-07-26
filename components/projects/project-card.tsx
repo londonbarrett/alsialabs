@@ -88,7 +88,6 @@ type ProjectCardProps = {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const t = useTranslations()
-  const tc = useTranslations("category-names")
   const status = statusConfig[project.status]
   const primaryOwner = project.owners.find(
     (o) => o.id === project.primaryOwnerId
@@ -118,7 +117,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
       <CardHeader className="gap-3 border-b bg-muted/30 py-5 [.border-b]:pb-5">
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {tc(project.category)}
+            {project.categorySlug &&
+            t.has(`categoryNames.${project.categorySlug}`)
+              ? t(`categoryNames.${project.categorySlug}`)
+              : (project.categorySlug ?? "—")}
           </span>
           <CardTitle className="text-lg leading-tight text-balance">
             <Link

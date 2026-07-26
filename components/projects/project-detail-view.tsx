@@ -42,10 +42,11 @@ interface ProjectDetailViewProps {
     endDate: string | null
     location: string | null
     budget: string | null
+    categoryName: string | null
     categorySlug: string | null
   }
   tasks: ProjectTaskWithCommentCount[]
-  categories: { id: string; slug: string }[]
+  categories: { id: string; slug: string; name: string }[]
   owners: ProjectMember[]
   collaborators: ProjectMember[]
   allUsers: {
@@ -55,7 +56,7 @@ interface ProjectDetailViewProps {
     image: string | null
   }[]
   expenses: ExpenseWithCategory[]
-  expenseCategories: { id: string; slug: string }[]
+  expenseCategories: { id: string; slug: string; name: string }[]
   currentUserId: string
   isCurrentUserAdmin: boolean
   permissions?: string[]

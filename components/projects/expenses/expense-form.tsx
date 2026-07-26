@@ -20,7 +20,7 @@ import { toast } from 'sonner'
 interface ExpenseFormProps {
   expense?: ExpenseWithCategory
   projectId: string
-  categories: { id: string; slug: string }[]
+  categories: { id: string; slug: string; name: string }[]
   onSuccess: () => void
   onCancel: () => void
 }
@@ -33,7 +33,6 @@ export function ExpenseForm({
   onCancel,
 }: ExpenseFormProps) {
   const t = useTranslations()
-  const tc = useTranslations('category-names')
   const [description, setDescription] = useState(expense?.description ?? '')
   const [categoryId, setCategoryId] = useState(expense?.categoryId ?? '')
   const [amount, setAmount] = useState(expense?.amount ?? '')
@@ -101,7 +100,7 @@ export function ExpenseForm({
             <SelectContent>
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
-                  {tc(cat.slug)}
+                  {t.has(`categoryNames.${cat.slug}`) ? t(`categoryNames.${cat.slug}`) : cat.name}
                 </SelectItem>
               ))}
             </SelectContent>
