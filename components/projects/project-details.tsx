@@ -28,6 +28,7 @@ interface ProjectDetailsProps {
     id: string
     name: string
     categoryId: string
+    categoryName: string | null
     categorySlug: string | null
     startDate: string
     endDate: string | null
@@ -36,7 +37,7 @@ interface ProjectDetailsProps {
     description: string | null
     status: string
   }
-  categories: { id: string; slug: string }[]
+  categories: { id: string; slug: string; name: string }[]
   primaryOwner: ProjectMember | undefined
   canEdit: boolean
   canDelete: boolean
@@ -51,7 +52,6 @@ export function ProjectDetails({
 }: ProjectDetailsProps) {
   const router = useRouter()
   const t = useTranslations()
-  const tc = useTranslations("category-names")
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<DbProject | undefined>()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -106,7 +106,9 @@ export function ProjectDetails({
                 {t("projects.category")}
               </p>
               <p className="text-sm font-medium">
-                {project.categorySlug ? tc(project.categorySlug) : "—"}
+                {project.categorySlug && t.has(`categoryNames.${project.categorySlug}`)
+                  ? t(`categoryNames.${project.categorySlug}`)
+                  : project.categoryName || "—"}
               </p>
             </div>
           </div>

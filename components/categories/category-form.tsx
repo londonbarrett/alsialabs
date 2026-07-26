@@ -5,18 +5,20 @@ import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Field } from '@/components/form-field'
-import { upsertProjectCategory, checkSlugExists } from '@/lib/actions/project-categories'
-import type { ProjectCategory } from '@/lib/drizzle/schema'
+import { upsertCategory, checkSlugExists } from '@/lib/actions/categories'
+import type { Category } from '@/lib/drizzle/schema'
 import { toast } from 'sonner'
 
-interface ProjectCategoryFormProps {
-  category?: ProjectCategory
+interface CategoryFormProps {
+  category?: Category
+  taxonomyId: string
   onSuccess: () => void
   onCancel: () => void
 }
 
-export function ProjectCategoryForm({ category, onSuccess, onCancel }: ProjectCategoryFormProps) {
+export function CategoryForm({ category, taxonomyId, onSuccess, onCancel }: CategoryFormProps) {
   const t = useTranslations()
+  const [name, setName] = useState(category?.name ?? '')
   const [slug, setSlug] = useState(category?.slug ?? '')
   const [description, setDescription] = useState(category?.description ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -31,10 +33,10 @@ export function ProjectCategoryForm({ category, onSuccess, onCancel }: ProjectCa
       return
     }
     slugTimer.current = setTimeout(async () => {
-      const result = await checkSlugExists(value, category?.id)
+      const result = await checkSlugExists(taxonomyId, value, category?.id)
       setSlugExists(result.exists)
     }, 500)
-  }, [category?.id, category?.slug])
+  }, [taxonomyId, category?.id, category?.slug])
 
   useEffect(() => {
     return () => {
@@ -44,7 +46,8 @@ export function ProjectCategoryForm({ category, onSuccess, onCancel }: ProjectCa
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!slug.trim()) fieldErrors.slug = t('project-categories.slugRequired')
+    if (!name.trim()) fieldErrors.name = t('categories.nameRequired')
+    if (!slug.trim()) fieldErrors.slug = t('categories.slugRequired')
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
   }
@@ -54,18 +57,19 @@ export function ProjectCategoryForm({ category, onSuccess, onCancel }: ProjectCa
     if (!validate()) return
 
     if (slugExists) {
-      setErrors((prev) => ({ ...prev, slug: t('project-categories.slugInUse') }))
+      setErrors((prev) => ({ ...prev, slug: t('categories.slugInUse') }))
       return
     }
 
     setSaving(true)
     try {
-      const result = await upsertProjectCategory(
-        { slug: slug.trim(), description: description.trim() },
+      const result = await upsertCategory(
+        { name: name.trim(), slug: slug.trim(), description: description.trim() },
+        taxonomyId,
         category?.id,
       )
       if (result.success) {
-        toast.success(category ? t('project-categories.categoryUpdated') : t('project-categories.categoryCreated'))
+        toast.success(category ? t('categories.categoryUpdated') : t('categories.categoryCreated'))
         onSuccess()
       } else {
         if (result.fieldErrors) {
@@ -85,18 +89,24 @@ export function ProjectCategoryForm({ category, onSuccess, onCancel }: ProjectCa
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <p className="text-xs text-muted-foreground">{t('project-categories.slugHint')}</p>
+      <Field
+        name="name"
+        label={t('categories.name')}
+        value={name}
+        onChange={setName}
+        error={errors.name}
+      />
       <Field
         name="slug"
-        label={t('project-categories.slug')}
+        label={t('categories.slug')}
         value={slug}
         onChange={(v) => { setSlug(v); debouncedSlugCheck(v) }}
         error={errors.slug}
-        extraError={slugExists ? t('project-categories.slugInUse') : undefined}
+        extraError={slugExists ? t('categories.slugInUse') : undefined}
       />
       <Field
         name="description"
-        label={t('project-categories.description')}
+        label={t('categories.description')}
         value={description}
         onChange={setDescription}
         error={errors.description}
@@ -109,7 +119,7 @@ export function ProjectCategoryForm({ category, onSuccess, onCancel }: ProjectCa
         </Button>
         <Button type="submit" disabled={saving}>
           {saving && <Spinner data-icon="inline-start" />}
-          {category ? t('common.saveChanges') : t('project-categories.createCategory')}
+          {category ? t('common.saveChanges') : t('categories.createCategory')}
         </Button>
       </div>
     </form>

@@ -14,7 +14,7 @@ import type { ExpenseWithCategory } from '@/lib/actions/expenses'
 interface ExpenseDialogProps {
   expense?: ExpenseWithCategory
   projectId: string
-  categories: { id: string; slug: string }[]
+  categories: { id: string; slug: string; name: string }[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void

@@ -347,14 +347,24 @@ Projects SHALL be scoped to the authenticated user. Users only see projects they
 - **WHEN** the user navigates to the projects list
 - **THEN** all projects are shown
 
-### Requirement: Project categories (read-only for clients)
+### Requirement: Project category display
 
-The system SHALL allow clients to read project categories for project forms without granting access to the admin categories page.
+Project and expense category names SHALL be translated via i18n using the `categoryNames` namespace, keyed by category slug. See `category-management` spec for category CRUD and schema details.
 
-#### Scenario: Client reads categories for project form
+#### Scenario: Project card shows translated category
 
-- **GIVEN** a client user
-- **WHEN** the user opens the project create/edit dialog
-- **THEN** the category dropdown shows all available project categories
-- **AND** the client cannot see the "Categories" nav item in the sidebar
-- **AND** navigating directly to `/dashboard/categories` returns a forbidden error
+- **GIVEN** a project with a category
+- **WHEN** the project card is displayed
+- **THEN** the category name is resolved via `t('categoryNames.<slug>')` with fallback to the DB name
+
+#### Scenario: Project detail shows translated category
+
+- **GIVEN** a project with a category
+- **WHEN** the project detail page is displayed
+- **THEN** the category label shows the translated name via `categoryNames.*`
+
+#### Scenario: Expense row shows translated category
+
+- **GIVEN** an expense with a category
+- **WHEN** the expense table row is displayed
+- **THEN** the category badge shows the translated name via `categoryNames.*`

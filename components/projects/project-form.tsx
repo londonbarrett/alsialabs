@@ -19,7 +19,7 @@ import { toast } from "sonner"
 
 interface ProjectFormProps {
   project?: Project
-  categories: { id: string; slug: string }[]
+  categories: { id: string; slug: string; name: string }[]
   onSuccess: () => void
   onCancel: () => void
 }
@@ -31,7 +31,6 @@ export function ProjectForm({
   onCancel,
 }: ProjectFormProps) {
   const t = useTranslations()
-  const tc = useTranslations("category-names")
   const [name, setName] = useState(project?.name ?? "")
   const [categoryId, setCategoryId] = useState(
     project?.categoryId ?? ""
@@ -135,7 +134,9 @@ export function ProjectForm({
           <SelectContent>
             {categories.map((c) => (
               <SelectItem key={c.id} value={c.id}>
-                {tc(c.slug)}
+                {t.has(`categoryNames.${c.slug}`)
+                  ? t(`categoryNames.${c.slug}`)
+                  : c.name}
               </SelectItem>
             ))}
           </SelectContent>

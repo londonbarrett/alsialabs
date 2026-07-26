@@ -6,7 +6,7 @@ import { InviteDialog } from "@/components/clients/invite-dialog"
 import { PageHeader } from "@/components/common/page-header"
 import { ImportButton } from "@/components/import-button"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
   Table,
   TableBody,
@@ -61,7 +61,7 @@ export function ClientListView({
     )
   }, [clients, searchQuery])
 
-  function handleSuccess(data: Omit<Client, 'id' | 'userId'>) {
+  function handleSuccess(data: Omit<Client, "id" | "userId">) {
     if (editingClient) {
       setClients((prev) =>
         prev.map((c) =>
@@ -145,23 +145,31 @@ export function ClientListView({
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-6">
-      <PageHeader title={t("clients.title")} subtitle={t("clients.subtitle")} icon={Users}>
-        <div className="relative">
-          <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+      <PageHeader
+        title={t("clients.title")}
+        subtitle={t("clients.subtitle")}
+        icon={Users}
+      >
+        <span className="text-sm text-muted-foreground">
+          {clients.length} {t("clients.title").toLowerCase()}
+        </span>
+        <InputGroup className="w-64">
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
             type="search"
             placeholder={t("clients.searchPlaceholder")}
-            className="w-64 pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label={t("clients.searchPlaceholder")}
           />
-        </div>
+        </InputGroup>
         <Button onClick={openNew} aria-label={t("clients.newClient")}>
           <Plus />
           {t("clients.newClient")}
         </Button>
-        <ImportButton onSuccess={() => router.refresh()} />
+        {/* <ImportButton onSuccess={() => router.refresh()} /> */}
       </PageHeader>
 
       <div

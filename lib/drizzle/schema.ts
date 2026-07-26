@@ -7,6 +7,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
 
@@ -125,8 +126,8 @@ export type Provider = typeof providersTable.$inferSelect
 export type Product = typeof productsTable.$inferSelect
 export type Invoice = typeof invoicesTable.$inferSelect
 export type InvoiceItem = typeof invoiceItemsTable.$inferSelect
-export type ProjectCategory = typeof projectCategoriesTable.$inferSelect
-export type ExpenseCategory = typeof expenseCategoriesTable.$inferSelect
+export type Taxonomy = typeof taxonomyTable.$inferSelect
+export type Category = typeof categoryTable.$inferSelect
 export type Project = typeof projectsTable.$inferSelect
 export type ProjectTask = typeof projectTasksTable.$inferSelect
 export type TaskComment = typeof taskCommentsTable.$inferSelect
@@ -303,21 +304,30 @@ export const authenticatorsTable = pgTable(
   ]
 )
 
-export const projectCategoriesTable = pgTable("project_category", {
+export const taxonomyTable = pgTable("taxonomy", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   slug: text().notNull().unique(),
+  name: text().notNull(),
   description: text(),
 })
 
-export const expenseCategoriesTable = pgTable("expense_category", {
-  id: text()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  slug: text().notNull().unique(),
-  description: text(),
-})
+export const categoryTable = pgTable(
+  "category",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    taxonomyId: text("taxonomy_id")
+      .notNull()
+      .references(() => taxonomyTable.id, { onDelete: "cascade" }),
+    slug: text().notNull(),
+    name: text().notNull(),
+    description: text(),
+  },
+  (table) => [unique("category_taxonomy_slug_unique").on(table.taxonomyId, table.slug)]
+)
 
 export const projectsTable = pgTable("project", {
   id: text()
@@ -328,7 +338,7 @@ export const projectsTable = pgTable("project", {
     .references(() => usersTable.id, { onDelete: "restrict" }),
   categoryId: text("category_id")
     .notNull()
-    .references(() => projectCategoriesTable.id),
+    .references(() => categoryTable.id),
   name: text().notNull(),
   description: text(),
   status: text()
@@ -403,7 +413,7 @@ export const expensesTable = pgTable("expense", {
     .references(() => projectsTable.id, { onDelete: "cascade" }),
   categoryId: text("category_id")
     .notNull()
-    .references(() => expenseCategoriesTable.id),
+    .references(() => categoryTable.id),
   description: text().notNull(),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   expenseDate: date("expense_date").notNull(),
