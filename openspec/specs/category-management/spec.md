@@ -15,8 +15,9 @@ The system SHALL provide a unified category system organized by taxonomy. Each t
 
 - **GIVEN** a user with `categories:view` permission
 - **WHEN** the user navigates to `/dashboard/categories`
-- **THEN** a tabbed interface shows one tab per taxonomy (e.g., "Project Categories", "Expense Categories")
-- **AND** each tab displays a table of categories with name, slug, and description columns
+- **THEN** a PageHeader with a FolderTree icon and the "Categories" title is displayed
+- **AND** a tabbed interface shows one tab per taxonomy (e.g., "Project Categories", "Expense Categories")
+- **AND** each tab displays a Card containing the taxonomy name as the CardHeader title, an "Add Category" button, and a table of categories with name, slug, and description columns
 - **AND** taxonomy tab labels and category names are translated via i18n (`taxonomyNames.*`, `categoryNames.*`)
 
 #### Scenario: Create category

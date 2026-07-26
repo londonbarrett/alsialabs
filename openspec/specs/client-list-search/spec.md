@@ -1,13 +1,21 @@
 ## ADDED Requirements
 
 ### Requirement: Client list search input
-The system SHALL display a search input on the client list page that filters the displayed clients.
+The system SHALL display a search input on the client list page that filters the displayed clients. The search input uses the `InputGroup` component with a `Search` icon prefix.
 
 #### Scenario: Search input is visible
 - **WHEN** the user visits `/dashboard/clients`
 - **AND** there are clients in the database
-- **THEN** a search input field is displayed above or beside the client table
-- **AND** the input has a search icon and placeholder text indicating it searches clients
+- **THEN** a search input field is displayed in the PageHeader actions area using `InputGroup` with a `Search` icon prefix
+- **AND** the input has placeholder text indicating it searches clients
+
+### Requirement: Client count in header
+The system SHALL display the total number of clients as plain text in the PageHeader actions area, before the search input.
+
+#### Scenario: Client count is shown
+- **WHEN** the user visits `/dashboard/clients`
+- **AND** there are 400 clients in the database
+- **THEN** the text "400 clients" is displayed before the search input
 
 #### Scenario: Typing filters the table
 - **WHEN** the user types a search query into the search input
