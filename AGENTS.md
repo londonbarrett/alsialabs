@@ -57,6 +57,7 @@ When all tasks are complete:
 Current specs:
 - `dashboard-navigation` — Sidebar navigation
 - `client-crud` — Client create/edit
+- `category-management` — Taxonomy/category CRUD and i18n translations
 
 ## Commands
 
