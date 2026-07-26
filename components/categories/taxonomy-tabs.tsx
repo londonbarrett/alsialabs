@@ -1,7 +1,9 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { FolderTree } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PageHeader } from '@/components/common/page-header'
 import { CategoryListView } from './category-list-view'
 import type { Taxonomy } from '@/lib/drizzle/schema'
 
@@ -25,7 +27,7 @@ export function TaxonomyTabs({ taxonomies, categoriesByTaxonomy, permissions = [
 
   return (
     <div className="flex flex-col p-6 gap-4 flex-1">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('categories.title')}</h1>
+      <PageHeader title={t('categories.title')} icon={FolderTree} />
 
       <Tabs defaultValue={defaultSlug}>
         <TabsList>
