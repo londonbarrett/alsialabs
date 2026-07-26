@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -78,62 +79,67 @@ export function CategoryListView({ categories, taxonomyId, taxonomyName, permiss
   return (
     <>
       {localCategories.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full gap-4 py-12">
-          <p className="text-muted-foreground">{t('categories.noCategories')}</p>
-          {permissions.includes('categories:create') && (
-            <Button onClick={openNew} aria-label={t('categories.addCategory')}>
-              <Plus />
-              {t('categories.addCategory')}
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">{taxonomyName}</h2>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center h-full gap-4 py-12">
+            <p className="text-muted-foreground">{t('categories.noCategories')}</p>
             {permissions.includes('categories:create') && (
-              <Button onClick={openNew} size="sm" aria-label={t('categories.addCategory')}>
+              <Button onClick={openNew} aria-label={t('categories.addCategory')}>
                 <Plus />
                 {t('categories.addCategory')}
               </Button>
             )}
-          </div>
-
-          <div className="rounded-md border overflow-auto max-h-[calc(100vh-14rem)]" role="region" aria-label={taxonomyName}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">{t('categories.name')}</TableHead>
-                  <TableHead scope="col">{t('categories.slug')}</TableHead>
-                  <TableHead scope="col">{t('categories.description')}</TableHead>
-                  <TableHead scope="col">{t('categories.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {localCategories.map((cat) => (
-                  <TableRow key={cat.id} className="select-none" onDoubleClick={() => openEdit(cat)}>
-                    <TableCell className="font-medium">
-                      {t.has(`categoryNames.${cat.slug}`)
-                        ? t(`categoryNames.${cat.slug}`)
-                        : cat.name}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">{cat.slug}</TableCell>
-                    <TableCell>{cat.description || '—'}</TableCell>
-                    <TableCell>
-                      <ActionMenu
-                        entityName={cat.name}
-                        onEdit={() => openEdit(cat)}
-                        onDelete={() => handleDelete(cat)}
-                        canEdit={permissions.includes('categories:edit')}
-                        canDelete={permissions.includes('categories:delete')}
-                      />
-                    </TableCell>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              {taxonomyName}
+              {permissions.includes('categories:create') && (
+                <Button onClick={openNew} size="sm" aria-label={t('categories.addCategory')}>
+                  <Plus />
+                  {t('categories.addCategory')}
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border overflow-auto max-h-[calc(100vh-14rem)]" role="region" aria-label={taxonomyName}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">{t('categories.name')}</TableHead>
+                    <TableHead scope="col">{t('categories.slug')}</TableHead>
+                    <TableHead scope="col">{t('categories.description')}</TableHead>
+                    <TableHead scope="col">{t('categories.actions')}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {localCategories.map((cat) => (
+                    <TableRow key={cat.id} className="select-none" onDoubleClick={() => openEdit(cat)}>
+                      <TableCell className="font-medium">
+                        {t.has(`categoryNames.${cat.slug}`)
+                          ? t(`categoryNames.${cat.slug}`)
+                          : cat.name}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">{cat.slug}</TableCell>
+                      <TableCell>{cat.description || '—'}</TableCell>
+                      <TableCell>
+                        <ActionMenu
+                          entityName={cat.name}
+                          onEdit={() => openEdit(cat)}
+                          onDelete={() => handleDelete(cat)}
+                          canEdit={permissions.includes('categories:edit')}
+                          canDelete={permissions.includes('categories:delete')}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       )}
       <CategoryDialog
         category={editingCategory}
