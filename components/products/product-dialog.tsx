@@ -1,45 +1,51 @@
-'use client'
+"use client"
 
-import { useTranslations } from 'next-intl'
+import { ProductForm } from "@/components/products/product-form"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
-import { ProductForm } from '@/components/products/product-form'
-import type { Product } from '@/lib/drizzle/schema'
+} from "@/components/ui/dialog"
+import type { Product } from "@/lib/drizzle/schema"
+import { useTranslations } from "next-intl"
 
-interface ProviderOption {
+interface StoreOption {
   id: string
   name: string
 }
 
 interface ProductDialogProps {
   product?: Product
-  providers: ProviderOption[]
+  stores: StoreOption[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }
 
-export function ProductDialog({ product, providers, open, onOpenChange, onSuccess }: ProductDialogProps) {
-  const t = useTranslations('products')
+export function ProductDialog({
+  product,
+  stores,
+  open,
+  onOpenChange,
+  onSuccess,
+}: ProductDialogProps) {
+  const t = useTranslations("products")
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        onInteractOutside={(e) => e.preventDefault()}
-      >
+      <DialogContent onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>{product ? t('editProduct') : t('addProduct')}</DialogTitle>
+          <DialogTitle>
+            {product ? t("editProduct") : t("addProduct")}
+          </DialogTitle>
           <DialogDescription>
-            {product ? t('updateDetails') : t('fillDetails')}
+            {product ? t("updateDetails") : t("fillDetails")}
           </DialogDescription>
         </DialogHeader>
         <ProductForm
           product={product}
-          providers={providers}
+          stores={stores}
           onSuccess={() => {
             onSuccess()
             onOpenChange(false)

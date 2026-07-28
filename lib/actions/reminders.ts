@@ -1,12 +1,15 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
-import { clientRemindersTable, clientsTable } from "@/lib/drizzle/schema"
-import { eq, desc, and, asc, gte, sql } from "drizzle-orm"
-import { requirePermission, auth } from "@/lib/auth"
-import { z } from "zod"
+import {
+  clientRemindersTable,
+  clientsTable,
+} from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
+import { and, asc, desc, eq, sql } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
 
 const reminderSchema = z.object({
   clientId: z.string().uuid("Invalid client ID"),
@@ -79,6 +82,7 @@ export async function upsertReminder(
     description: fields.description,
     remindAt: fields.remindAt,
     createdBy: session.user.id,
+    store_id: null,
   }
 
   if (reminderId) {

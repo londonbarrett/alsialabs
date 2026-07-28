@@ -139,6 +139,7 @@ export function InactiveClientsCard() {
                             location: c.location,
                             comments: c.comments,
                             userId: c.userId,
+                            store_id: null,
                           })
                         }}
                       >

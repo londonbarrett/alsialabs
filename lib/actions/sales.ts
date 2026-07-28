@@ -136,6 +136,7 @@ export async function getInvoices() {
   const invoices = await db
     .select({
       id: invoicesTable.id,
+      store_id: invoicesTable.store_id,
       type: invoicesTable.type,
       invoiceNumber: invoicesTable.invoiceNumber,
       clientId: invoicesTable.clientId,
@@ -232,6 +233,7 @@ export async function upsertInvoice(
     discountTotal: totals.discountTotal,
     taxTotal: totals.taxTotal,
     grandTotal: totals.grandTotal,
+    store_id: null,
   }
 
   if (invoiceId) {

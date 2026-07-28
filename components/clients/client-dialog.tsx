@@ -15,7 +15,7 @@ interface ClientDialogProps {
   client?: Client
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: (data: Omit<Client, 'id' | 'userId'>) => void
+  onSuccess: (data: Omit<Client, 'id' | 'userId' | 'store_id'>) => void
 }
 
 export function ClientDialog({ client, open, onOpenChange, onSuccess }: ClientDialogProps) {

@@ -1,9 +1,8 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ActionMenu } from "@/components/common/action-menu"
+import { ProductDialog } from "@/components/products/product-dialog"
+import { Button } from "@/components/ui/button"
 import {
   Table,
   TableBody,
@@ -11,26 +10,33 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { ProductDialog } from '@/components/products/product-dialog'
-import { ActionMenu } from '@/components/common/action-menu'
-import { deleteProduct } from '@/lib/actions/products'
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
-import type { ProductWithProvider } from '@/lib/actions/products'
-import type { ProviderOption } from '@/lib/actions/providers'
+} from "@/components/ui/table"
+import type { ProductWithStore } from "@/lib/actions/products"
+import { deleteProduct } from "@/lib/actions/products"
+import type { StoreOption } from "@/lib/actions/stores"
+import { Plus } from "lucide-react"
+import { useTranslations } from "next-intl"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 
 interface ProductListViewProps {
-  products: ProductWithProvider[]
-  providers: ProviderOption[]
+  products: ProductWithStore[]
+  stores: StoreOption[]
   permissions?: string[]
 }
 
-export function ProductListView({ products, providers, permissions = [] }: ProductListViewProps) {
+export function ProductListView({
+  products,
+  stores,
+  permissions = [],
+}: ProductListViewProps) {
   const router = useRouter()
   const t = useTranslations()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<ProductWithProvider | undefined>()
+  const [editingProduct, setEditingProduct] = useState<
+    ProductWithStore | undefined
+  >()
 
   function handleSuccess() {
     router.refresh()
@@ -42,7 +48,7 @@ export function ProductListView({ products, providers, permissions = [] }: Produ
     setDialogOpen(true)
   }
 
-  function openEdit(product: ProductWithProvider) {
+  function openEdit(product: ProductWithStore) {
     setEditingProduct(product)
     setDialogOpen(true)
   }
@@ -55,51 +61,84 @@ export function ProductListView({ products, providers, permissions = [] }: Produ
   return (
     <>
       {products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full gap-4">
-          <p className="text-muted-foreground">{t('products.noProducts')}</p>
-          <Button onClick={openNew} aria-label={t('products.addProduct')}>
+        <div className="flex h-full flex-col items-center justify-center gap-4">
+          <p className="text-muted-foreground">
+            {t("products.noProducts")}
+          </p>
+          <Button
+            onClick={openNew}
+            aria-label={t("products.addProduct")}
+          >
             <Plus />
-            {t('products.addProduct')}
+            {t("products.addProduct")}
           </Button>
         </div>
       ) : (
-        <div className="flex flex-col p-6 gap-4 flex-1">
+        <div className="flex flex-1 flex-col gap-4 p-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold tracking-tight">{t('products.title')}</h1>
-            <Button onClick={openNew} aria-label={t('products.addProduct')}>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t("products.title")}
+            </h1>
+            <Button
+              onClick={openNew}
+              aria-label={t("products.addProduct")}
+            >
               <Plus />
-              {t('products.addProduct')}
+              {t("products.addProduct")}
             </Button>
           </div>
 
-            <div className="rounded-md border overflow-auto max-h-[calc(100vh-10rem)]" role="region" aria-label={t('products.title')}>
+          <div
+            className="max-h-[calc(100vh-10rem)] overflow-auto rounded-md border"
+            role="region"
+            aria-label={t("products.title")}
+          >
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">{t('products.name')}</TableHead>
-                  <TableHead scope="col">{t('products.provider')}</TableHead>
-                  <TableHead scope="col">{t('products.sku')}</TableHead>
-                  <TableHead scope="col">{t('products.unit')}</TableHead>
-                  <TableHead scope="col">{t('products.actions')}</TableHead>
+                  <TableHead scope="col">
+                    {t("products.name")}
+                  </TableHead>
+                  <TableHead scope="col">
+                    {t("products.store")}
+                  </TableHead>
+                  <TableHead scope="col">{t("products.sku")}</TableHead>
+                  <TableHead scope="col">
+                    {t("products.unit")}
+                  </TableHead>
+                  <TableHead scope="col">
+                    {t("products.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products.map((product) => (
-                  <TableRow key={product.id} className="select-none" onDoubleClick={() => openEdit(product)}>
+                  <TableRow
+                    key={product.id}
+                    className="select-none"
+                    onDoubleClick={() => openEdit(product)}
+                  >
                     <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.provider_name ?? '—'}</TableCell>
-                    <TableCell>{product.sku ?? '—'}</TableCell>
-                    <TableCell>{product.unit ?? '—'}</TableCell>
+                    <TableCell>{product.store_name ?? "—"}</TableCell>
+                    <TableCell>{product.sku ?? "—"}</TableCell>
+                    <TableCell>{product.unit ?? "—"}</TableCell>
                     <TableCell>
                       <ActionMenu
                         entityName={product.name}
                         onEdit={() => openEdit(product)}
                         onDelete={async () => {
                           const result = await deleteProduct(product.id)
-                          if (!result.success) toast.error(result.error || t('products.failedToDelete'))
-                          else toast.success(t('products.productDeleted'))
+                          if (!result.success)
+                            toast.error(
+                              result.error ||
+                                t("products.failedToDelete")
+                            )
+                          else
+                            toast.success(t("products.productDeleted"))
                         }}
-                        canDelete={permissions.includes('products:delete')}
+                        canDelete={permissions.includes(
+                          "products:delete"
+                        )}
                       />
                     </TableCell>
                   </TableRow>
@@ -111,7 +150,7 @@ export function ProductListView({ products, providers, permissions = [] }: Produ
       )}
       <ProductDialog
         product={editingProduct}
-        providers={providers}
+        stores={stores}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
         onSuccess={handleSuccess}

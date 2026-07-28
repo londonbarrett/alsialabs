@@ -4,7 +4,7 @@ import { db } from "./client"
 import {
   categoryTable,
   permissionsTable,
-  providersTable,
+  storesTable,
   rolePermissionsTable,
   rolesTable,
   taxonomyTable,
@@ -190,45 +190,49 @@ async function seed() {
   }
   console.log("Expense categories seeded")
 
-  const companyName = process.env.COMPANY_NAME || "Alsia Labs"
-  const existingProvider = await db
-    .select({ id: providersTable.id })
-    .from(providersTable)
-    .where(eq(providersTable.name, companyName))
-    .then((rows) => rows[0])
-  if (!existingProvider) {
-    await db.insert(providersTable).values({ name: companyName })
-    console.log(`Company provider "${companyName}" seeded`)
-  } else {
-    console.log(
-      `Company provider "${companyName}" already exists, skipping`
-    )
+  const adminEmail = process.env.ALSIA_STORE_EMAIL
+  let superUserId: string | undefined
+
+  if (adminEmail && superRole) {
+    const existing = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, adminEmail))
+      .then((rows) => rows[0])
+
+    if (!existing) {
+      superUserId = crypto.randomUUID()
+      await db.insert(usersTable).values({
+        id: superUserId,
+        email: adminEmail,
+      })
+      await db.insert(userRolesTable).values({
+        userId: superUserId,
+        roleId: superRole.id,
+      })
+      console.log(`Super user created: ${adminEmail}`)
+    } else {
+      superUserId = existing.id
+      console.log(`User ${adminEmail} already exists, skipping`)
+    }
   }
 
-  const adminEmail = process.env.SUPER_USER_EMAIL
-  if (adminEmail) {
-    if (superRole) {
-      const existing = await db
-        .select({ id: usersTable.id })
-        .from(usersTable)
-        .where(eq(usersTable.email, adminEmail))
-        .then((rows) => rows[0])
-
-      if (!existing) {
-        const userId = crypto.randomUUID()
-        await db.insert(usersTable).values({
-          id: userId,
-          email: adminEmail,
-        })
-        await db.insert(userRolesTable).values({
-          userId,
-          roleId: superRole.id,
-        })
-        console.log(`Super user created: ${adminEmail}`)
-      } else {
-        console.log(`User ${adminEmail} already exists, skipping`)
-      }
-    }
+  const companyName = process.env.COMPANY_NAME || "Alsia Labs"
+  const existingStore = await db
+    .select({ id: storesTable.id })
+    .from(storesTable)
+    .where(eq(storesTable.name, companyName))
+    .then((rows) => rows[0])
+  if (!existingStore && superUserId) {
+    await db.insert(storesTable).values({
+      name: companyName,
+      owner_id: superUserId,
+    })
+    console.log(`Company store "${companyName}" seeded`)
+  } else if (existingStore) {
+    console.log(`Company store "${companyName}" already exists, skipping`)
+  } else {
+    console.log("Skipping store seed: no super user available")
   }
 
   process.exit(0)

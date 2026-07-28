@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 
 interface ClientFormProps {
   client?: Client
-  onSuccess: (data: Omit<Client, 'id' | 'userId'>) => void
+  onSuccess: (data: Omit<Client, 'id' | 'userId' | 'store_id'>) => void
   onCancel: () => void
 }
 

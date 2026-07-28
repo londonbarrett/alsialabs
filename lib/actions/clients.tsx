@@ -180,6 +180,7 @@ export async function upsertClient(
     location: fields.location || null,
     comments: fields.comments || null,
     email: fields.email || null,
+    store_id: null,
   }
 
   if (clientId) {

@@ -81,6 +81,7 @@ export async function upsertActivity(
     description: fields.description || null,
     activityDate: fields.activityDate,
     performedBy: session.user.id,
+    store_id: null,
   }
 
   if (activityId) {

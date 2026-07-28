@@ -192,7 +192,7 @@
     "fillDetails": "Fill in the details to add a new product.",
     "noProducts": "No products yet",
     "name": "Name",
-    "provider": "Provider",
+    "store": "Store",
     "sku": "SKU",
     "unit": "Unit",
     "description": "Description",
@@ -202,9 +202,9 @@
     "productUpdated": "Product updated",
     "productCreated": "Product created",
     "nameRequired": "Name is required",
-    "providerRequired": "Provider is required",
+    "storeRequired": "Store is required",
     "skuInUse": "This SKU is already in use",
-    "selectProvider": "Select a provider",
+    "selectStore": "Select a store",
     "skuInUseField": "SKU already in use"
   },
   "categories": {
@@ -584,7 +584,7 @@
     },
     "products": {
       "nameRequired": "Name is required",
-      "providerRequired": "Provider is required",
+      "storeRequired": "Store is required",
       "forbidden": "Forbidden",
       "validationFailed": "Validation failed",
       "skuAlreadyExists": "A product with this SKU already exists",
@@ -640,7 +640,7 @@
       "unauthorized": "Unauthorized",
       "invalidReminderId": "Invalid reminder ID"
     },
-    "providers": {
+    "stores": {
       "forbidden": "Forbidden"
     },
     "reports": {

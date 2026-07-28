@@ -4,9 +4,12 @@ import { ClientActionMenu } from "@/components/clients/client-action-menu"
 import { ClientDialog } from "@/components/clients/client-dialog"
 import { InviteDialog } from "@/components/clients/invite-dialog"
 import { PageHeader } from "@/components/common/page-header"
-import { ImportButton } from "@/components/import-button"
 import { Button } from "@/components/ui/button"
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import {
   Table,
   TableBody,
@@ -61,7 +64,9 @@ export function ClientListView({
     )
   }, [clients, searchQuery])
 
-  function handleSuccess(data: Omit<Client, "id" | "userId">) {
+  function handleSuccess(
+    data: Omit<Client, "id" | "userId" | "store_id">
+  ) {
     if (editingClient) {
       setClients((prev) =>
         prev.map((c) =>

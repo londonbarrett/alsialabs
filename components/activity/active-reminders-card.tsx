@@ -197,6 +197,7 @@ export function ActiveRemindersCard({
             createdBy: "",
             createdAt: new Date(),
             updatedAt: new Date(),
+            store_id: null,
           }}
           open={!!editingReminder}
           onOpenChange={(open) => {

@@ -1,31 +1,61 @@
-'use server'
+"use server"
 
-import { revalidatePath } from 'next/cache'
-import { db } from '@/lib/drizzle/client'
-import { clientsTable } from '@/lib/drizzle/schema'
-import { inArray } from 'drizzle-orm'
-import { auth } from '@/lib/auth'
-import { z } from 'zod'
-import { getActionT } from '@/lib/i18n-actions'
-import Papa from 'papaparse'
+import { auth } from "@/lib/auth"
+import { db } from "@/lib/drizzle/client"
+import { clientsTable } from "@/lib/drizzle/schema"
+import { getActionT } from "@/lib/i18n-actions"
+import { inArray } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import Papa from "papaparse"
+import { z } from "zod"
 
-const REQUIRED_COLUMNS = ['NAME', 'PHONE', 'LOCATION', 'COMMENTS', 'EMAIL']
+const REQUIRED_COLUMNS = [
+  "NAME",
+  "PHONE",
+  "LOCATION",
+  "COMMENTS",
+  "EMAIL",
+]
 
 const csvRecordSchema = z.object({
-  name: z.string().min(1).max(500).transform((v) => v.trim()),
-  phone: z.string().min(1).max(100).transform((v) => v.trim()),
-  location: z.string().max(1000).transform((v) => v.trim()).optional().default(''),
-  comments: z.string().max(5000).transform((v) => v.trim()).optional().default(''),
-  email: z.string().max(500).transform((v) => v.trim()).optional().default(''),
+  name: z
+    .string()
+    .min(1)
+    .max(500)
+    .transform((v) => v.trim()),
+  phone: z
+    .string()
+    .min(1)
+    .max(100)
+    .transform((v) => v.trim()),
+  location: z
+    .string()
+    .max(1000)
+    .transform((v) => v.trim())
+    .optional()
+    .default(""),
+  comments: z
+    .string()
+    .max(5000)
+    .transform((v) => v.trim())
+    .optional()
+    .default(""),
+  email: z
+    .string()
+    .max(500)
+    .transform((v) => v.trim())
+    .optional()
+    .default(""),
 })
 
 export async function importClients(formData: FormData) {
-  const t = await getActionT('actions.import')
+  const t = await getActionT("actions.import")
   const session = await auth()
-  if (!session?.user) return { success: false, error: t('unauthorized') }
+  if (!session?.user)
+    return { success: false, error: t("unauthorized") }
 
-  const file = formData.get('file') as File | null
-  if (!file) return { success: false, error: t('noFileProvided') }
+  const file = formData.get("file") as File | null
+  if (!file) return { success: false, error: t("noFileProvided") }
 
   const text = await file.text()
 
@@ -40,18 +70,25 @@ export async function importClients(formData: FormData) {
   }
 
   if (parsed.data.length === 0) {
-    return { success: false, error: t('csvEmpty') }
+    return { success: false, error: t("csvEmpty") }
   }
 
   const headers = Object.keys(parsed.data[0])
   const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c))
   if (missing.length > 0) {
-    return { success: false, error: t('missingRequiredColumns', { columns: missing.join(', ') }) }
+    return {
+      success: false,
+      error: t("missingRequiredColumns", {
+        columns: missing.join(", "),
+      }),
+    }
   }
 
-  const phones = [...new Set(parsed.data.map((r) => r.PHONE).filter(Boolean))]
+  const phones = [
+    ...new Set(parsed.data.map((r) => r.PHONE).filter(Boolean)),
+  ]
   if (phones.length === 0) {
-    return { success: false, error: t('noValidRows') }
+    return { success: false, error: t("noValidRows") }
   }
 
   const existing = await db
@@ -61,7 +98,14 @@ export async function importClients(formData: FormData) {
 
   const existingPhones = new Set(existing.map((r) => r.phone))
 
-  const toInsert: Array<{ name: string; phone: string; location: string | null; comments: string | null; email: string | null }> = []
+  const toInsert: Array<{
+    name: string
+    phone: string
+    location: string | null
+    comments: string | null
+    email: string | null
+    store_id: null
+  }> = []
   for (const row of parsed.data) {
     if (!row.PHONE || existingPhones.has(row.PHONE)) continue
     const result = csvRecordSchema.safeParse({
@@ -78,6 +122,7 @@ export async function importClients(formData: FormData) {
       location: result.data.location || null,
       comments: result.data.comments || null,
       email: result.data.email || null,
+      store_id: null,
     })
   }
 
@@ -85,6 +130,6 @@ export async function importClients(formData: FormData) {
 
   await db.insert(clientsTable).values(toInsert)
 
-  revalidatePath('/dashboard/clients')
+  revalidatePath("/dashboard/clients")
   return { success: true, importedCount: toInsert.length }
 }
