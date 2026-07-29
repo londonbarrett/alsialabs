@@ -1,7 +1,5 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { useTranslations } from "next-intl"
 import {
   Select,
   SelectContent,
@@ -9,18 +7,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getUserStores, switchStore } from "@/lib/actions/stores"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { UserStore } from "@/lib/actions/stores"
+import { getUserStores, switchStore } from "@/lib/actions/stores"
+import { useTranslations } from "next-intl"
+import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useState, useTransition } from "react"
 
 interface StoreSwitcherProps {
   selectedStoreId: string | null
   role: string | null
 }
 
-export function StoreSwitcher({ selectedStoreId, role }: StoreSwitcherProps) {
+export function StoreSwitcher({
+  selectedStoreId,
+  role,
+}: StoreSwitcherProps) {
   const t = useTranslations("store")
+  const router = useRouter()
   const [stores, setStores] = useState<UserStore[]>([])
   const [loading, setLoading] = useState(true)
+  const [isPending, startTransition] = useTransition()
+  const { start: startLoading, stop: stopLoading } =
+    useLoadingIndicator()
 
   useEffect(() => {
     async function load() {
@@ -32,11 +41,19 @@ export function StoreSwitcher({ selectedStoreId, role }: StoreSwitcherProps) {
   }, [])
 
   const handleChange = useCallback(
-    async (value: string) => {
+    (value: string) => {
       const storeId = value === "__all__" ? null : value
-      await switchStore(storeId)
+      startLoading()
+      startTransition(async () => {
+        try {
+          await switchStore(storeId)
+          router.refresh()
+        } finally {
+          stopLoading()
+        }
+      })
     },
-    []
+    [router, startLoading, stopLoading]
   )
 
   if (loading || stores.length === 0) return null
@@ -45,7 +62,11 @@ export function StoreSwitcher({ selectedStoreId, role }: StoreSwitcherProps) {
   const value = selectedStoreId ?? "__all__"
 
   return (
-    <Select value={value} onValueChange={handleChange}>
+    <Select
+      value={value}
+      onValueChange={handleChange}
+      disabled={isPending}
+    >
       <SelectTrigger className="h-7 w-auto min-w-32 text-xs">
         <SelectValue placeholder={t("selectStore")} />
       </SelectTrigger>

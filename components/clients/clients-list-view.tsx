@@ -33,12 +33,11 @@ interface ClientListViewProps {
 }
 
 export function ClientListView({
-  clients: initialClients,
+  clients,
   permissions = [],
 }: ClientListViewProps) {
   const router = useRouter()
   const t = useTranslations()
-  const [clients, setClients] = useState(initialClients)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<
     Client | undefined
@@ -67,15 +66,8 @@ export function ClientListView({
   function handleSuccess(
     data: Omit<Client, "id" | "userId" | "store_id">
   ) {
-    if (editingClient) {
-      setClients((prev) =>
-        prev.map((c) =>
-          c.id === editingClient.id ? { ...c, ...data } : c
-        )
-      )
-    } else {
-      router.refresh()
-    }
+    void data
+    router.refresh()
     setEditingClient(undefined)
   }
 
