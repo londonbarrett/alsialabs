@@ -1,11 +1,12 @@
+import { AppSidebar } from "@/components/app-sidebar"
+import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import {
+  SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-  SidebarInset,
 } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { requireAuth, getCachedUserPermissions } from "@/lib/auth"
-import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
+import { getScopedStoreId } from "@/lib/actions/stores"
+import { getCachedUserPermissions, requireAuth } from "@/lib/auth"
 
 export default async function DashboardLayout({
   children,
@@ -16,12 +17,14 @@ export default async function DashboardLayout({
   const permissions = session.user?.id
     ? await getCachedUserPermissions(session.user.id)
     : []
+  const selectedStoreId = await getScopedStoreId()
 
   return (
     <SidebarProvider>
       <AppSidebar
         permissions={permissions}
         role={session.user?.role}
+        selectedStoreId={selectedStoreId}
         user={{
           name: session.user?.name ?? null,
           email: session.user?.email ?? null,

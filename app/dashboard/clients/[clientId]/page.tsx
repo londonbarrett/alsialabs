@@ -2,7 +2,7 @@ import { ActivityTimeline } from "@/components/clients/activity-timeline"
 import { ClientInfoCard } from "@/components/clients/client-info-card"
 import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { PageHeader } from "@/components/common/page-header"
-import { getActivities } from "@/lib/actions/activities"
+import { getClientActivities } from "@/lib/actions/activities"
 import { getClientByClientId } from "@/lib/actions/clients"
 import { getClientInvoices } from "@/lib/actions/invoices"
 import { getReminders } from "@/lib/actions/reminders"
@@ -61,7 +61,7 @@ export default async function ClientProfilePage({
 
     if (!isUser) {
       ;[activities, reminders] = await Promise.all([
-        getActivities(clientId),
+        getClientActivities(clientId),
         getReminders(clientId),
       ])
     }

@@ -122,7 +122,7 @@ export type ClientReminder = typeof clientRemindersTable.$inferSelect
 export type Client = typeof clientsTable.$inferSelect
 export type Role = typeof rolesTable.$inferSelect
 export type UserRole = typeof userRolesTable.$inferSelect
-export type Provider = typeof providersTable.$inferSelect
+export type Store = typeof storesTable.$inferSelect
 export type Product = typeof productsTable.$inferSelect
 export type Invoice = typeof invoicesTable.$inferSelect
 export type InvoiceItem = typeof invoiceItemsTable.$inferSelect
@@ -136,11 +136,14 @@ export type ProjectOwner = typeof projectOwnersTable.$inferSelect
 export type ProjectCollaborator =
   typeof projectCollaboratorsTable.$inferSelect
 
-export const providersTable = pgTable("provider", {
+export const storesTable = pgTable("store", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text().notNull(),
+  owner_id: text("owner_id")
+    .notNull()
+    .references(() => usersTable.id),
   contact_name: text(),
   email: text(),
   phone: text(),
@@ -152,9 +155,9 @@ export const productsTable = pgTable("product", {
     .$defaultFn(() => crypto.randomUUID()),
   name: text().notNull(),
   description: text(),
-  provider_id: text("provider_id")
+  store_id: text("store_id")
     .notNull()
-    .references(() => providersTable.id),
+    .references(() => storesTable.id),
   sku: text().unique(),
   unit: text(),
 })
@@ -163,6 +166,7 @@ export const clientsTable = pgTable("client", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
+  store_id: text("store_id").references(() => storesTable.id),
   name: text().notNull(),
   phone: text().notNull().unique(),
   location: text(),
@@ -177,6 +181,7 @@ export const invoicesTable = pgTable("invoice", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
+  store_id: text("store_id").references(() => storesTable.id),
   type: text().notNull().$type<"product" | "service">(),
   invoiceNumber: text("invoice_number").notNull().unique(),
   clientId: text("client_id")
@@ -241,6 +246,7 @@ export const clientActivitiesTable = pgTable("client_activity", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
+  store_id: text("store_id").references(() => storesTable.id),
   clientId: text("client_id")
     .notNull()
     .references(() => clientsTable.id, { onDelete: "cascade" }),
@@ -264,6 +270,7 @@ export const clientRemindersTable = pgTable("client_reminder", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
+  store_id: text("store_id").references(() => storesTable.id),
   clientId: text("client_id")
     .notNull()
     .references(() => clientsTable.id, { onDelete: "cascade" }),
@@ -326,7 +333,12 @@ export const categoryTable = pgTable(
     name: text().notNull(),
     description: text(),
   },
-  (table) => [unique("category_taxonomy_slug_unique").on(table.taxonomyId, table.slug)]
+  (table) => [
+    unique("category_taxonomy_slug_unique").on(
+      table.taxonomyId,
+      table.slug
+    ),
+  ]
 )
 
 export const projectsTable = pgTable("project", {

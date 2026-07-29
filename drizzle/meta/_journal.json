@@ -92,6 +92,13 @@
       "when": 1785026530421,
       "tag": "0012_categories-unified",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1785251812732,
+      "tag": "0013_rename_provider_to_store",
+      "breakpoints": true
     }
   ]
 }

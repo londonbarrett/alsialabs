@@ -4,7 +4,7 @@ import { db } from "./client"
 import {
   categoryTable,
   permissionsTable,
-  providersTable,
+  storesTable,
   rolePermissionsTable,
   rolesTable,
   taxonomyTable,
@@ -19,7 +19,11 @@ const roles = [
   },
   {
     name: "admin",
-    description: "Can manage clients and access most features",
+    description: "Can manage global data and settings",
+  },
+  {
+    name: "retailer",
+    description: "Owns and manages their own store data",
   },
   { name: "user", description: "Limited access, own data only" },
 ]
@@ -59,6 +63,7 @@ async function seed() {
 
   const superRole = seededRoles.find((r) => r.name === "super")!
   const adminRole = seededRoles.find((r) => r.name === "admin")!
+  const retailerRole = seededRoles.find((r) => r.name === "retailer")!
   const userRole = seededRoles.find((r) => r.name === "user")!
 
   for (const mod of defaultModules) {
@@ -104,6 +109,25 @@ async function seed() {
       await db
         .insert(rolePermissionsTable)
         .values({ roleId: adminRole.id, permissionId: perm.id })
+        .onConflictDoNothing()
+    }
+  }
+
+  const retailModules = [
+    "clients",
+    "products",
+    "sales",
+    "client-activity",
+  ]
+  for (const perm of allPermissions) {
+    const isRetailerModule = retailModules.includes(perm.module)
+    if (
+      (isRetailerModule && perm.action !== "invite") ||
+      (perm.module === "activity" && perm.action === "view")
+    ) {
+      await db
+        .insert(rolePermissionsTable)
+        .values({ roleId: retailerRole.id, permissionId: perm.id })
         .onConflictDoNothing()
     }
   }
@@ -159,8 +183,12 @@ async function seed() {
   console.log("Taxonomies seeded")
 
   const seededTaxonomies = await db.select().from(taxonomyTable)
-  const projectTaxonomy = seededTaxonomies.find((t) => t.slug === "project")!
-  const expenseTaxonomy = seededTaxonomies.find((t) => t.slug === "expense")!
+  const projectTaxonomy = seededTaxonomies.find(
+    (t) => t.slug === "project"
+  )!
+  const expenseTaxonomy = seededTaxonomies.find(
+    (t) => t.slug === "expense"
+  )!
 
   const defaultProjectCategories = [
     { slug: "crop", name: "Crop" },
@@ -170,7 +198,9 @@ async function seed() {
     await db
       .insert(categoryTable)
       .values({ ...cat, taxonomyId: projectTaxonomy.id })
-      .onConflictDoNothing({ target: [categoryTable.taxonomyId, categoryTable.slug] })
+      .onConflictDoNothing({
+        target: [categoryTable.taxonomyId, categoryTable.slug],
+      })
   }
   console.log("Project categories seeded")
 
@@ -186,49 +216,57 @@ async function seed() {
     await db
       .insert(categoryTable)
       .values({ ...cat, taxonomyId: expenseTaxonomy.id })
-      .onConflictDoNothing({ target: [categoryTable.taxonomyId, categoryTable.slug] })
+      .onConflictDoNothing({
+        target: [categoryTable.taxonomyId, categoryTable.slug],
+      })
   }
   console.log("Expense categories seeded")
 
-  const companyName = process.env.COMPANY_NAME || "Alsia Labs"
-  const existingProvider = await db
-    .select({ id: providersTable.id })
-    .from(providersTable)
-    .where(eq(providersTable.name, companyName))
-    .then((rows) => rows[0])
-  if (!existingProvider) {
-    await db.insert(providersTable).values({ name: companyName })
-    console.log(`Company provider "${companyName}" seeded`)
-  } else {
-    console.log(
-      `Company provider "${companyName}" already exists, skipping`
-    )
+  const adminEmail = process.env.ALSIA_STORE_EMAIL
+  let superUserId: string | undefined
+
+  if (adminEmail && superRole) {
+    const existing = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, adminEmail))
+      .then((rows) => rows[0])
+
+    if (!existing) {
+      superUserId = crypto.randomUUID()
+      await db.insert(usersTable).values({
+        id: superUserId,
+        email: adminEmail,
+      })
+      await db.insert(userRolesTable).values({
+        userId: superUserId,
+        roleId: superRole.id,
+      })
+      console.log(`Super user created: ${adminEmail}`)
+    } else {
+      superUserId = existing.id
+      console.log(`User ${adminEmail} already exists, skipping`)
+    }
   }
 
-  const adminEmail = process.env.SUPER_USER_EMAIL
-  if (adminEmail) {
-    if (superRole) {
-      const existing = await db
-        .select({ id: usersTable.id })
-        .from(usersTable)
-        .where(eq(usersTable.email, adminEmail))
-        .then((rows) => rows[0])
-
-      if (!existing) {
-        const userId = crypto.randomUUID()
-        await db.insert(usersTable).values({
-          id: userId,
-          email: adminEmail,
-        })
-        await db.insert(userRolesTable).values({
-          userId,
-          roleId: superRole.id,
-        })
-        console.log(`Super user created: ${adminEmail}`)
-      } else {
-        console.log(`User ${adminEmail} already exists, skipping`)
-      }
-    }
+  const companyName = process.env.COMPANY_NAME || "Alsia Labs"
+  const existingStore = await db
+    .select({ id: storesTable.id })
+    .from(storesTable)
+    .where(eq(storesTable.name, companyName))
+    .then((rows) => rows[0])
+  if (!existingStore && superUserId) {
+    await db.insert(storesTable).values({
+      name: companyName,
+      owner_id: superUserId,
+    })
+    console.log(`Company store "${companyName}" seeded`)
+  } else if (existingStore) {
+    console.log(
+      `Company store "${companyName}" already exists, skipping`
+    )
+  } else {
+    console.log("Skipping store seed: no super user available")
   }
 
   process.exit(0)

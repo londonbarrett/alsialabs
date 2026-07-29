@@ -148,3 +148,9 @@ export function isSuperUser(session: {
 }) {
   return session.user.role === 'super'
 }
+
+export function isRetailer(session: {
+  user: { role: string | null }
+}) {
+  return session.user.role === 'retailer'
+}

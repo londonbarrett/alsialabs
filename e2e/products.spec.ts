@@ -46,7 +46,7 @@ async function createProduct(
   const sku = "TEST-" + Date.now()
   await page.getByRole("button", { name: /Add Product/i }).click()
   await page.getByRole("dialog").locator("#name").fill(productName)
-  await page.getByRole("dialog").locator("#provider_id").click()
+  await page.getByRole("dialog").locator("#store_id").click()
   await page.getByRole("option").first().click()
   await page.getByRole("dialog").locator("#sku").fill(sku)
   await page.getByRole("dialog").locator("#unit").fill("pcs")
@@ -104,7 +104,7 @@ test.describe("Products", () => {
         .getByRole("button", { name: /Create Product/i })
         .click()
       await expect(page.getByText("Name is required")).toBeVisible()
-      await expect(page.getByText("Provider is required")).toBeVisible()
+      await expect(page.getByText("Store is required")).toBeVisible()
     })
 
     test("closes dialog on Cancel", async ({ page }) => {
@@ -143,7 +143,7 @@ test.describe("Products", () => {
         .getByRole("dialog")
         .locator("#name")
         .fill("Spinner Test")
-      await page.getByRole("dialog").locator("#provider_id").click()
+      await page.getByRole("dialog").locator("#store_id").click()
       await page.getByRole("option").first().click()
       await page
         .getByRole("dialog")

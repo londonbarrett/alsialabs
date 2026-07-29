@@ -4,9 +4,12 @@ import { ClientActionMenu } from "@/components/clients/client-action-menu"
 import { ClientDialog } from "@/components/clients/client-dialog"
 import { InviteDialog } from "@/components/clients/invite-dialog"
 import { PageHeader } from "@/components/common/page-header"
-import { ImportButton } from "@/components/import-button"
 import { Button } from "@/components/ui/button"
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import {
   Table,
   TableBody,
@@ -30,12 +33,11 @@ interface ClientListViewProps {
 }
 
 export function ClientListView({
-  clients: initialClients,
+  clients,
   permissions = [],
 }: ClientListViewProps) {
   const router = useRouter()
   const t = useTranslations()
-  const [clients, setClients] = useState(initialClients)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<
     Client | undefined
@@ -61,16 +63,11 @@ export function ClientListView({
     )
   }, [clients, searchQuery])
 
-  function handleSuccess(data: Omit<Client, "id" | "userId">) {
-    if (editingClient) {
-      setClients((prev) =>
-        prev.map((c) =>
-          c.id === editingClient.id ? { ...c, ...data } : c
-        )
-      )
-    } else {
-      router.refresh()
-    }
+  function handleSuccess(
+    data: Omit<Client, "id" | "userId" | "store_id">
+  ) {
+    void data
+    router.refresh()
     setEditingClient(undefined)
   }
 

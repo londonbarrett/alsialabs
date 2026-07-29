@@ -1,19 +1,35 @@
-'use server'
+"use server"
 
-import { revalidatePath } from 'next/cache'
-import { db } from '@/lib/drizzle/client'
-import { productsTable, providersTable } from '@/lib/drizzle/schema'
-import { eq } from 'drizzle-orm'
-import { requirePermission } from '@/lib/auth'
-import { z } from 'zod'
-import { getActionT } from '@/lib/i18n-actions'
+import { getEffectiveStoreId } from "@/lib/actions/stores"
+import { requirePermission } from "@/lib/auth"
+import { db } from "@/lib/drizzle/client"
+import { productsTable, storesTable } from "@/lib/drizzle/schema"
+import { getActionT } from "@/lib/i18n-actions"
+import { and, eq } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
 
 const productSchema = z.object({
-  name: z.string().min(1, 'Name is required').transform((v) => v.trim()),
-  description: z.string().transform((v) => v.trim()).optional().default(''),
-  provider_id: z.string().min(1, 'Provider is required'),
-  sku: z.string().transform((v) => v.trim()).optional().default(''),
-  unit: z.string().transform((v) => v.trim()).optional().default(''),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .transform((v) => v.trim()),
+  description: z
+    .string()
+    .transform((v) => v.trim())
+    .optional()
+    .default(""),
+  store_id: z.string().min(1, "Store is required"),
+  sku: z
+    .string()
+    .transform((v) => v.trim())
+    .optional()
+    .default(""),
+  unit: z
+    .string()
+    .transform((v) => v.trim())
+    .optional()
+    .default(""),
 })
 
 const skuSchema = z.string().transform((v) => v.trim())
@@ -21,35 +37,43 @@ const skuSchema = z.string().transform((v) => v.trim())
 export type ProductFormData = z.infer<typeof productSchema>
 
 export async function getProducts() {
-  const t = await getActionT('actions.products')
+  const t = await getActionT("actions.products")
   try {
-    await requirePermission('products', 'view')
+    await requirePermission("products", "view")
   } catch {
-    throw new Error(t('forbidden'))
+    throw new Error(t("forbidden"))
   }
 
-  return db
+  const storeId = await getEffectiveStoreId()
+
+  const query = db
     .select({
       id: productsTable.id,
       name: productsTable.name,
       description: productsTable.description,
-      provider_id: productsTable.provider_id,
-      provider_name: providersTable.name,
+      store_id: productsTable.store_id,
+      store_name: storesTable.name,
       sku: productsTable.sku,
       unit: productsTable.unit,
     })
     .from(productsTable)
-    .leftJoin(providersTable, eq(productsTable.provider_id, providersTable.id))
+    .leftJoin(storesTable, eq(productsTable.store_id, storesTable.id))
+
+  return storeId
+    ? query.where(eq(productsTable.store_id, storeId))
+    : query
 }
 
-export type ProductWithProvider = Awaited<ReturnType<typeof getProducts>>[number]
+export type ProductWithStore = Awaited<
+  ReturnType<typeof getProducts>
+>[number]
 
 export async function checkSkuExists(sku: string, excludeId?: string) {
   const skuResult = skuSchema.safeParse(sku)
   if (!skuResult.success || !skuResult.data) return { exists: false }
 
   try {
-    await requirePermission('products', 'view')
+    await requirePermission("products", "view")
   } catch {
     return { exists: false }
   }
@@ -64,17 +88,24 @@ export async function checkSkuExists(sku: string, excludeId?: string) {
   return { exists: true }
 }
 
-export async function upsertProduct(data: ProductFormData, productId?: string) {
-  const t = await getActionT('actions.products')
+export async function upsertProduct(
+  data: ProductFormData,
+  productId?: string
+) {
+  const t = await getActionT("actions.products")
   try {
-    await requirePermission('products', productId ? 'edit' : 'create')
+    await requirePermission("products", productId ? "edit" : "create")
   } catch {
-    return { success: false, error: t('forbidden') }
+    return { success: false, error: t("forbidden") }
   }
 
   const parsed = productSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false, error: t('validationFailed'), fieldErrors: parsed.error.flatten().fieldErrors }
+    return {
+      success: false,
+      error: t("validationFailed"),
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    }
   }
 
   const fields = parsed.data
@@ -82,42 +113,64 @@ export async function upsertProduct(data: ProductFormData, productId?: string) {
   if (fields.sku) {
     const skuCheck = await checkSkuExists(fields.sku, productId)
     if (skuCheck.exists) {
-      return { success: false, error: t('skuAlreadyExists'), fieldErrors: { sku: [t('skuAlreadyInUseField')] } }
+      return {
+        success: false,
+        error: t("skuAlreadyExists"),
+        fieldErrors: { sku: [t("skuAlreadyInUseField")] },
+      }
     }
   }
 
   const sanitized = {
     name: fields.name,
     description: fields.description || null,
-    provider_id: fields.provider_id,
+    store_id: fields.store_id,
     sku: fields.sku || null,
     unit: fields.unit || null,
   }
 
+  const storeId = await getEffectiveStoreId()
+
   if (productId) {
-    await db.update(productsTable).set(sanitized).where(eq(productsTable.id, productId))
+    const conditions = [eq(productsTable.id, productId)]
+    if (storeId) {
+      conditions.push(eq(productsTable.store_id, storeId))
+    }
+    await db
+      .update(productsTable)
+      .set(sanitized)
+      .where(and(...conditions))
   } else {
     await db.insert(productsTable).values(sanitized)
   }
 
-  revalidatePath('/dashboard/products')
+  revalidatePath("/dashboard/products")
   return { success: true }
 }
 
 export async function deleteProduct(productId: string) {
-  const t = await getActionT('actions.products')
+  const t = await getActionT("actions.products")
   try {
-    await requirePermission('products', 'delete')
+    await requirePermission("products", "delete")
   } catch {
-    return { success: false as const, error: t('forbidden') }
+    return { success: false as const, error: t("forbidden") }
+  }
+
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(productsTable.id, productId)]
+  if (storeId) {
+    conditions.push(eq(productsTable.store_id, storeId))
   }
 
   try {
-    await db.delete(productsTable).where(eq(productsTable.id, productId))
+    await db.delete(productsTable).where(and(...conditions))
   } catch {
-    return { success: false as const, error: t('cannotDeleteWithReferences') }
+    return {
+      success: false as const,
+      error: t("cannotDeleteWithReferences"),
+    }
   }
 
-  revalidatePath('/dashboard/products')
+  revalidatePath("/dashboard/products")
   return { success: true as const }
 }

@@ -45,6 +45,7 @@
   "sidebar": {
     "navigation": "Navegación",
     "auxiliary": "Auxiliar",
+    "store": "Tienda",
     "admin": "Admin",
     "dashboard": "Panel",
     "clients": "Clientes",
@@ -59,6 +60,11 @@
     "profile": "Perfil",
     "help": "Ayuda",
     "support": "Soporte"
+  },
+  "store": {
+    "selectStore": "Seleccionar tienda...",
+    "allStores": "Todas las tiendas",
+    "switchStore": "Cambiar tienda"
   },
   "breadcrumb": {
     "dashboard": "Panel",
@@ -192,7 +198,7 @@
     "fillDetails": "Completa los datos para agregar un nuevo producto.",
     "noProducts": "No hay productos aún",
     "name": "Nombre",
-    "provider": "Proveedor",
+    "store": "Tienda",
     "sku": "SKU",
     "unit": "Unidad",
     "description": "Descripción",
@@ -202,9 +208,9 @@
     "productUpdated": "Producto actualizado",
     "productCreated": "Producto creado",
     "nameRequired": "El nombre es obligatorio",
-    "providerRequired": "El proveedor es obligatorio",
+    "storeRequired": "La tienda es obligatoria",
     "skuInUse": "Este SKU ya está en uso",
-    "selectProvider": "Seleccionar un proveedor",
+    "selectStore": "Seleccionar una tienda",
     "skuInUseField": "SKU ya en uso"
   },
   "categories": {
@@ -584,7 +590,7 @@
     },
     "products": {
       "nameRequired": "El nombre es obligatorio",
-      "providerRequired": "El proveedor es obligatorio",
+      "storeRequired": "La tienda es obligatoria",
       "forbidden": "Prohibido",
       "validationFailed": "Validación fallida",
       "skuAlreadyExists": "Ya existe un producto con este SKU",
@@ -640,7 +646,7 @@
       "unauthorized": "No autorizado",
       "invalidReminderId": "ID de recordatorio inválido"
     },
-    "providers": {
+    "stores": {
       "forbidden": "Prohibido"
     },
     "reports": {
