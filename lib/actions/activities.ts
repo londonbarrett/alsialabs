@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/drizzle/client"
 import { clientActivitiesTable } from "@/lib/drizzle/schema"
-import { eq, desc } from "drizzle-orm"
-import { requirePermission, auth, isSuperUser } from "@/lib/auth"
+import { and, eq, desc } from "drizzle-orm"
+import { requirePermission, auth } from "@/lib/auth"
+import { getEffectiveStoreId } from "@/lib/actions/stores"
 import { z } from "zod"
 import { getActionT } from "@/lib/i18n-actions"
 
@@ -32,7 +33,7 @@ const activitySchema = z.object({
 
 export type ActivityFormData = z.infer<typeof activitySchema>
 
-export async function getActivities(clientId: string) {
+export async function getClientActivities(clientId: string) {
   try {
     await requirePermission("client-activity", "view")
   } catch {
@@ -74,6 +75,8 @@ export async function upsertActivity(
   if (!session?.user?.id)
     return { success: false, error: t("unauthorized") }
 
+  const storeId = await getEffectiveStoreId()
+
   const sanitized = {
     clientId: fields.clientId,
     type: fields.type,
@@ -81,10 +84,14 @@ export async function upsertActivity(
     description: fields.description || null,
     activityDate: fields.activityDate,
     performedBy: session.user.id,
-    store_id: null,
+    store_id: storeId,
   }
 
   if (activityId) {
+    const conditions = [eq(clientActivitiesTable.id, activityId)]
+    if (storeId) {
+      conditions.push(eq(clientActivitiesTable.store_id, storeId))
+    }
     await db
       .update(clientActivitiesTable)
       .set({
@@ -93,7 +100,7 @@ export async function upsertActivity(
         description: sanitized.description,
         activityDate: sanitized.activityDate,
       })
-      .where(eq(clientActivitiesTable.id, activityId))
+      .where(and(...conditions))
   } else {
     await db.insert(clientActivitiesTable).values(sanitized)
   }
@@ -110,14 +117,12 @@ export async function deleteActivity(activityId: string) {
     return { success: false as const, error: t("forbidden") }
   }
 
-  const session = await auth()
-  if (!session?.user?.id || !isSuperUser(session)) {
-    return { success: false as const, error: t("onlySuperCanDelete") }
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(clientActivitiesTable.id, activityId)]
+  if (storeId) {
+    conditions.push(eq(clientActivitiesTable.store_id, storeId))
   }
-
-  await db
-    .delete(clientActivitiesTable)
-    .where(eq(clientActivitiesTable.id, activityId))
+  await db.delete(clientActivitiesTable).where(and(...conditions))
 
   revalidatePath("/dashboard/clients")
   return { success: true as const }

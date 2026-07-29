@@ -19,7 +19,11 @@ const roles = [
   },
   {
     name: "admin",
-    description: "Can manage clients and access most features",
+    description: "Can manage global data and settings",
+  },
+  {
+    name: "retailer",
+    description: "Owns and manages their own store data",
   },
   { name: "user", description: "Limited access, own data only" },
 ]
@@ -59,6 +63,7 @@ async function seed() {
 
   const superRole = seededRoles.find((r) => r.name === "super")!
   const adminRole = seededRoles.find((r) => r.name === "admin")!
+  const retailerRole = seededRoles.find((r) => r.name === "retailer")!
   const userRole = seededRoles.find((r) => r.name === "user")!
 
   for (const mod of defaultModules) {
@@ -104,6 +109,25 @@ async function seed() {
       await db
         .insert(rolePermissionsTable)
         .values({ roleId: adminRole.id, permissionId: perm.id })
+        .onConflictDoNothing()
+    }
+  }
+
+  const retailModules = [
+    "clients",
+    "products",
+    "sales",
+    "client-activity",
+  ]
+  for (const perm of allPermissions) {
+    const isRetailerModule = retailModules.includes(perm.module)
+    if (
+      (isRetailerModule && perm.action !== "invite") ||
+      (perm.module === "activity" && perm.action === "view")
+    ) {
+      await db
+        .insert(rolePermissionsTable)
+        .values({ roleId: retailerRole.id, permissionId: perm.id })
         .onConflictDoNothing()
     }
   }
@@ -159,8 +183,12 @@ async function seed() {
   console.log("Taxonomies seeded")
 
   const seededTaxonomies = await db.select().from(taxonomyTable)
-  const projectTaxonomy = seededTaxonomies.find((t) => t.slug === "project")!
-  const expenseTaxonomy = seededTaxonomies.find((t) => t.slug === "expense")!
+  const projectTaxonomy = seededTaxonomies.find(
+    (t) => t.slug === "project"
+  )!
+  const expenseTaxonomy = seededTaxonomies.find(
+    (t) => t.slug === "expense"
+  )!
 
   const defaultProjectCategories = [
     { slug: "crop", name: "Crop" },
@@ -170,7 +198,9 @@ async function seed() {
     await db
       .insert(categoryTable)
       .values({ ...cat, taxonomyId: projectTaxonomy.id })
-      .onConflictDoNothing({ target: [categoryTable.taxonomyId, categoryTable.slug] })
+      .onConflictDoNothing({
+        target: [categoryTable.taxonomyId, categoryTable.slug],
+      })
   }
   console.log("Project categories seeded")
 
@@ -186,7 +216,9 @@ async function seed() {
     await db
       .insert(categoryTable)
       .values({ ...cat, taxonomyId: expenseTaxonomy.id })
-      .onConflictDoNothing({ target: [categoryTable.taxonomyId, categoryTable.slug] })
+      .onConflictDoNothing({
+        target: [categoryTable.taxonomyId, categoryTable.slug],
+      })
   }
   console.log("Expense categories seeded")
 
@@ -230,7 +262,9 @@ async function seed() {
     })
     console.log(`Company store "${companyName}" seeded`)
   } else if (existingStore) {
-    console.log(`Company store "${companyName}" already exists, skipping`)
+    console.log(
+      `Company store "${companyName}" already exists, skipping`
+    )
   } else {
     console.log("Skipping store seed: no super user available")
   }

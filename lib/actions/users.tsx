@@ -6,6 +6,7 @@ import {
   usersTable,
   userRolesTable,
   rolesTable,
+  storesTable,
 } from "@/lib/drizzle/schema"
 import { eq, ilike, or, and } from "drizzle-orm"
 import { auth, isSuperUser, requirePermission } from "@/lib/auth"
@@ -63,7 +64,9 @@ export type UserOption = {
   image: string | null
 }
 
-export async function searchUsers(query: string): Promise<UserOption[]> {
+export async function searchUsers(
+  query: string
+): Promise<UserOption[]> {
   const t = await getActionT("actions.users")
   try {
     await requirePermission("projects", "view")
@@ -102,7 +105,9 @@ export async function searchUsers(query: string): Promise<UserOption[]> {
     .limit(20)
 }
 
-export async function getUserById(userId: string): Promise<UserOption | null> {
+export async function getUserById(
+  userId: string
+): Promise<UserOption | null> {
   const user = await db
     .select({
       id: usersTable.id,
@@ -181,6 +186,19 @@ export async function createUser(
     userId,
     roleId,
   })
+
+  const createdRole = await db
+    .select({ name: rolesTable.name })
+    .from(rolesTable)
+    .where(eq(rolesTable.id, roleId))
+    .then((rows) => rows[0])
+
+  if (createdRole?.name === "retailer") {
+    await db.insert(storesTable).values({
+      name: `${email.split("@")[0]}'s Store`,
+      owner_id: userId,
+    })
+  }
 
   const apiKey = process.env.RESEND_API_KEY
   if (apiKey) {
@@ -261,6 +279,29 @@ export async function updateUser(
     .update(userRolesTable)
     .set({ roleId })
     .where(eq(userRolesTable.userId, userId))
+
+  const updatedRole = await db
+    .select({ name: rolesTable.name })
+    .from(rolesTable)
+    .where(eq(rolesTable.id, roleId))
+    .then((rows) => rows[0])
+
+  if (updatedRole?.name === "retailer") {
+    const existingStore = await db
+      .select({ id: storesTable.id })
+      .from(storesTable)
+      .where(eq(storesTable.owner_id, userId))
+      .limit(1)
+      .then((rows) => rows[0])
+
+    if (!existingStore) {
+      const userEmail = email
+      await db.insert(storesTable).values({
+        name: `${userEmail.split("@")[0]}'s Store`,
+        owner_id: userId,
+      })
+    }
+  }
 
   revalidatePath("/dashboard/users")
   updateTag("permissions")

@@ -1,5 +1,6 @@
 "use server"
 
+import { getEffectiveStoreId } from "@/lib/actions/stores"
 import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
@@ -77,22 +78,28 @@ export async function upsertReminder(
   if (!session?.user?.id)
     return { success: false, error: t("unauthorized") }
 
+  const storeId = await getEffectiveStoreId()
+
   const sanitized = {
     clientId: fields.clientId,
     description: fields.description,
     remindAt: fields.remindAt,
     createdBy: session.user.id,
-    store_id: null,
+    store_id: storeId,
   }
 
   if (reminderId) {
+    const conditions = [eq(clientRemindersTable.id, reminderId)]
+    if (storeId) {
+      conditions.push(eq(clientRemindersTable.store_id, storeId))
+    }
     await db
       .update(clientRemindersTable)
       .set({
         description: sanitized.description,
         remindAt: sanitized.remindAt,
       })
-      .where(eq(clientRemindersTable.id, reminderId))
+      .where(and(...conditions))
   } else {
     await db.insert(clientRemindersTable).values(sanitized)
   }
@@ -109,13 +116,18 @@ export async function completeReminder(reminderId: string) {
     return { success: false, error: t("forbidden") }
   }
 
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(clientRemindersTable.id, reminderId)]
+  if (storeId) {
+    conditions.push(eq(clientRemindersTable.store_id, storeId))
+  }
   await db
     .update(clientRemindersTable)
     .set({
       completed: true,
       completedAt: new Date(),
     })
-    .where(eq(clientRemindersTable.id, reminderId))
+    .where(and(...conditions))
 
   revalidatePath("/dashboard/clients")
   return { success: true }
@@ -129,9 +141,12 @@ export async function deleteReminder(reminderId: string) {
     return { success: false as const, error: t("forbidden") }
   }
 
-  await db
-    .delete(clientRemindersTable)
-    .where(eq(clientRemindersTable.id, reminderId))
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(clientRemindersTable.id, reminderId)]
+  if (storeId) {
+    conditions.push(eq(clientRemindersTable.store_id, storeId))
+  }
+  await db.delete(clientRemindersTable).where(and(...conditions))
 
   revalidatePath("/dashboard/clients")
   return { success: true as const }
@@ -154,6 +169,12 @@ export async function getActiveReminders(): Promise<ActiveReminder[]> {
 
   const today = new Date().toISOString().split("T")[0]
 
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(clientRemindersTable.completed, false)]
+  if (storeId) {
+    conditions.push(eq(clientsTable.store_id, storeId))
+  }
+
   const rows = await db
     .select({
       id: clientRemindersTable.id,
@@ -168,7 +189,7 @@ export async function getActiveReminders(): Promise<ActiveReminder[]> {
       clientsTable,
       eq(clientRemindersTable.clientId, clientsTable.id)
     )
-    .where(eq(clientRemindersTable.completed, false))
+    .where(and(...conditions))
     .orderBy(
       sql`CASE WHEN ${clientRemindersTable.remindAt} < ${today} THEN 0 ELSE 1 END`,
       asc(clientRemindersTable.remindAt)

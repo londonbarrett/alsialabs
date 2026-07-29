@@ -1,10 +1,11 @@
 "use server"
 
+import { getEffectiveStoreId } from "@/lib/actions/stores"
 import { requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import { productsTable, storesTable } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -43,7 +44,9 @@ export async function getProducts() {
     throw new Error(t("forbidden"))
   }
 
-  return db
+  const storeId = await getEffectiveStoreId()
+
+  const query = db
     .select({
       id: productsTable.id,
       name: productsTable.name,
@@ -55,6 +58,10 @@ export async function getProducts() {
     })
     .from(productsTable)
     .leftJoin(storesTable, eq(productsTable.store_id, storesTable.id))
+
+  return storeId
+    ? query.where(eq(productsTable.store_id, storeId))
+    : query
 }
 
 export type ProductWithStore = Awaited<
@@ -122,11 +129,17 @@ export async function upsertProduct(
     unit: fields.unit || null,
   }
 
+  const storeId = await getEffectiveStoreId()
+
   if (productId) {
+    const conditions = [eq(productsTable.id, productId)]
+    if (storeId) {
+      conditions.push(eq(productsTable.store_id, storeId))
+    }
     await db
       .update(productsTable)
       .set(sanitized)
-      .where(eq(productsTable.id, productId))
+      .where(and(...conditions))
   } else {
     await db.insert(productsTable).values(sanitized)
   }
@@ -143,10 +156,14 @@ export async function deleteProduct(productId: string) {
     return { success: false as const, error: t("forbidden") }
   }
 
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(productsTable.id, productId)]
+  if (storeId) {
+    conditions.push(eq(productsTable.store_id, storeId))
+  }
+
   try {
-    await db
-      .delete(productsTable)
-      .where(eq(productsTable.id, productId))
+    await db.delete(productsTable).where(and(...conditions))
   } catch {
     return {
       success: false as const,

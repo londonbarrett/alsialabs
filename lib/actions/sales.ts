@@ -1,6 +1,7 @@
 "use server"
 
-import { auth, isSuperUser, requirePermission } from "@/lib/auth"
+import { getEffectiveStoreId } from "@/lib/actions/stores"
+import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   clientsTable,
@@ -9,7 +10,7 @@ import {
   productsTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { eq, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -133,7 +134,9 @@ export async function getInvoices() {
     throw new Error(t("forbidden"))
   }
 
-  const invoices = await db
+  const storeId = await getEffectiveStoreId()
+
+  const query = db
     .select({
       id: invoicesTable.id,
       store_id: invoicesTable.store_id,
@@ -157,6 +160,10 @@ export async function getInvoices() {
     .leftJoin(clientsTable, eq(invoicesTable.clientId, clientsTable.id))
     .orderBy(sql`${invoicesTable.createdAt} desc`)
 
+  const invoices = storeId
+    ? await query.where(eq(invoicesTable.store_id, storeId))
+    : await query
+
   return invoices
 }
 
@@ -168,12 +175,17 @@ export async function getInvoiceProducts() {
     throw new Error(t("forbidden"))
   }
 
-  return db
+  const storeId = await getEffectiveStoreId()
+  const query = db
     .select({
       id: productsTable.id,
       name: productsTable.name,
     })
     .from(productsTable)
+
+  return storeId
+    ? query.where(eq(productsTable.store_id, storeId))
+    : query
 }
 
 export type InvoiceProductOption = Awaited<
@@ -223,6 +235,8 @@ export async function upsertInvoice(
   const fields = parsed.data
   const totals = computeInvoiceTotals(fields.items)
 
+  const storeId = await getEffectiveStoreId()
+
   const invoiceData = {
     type: fields.type,
     clientId: fields.clientId,
@@ -233,14 +247,18 @@ export async function upsertInvoice(
     discountTotal: totals.discountTotal,
     taxTotal: totals.taxTotal,
     grandTotal: totals.grandTotal,
-    store_id: null,
+    store_id: storeId,
   }
 
   if (invoiceId) {
+    const conditions = [eq(invoicesTable.id, invoiceId)]
+    if (storeId) {
+      conditions.push(eq(invoicesTable.store_id, storeId))
+    }
     await db
       .update(invoicesTable)
       .set(invoiceData)
-      .where(eq(invoicesTable.id, invoiceId))
+      .where(and(...conditions))
 
     await db
       .delete(invoiceItemsTable)
@@ -307,26 +325,14 @@ export async function deleteInvoice(invoiceId: string) {
     return { success: false as const, error: t("forbidden") }
   }
 
-  const session = await auth()
-  if (!session?.user)
-    return { success: false as const, error: t("unauthorized") }
-
-  if (!isSuperUser(session)) {
-    const invoice = await db
-      .select({ userId: invoicesTable.userId })
-      .from(invoicesTable)
-      .where(eq(invoicesTable.id, invoiceId))
-      .then((rows) => rows[0])
-
-    if (invoice && invoice.userId !== session.user.id) {
-      return { success: false as const, error: t("forbidden") }
-    }
+  const storeId = await getEffectiveStoreId()
+  const deleteConditions = [eq(invoicesTable.id, invoiceId)]
+  if (storeId) {
+    deleteConditions.push(eq(invoicesTable.store_id, storeId))
   }
 
   try {
-    await db
-      .delete(invoicesTable)
-      .where(eq(invoicesTable.id, invoiceId))
+    await db.delete(invoicesTable).where(and(...deleteConditions))
   } catch {
     return { success: false as const, error: t("cannotDelete") }
   }
@@ -344,6 +350,13 @@ export async function getMonthlyRevenue() {
   if (!session?.user) throw new Error(t("unauthorized"))
   await requirePermission("sales", "view")
 
+  const storeId = await getEffectiveStoreId()
+
+  const conditions = [sql`${invoiceItemsTable.unitPrice} > 0`]
+  if (storeId) {
+    conditions.push(eq(invoicesTable.store_id, storeId))
+  }
+
   const rows = await db
     .select({
       month: sql<string>`to_char(${invoicesTable.issueDate}, 'YYYY-MM')`,
@@ -356,7 +369,7 @@ export async function getMonthlyRevenue() {
       invoiceItemsTable,
       sql`${invoiceItemsTable.invoiceId} = ${invoicesTable.id}`
     )
-    .where(sql`${invoiceItemsTable.unitPrice} > 0`)
+    .where(and(...conditions))
     .groupBy(sql`1`, invoicesTable.type)
     .orderBy(sql`1`)
 
@@ -403,7 +416,9 @@ export async function getTopClientsByRevenue(limit = 10) {
 
   const { data, error } = limitSchema.safeParse(limit)
   if (error) throw new Error(t("invalidLimit"))
-  return db
+
+  const storeId = await getEffectiveStoreId()
+  const query = db
     .select({
       clientId: clientsTable.id,
       clientName: clientsTable.name,
@@ -418,4 +433,8 @@ export async function getTopClientsByRevenue(limit = 10) {
     .groupBy(clientsTable.id, clientsTable.name)
     .orderBy(sql`sum(${invoicesTable.grandTotal}) desc`)
     .limit(data)
+
+  return storeId
+    ? query.where(eq(invoicesTable.store_id, storeId))
+    : query
 }

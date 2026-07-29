@@ -1,6 +1,7 @@
 "use server"
 
 import { auth } from "@/lib/auth"
+import { getEffectiveStoreId } from "@/lib/actions/stores"
 import { db } from "@/lib/drizzle/client"
 import { clientsTable } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
@@ -97,6 +98,7 @@ export async function importClients(formData: FormData) {
     .where(inArray(clientsTable.phone, phones))
 
   const existingPhones = new Set(existing.map((r) => r.phone))
+  const effectiveStoreId = await getEffectiveStoreId()
 
   const toInsert: Array<{
     name: string
@@ -104,7 +106,7 @@ export async function importClients(formData: FormData) {
     location: string | null
     comments: string | null
     email: string | null
-    store_id: null
+    store_id: string | null
   }> = []
   for (const row of parsed.data) {
     if (!row.PHONE || existingPhones.has(row.PHONE)) continue
@@ -122,7 +124,7 @@ export async function importClients(formData: FormData) {
       location: result.data.location || null,
       comments: result.data.comments || null,
       email: result.data.email || null,
-      store_id: null,
+      store_id: effectiveStoreId,
     })
   }
 

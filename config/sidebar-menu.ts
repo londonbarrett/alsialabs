@@ -24,6 +24,7 @@ export interface SidebarItem {
 export interface SidebarSection {
   label: string
   items: SidebarItem[]
+  showStoreSwitcher?: boolean
 }
 
 function hasPermission(item: SidebarItem, permissions?: string[]) {
@@ -32,6 +33,43 @@ function hasPermission(item: SidebarItem, permissions?: string[]) {
     ? item.requiredPermission
     : [item.requiredPermission]
   return required.some((p) => permissions?.includes(p) ?? false)
+}
+
+function storeSection(permissions?: string[]): SidebarSection[] {
+  const items: SidebarItem[] = [
+    {
+      label: "clients",
+      icon: Users,
+      url: "/dashboard/clients",
+      requiredPermission: "clients:view",
+    },
+    {
+      label: "products",
+      icon: Package,
+      url: "/dashboard/products",
+      requiredPermission: "products:view",
+    },
+    {
+      label: "sales",
+      icon: ChartNoAxesCombined,
+      url: "/dashboard/sales",
+      requiredPermission: "sales:view",
+    },
+    {
+      label: "activity",
+      icon: BellRing,
+      url: "/dashboard/activity",
+      requiredPermission: "activity:view",
+    },
+  ]
+
+  const visible = items.filter((item) =>
+    hasPermission(item, permissions)
+  )
+
+  if (visible.length === 0) return []
+
+  return [{ label: "store", items: visible, showStoreSwitcher: true }]
 }
 
 function adminSections(permissions?: string[]): SidebarSection[] {
@@ -49,34 +87,10 @@ function adminSections(permissions?: string[]): SidebarSection[] {
       requiredPermission: "permissions:manage",
     },
     {
-      label: "clients",
-      icon: Users,
-      url: "/dashboard/clients",
-      requiredPermission: "clients:view",
-    },
-    {
-      label: "products",
-      icon: Package,
-      url: "/dashboard/products",
-      requiredPermission: "products:view",
-    },
-    {
       label: "categories",
       icon: FolderTree,
       url: "/dashboard/categories",
       requiredPermission: "categories:view",
-    },
-    {
-      label: "sales",
-      icon: ChartNoAxesCombined,
-      url: "/dashboard/sales",
-      requiredPermission: "sales:view",
-    },
-    {
-      label: "activity",
-      icon: BellRing,
-      url: "/dashboard/activity",
-      requiredPermission: "activity:view",
     },
   ]
 
@@ -136,6 +150,7 @@ export function getSidebarMenu(
 ): SidebarSection[] {
   const sections = [
     ...adminSections(permissions),
+    ...storeSection(permissions),
     ...navigationSection(permissions),
     ...auxiliarySection(),
   ]

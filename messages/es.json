@@ -45,6 +45,7 @@
   "sidebar": {
     "navigation": "Navegación",
     "auxiliary": "Auxiliar",
+    "store": "Tienda",
     "admin": "Admin",
     "dashboard": "Panel",
     "clients": "Clientes",
@@ -59,6 +60,11 @@
     "profile": "Perfil",
     "help": "Ayuda",
     "support": "Soporte"
+  },
+  "store": {
+    "selectStore": "Seleccionar tienda...",
+    "allStores": "Todas las tiendas",
+    "switchStore": "Cambiar tienda"
   },
   "breadcrumb": {
     "dashboard": "Panel",

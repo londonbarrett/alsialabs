@@ -3,6 +3,7 @@
 import { Logo } from "@/components/common/alsia-logo"
 import { LogoSmall } from "@/components/common/alsia-logo-small"
 import { NavUser } from "@/components/nav-user"
+import { StoreSwitcher } from "@/components/store-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +26,7 @@ export function AppSidebar({
   permissions = [],
   role,
   user,
+  selectedStoreId,
 }: {
   permissions?: string[]
   role?: string | null
@@ -33,6 +35,7 @@ export function AppSidebar({
     email: string | null
     image: string | null
   }
+  selectedStoreId?: string | null
 }) {
   const t = useTranslations("sidebar")
   const pathname = usePathname()
@@ -49,6 +52,14 @@ export function AppSidebar({
         {sidebarMenu.map((section) => (
           <SidebarGroup key={section.label}>
             <SidebarGroupLabel>{t(section.label)}</SidebarGroupLabel>
+            {section.showStoreSwitcher && (
+              <div className="px-0 pb-2">
+                <StoreSwitcher
+                  selectedStoreId={selectedStoreId ?? null}
+                  role={role ?? null}
+                />
+              </div>
+            )}
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item: SidebarItem) => {

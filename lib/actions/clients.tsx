@@ -1,6 +1,7 @@
 "use server"
 
 import { requirePermission } from "@/lib/auth"
+import { getEffectiveStoreId } from "@/lib/actions/stores"
 import { db } from "@/lib/drizzle/client"
 import {
   clientsTable,
@@ -10,7 +11,7 @@ import {
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
 import crypto from "crypto"
-import { eq, ilike, or } from "drizzle-orm"
+import { and, eq, ilike, or } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -58,18 +59,28 @@ const inviteSchema = z.object({
 export type ClientFormData = z.infer<typeof clientSchema>
 
 export async function getClientByClientId(id: string) {
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(clientsTable.id, id)]
+  if (storeId) {
+    conditions.push(eq(clientsTable.store_id, storeId))
+  }
   return db
     .select()
     .from(clientsTable)
-    .where(eq(clientsTable.id, id))
+    .where(and(...conditions))
     .then((rows) => rows[0] ?? null)
 }
 
 export async function getClientByUserId(userId: string) {
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(clientsTable.userId, userId)]
+  if (storeId) {
+    conditions.push(eq(clientsTable.store_id, storeId))
+  }
   return db
     .select()
     .from(clientsTable)
-    .where(eq(clientsTable.userId, userId))
+    .where(and(...conditions))
     .then((rows) => rows[0] ?? null)
 }
 
@@ -81,13 +92,24 @@ export async function getClients() {
     throw new Error(t("forbidden"))
   }
 
-  return db
+  const storeId = await getEffectiveStoreId()
+
+  const query = db
     .select({
       id: clientsTable.id,
       name: clientsTable.name,
       phone: clientsTable.phone,
+      location: clientsTable.location,
+      comments: clientsTable.comments,
+      email: clientsTable.email,
+      userId: clientsTable.userId,
+      store_id: clientsTable.store_id,
     })
     .from(clientsTable)
+
+  return storeId
+    ? query.where(eq(clientsTable.store_id, storeId))
+    : query
 }
 
 export async function searchClients(query: string) {
@@ -100,6 +122,17 @@ export async function searchClients(query: string) {
 
   if (!query.trim()) return []
 
+  const storeId = await getEffectiveStoreId()
+  const conditions = [
+    or(
+      ilike(clientsTable.name, `%${query}%`),
+      ilike(clientsTable.phone, `%${query}%`)
+    ),
+  ]
+  if (storeId) {
+    conditions.push(eq(clientsTable.store_id, storeId))
+  }
+
   return db
     .select({
       id: clientsTable.id,
@@ -107,18 +140,15 @@ export async function searchClients(query: string) {
       phone: clientsTable.phone,
     })
     .from(clientsTable)
-    .where(
-      or(
-        ilike(clientsTable.name, `%${query}%`),
-        ilike(clientsTable.phone, `%${query}%`)
-      )
-    )
+    .where(and(...conditions))
     .limit(20)
 }
 
-export type ClientOption = Awaited<
-  ReturnType<typeof getClients>
->[number]
+export type ClientOption = {
+  id: string
+  name: string
+  phone: string
+}
 
 export async function checkPhoneExists(
   phone: string,
@@ -174,26 +204,36 @@ export async function upsertClient(
     }
   }
 
+  const storeId = await getEffectiveStoreId()
+
   const sanitized = {
     name: fields.name,
     phone: fields.phone,
     location: fields.location || null,
     comments: fields.comments || null,
     email: fields.email || null,
-    store_id: null,
+    store_id: storeId,
   }
 
   if (clientId) {
+    const existingConditions = [eq(clientsTable.id, clientId)]
+    if (storeId) {
+      existingConditions.push(eq(clientsTable.store_id, storeId))
+    }
     const existing = await db
       .select({ userId: clientsTable.userId })
       .from(clientsTable)
-      .where(eq(clientsTable.id, clientId))
+      .where(and(...existingConditions))
       .then((rows) => rows[0])
 
+    const updateConditions = [eq(clientsTable.id, clientId)]
+    if (storeId) {
+      updateConditions.push(eq(clientsTable.store_id, storeId))
+    }
     await db
       .update(clientsTable)
       .set(sanitized)
-      .where(eq(clientsTable.id, clientId))
+      .where(and(...updateConditions))
 
     if (existing?.userId && sanitized.email) {
       await db
@@ -217,7 +257,12 @@ export async function deleteClient(clientId: string) {
     return { success: false as const, error: t("forbidden") }
   }
 
-  await db.delete(clientsTable).where(eq(clientsTable.id, clientId))
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(clientsTable.id, clientId)]
+  if (storeId) {
+    conditions.push(eq(clientsTable.store_id, storeId))
+  }
+  await db.delete(clientsTable).where(and(...conditions))
   revalidatePath("/dashboard/clients")
   return { success: true as const }
 }
@@ -244,10 +289,15 @@ export async function inviteClient(data: {
 
   const { clientId, email: providedEmail } = parsed.data
 
+  const storeId = await getEffectiveStoreId()
+  const clientConditions = [eq(clientsTable.id, clientId)]
+  if (storeId) {
+    clientConditions.push(eq(clientsTable.store_id, storeId))
+  }
   const client = await db
     .select()
     .from(clientsTable)
-    .where(eq(clientsTable.id, clientId))
+    .where(and(...clientConditions))
     .then((rows) => rows[0])
 
   if (!client) {

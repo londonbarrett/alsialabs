@@ -1,10 +1,11 @@
 "use server"
 
 import { auth, requirePermission } from "@/lib/auth"
+import { getEffectiveStoreId } from "@/lib/actions/stores"
 import { db } from "@/lib/drizzle/client"
 import { clientsTable, invoicesTable } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
 
 const daysSchema = z.number().int().positive().max(365).nullable()
@@ -31,7 +32,8 @@ export async function getInactiveClients(days: number | null) {
       ? sql`count(${invoicesTable.id}) = 0`
       : sql`max(${invoicesTable.issueDate}) < ${threshold} and max(${invoicesTable.issueDate}) is not null`
 
-  return db
+  const storeId = await getEffectiveStoreId()
+  const query = db
     .select({
       clientId: clientsTable.id,
       clientName: clientsTable.name,
@@ -60,4 +62,8 @@ export async function getInactiveClients(days: number | null) {
     .orderBy(
       sql`max(${invoicesTable.issueDate}) nulls first, ${clientsTable.name}`
     )
+
+  return storeId
+    ? query.where(eq(clientsTable.store_id, storeId))
+    : query
 }
