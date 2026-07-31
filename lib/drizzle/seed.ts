@@ -34,7 +34,7 @@ const defaultModules = [
     actions: ["view", "create", "edit", "delete", "invite"],
   },
   { module: "products", actions: ["view", "create", "edit", "delete"] },
-  { module: "sales", actions: ["view", "create", "edit", "delete"] },
+  { module: "sales",         actions: ["view", "create", "edit", "delete", "record-payment"] },
   { module: "permissions", actions: ["manage"] },
   { module: "users", actions: ["manage"] },
   { module: "activity", actions: ["view"] },

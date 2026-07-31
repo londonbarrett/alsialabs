@@ -1,12 +1,16 @@
 "use client"
 
-import { ActionMenu } from "@/components/common/action-menu"
+import { Dialog } from "@/components/common/dialog"
 import { PageHeader } from "@/components/common/page-header"
-import { InvoiceDialog } from "@/components/sales/invoice-dialog"
+import { InvoiceForm } from "@/components/sales/invoice-form"
 import {
   MonthlyRevenueChart,
   type MonthlyRevenue,
 } from "@/components/sales/monthly-revenue-chart"
+import { PaymentHistoryContent } from "@/components/sales/payment-history-content"
+import { RecordPaymentForm } from "@/components/sales/record-payment-form"
+import { SalesActionMenu } from "@/components/sales/sales-action-menu"
+import { StatusBadge } from "@/components/sales/status-badge"
 import {
   TopClientsChart,
   type TopClient,
@@ -26,19 +30,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { deleteInvoice } from "@/lib/actions/sales"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { ChartNoAxesCombined, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { toast } from "sonner"
 
 interface SalesListViewProps {
   invoices: Array<Invoice & { clientName: string | null }>
   permissions?: string[]
   monthlyRevenue?: MonthlyRevenue[]
   topClients?: TopClient[]
+}
+
+function getOutstanding(invoice: {
+  grandTotal: string
+  paidAmount?: string | null
+}): string {
+  const total = parseFloat(invoice.grandTotal) || 0
+  const paid = parseFloat(invoice.paidAmount ?? "0") || 0
+  return (total - paid).toFixed(2)
 }
 
 export function SalesListView({
@@ -53,10 +64,17 @@ export function SalesListView({
   const [editingInvoice, setEditingInvoice] = useState<
     Invoice | undefined
   >()
+  const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(
+    null
+  )
+  const [historyInvoice, setHistoryInvoice] = useState<Invoice | null>(
+    null
+  )
 
   function handleSuccess() {
     router.refresh()
     setEditingInvoice(undefined)
+    setDialogOpen(false)
   }
 
   function openNew() {
@@ -144,7 +162,13 @@ export function SalesListView({
                   <TableHead scope="col">{t("sales.client")}</TableHead>
                   <TableHead scope="col">{t("sales.type")}</TableHead>
                   <TableHead scope="col">{t("sales.date")}</TableHead>
+                  <TableHead scope="col">
+                    {t("sales.dueDate")}
+                  </TableHead>
                   <TableHead scope="col">{t("sales.total")}</TableHead>
+                  <TableHead scope="col">
+                    {t("sales.outstanding")}
+                  </TableHead>
                   <TableHead scope="col">{t("sales.status")}</TableHead>
                   <TableHead scope="col">
                     {t("sales.actions")}
@@ -152,70 +176,125 @@ export function SalesListView({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoices.map((inv) => (
-                  <TableRow
-                    key={inv.id}
-                    className="select-none"
-                    onDoubleClick={() =>
-                      permissions.includes("sales:edit") &&
-                      openEdit(inv)
-                    }
-                  >
-                    <TableCell className="font-mono text-xs">
-                      {inv.invoiceNumber}
-                    </TableCell>
-                    <TableCell>{inv.clientName ?? "—"}</TableCell>
-                    <TableCell className="capitalize">
-                      {inv.type}
-                    </TableCell>
-                    <TableCell>{inv.issueDate}</TableCell>
-                    <TableCell>
-                      $
-                      {parseFloat(inv.grandTotal).toLocaleString(
-                        "en-US",
-                        { minimumFractionDigits: 2 }
-                      )}
-                    </TableCell>
-                    <TableCell className="capitalize">
-                      {inv.status}
-                    </TableCell>
-                    <TableCell>
-                      <ActionMenu
-                        entityName={`invoice ${inv.invoiceNumber}`}
-                        onEdit={
-                          permissions.includes("sales:edit")
-                            ? () => openEdit(inv)
-                            : undefined
-                        }
-                        onDelete={async () => {
-                          const result = await deleteInvoice(inv.id)
-                          if (!result.success)
-                            toast.error(
-                              result.error || t("sales.failedToDelete")
-                            )
-                          else toast.success(t("sales.invoiceDeleted"))
-                        }}
-                        canDelete={permissions.includes("sales:delete")}
-                        onView={() =>
-                          toast.info(
-                            t("sales.invoicePrefix") + inv.invoiceNumber
-                          )
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {invoices.map((inv) => {
+                  const outstanding = getOutstanding(inv)
+                  return (
+                    <TableRow
+                      key={inv.id}
+                      className="select-none"
+                      onDoubleClick={() =>
+                        permissions.includes("sales:edit") &&
+                        openEdit(inv)
+                      }
+                    >
+                      <TableCell className="font-mono text-xs">
+                        {inv.invoiceNumber}
+                      </TableCell>
+                      <TableCell>{inv.clientName ?? "—"}</TableCell>
+                      <TableCell className="capitalize">
+                        {inv.type}
+                      </TableCell>
+                      <TableCell>{inv.issueDate}</TableCell>
+                      <TableCell>{inv.dueDate ?? "—"}</TableCell>
+                      <TableCell>
+                        $
+                        {parseFloat(inv.grandTotal).toLocaleString(
+                          "en-US",
+                          { minimumFractionDigits: 2 }
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {parseFloat(outstanding) > 0 ? (
+                          <span className="font-mono">
+                            $
+                            {parseFloat(outstanding).toLocaleString(
+                              "en-US",
+                              { minimumFractionDigits: 2 }
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            $0.00
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={inv.status} />
+                      </TableCell>
+                      <TableCell>
+                        <SalesActionMenu
+                          invoice={inv}
+                          permissions={permissions}
+                          onEdit={() => openEdit(inv)}
+                          onViewPayments={() =>
+                            setHistoryInvoice(inv as Invoice)
+                          }
+                          onRecordPayment={() =>
+                            setPaymentInvoice(inv as Invoice)
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>
         </div>
       )}
-      <InvoiceDialog
-        invoice={editingInvoice}
+      <Dialog
+        title={
+          editingInvoice
+            ? t("sales.editInvoice")
+            : t("sales.newInvoice")
+        }
+        description={
+          editingInvoice
+            ? t("sales.updateDetails")
+            : t("sales.fillDetails")
+        }
         open={dialogOpen}
         onOpenChange={handleOpenChange}
-        onSuccess={handleSuccess}
-      />
+        className="sm:max-w-2xl"
+      >
+        <InvoiceForm
+          key={editingInvoice?.id ?? "new"}
+          invoice={editingInvoice}
+          onSuccess={handleSuccess}
+          onCancel={() => setDialogOpen(false)}
+        />
+      </Dialog>
+      {paymentInvoice && (
+        <Dialog
+          key={paymentInvoice.id}
+          title={t("sales.recordPayment")}
+          description={t("sales.recordPaymentDesc")}
+          open={!!paymentInvoice}
+          onOpenChange={() => setPaymentInvoice(null)}
+        >
+          <RecordPaymentForm
+            invoiceId={paymentInvoice.id}
+            remainingBalance={getOutstanding(paymentInvoice)}
+            onSuccess={() => {
+              setPaymentInvoice(null)
+              router.refresh()
+            }}
+            onCancel={() => setPaymentInvoice(null)}
+          />
+        </Dialog>
+      )}
+      {historyInvoice && (
+        <Dialog
+          title={t("sales.paymentHistory")}
+          description={t("sales.paymentHistoryDesc", {
+            number: historyInvoice.invoiceNumber,
+          })}
+          open={!!historyInvoice}
+          onOpenChange={() => setHistoryInvoice(null)}
+        >
+          <PaymentHistoryContent invoiceId={historyInvoice.id} />
+        </Dialog>
+      )}
     </>
   )
 }

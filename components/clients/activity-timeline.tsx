@@ -6,7 +6,8 @@ import { InvoiceItem } from "@/components/clients/invoice-item"
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
 import { ReminderItem } from "@/components/clients/reminder-item"
-import { InvoiceDialog } from "@/components/sales/invoice-dialog"
+import { InvoiceForm } from "@/components/sales/invoice-form"
+import { Dialog } from "@/components/common/dialog"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { deleteActivity } from "@/lib/actions/activities"
@@ -15,7 +16,11 @@ import {
   deleteReminder,
 } from "@/lib/actions/reminders"
 import { deleteInvoice } from "@/lib/actions/sales"
-import type { ClientActivity, Invoice, ClientReminder } from "@/lib/drizzle/schema"
+import type {
+  ClientActivity,
+  Invoice,
+  ClientReminder,
+} from "@/lib/drizzle/schema"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -87,9 +92,9 @@ export function ActivityTimeline({
   async function handleDeleteActivity(activity: ClientActivity) {
     const result = await deleteActivity(activity.id)
     if (!result.success)
-      toast.error(result.error || t('activities.failedToDelete'))
+      toast.error(result.error || t("activities.failedToDelete"))
     else {
-      toast.success(t('activities.activityDeleted'))
+      toast.success(t("activities.activityDeleted"))
       router.refresh()
     }
   }
@@ -97,9 +102,9 @@ export function ActivityTimeline({
   async function handleDeleteReminder(reminder: ClientReminder) {
     const result = await deleteReminder(reminder.id)
     if (!result.success)
-      toast.error(result.error || t('reminders.failedToDelete'))
+      toast.error(result.error || t("reminders.failedToDelete"))
     else {
-      toast.success(t('reminders.reminderDeleted'))
+      toast.success(t("reminders.reminderDeleted"))
       router.refresh()
     }
   }
@@ -107,9 +112,9 @@ export function ActivityTimeline({
   async function handleCompleteReminder(reminder: ClientReminder) {
     const result = await completeReminder(reminder.id)
     if (!result.success)
-      toast.error(result.error || t('reminders.failedToComplete'))
+      toast.error(result.error || t("reminders.failedToComplete"))
     else {
-      toast.success(t('reminders.reminderCompleted'))
+      toast.success(t("reminders.reminderCompleted"))
       router.refresh()
     }
   }
@@ -117,9 +122,9 @@ export function ActivityTimeline({
   async function handleDeleteInvoice(invoice: Invoice) {
     const result = await deleteInvoice(invoice.id)
     if (!result.success)
-      toast.error(result.error || t('sales.failedToDelete'))
+      toast.error(result.error || t("sales.failedToDelete"))
     else {
-      toast.success(t('sales.invoiceDeleted'))
+      toast.success(t("sales.invoiceDeleted"))
       router.refresh()
     }
   }
@@ -149,7 +154,7 @@ export function ActivityTimeline({
     <section>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-tight">
-          {t('activities.title')}
+          {t("activities.title")}
         </h2>
         <div className="flex gap-2">
           {canCreateActivity && (
@@ -162,7 +167,7 @@ export function ActivityTimeline({
                 setActivityFormKey((k) => k + 1)
               }}
             >
-              <Plus /> {t('activities.logActivityBtn')}
+              <Plus /> {t("activities.logActivityBtn")}
             </Button>
           )}
           {canCreateReminder && (
@@ -175,7 +180,7 @@ export function ActivityTimeline({
                 setReminderFormKey((k) => k + 1)
               }}
             >
-              <Plus /> {t('activities.addReminder')}
+              <Plus /> {t("activities.addReminder")}
             </Button>
           )}
           {canCreateInvoice && (
@@ -188,7 +193,7 @@ export function ActivityTimeline({
                 setInvoiceFormKey((k) => k + 1)
               }}
             >
-              <Plus /> {t('activities.createInvoice')}
+              <Plus /> {t("activities.createInvoice")}
             </Button>
           )}
         </div>
@@ -196,7 +201,7 @@ export function ActivityTimeline({
 
       {entries.length === 0 ? (
         <div className="rounded-md border p-8 text-center text-muted-foreground">
-          <p>{t('activities.noActivities')}</p>
+          <p>{t("activities.noActivities")}</p>
         </div>
       ) : (
         <div className="rounded-md border p-4">
@@ -268,17 +273,36 @@ export function ActivityTimeline({
         onSuccess={handleSuccess}
       />
 
-      <InvoiceDialog
+      <Dialog
         key={editingInvoice?.id ?? `new-invoice-${invoiceFormKey}`}
-        invoice={editingInvoice}
-        selectedClientId={clientId}
+        title={
+          editingInvoice
+            ? t("sales.editInvoice")
+            : t("sales.newInvoice")
+        }
+        description={
+          editingInvoice
+            ? t("sales.updateDetails")
+            : t("sales.fillDetails")
+        }
         open={invoiceDialogOpen}
         onOpenChange={(open) => {
           setInvoiceDialogOpen(open)
           if (!open) setEditingInvoice(undefined)
         }}
-        onSuccess={handleSuccess}
-      />
+        className="sm:max-w-2xl"
+      >
+        <InvoiceForm
+          invoice={editingInvoice}
+          selectedClientId={clientId}
+          onSuccess={() => {
+            handleSuccess()
+            setInvoiceDialogOpen(false)
+            setEditingInvoice(undefined)
+          }}
+          onCancel={() => setInvoiceDialogOpen(false)}
+        />
+      </Dialog>
     </section>
   )
 }

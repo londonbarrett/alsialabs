@@ -50,18 +50,18 @@ export function ActionMenu({
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-auto">
           {children}
           {onView && (
             <DropdownMenuItem onClick={onView}>
               <Eye className="mr-2 h-4 w-4" />
-              {t('actionMenu.view')}
+              {t('actionMenu.view', { name: entityName })}
             </DropdownMenuItem>
           )}
           {onEdit && canEdit && (
             <DropdownMenuItem onClick={onEdit}>
               <Pencil className="mr-2 h-4 w-4" />
-              {t('actionMenu.edit')}
+              {t('actionMenu.edit', { name: entityName })}
             </DropdownMenuItem>
           )}
           {canDelete && (
@@ -70,7 +70,7 @@ export function ActionMenu({
               className="text-destructive focus:text-destructive focus:bg-destructive/10"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              {t('actionMenu.delete')}
+              {t('actionMenu.deleteItem', { name: entityName })}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

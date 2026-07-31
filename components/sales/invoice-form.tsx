@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { MoneyInput } from "@/components/common/money-input"
 import {
   Select,
   SelectContent,
@@ -16,7 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { getInvoiceItems, upsertInvoice } from "@/lib/actions/sales"
+import {
+  getInvoiceItems,
+  getInvoiceProducts,
+  upsertInvoice,
+} from "@/lib/actions/sales"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -25,7 +30,6 @@ import { toast } from "sonner"
 
 interface InvoiceFormProps {
   invoice?: Invoice
-  products: Array<{ id: string; name: string }>
   selectedClientId?: string
   onSuccess: () => void
   onCancel: () => void
@@ -53,12 +57,14 @@ function createEmptyItem(
 
 export function InvoiceForm({
   invoice,
-  products,
   selectedClientId,
   onSuccess,
   onCancel,
 }: InvoiceFormProps) {
   const t = useTranslations()
+  const [products, setProducts] = useState<
+    Array<{ id: string; name: string }>
+  >([])
   const [type, setType] = useState<"product" | "service">(
     (invoice?.type as "product" | "service") ?? "product"
   )
@@ -68,12 +74,20 @@ export function InvoiceForm({
   const [issueDate, setIssueDate] = useState(
     invoice?.issueDate ?? new Date().toISOString().slice(0, 10)
   )
+  const [dueDate, setDueDate] = useState(invoice?.dueDate ?? "")
+  const [paidAmount, setPaidAmount] = useState("0")
 
   const [items, setItems] = useState<LineItem[]>(() =>
     invoice?.id ? [] : [createEmptyItem("product")]
   )
   const loadingItems = invoice?.id != null && items.length === 0
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    getInvoiceProducts()
+      .catch(() => [])
+      .then(setProducts)
+  }, [])
 
   useEffect(() => {
     if (!invoice?.id) return
@@ -176,6 +190,8 @@ export function InvoiceForm({
           type,
           clientId,
           issueDate,
+          dueDate,
+          paidAmount: invoice ? "0" : paidAmount,
           notes: invoice?.notes ?? "",
           items: items.map((item) => ({
             description: item.description,
@@ -246,6 +262,25 @@ export function InvoiceForm({
             onChange={(e) => setIssueDate(e.target.value)}
           />
         </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="dueDate">{t("sales.dueDate")}</Label>
+          <Input
+            id="dueDate"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+        </div>
+        {!invoice && (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="paidAmount">{t("sales.amountPaid")}</Label>
+            <MoneyInput
+              id="paidAmount"
+              value={paidAmount}
+              onChange={setPaidAmount}
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">
