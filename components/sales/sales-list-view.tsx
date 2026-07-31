@@ -194,7 +194,26 @@ export function SalesListView({
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-wrap items-end justify-end gap-3">
+                  <p
+                    className="mr-auto self-center text-sm text-muted-foreground"
+                    aria-live="polite"
+                  >
+                    {t("sales.resultCount", {
+                      count: filteredInvoices.length,
+                    })}
+                  </p>
+                  {isFiltered && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      aria-label={t("sales.clearFilters")}
+                    >
+                      <X />
+                      {t("sales.clearFilters")}
+                    </Button>
+                  )}
                   <div className="grid gap-1.5">
                     <Label
                       htmlFor="invoice-search"
@@ -274,17 +293,6 @@ export function SalesListView({
                       className="w-40"
                     />
                   </div>
-                  {isFiltered && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      aria-label={t("sales.clearFilters")}
-                    >
-                      <X />
-                      {t("sales.clearFilters")}
-                    </Button>
-                  )}
                 </div>
                 {filteredInvoices.length === 0 ? (
                   <p className="py-12 text-center text-sm text-muted-foreground">
