@@ -46,12 +46,11 @@ export function SalesInvoiceTable({
 
   return (
     <div
-      className="max-h-[calc(100vh-10rem)] overflow-auto rounded-md border"
       role="region"
       aria-label={t("sales.title")}
     >
-      <Table>
-        <TableHeader>
+      <Table className="overflow-x-clip">
+        <TableHeader className="sticky top-12 z-10 [&_th]:bg-card [&_th]:shadow-[0_1px_0_var(--border)]">
           <TableRow>
             <TableHead scope="col">{t("sales.invoiceHash")}</TableHead>
             <TableHead scope="col">{t("sales.client")}</TableHead>
@@ -82,7 +81,8 @@ export function SalesInvoiceTable({
                   {inv.clientName ? (
                     <Link
                       href={`/dashboard/clients/${inv.clientId}`}
-                      className="hover:underline"
+                      className="block max-w-52 truncate hover:underline"
+                      title={inv.clientName}
                     >
                       {inv.clientName}
                     </Link>

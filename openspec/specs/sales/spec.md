@@ -216,3 +216,41 @@ The sales page SHALL display a horizontal bar chart ranking the top 10 clients b
 #### Scenario: Top clients chart shows empty state
 - **WHEN** there are no invoices in the system
 - **THEN** the chart area SHALL display a placeholder message indicating no data
+
+### Requirement: User can search and filter invoices
+The sales page SHALL allow users with `sales:view` permission to search and filter the invoices table. The invoices table SHALL be contained in a card with filter controls and a result count displayed above the table.
+
+#### Scenario: Invoices table is in a card with filters
+- **WHEN** a user with `sales:view` permission visits the sales page
+- **THEN** the invoices table is displayed inside a card
+- **AND** the card shows filter controls (search, status, date range) above the table
+- **AND** the number of matching results is shown on the left of the filter controls
+
+#### Scenario: User searches invoices by number or client
+- **WHEN** the user types text in the search field
+- **THEN** only invoices whose invoice number or client name matches the text (case-insensitive) are displayed
+
+#### Scenario: User filters invoices by status
+- **WHEN** the user selects a status from the status filter
+- **THEN** only invoices with that status are displayed
+- **AND** selecting "All statuses" shows all invoices
+
+#### Scenario: User filters invoices by issue date range
+- **WHEN** the user sets a "from" or "to" date
+- **THEN** only invoices whose issue date falls within the range are displayed
+
+#### Scenario: Filters combine with each other
+- **WHEN** the user applies search, status, and date range filters together
+- **THEN** only invoices matching all criteria are displayed
+
+#### Scenario: User clears filters
+- **WHEN** at least one filter is active
+- **THEN** a "Clear filters" button is shown as the first control
+- **WHEN** the user clicks "Clear filters"
+- **THEN** all filters are reset
+- **AND** all invoices are displayed
+
+#### Scenario: No invoices match the filters
+- **WHEN** no invoices match the active filters
+- **THEN** a "no results" message is displayed in place of the table
+- **AND** the filter controls remain visible so the user can adjust or clear them

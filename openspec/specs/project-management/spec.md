@@ -325,6 +325,13 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 - **WHEN** the user double-clicks a task row or clicks the comment count button
 - **THEN** the comments panel opens as a slide-over Sheet
 
+#### Scenario: Forbidden without projects view permission
+
+- **GIVEN** a user without `projects:view` permission
+- **WHEN** the user navigates to `/dashboard/my-tasks`
+- **THEN** a 403 forbidden screen is displayed
+- **AND** no server error is thrown
+
 ### Requirement: User-scoped project queries
 
 Projects SHALL be scoped to the authenticated user. Users only see projects they own. Collaborators cannot see project details. Admins and super users see all projects.

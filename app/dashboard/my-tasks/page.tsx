@@ -1,7 +1,8 @@
 import { Suspense } from "react"
-import { auth, isSuperUser } from "@/lib/auth"
+import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import { getMyTasks } from "@/lib/actions/project-tasks"
 import { MyTasksView } from "@/components/my-tasks/my-tasks-view"
+import { forbidden } from "next/navigation"
 
 export default function MyTasksPage() {
   return (
@@ -27,7 +28,15 @@ export default function MyTasksPage() {
 
 async function MyTasksContent() {
   const session = await auth()
-  const userId = session?.user?.id ?? ""
+
+  if (
+    !session?.user?.id ||
+    !(await hasPermission(session.user.id, "projects", "view"))
+  ) {
+    forbidden()
+  }
+
+  const userId = session.user.id
   const superUser = isSuperUser(session as { user: { role: string | null } })
 
   const tasks = await getMyTasks()

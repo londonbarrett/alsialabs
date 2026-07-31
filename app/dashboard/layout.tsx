@@ -32,7 +32,7 @@ export default async function DashboardLayout({
         }}
       />
       <SidebarInset>
-        <header className="sticky top-0 flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
+        <header className="sticky top-0 z-1 flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
           <SidebarTrigger />
           <DashboardBreadcrumb />
         </header>

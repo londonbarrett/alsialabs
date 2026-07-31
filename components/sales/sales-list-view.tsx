@@ -25,11 +25,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import type { Invoice } from "@/lib/drizzle/schema"
-import { ChartNoAxesCombined, Plus } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import type { Invoice, InvoiceStatus } from "@/lib/drizzle/schema"
+import { ChartNoAxesCombined, Plus, Search, X } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 interface SalesListViewProps {
   invoices: InvoiceWithClientName[]
@@ -37,6 +46,15 @@ interface SalesListViewProps {
   monthlyRevenue?: MonthlyRevenue[]
   topClients?: TopClient[]
 }
+
+const invoiceStatuses: InvoiceStatus[] = [
+  "draft",
+  "sent",
+  "paid",
+  "partially_paid",
+  "overdue",
+  "cancelled",
+]
 
 export function SalesListView({
   invoices,
@@ -56,6 +74,42 @@ export function SalesListView({
   const [historyInvoice, setHistoryInvoice] = useState<Invoice | null>(
     null
   )
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+
+  const filteredInvoices = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    return invoices.filter((inv) => {
+      if (
+        query &&
+        !inv.invoiceNumber.toLowerCase().includes(query) &&
+        !(inv.clientName ?? "").toLowerCase().includes(query)
+      ) {
+        return false
+      }
+      if (statusFilter !== "all" && inv.status !== statusFilter) {
+        return false
+      }
+      if (dateFrom && inv.issueDate < dateFrom) return false
+      if (dateTo && inv.issueDate > dateTo) return false
+      return true
+    })
+  }, [invoices, searchQuery, statusFilter, dateFrom, dateTo])
+
+  const isFiltered =
+    searchQuery.trim() !== "" ||
+    statusFilter !== "all" ||
+    dateFrom !== "" ||
+    dateTo !== ""
+
+  function clearFilters() {
+    setSearchQuery("")
+    setStatusFilter("all")
+    setDateFrom("")
+    setDateTo("")
+  }
 
   function handleSuccess() {
     router.refresh()
@@ -134,13 +188,132 @@ export function SalesListView({
             </div>
           )}
 
-          <SalesInvoiceTable
-            invoices={invoices}
-            permissions={permissions}
-            onEdit={openEdit}
-            onViewPayments={(inv) => setHistoryInvoice(inv as Invoice)}
-            onRecordPayment={(inv) => setPaymentInvoice(inv as Invoice)}
-          />
+          <Card className="overflow-visible">
+            <CardHeader>
+              <CardTitle>{t("sales.invoices")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-end justify-end gap-3">
+                  <p
+                    className="mr-auto self-center text-sm text-muted-foreground"
+                    aria-live="polite"
+                  >
+                    {t("sales.resultCount", {
+                      count: filteredInvoices.length,
+                    })}
+                  </p>
+                  {isFiltered && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      aria-label={t("sales.clearFilters")}
+                    >
+                      <X />
+                      {t("sales.clearFilters")}
+                    </Button>
+                  )}
+                  <div className="grid gap-1.5">
+                    <Label
+                      htmlFor="invoice-search"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {t("common.search")}
+                    </Label>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="invoice-search"
+                        type="search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={t("common.search")}
+                        className="w-64 pl-8"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label
+                      htmlFor="status-filter"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {t("sales.status")}
+                    </Label>
+                    <Select
+                      value={statusFilter}
+                      onValueChange={setStatusFilter}
+                    >
+                      <SelectTrigger
+                        id="status-filter"
+                        className="w-44"
+                        aria-label={t("sales.status")}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          {t("sales.allStatuses")}
+                        </SelectItem>
+                        {invoiceStatuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {t(`sales.statuses.${status}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label
+                      htmlFor="date-from"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {t("sales.dateFrom")}
+                    </Label>
+                    <Input
+                      id="date-from"
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label
+                      htmlFor="date-to"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {t("sales.dateTo")}
+                    </Label>
+                    <Input
+                      id="date-to"
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                </div>
+                {filteredInvoices.length === 0 ? (
+                  <p className="py-12 text-center text-sm text-muted-foreground">
+                    {t("common.noResults")}
+                  </p>
+                ) : (
+                  <SalesInvoiceTable
+                    invoices={filteredInvoices}
+                    permissions={permissions}
+                    onEdit={openEdit}
+                    onViewPayments={(inv) =>
+                      setHistoryInvoice(inv as Invoice)
+                    }
+                    onRecordPayment={(inv) =>
+                      setPaymentInvoice(inv as Invoice)
+                    }
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
       <Dialog
