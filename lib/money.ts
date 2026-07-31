@@ -30,3 +30,33 @@ export function formatMoney(
 export function parseMoney(value: string): string {
   return value.replace(/[^0-9]/g, '')
 }
+
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+export function formatCurrency(
+  value: string | number,
+  options?: { currency?: string; locale?: string }
+): string {
+  const numericValue =
+    typeof value === 'string' ? parseFloat(value) : value
+
+  if (Number.isNaN(numericValue)) return ''
+
+  const { currency = 'USD', locale = 'en-US' } = options || {}
+
+  if (currency === 'USD' && locale === 'en-US') {
+    return currencyFormatter.format(numericValue)
+  }
+
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numericValue)
+}

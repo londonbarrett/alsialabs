@@ -1,12 +1,19 @@
 "use client"
 
-import { ActionMenu } from "@/components/common/action-menu"
+import { Dialog } from "@/components/common/dialog"
 import { PageHeader } from "@/components/common/page-header"
-import { InvoiceDialog } from "@/components/sales/invoice-dialog"
+import { InvoiceForm } from "@/components/sales/invoice-form"
 import {
   MonthlyRevenueChart,
   type MonthlyRevenue,
 } from "@/components/sales/monthly-revenue-chart"
+import { PaymentHistory } from "@/components/sales/payment-history"
+import { RecordPaymentForm } from "@/components/sales/record-payment-form"
+import {
+  getOutstanding,
+  SalesInvoiceTable,
+  type InvoiceWithClientName,
+} from "@/components/sales/sales-invoice-table"
 import {
   TopClientsChart,
   type TopClient,
@@ -18,24 +25,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { deleteInvoice } from "@/lib/actions/sales"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { ChartNoAxesCombined, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { toast } from "sonner"
 
 interface SalesListViewProps {
-  invoices: Array<Invoice & { clientName: string | null }>
+  invoices: InvoiceWithClientName[]
   permissions?: string[]
   monthlyRevenue?: MonthlyRevenue[]
   topClients?: TopClient[]
@@ -53,10 +50,17 @@ export function SalesListView({
   const [editingInvoice, setEditingInvoice] = useState<
     Invoice | undefined
   >()
+  const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(
+    null
+  )
+  const [historyInvoice, setHistoryInvoice] = useState<Invoice | null>(
+    null
+  )
 
   function handleSuccess() {
     router.refresh()
     setEditingInvoice(undefined)
+    setDialogOpen(false)
   }
 
   function openNew() {
@@ -130,92 +134,71 @@ export function SalesListView({
             </div>
           )}
 
-          <div
-            className="max-h-[calc(100vh-10rem)] overflow-auto rounded-md border"
-            role="region"
-            aria-label={t("sales.title")}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">
-                    {t("sales.invoiceHash")}
-                  </TableHead>
-                  <TableHead scope="col">{t("sales.client")}</TableHead>
-                  <TableHead scope="col">{t("sales.type")}</TableHead>
-                  <TableHead scope="col">{t("sales.date")}</TableHead>
-                  <TableHead scope="col">{t("sales.total")}</TableHead>
-                  <TableHead scope="col">{t("sales.status")}</TableHead>
-                  <TableHead scope="col">
-                    {t("sales.actions")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoices.map((inv) => (
-                  <TableRow
-                    key={inv.id}
-                    className="select-none"
-                    onDoubleClick={() =>
-                      permissions.includes("sales:edit") &&
-                      openEdit(inv)
-                    }
-                  >
-                    <TableCell className="font-mono text-xs">
-                      {inv.invoiceNumber}
-                    </TableCell>
-                    <TableCell>{inv.clientName ?? "—"}</TableCell>
-                    <TableCell className="capitalize">
-                      {inv.type}
-                    </TableCell>
-                    <TableCell>{inv.issueDate}</TableCell>
-                    <TableCell>
-                      $
-                      {parseFloat(inv.grandTotal).toLocaleString(
-                        "en-US",
-                        { minimumFractionDigits: 2 }
-                      )}
-                    </TableCell>
-                    <TableCell className="capitalize">
-                      {inv.status}
-                    </TableCell>
-                    <TableCell>
-                      <ActionMenu
-                        entityName={`invoice ${inv.invoiceNumber}`}
-                        onEdit={
-                          permissions.includes("sales:edit")
-                            ? () => openEdit(inv)
-                            : undefined
-                        }
-                        onDelete={async () => {
-                          const result = await deleteInvoice(inv.id)
-                          if (!result.success)
-                            toast.error(
-                              result.error || t("sales.failedToDelete")
-                            )
-                          else toast.success(t("sales.invoiceDeleted"))
-                        }}
-                        canDelete={permissions.includes("sales:delete")}
-                        onView={() =>
-                          toast.info(
-                            t("sales.invoicePrefix") + inv.invoiceNumber
-                          )
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <SalesInvoiceTable
+            invoices={invoices}
+            permissions={permissions}
+            onEdit={openEdit}
+            onViewPayments={(inv) => setHistoryInvoice(inv as Invoice)}
+            onRecordPayment={(inv) => setPaymentInvoice(inv as Invoice)}
+          />
         </div>
       )}
-      <InvoiceDialog
-        invoice={editingInvoice}
+      <Dialog
+        title={
+          editingInvoice
+            ? t("sales.editInvoice")
+            : t("sales.newInvoice")
+        }
+        description={
+          editingInvoice
+            ? t("sales.updateDetails")
+            : t("sales.fillDetails")
+        }
         open={dialogOpen}
         onOpenChange={handleOpenChange}
-        onSuccess={handleSuccess}
-      />
+        className="sm:max-w-2xl"
+      >
+        <InvoiceForm
+          key={editingInvoice?.id ?? "new"}
+          invoice={editingInvoice}
+          onSuccess={handleSuccess}
+          onCancel={() => setDialogOpen(false)}
+        />
+      </Dialog>
+      {paymentInvoice && (
+        <Dialog
+          key={paymentInvoice.id}
+          title={t("sales.recordPayment")}
+          description={t("sales.recordPaymentDesc")}
+          open={!!paymentInvoice}
+          onOpenChange={() => setPaymentInvoice(null)}
+        >
+          <RecordPaymentForm
+            invoiceId={paymentInvoice.id}
+            remainingBalance={getOutstanding(paymentInvoice)}
+            onSuccess={() => {
+              setPaymentInvoice(null)
+              router.refresh()
+            }}
+            onCancel={() => setPaymentInvoice(null)}
+          />
+        </Dialog>
+      )}
+      {historyInvoice && (
+        <Dialog
+          title={t("sales.paymentHistory")}
+          description={t("sales.paymentHistoryDesc", {
+            number: historyInvoice.invoiceNumber,
+          })}
+          open={!!historyInvoice}
+          onOpenChange={() => setHistoryInvoice(null)}
+        >
+          <PaymentHistory
+            invoiceId={historyInvoice.id}
+            canManage={permissions.includes("sales:record-payment")}
+          />
+        </Dialog>
+      )}
     </>
   )
 }

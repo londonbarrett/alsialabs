@@ -126,6 +126,7 @@ export type Store = typeof storesTable.$inferSelect
 export type Product = typeof productsTable.$inferSelect
 export type Invoice = typeof invoicesTable.$inferSelect
 export type InvoiceItem = typeof invoiceItemsTable.$inferSelect
+export type InvoicePayment = typeof invoicePaymentsTable.$inferSelect
 export type Taxonomy = typeof taxonomyTable.$inferSelect
 export type Category = typeof categoryTable.$inferSelect
 export type Project = typeof projectsTable.$inferSelect
@@ -177,6 +178,14 @@ export const clientsTable = pgTable("client", {
   }),
 })
 
+export type InvoiceStatus =
+  | "draft"
+  | "sent"
+  | "paid"
+  | "partially_paid"
+  | "overdue"
+  | "cancelled"
+
 export const invoicesTable = pgTable("invoice", {
   id: text()
     .primaryKey()
@@ -190,8 +199,12 @@ export const invoicesTable = pgTable("invoice", {
   userId: text("user_id").references(() => usersTable.id, {
     onDelete: "set null",
   }),
-  status: text().notNull().default("paid"),
+  status: text().notNull().default("draft").$type<InvoiceStatus>(),
   issueDate: date("issue_date").notNull(),
+  dueDate: date("due_date"),
+  paidAmount: decimal("paid_amount", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0"),
   notes: text(),
   subtotal: decimal("subtotal", { precision: 12, scale: 2 }).notNull(),
   discountTotal: decimal("discount_total", { precision: 12, scale: 2 })
@@ -240,6 +253,26 @@ export const invoiceItemsTable = pgTable("invoice_item", {
     .default("0"),
   total: decimal("total", { precision: 12, scale: 2 }).notNull(),
   productId: text("product_id").references(() => productsTable.id),
+})
+
+export const invoicePaymentsTable = pgTable("invoice_payment", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  invoiceId: text("invoice_id")
+    .notNull()
+    .references(() => invoicesTable.id, { onDelete: "cascade" }),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  paymentDate: date("payment_date").notNull(),
+  method: text(),
+  reference: text(),
+  notes: text(),
+  userId: text("user_id").references(() => usersTable.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { mode: "date" })
+    .notNull()
+    .defaultNow(),
 })
 
 export const clientActivitiesTable = pgTable("client_activity", {

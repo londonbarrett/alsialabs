@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { Receipt } from 'lucide-react'
 import { ActionMenu } from '@/components/common/action-menu'
+import { StatusBadge } from '@/components/sales/status-badge'
 import type { Invoice } from '@/lib/drizzle/schema'
 
 interface InvoiceItemProps {
@@ -37,14 +38,7 @@ export function InvoiceItem({ invoice, onEdit, onDelete, canEdit, canDelete }: I
           {' — '}
           <span className="font-semibold">{t('currencyPrefix')}{total}</span>
           {' '}
-          <span className={`text-xs capitalize px-1.5 py-0.5 rounded ${
-            invoice.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
-            invoice.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-            invoice.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>
-            {t(invoice.status)}
-          </span>
+          <StatusBadge status={invoice.status} />
         </p>
       </div>
       {canEdit || canDelete ? (

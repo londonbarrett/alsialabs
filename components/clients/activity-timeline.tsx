@@ -1,12 +1,14 @@
 "use client"
 
-import { useTranslations } from "next-intl"
 import { ActivityItem } from "@/components/clients/activity-item"
 import { InvoiceItem } from "@/components/clients/invoice-item"
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
+import { PaymentItem } from "@/components/clients/payment-item"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
 import { ReminderItem } from "@/components/clients/reminder-item"
-import { InvoiceDialog } from "@/components/sales/invoice-dialog"
+import { Dialog } from "@/components/common/dialog"
+import { EditPaymentForm } from "@/components/sales/edit-payment-form"
+import { InvoiceForm } from "@/components/sales/invoice-form"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { deleteActivity } from "@/lib/actions/activities"
@@ -14,9 +16,15 @@ import {
   completeReminder,
   deleteReminder,
 } from "@/lib/actions/reminders"
-import { deleteInvoice } from "@/lib/actions/sales"
-import type { ClientActivity, Invoice, ClientReminder } from "@/lib/drizzle/schema"
+import { deleteInvoice, deletePayment } from "@/lib/actions/sales"
+import type {
+  ClientActivity,
+  ClientReminder,
+  Invoice,
+  InvoicePayment,
+} from "@/lib/drizzle/schema"
 import { Plus } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -25,12 +33,14 @@ type TimelineEntry =
   | ({ kind: "activity" } & ClientActivity)
   | ({ kind: "reminder" } & ClientReminder)
   | ({ kind: "invoice" } & Invoice)
+  | ({ kind: "payment" } & InvoicePayment & { invoiceNumber: string })
 
 interface ActivityTimelineProps {
   clientId: string
   activities: ClientActivity[]
   reminders: ClientReminder[]
   invoices: Invoice[]
+  payments?: Array<InvoicePayment & { invoiceNumber: string }>
   permissions: string[]
 }
 
@@ -42,6 +52,9 @@ function getEntryDate(entry: TimelineEntry): string {
       return (entry as ClientReminder).remindAt
     case "invoice":
       return (entry as Invoice).issueDate
+    case "payment":
+      return (entry as InvoicePayment & { invoiceNumber: string })
+        .paymentDate
   }
 }
 
@@ -50,6 +63,7 @@ export function ActivityTimeline({
   activities,
   reminders,
   invoices,
+  payments = [],
   permissions,
 }: ActivityTimelineProps) {
   const router = useRouter()
@@ -57,6 +71,7 @@ export function ActivityTimeline({
   const [logDialogOpen, setLogDialogOpen] = useState(false)
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [editingActivity, setEditingActivity] = useState<
     ClientActivity | undefined
   >()
@@ -66,6 +81,9 @@ export function ActivityTimeline({
   const [editingInvoice, setEditingInvoice] = useState<
     Invoice | undefined
   >()
+  const [editingPayment, setEditingPayment] = useState<
+    InvoicePayment | undefined
+  >()
   const [activityFormKey, setActivityFormKey] = useState(0)
   const [reminderFormKey, setReminderFormKey] = useState(0)
   const [invoiceFormKey, setInvoiceFormKey] = useState(0)
@@ -74,6 +92,7 @@ export function ActivityTimeline({
     ...activities.map((a) => ({ ...a, kind: "activity" as const })),
     ...reminders.map((r) => ({ ...r, kind: "reminder" as const })),
     ...invoices.map((i) => ({ ...i, kind: "invoice" as const })),
+    ...payments.map((p) => ({ ...p, kind: "payment" as const })),
   ].sort((a, b) => {
     const dateA = getEntryDate(a)
     const dateB = getEntryDate(b)
@@ -87,9 +106,9 @@ export function ActivityTimeline({
   async function handleDeleteActivity(activity: ClientActivity) {
     const result = await deleteActivity(activity.id)
     if (!result.success)
-      toast.error(result.error || t('activities.failedToDelete'))
+      toast.error(result.error || t("activities.failedToDelete"))
     else {
-      toast.success(t('activities.activityDeleted'))
+      toast.success(t("activities.activityDeleted"))
       router.refresh()
     }
   }
@@ -97,9 +116,9 @@ export function ActivityTimeline({
   async function handleDeleteReminder(reminder: ClientReminder) {
     const result = await deleteReminder(reminder.id)
     if (!result.success)
-      toast.error(result.error || t('reminders.failedToDelete'))
+      toast.error(result.error || t("reminders.failedToDelete"))
     else {
-      toast.success(t('reminders.reminderDeleted'))
+      toast.success(t("reminders.reminderDeleted"))
       router.refresh()
     }
   }
@@ -107,9 +126,9 @@ export function ActivityTimeline({
   async function handleCompleteReminder(reminder: ClientReminder) {
     const result = await completeReminder(reminder.id)
     if (!result.success)
-      toast.error(result.error || t('reminders.failedToComplete'))
+      toast.error(result.error || t("reminders.failedToComplete"))
     else {
-      toast.success(t('reminders.reminderCompleted'))
+      toast.success(t("reminders.reminderCompleted"))
       router.refresh()
     }
   }
@@ -117,9 +136,19 @@ export function ActivityTimeline({
   async function handleDeleteInvoice(invoice: Invoice) {
     const result = await deleteInvoice(invoice.id)
     if (!result.success)
-      toast.error(result.error || t('sales.failedToDelete'))
+      toast.error(result.error || t("sales.failedToDelete"))
     else {
-      toast.success(t('sales.invoiceDeleted'))
+      toast.success(t("sales.invoiceDeleted"))
+      router.refresh()
+    }
+  }
+
+  async function handleDeletePayment(payment: InvoicePayment) {
+    const result = await deletePayment(payment.id)
+    if (!result.success)
+      toast.error(result.error || t("common.somethingWentWrong"))
+    else {
+      toast.success(t("sales.paymentDeleted"))
       router.refresh()
     }
   }
@@ -144,12 +173,14 @@ export function ActivityTimeline({
   const canCreateInvoice = permissions.includes("sales:create")
   const canEditInvoice = permissions.includes("sales:edit")
   const canDeleteInvoice = permissions.includes("sales:delete")
+  const canEditPayment = permissions.includes("sales:record-payment")
+  const canDeletePayment = permissions.includes("sales:record-payment")
 
   return (
     <section>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-tight">
-          {t('activities.title')}
+          {t("activities.title")}
         </h2>
         <div className="flex gap-2">
           {canCreateActivity && (
@@ -162,7 +193,7 @@ export function ActivityTimeline({
                 setActivityFormKey((k) => k + 1)
               }}
             >
-              <Plus /> {t('activities.logActivityBtn')}
+              <Plus /> {t("activities.logActivityBtn")}
             </Button>
           )}
           {canCreateReminder && (
@@ -175,7 +206,7 @@ export function ActivityTimeline({
                 setReminderFormKey((k) => k + 1)
               }}
             >
-              <Plus /> {t('activities.addReminder')}
+              <Plus /> {t("activities.addReminder")}
             </Button>
           )}
           {canCreateInvoice && (
@@ -188,7 +219,7 @@ export function ActivityTimeline({
                 setInvoiceFormKey((k) => k + 1)
               }}
             >
-              <Plus /> {t('activities.createInvoice')}
+              <Plus /> {t("activities.createInvoice")}
             </Button>
           )}
         </div>
@@ -196,7 +227,7 @@ export function ActivityTimeline({
 
       {entries.length === 0 ? (
         <div className="rounded-md border p-8 text-center text-muted-foreground">
-          <p>{t('activities.noActivities')}</p>
+          <p>{t("activities.noActivities")}</p>
         </div>
       ) : (
         <div className="rounded-md border p-4">
@@ -227,7 +258,7 @@ export function ActivityTimeline({
                   canDelete={canDeleteReminder}
                   canComplete={canCompleteReminder}
                 />
-              ) : (
+              ) : entry.kind === "invoice" ? (
                 <InvoiceItem
                   invoice={entry}
                   onEdit={() => {
@@ -237,6 +268,18 @@ export function ActivityTimeline({
                   onDelete={() => handleDeleteInvoice(entry)}
                   canEdit={canEditInvoice}
                   canDelete={canDeleteInvoice}
+                />
+              ) : (
+                <PaymentItem
+                  payment={entry}
+                  invoiceNumber={entry.invoiceNumber}
+                  onEdit={() => {
+                    setEditingPayment(entry)
+                    setPaymentDialogOpen(true)
+                  }}
+                  onDelete={() => handleDeletePayment(entry)}
+                  canEdit={canEditPayment}
+                  canDelete={canDeletePayment}
                 />
               )}
             </div>
@@ -268,17 +311,59 @@ export function ActivityTimeline({
         onSuccess={handleSuccess}
       />
 
-      <InvoiceDialog
+      <Dialog
         key={editingInvoice?.id ?? `new-invoice-${invoiceFormKey}`}
-        invoice={editingInvoice}
-        selectedClientId={clientId}
+        title={
+          editingInvoice
+            ? t("sales.editInvoice")
+            : t("sales.newInvoice")
+        }
+        description={
+          editingInvoice
+            ? t("sales.updateDetails")
+            : t("sales.fillDetails")
+        }
         open={invoiceDialogOpen}
         onOpenChange={(open) => {
           setInvoiceDialogOpen(open)
           if (!open) setEditingInvoice(undefined)
         }}
-        onSuccess={handleSuccess}
-      />
+        className="sm:max-w-2xl"
+      >
+        <InvoiceForm
+          invoice={editingInvoice}
+          selectedClientId={clientId}
+          onSuccess={() => {
+            handleSuccess()
+            setInvoiceDialogOpen(false)
+            setEditingInvoice(undefined)
+          }}
+          onCancel={() => setInvoiceDialogOpen(false)}
+        />
+      </Dialog>
+
+      <Dialog
+        key={editingPayment?.id ?? "payment-dialog"}
+        title={t("sales.editPayment")}
+        description={t("sales.editPaymentDesc")}
+        open={paymentDialogOpen}
+        onOpenChange={(open) => {
+          setPaymentDialogOpen(open)
+          if (!open) setEditingPayment(undefined)
+        }}
+      >
+        {editingPayment && (
+          <EditPaymentForm
+            payment={editingPayment}
+            onSuccess={() => {
+              handleSuccess()
+              setPaymentDialogOpen(false)
+              setEditingPayment(undefined)
+            }}
+            onCancel={() => setPaymentDialogOpen(false)}
+          />
+        )}
+      </Dialog>
     </section>
   )
 }

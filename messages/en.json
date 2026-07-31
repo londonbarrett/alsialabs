@@ -355,7 +355,7 @@
       "task": "Task",
       "category": "Category",
       "selectCategory": "Select a category",
-      "amount": "Amount",
+    "amount": "Amount",
       "date": "Date",
       "total": "Total",
       "actions": "Actions",
@@ -438,7 +438,42 @@
     "serviceDescriptionPlaceholder": "Service description",
     "removeItem": "Remove item",
     "noItems": "No items added yet.",
-    "failedToLoadItems": "Failed to load invoice items"
+    "failedToLoadItems": "Failed to load invoice items",
+    "dueDate": "Due Date",
+    "outstanding": "Outstanding",
+    "recordPayment": "Record Payment",
+    "recordPaymentDesc": "Record a payment received for this invoice.",
+    "amount": "Amount",
+    "amountPaid": "Amount Paid",
+    "paymentDate": "Payment Date",
+    "paymentMethod": "Payment Method",
+    "paymentMethodPlaceholder": "e.g. Cash, Transfer, Check",
+    "reference": "Reference",
+    "referencePlaceholder": "e.g. Check #, Transaction ID",
+    "notes": "Notes",
+    "paymentRecorded": "Payment recorded",
+    "paymentUpdated": "Payment updated",
+    "paymentDeleted": "Payment deleted",
+    "editPayment": "Edit Payment",
+    "editPaymentDesc": "Update the details of this payment.",
+    "paymentHistory": "Payment History",
+    "paymentHistoryDesc": "Payments recorded for invoice {number}",
+    "noPayments": "No payments recorded yet.",
+    "cancelInvoice": "Cancel Invoice",
+    "sendInvoice": "Send Invoice",
+    "viewPayments": "View Payments",
+    "invoiceSent": "Invoice sent",
+    "reopenInvoice": "Reopen Invoice",
+    "invoiceReopened": "Invoice reopened",
+    "invoiceCancelled": "Invoice cancelled",
+    "statuses": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "paid": "Paid",
+      "partially_paid": "Partially Paid",
+      "overdue": "Overdue",
+      "cancelled": "Cancelled"
+    }
   },
   "activity": {
     "title": "Activity",
@@ -534,9 +569,10 @@
   },
   "actionMenu": {
     "actionsFor": "Actions for {name}",
-    "view": "View",
-    "edit": "Edit",
+    "view": "View {name}",
+    "edit": "Edit {name}",
     "delete": "Delete",
+    "deleteItem": "Delete {name}",
     "confirmDelete": "Are you sure you want to delete {name}? This action cannot be undone.",
     "deleteTitle": "Delete"
   },
@@ -547,6 +583,9 @@
     "paid": "Paid",
     "pending": "Pending",
     "cancelled": "Cancelled"
+  },
+  "paymentItem": {
+    "payment": "Payment"
   },
   "ui": {
     "spinner": "Loading",

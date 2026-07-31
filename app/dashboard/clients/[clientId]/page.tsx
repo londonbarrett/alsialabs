@@ -4,13 +4,17 @@ import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { PageHeader } from "@/components/common/page-header"
 import { getClientActivities } from "@/lib/actions/activities"
 import { getClientByClientId } from "@/lib/actions/clients"
-import { getClientInvoices } from "@/lib/actions/invoices"
+import {
+  getClientInvoices,
+  getClientPayments,
+} from "@/lib/actions/invoices"
 import { getReminders } from "@/lib/actions/reminders"
 import { auth, getUserPermissions } from "@/lib/auth"
 import type {
   ClientActivity,
   ClientReminder,
   Invoice,
+  InvoicePayment,
 } from "@/lib/drizzle/schema"
 import { Users } from "lucide-react"
 import { getTranslations } from "next-intl/server"
@@ -52,11 +56,18 @@ export default async function ClientProfilePage({
   let invoices: Invoice[] = []
   let activities: ClientActivity[] = []
   let reminders: ClientReminder[] = []
+  let payments: Array<InvoicePayment & { invoiceNumber: string }> = []
 
   if (canView) {
-    const result = await getClientInvoices(clientId)
-    if (result.success) {
-      invoices = result.data as Invoice[]
+    const [invoiceResult, paymentResult] = await Promise.all([
+      getClientInvoices(clientId),
+      getClientPayments(clientId),
+    ])
+    if (invoiceResult.success) {
+      invoices = invoiceResult.data as Invoice[]
+    }
+    if (paymentResult.success) {
+      payments = paymentResult.data
     }
 
     if (!isUser) {
@@ -80,6 +91,7 @@ export default async function ClientProfilePage({
           activities={activities}
           reminders={reminders}
           invoices={invoices}
+          payments={payments}
           permissions={permissions}
         />
       )}
