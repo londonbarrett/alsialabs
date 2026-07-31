@@ -1,13 +1,13 @@
 "use client"
 
-import { useTranslations } from "next-intl"
 import { ActivityItem } from "@/components/clients/activity-item"
 import { InvoiceItem } from "@/components/clients/invoice-item"
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
+import { PaymentItem } from "@/components/clients/payment-item"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
 import { ReminderItem } from "@/components/clients/reminder-item"
-import { InvoiceForm } from "@/components/sales/invoice-form"
 import { Dialog } from "@/components/common/dialog"
+import { InvoiceForm } from "@/components/sales/invoice-form"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { deleteActivity } from "@/lib/actions/activities"
@@ -18,10 +18,12 @@ import {
 import { deleteInvoice } from "@/lib/actions/sales"
 import type {
   ClientActivity,
-  Invoice,
   ClientReminder,
+  Invoice,
+  InvoicePayment,
 } from "@/lib/drizzle/schema"
 import { Plus } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -30,12 +32,14 @@ type TimelineEntry =
   | ({ kind: "activity" } & ClientActivity)
   | ({ kind: "reminder" } & ClientReminder)
   | ({ kind: "invoice" } & Invoice)
+  | ({ kind: "payment" } & InvoicePayment & { invoiceNumber: string })
 
 interface ActivityTimelineProps {
   clientId: string
   activities: ClientActivity[]
   reminders: ClientReminder[]
   invoices: Invoice[]
+  payments?: Array<InvoicePayment & { invoiceNumber: string }>
   permissions: string[]
 }
 
@@ -47,6 +51,9 @@ function getEntryDate(entry: TimelineEntry): string {
       return (entry as ClientReminder).remindAt
     case "invoice":
       return (entry as Invoice).issueDate
+    case "payment":
+      return (entry as InvoicePayment & { invoiceNumber: string })
+        .paymentDate
   }
 }
 
@@ -55,6 +62,7 @@ export function ActivityTimeline({
   activities,
   reminders,
   invoices,
+  payments = [],
   permissions,
 }: ActivityTimelineProps) {
   const router = useRouter()
@@ -79,6 +87,7 @@ export function ActivityTimeline({
     ...activities.map((a) => ({ ...a, kind: "activity" as const })),
     ...reminders.map((r) => ({ ...r, kind: "reminder" as const })),
     ...invoices.map((i) => ({ ...i, kind: "invoice" as const })),
+    ...payments.map((p) => ({ ...p, kind: "payment" as const })),
   ].sort((a, b) => {
     const dateA = getEntryDate(a)
     const dateB = getEntryDate(b)
@@ -232,7 +241,7 @@ export function ActivityTimeline({
                   canDelete={canDeleteReminder}
                   canComplete={canCompleteReminder}
                 />
-              ) : (
+              ) : entry.kind === "invoice" ? (
                 <InvoiceItem
                   invoice={entry}
                   onEdit={() => {
@@ -242,6 +251,13 @@ export function ActivityTimeline({
                   onDelete={() => handleDeleteInvoice(entry)}
                   canEdit={canEditInvoice}
                   canDelete={canDeleteInvoice}
+                />
+              ) : (
+                <PaymentItem
+                  invoiceNumber={entry.invoiceNumber}
+                  amount={entry.amount}
+                  paymentDate={entry.paymentDate}
+                  method={entry.method}
                 />
               )}
             </div>

@@ -580,6 +580,10 @@
     "pending": "Pending",
     "cancelled": "Cancelled"
   },
+  "paymentItem": {
+    "payment": "Payment",
+    "currencyPrefix": "$"
+  },
   "ui": {
     "spinner": "Loading",
     "breadcrumb": "breadcrumb"

@@ -1,14 +1,17 @@
-import { getTranslations } from 'next-intl/server'
+import { getTranslations } from "next-intl/server"
 import { auth, getUserPermissions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { getClientByUserId } from "@/lib/actions/clients"
-import { getClientInvoices } from "@/lib/actions/invoices"
-import type { Invoice } from "@/lib/drizzle/schema"
+import {
+  getClientInvoices,
+  getClientPayments,
+} from "@/lib/actions/invoices"
+import type { Invoice, InvoicePayment } from "@/lib/drizzle/schema"
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
 
 export default async function ProfilePage() {
   const session = await auth()
-  const t = await getTranslations('profile')
+  const t = await getTranslations("profile")
 
   if (!session?.user) {
     redirect("/login")
@@ -20,34 +23,43 @@ export default async function ProfilePage() {
   const canView = permissions.includes("client-activity:view")
 
   let invoices: Invoice[] = []
+  let payments: Array<InvoicePayment & { invoiceNumber: string }> = []
   if (client && canView) {
-    const result = await getClientInvoices(client.id)
-    if (result.success) {
-      invoices = result.data as Invoice[]
+    const [invoiceResult, paymentResult] = await Promise.all([
+      getClientInvoices(client.id),
+      getClientPayments(client.id),
+    ])
+    if (invoiceResult.success) {
+      invoices = invoiceResult.data as Invoice[]
+    }
+    if (paymentResult.success) {
+      payments = paymentResult.data
     }
   }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold tracking-tight">
-        {t('title')}
+        {t("title")}
       </h1>
       <div className="max-w-lg rounded-md border p-6">
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">{t('name')}</p>
+            <p className="text-sm text-muted-foreground">{t("name")}</p>
             <p className="text-base font-medium">
               {session.user.name ?? "—"}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">{t('email')}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("email")}
+            </p>
             <p className="text-base font-medium">
               {session.user.email ?? "—"}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">{t('role')}</p>
+            <p className="text-sm text-muted-foreground">{t("role")}</p>
             <p className="text-base font-medium capitalize">
               {session.user.role ?? "—"}
             </p>
@@ -61,6 +73,7 @@ export default async function ProfilePage() {
           activities={[]}
           reminders={[]}
           invoices={invoices}
+          payments={payments}
           permissions={permissions}
         />
       )}
