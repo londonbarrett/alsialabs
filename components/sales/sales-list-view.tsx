@@ -9,8 +9,11 @@ import {
 } from "@/components/sales/monthly-revenue-chart"
 import { PaymentHistoryContent } from "@/components/sales/payment-history-content"
 import { RecordPaymentForm } from "@/components/sales/record-payment-form"
-import { SalesActionMenu } from "@/components/sales/sales-action-menu"
-import { StatusBadge } from "@/components/sales/status-badge"
+import {
+  getOutstanding,
+  SalesInvoiceTable,
+  type InvoiceWithClientName,
+} from "@/components/sales/sales-invoice-table"
 import {
   TopClientsChart,
   type TopClient,
@@ -22,14 +25,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { ChartNoAxesCombined, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -37,19 +32,10 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 interface SalesListViewProps {
-  invoices: Array<Invoice & { clientName: string | null }>
+  invoices: InvoiceWithClientName[]
   permissions?: string[]
   monthlyRevenue?: MonthlyRevenue[]
   topClients?: TopClient[]
-}
-
-function getOutstanding(invoice: {
-  grandTotal: string
-  paidAmount?: string | null
-}): string {
-  const total = parseFloat(invoice.grandTotal) || 0
-  const paid = parseFloat(invoice.paidAmount ?? "0") || 0
-  return (total - paid).toFixed(2)
 }
 
 export function SalesListView({
@@ -148,98 +134,13 @@ export function SalesListView({
             </div>
           )}
 
-          <div
-            className="max-h-[calc(100vh-10rem)] overflow-auto rounded-md border"
-            role="region"
-            aria-label={t("sales.title")}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">
-                    {t("sales.invoiceHash")}
-                  </TableHead>
-                  <TableHead scope="col">{t("sales.client")}</TableHead>
-                  <TableHead scope="col">{t("sales.type")}</TableHead>
-                  <TableHead scope="col">{t("sales.date")}</TableHead>
-                  <TableHead scope="col">
-                    {t("sales.dueDate")}
-                  </TableHead>
-                  <TableHead scope="col">{t("sales.total")}</TableHead>
-                  <TableHead scope="col">
-                    {t("sales.outstanding")}
-                  </TableHead>
-                  <TableHead scope="col">{t("sales.status")}</TableHead>
-                  <TableHead scope="col">
-                    {t("sales.actions")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoices.map((inv) => {
-                  const outstanding = getOutstanding(inv)
-                  return (
-                    <TableRow
-                      key={inv.id}
-                      className="select-none"
-                      onDoubleClick={() =>
-                        permissions.includes("sales:edit") &&
-                        openEdit(inv)
-                      }
-                    >
-                      <TableCell className="font-mono text-xs">
-                        {inv.invoiceNumber}
-                      </TableCell>
-                      <TableCell>{inv.clientName ?? "—"}</TableCell>
-                      <TableCell className="capitalize">
-                        {inv.type}
-                      </TableCell>
-                      <TableCell>{inv.issueDate}</TableCell>
-                      <TableCell>{inv.dueDate ?? "—"}</TableCell>
-                      <TableCell>
-                        $
-                        {parseFloat(inv.grandTotal).toLocaleString(
-                          "en-US",
-                          { minimumFractionDigits: 2 }
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {parseFloat(outstanding) > 0 ? (
-                          <span className="font-mono">
-                            $
-                            {parseFloat(outstanding).toLocaleString(
-                              "en-US",
-                              { minimumFractionDigits: 2 }
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            $0.00
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={inv.status} />
-                      </TableCell>
-                      <TableCell>
-                        <SalesActionMenu
-                          invoice={inv}
-                          permissions={permissions}
-                          onEdit={() => openEdit(inv)}
-                          onViewPayments={() =>
-                            setHistoryInvoice(inv as Invoice)
-                          }
-                          onRecordPayment={() =>
-                            setPaymentInvoice(inv as Invoice)
-                          }
-                        />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          <SalesInvoiceTable
+            invoices={invoices}
+            permissions={permissions}
+            onEdit={openEdit}
+            onViewPayments={(inv) => setHistoryInvoice(inv as Invoice)}
+            onRecordPayment={(inv) => setPaymentInvoice(inv as Invoice)}
+          />
         </div>
       )}
       <Dialog
