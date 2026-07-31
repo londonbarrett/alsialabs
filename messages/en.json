@@ -452,6 +452,10 @@
     "referencePlaceholder": "e.g. Check #, Transaction ID",
     "notes": "Notes",
     "paymentRecorded": "Payment recorded",
+    "paymentUpdated": "Payment updated",
+    "paymentDeleted": "Payment deleted",
+    "editPayment": "Edit Payment",
+    "editPaymentDesc": "Update the details of this payment.",
     "paymentHistory": "Payment History",
     "paymentHistoryDesc": "Payments recorded for invoice {number}",
     "noPayments": "No payments recorded yet.",
@@ -581,8 +585,7 @@
     "cancelled": "Cancelled"
   },
   "paymentItem": {
-    "payment": "Payment",
-    "currencyPrefix": "$"
+    "payment": "Payment"
   },
   "ui": {
     "spinner": "Loading",

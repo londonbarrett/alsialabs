@@ -1,28 +1,31 @@
 "use client"
 
+import { ActionMenu } from "@/components/common/action-menu"
+import type { InvoicePayment } from "@/lib/drizzle/schema"
+import { formatCurrency } from "@/lib/money"
 import { Banknote } from "lucide-react"
 import { useTranslations } from "next-intl"
 
 interface PaymentItemProps {
+  payment: InvoicePayment
   invoiceNumber: string
-  amount: string
-  paymentDate: string
-  method?: string | null
+  onEdit: () => void
+  onDelete: () => Promise<void>
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export function PaymentItem({
+  payment,
   invoiceNumber,
-  amount,
-  paymentDate,
-  method,
+  onEdit,
+  onDelete,
+  canEdit = false,
+  canDelete = false,
 }: PaymentItemProps) {
-  const t = useTranslations("paymentItem")
-  const [y, m, d] = paymentDate.split("-")
+  const t = useTranslations()
+  const [y, m, d] = payment.paymentDate.split("-")
   const date = `${m}/${d}/${y}`
-
-  const total = parseFloat(amount).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-  })
 
   return (
     <div className="group flex items-start gap-3 py-3">
@@ -31,24 +34,36 @@ export function PaymentItem({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{t("payment")}</span>
+          <span className="text-sm font-medium">
+            {t("paymentItem.payment")}
+          </span>
           <span className="text-xs text-muted-foreground">{date}</span>
         </div>
         <p className="mt-0.5 text-sm">
           <span className="font-mono">{invoiceNumber}</span>
           {" — "}
           <span className="font-semibold">
-            {t("currencyPrefix")}
-            {total}
+            {formatCurrency(payment.amount)}
           </span>
-          {method ? (
+          {payment.method ? (
             <span className="text-muted-foreground">
               {" · "}
-              {method}
+              {payment.method}
             </span>
           ) : null}
         </p>
       </div>
+      {canEdit || canDelete ? (
+        <div className="opacity-0 transition-opacity group-hover:opacity-100">
+          <ActionMenu
+            entityName={formatCurrency(payment.amount)}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }

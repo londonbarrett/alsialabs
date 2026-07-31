@@ -48,6 +48,60 @@ The system SHALL display a list of payments recorded against an invoice, accessi
 - **WHEN** an invoice has no payments recorded
 - **THEN** the payments view shows an empty state message
 
+#### Scenario: Payment action menu labels include the amount
+- **WHEN** a user with `sales:record-payment` permission opens the action menu on a payment row
+- **THEN** the menu shows "Edit {amount}" and "Delete {amount}" items (e.g., "Edit $50,000.00", "Delete $50,000.00")
+
+#### Scenario: Payment actions hidden without permission
+- **WHEN** a user without `sales:record-payment` permission opens the payment history dialog
+- **THEN** no edit or delete actions are shown on payment rows
+
+### Requirement: User can edit a payment
+The system SHALL allow authenticated users with `sales:record-payment` permission to edit a payment's amount, payment date, method, reference, and notes from the payment history dialog.
+
+#### Scenario: Successful payment edit
+- **WHEN** a user with `sales:record-payment` permission clicks "Edit {amount}" on a payment row
+- **THEN** a pre-filled dialog form appears with the payment's current values
+- **WHEN** the user modifies fields and submits
+- **THEN** the payment is updated
+- **AND** the invoice's paid amount and status are recalculated
+- **AND** a success toast is shown
+
+#### Scenario: Edited payment would exceed the invoice total
+- **WHEN** a user edits a payment amount so that the sum of all payments exceeds the invoice grand total
+- **THEN** the edit is rejected
+- **AND** no payment is modified
+
+#### Scenario: Editing a payment re-syncs invoice status
+- **WHEN** the last payment of a fully paid invoice is reduced below the grand total
+- **THEN** the invoice status changes to "partially_paid" or "draft" accordingly
+
+#### Scenario: Unauthorized payment edit rejected
+- **WHEN** a user without `sales:record-payment` permission calls the update payment action
+- **THEN** the action returns an error
+- **AND** no payment is modified
+
+### Requirement: User can delete a payment
+The system SHALL allow authenticated users with `sales:record-payment` permission to delete a payment after confirmation.
+
+#### Scenario: Successful payment deletion
+- **WHEN** a user with `sales:record-payment` permission clicks "Delete {amount}" on a payment row
+- **THEN** a confirmation dialog appears
+- **WHEN** the user confirms
+- **THEN** the payment is removed
+- **AND** the invoice's paid amount and status are recalculated
+- **AND** a success toast is shown
+
+#### Scenario: Deleting a payment re-syncs invoice status
+- **WHEN** a payment is deleted from a partially paid invoice such that no payments remain
+- **THEN** the invoice status returns to "draft" (or "overdue" past the due date)
+- **AND** the paid amount becomes 0
+
+#### Scenario: Unauthorized payment deletion rejected
+- **WHEN** a user without `sales:record-payment` permission calls the delete payment action
+- **THEN** the action returns an error
+- **AND** no payment is deleted
+
 ### Requirement: Invoice status is automatically determined
 The system SHALL compute the invoice status based on due date, paid amount, and grand total, with manual control for draft, sent, and cancelled states.
 

@@ -7,7 +7,7 @@ import {
   MonthlyRevenueChart,
   type MonthlyRevenue,
 } from "@/components/sales/monthly-revenue-chart"
-import { PaymentHistoryContent } from "@/components/sales/payment-history-content"
+import { PaymentHistory } from "@/components/sales/payment-history"
 import { RecordPaymentForm } from "@/components/sales/record-payment-form"
 import {
   getOutstanding,
@@ -193,7 +193,10 @@ export function SalesListView({
           open={!!historyInvoice}
           onOpenChange={() => setHistoryInvoice(null)}
         >
-          <PaymentHistoryContent invoiceId={historyInvoice.id} />
+          <PaymentHistory
+            invoiceId={historyInvoice.id}
+            canManage={permissions.includes("sales:record-payment")}
+          />
         </Dialog>
       )}
     </>

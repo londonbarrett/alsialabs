@@ -7,6 +7,7 @@ import { PaymentItem } from "@/components/clients/payment-item"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
 import { ReminderItem } from "@/components/clients/reminder-item"
 import { Dialog } from "@/components/common/dialog"
+import { EditPaymentForm } from "@/components/sales/edit-payment-form"
 import { InvoiceForm } from "@/components/sales/invoice-form"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -15,7 +16,7 @@ import {
   completeReminder,
   deleteReminder,
 } from "@/lib/actions/reminders"
-import { deleteInvoice } from "@/lib/actions/sales"
+import { deleteInvoice, deletePayment } from "@/lib/actions/sales"
 import type {
   ClientActivity,
   ClientReminder,
@@ -70,6 +71,7 @@ export function ActivityTimeline({
   const [logDialogOpen, setLogDialogOpen] = useState(false)
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [editingActivity, setEditingActivity] = useState<
     ClientActivity | undefined
   >()
@@ -78,6 +80,9 @@ export function ActivityTimeline({
   >()
   const [editingInvoice, setEditingInvoice] = useState<
     Invoice | undefined
+  >()
+  const [editingPayment, setEditingPayment] = useState<
+    InvoicePayment | undefined
   >()
   const [activityFormKey, setActivityFormKey] = useState(0)
   const [reminderFormKey, setReminderFormKey] = useState(0)
@@ -138,6 +143,16 @@ export function ActivityTimeline({
     }
   }
 
+  async function handleDeletePayment(payment: InvoicePayment) {
+    const result = await deletePayment(payment.id)
+    if (!result.success)
+      toast.error(result.error || t("common.somethingWentWrong"))
+    else {
+      toast.success(t("sales.paymentDeleted"))
+      router.refresh()
+    }
+  }
+
   const canCreateActivity = permissions.includes(
     "client-activity:create"
   )
@@ -158,6 +173,8 @@ export function ActivityTimeline({
   const canCreateInvoice = permissions.includes("sales:create")
   const canEditInvoice = permissions.includes("sales:edit")
   const canDeleteInvoice = permissions.includes("sales:delete")
+  const canEditPayment = permissions.includes("sales:record-payment")
+  const canDeletePayment = permissions.includes("sales:record-payment")
 
   return (
     <section>
@@ -254,10 +271,15 @@ export function ActivityTimeline({
                 />
               ) : (
                 <PaymentItem
+                  payment={entry}
                   invoiceNumber={entry.invoiceNumber}
-                  amount={entry.amount}
-                  paymentDate={entry.paymentDate}
-                  method={entry.method}
+                  onEdit={() => {
+                    setEditingPayment(entry)
+                    setPaymentDialogOpen(true)
+                  }}
+                  onDelete={() => handleDeletePayment(entry)}
+                  canEdit={canEditPayment}
+                  canDelete={canDeletePayment}
                 />
               )}
             </div>
@@ -318,6 +340,29 @@ export function ActivityTimeline({
           }}
           onCancel={() => setInvoiceDialogOpen(false)}
         />
+      </Dialog>
+
+      <Dialog
+        key={editingPayment?.id ?? "payment-dialog"}
+        title={t("sales.editPayment")}
+        description={t("sales.editPaymentDesc")}
+        open={paymentDialogOpen}
+        onOpenChange={(open) => {
+          setPaymentDialogOpen(open)
+          if (!open) setEditingPayment(undefined)
+        }}
+      >
+        {editingPayment && (
+          <EditPaymentForm
+            payment={editingPayment}
+            onSuccess={() => {
+              handleSuccess()
+              setPaymentDialogOpen(false)
+              setEditingPayment(undefined)
+            }}
+            onCancel={() => setPaymentDialogOpen(false)}
+          />
+        )}
       </Dialog>
     </section>
   )

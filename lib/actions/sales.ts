@@ -12,7 +12,7 @@ import {
   productsTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, ne, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -460,6 +460,194 @@ export async function recordPayment(
       notes: fields.notes || null,
       userId: session.user.id,
     })
+  })
+
+  revalidatePath("/dashboard/sales")
+  return { success: true as const }
+}
+
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+async function syncInvoicePaymentState(tx: DbTx, invoiceId: string) {
+  const [invoice] = await tx
+    .select({
+      grandTotal: invoicesTable.grandTotal,
+      status: invoicesTable.status,
+    })
+    .from(invoicesTable)
+    .where(eq(invoicesTable.id, invoiceId))
+    .limit(1)
+
+  if (!invoice) return
+
+  const [sumResult] = await tx
+    .select({
+      total: sql<string>`coalesce(sum(${invoicePaymentsTable.amount})::numeric, 0)::text`,
+    })
+    .from(invoicePaymentsTable)
+    .where(eq(invoicePaymentsTable.invoiceId, invoiceId))
+
+  const paid = parseFloat(sumResult.total) || 0
+  const grandTotal = parseFloat(invoice.grandTotal) || 0
+
+  let status:
+    | "draft"
+    | "sent"
+    | "paid"
+    | "partially_paid"
+    | "overdue"
+    | "cancelled"
+  if (invoice.status === "cancelled") {
+    status = "cancelled"
+  } else if (paid >= grandTotal) {
+    status = "paid"
+  } else if (paid > 0) {
+    status = "partially_paid"
+  } else {
+    status = "draft"
+  }
+
+  await tx
+    .update(invoicesTable)
+    .set({ paidAmount: paid.toFixed(2), status })
+    .where(eq(invoicesTable.id, invoiceId))
+}
+
+export async function updatePayment(
+  paymentId: string,
+  data: z.infer<typeof paymentSchema>
+) {
+  const t = await getActionT("actions.sales")
+  try {
+    await requirePermission("sales", "record-payment")
+  } catch {
+    return { success: false as const, error: t("forbidden") }
+  }
+
+  const session = await auth()
+  if (!session?.user)
+    return { success: false as const, error: t("unauthorized") }
+
+  const parsed = paymentSchema.safeParse(data)
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      error: t("validationFailed"),
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    }
+  }
+
+  const fields = parsed.data
+  const newAmount = parseFloat(fields.amount) || 0
+
+  if (newAmount <= 0) {
+    return {
+      success: false as const,
+      error: t("common.somethingWentWrong"),
+    }
+  }
+
+  const [payment] = await db
+    .select({ invoiceId: invoicePaymentsTable.invoiceId })
+    .from(invoicePaymentsTable)
+    .where(eq(invoicePaymentsTable.id, paymentId))
+    .limit(1)
+
+  if (!payment) {
+    return {
+      success: false as const,
+      error: t("common.somethingWentWrong"),
+    }
+  }
+
+  const [invoice] = await db
+    .select({ grandTotal: invoicesTable.grandTotal })
+    .from(invoicesTable)
+    .where(eq(invoicesTable.id, payment.invoiceId))
+    .limit(1)
+
+  if (!invoice) {
+    return {
+      success: false as const,
+      error: t("common.somethingWentWrong"),
+    }
+  }
+
+  const grandTotal = parseFloat(invoice.grandTotal) || 0
+
+  let ok = true
+  let error: string | undefined
+
+  await db.transaction(async (tx) => {
+    const [others] = await tx
+      .select({
+        total: sql<string>`coalesce(sum(${invoicePaymentsTable.amount})::numeric, 0)::text`,
+      })
+      .from(invoicePaymentsTable)
+      .where(
+        and(
+          eq(invoicePaymentsTable.invoiceId, payment.invoiceId),
+          ne(invoicePaymentsTable.id, paymentId)
+        )
+      )
+
+    const othersTotal = parseFloat(others.total) || 0
+    if (othersTotal + newAmount > grandTotal) {
+      ok = false
+      error = t("common.somethingWentWrong")
+      return
+    }
+
+    await tx
+      .update(invoicePaymentsTable)
+      .set({
+        amount: fields.amount,
+        paymentDate: fields.paymentDate,
+        method: fields.method || null,
+        reference: fields.reference || null,
+        notes: fields.notes || null,
+      })
+      .where(eq(invoicePaymentsTable.id, paymentId))
+
+    await syncInvoicePaymentState(tx, payment.invoiceId)
+  })
+
+  if (!ok) return { success: false as const, error: error! }
+
+  revalidatePath("/dashboard/sales")
+  return { success: true as const }
+}
+
+export async function deletePayment(paymentId: string) {
+  const t = await getActionT("actions.sales")
+  try {
+    await requirePermission("sales", "record-payment")
+  } catch {
+    return { success: false as const, error: t("forbidden") }
+  }
+
+  const session = await auth()
+  if (!session?.user)
+    return { success: false as const, error: t("unauthorized") }
+
+  const [payment] = await db
+    .select({ invoiceId: invoicePaymentsTable.invoiceId })
+    .from(invoicePaymentsTable)
+    .where(eq(invoicePaymentsTable.id, paymentId))
+    .limit(1)
+
+  if (!payment) {
+    return {
+      success: false as const,
+      error: t("common.somethingWentWrong"),
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(invoicePaymentsTable)
+      .where(eq(invoicePaymentsTable.id, paymentId))
+    await syncInvoicePaymentState(tx, payment.invoiceId)
   })
 
   revalidatePath("/dashboard/sales")

@@ -1,16 +1,20 @@
 ## ADDED Requirements
 
 ### Requirement: Admin can view activity timeline
-The system SHALL display a combined activity timeline on the client profile page, showing both past activities and pending/completed reminders sorted by date descending.
+The system SHALL display a combined activity timeline on the client profile page, showing past activities, pending/completed reminders, invoices, and payments sorted by date descending.
 
 #### Scenario: Timeline shows on client profile when permitted
 - **WHEN** a user with `activities:view` permission navigates to a client profile
 - **THEN** they see an "Activity" section with a chronological timeline
-- **AND** the timeline shows both activities (past interactions) and reminders (future follow-ups)
+- **AND** the timeline shows activities (past interactions), reminders (follow-ups), invoices, and payments
 
 #### Scenario: Timeline hidden without permission
 - **WHEN** a user without `activities:view` permission navigates to a client profile
 - **THEN** the Activity section is not shown
+
+#### Scenario: Payment entries show invoice and amount
+- **WHEN** a payment has been recorded against one of the client's invoices
+- **THEN** the timeline shows a payment entry with the invoice number, formatted amount, payment date, and method (when present)
 
 ### Requirement: Admin can log an activity
 The system SHALL allow users with `activities:create` permission to log a new activity via a dialog form.
@@ -96,6 +100,32 @@ The system SHALL allow users with `reminders:delete` permission to delete a remi
 - **THEN** a confirmation dialog appears
 - **WHEN** they confirm
 - **THEN** the reminder is removed from the timeline
+
+### Requirement: Admin can edit a payment from the timeline
+The system SHALL allow users with `sales:record-payment` permission to edit a payment directly from the client activity timeline.
+
+#### Scenario: Edit payment from timeline
+- **WHEN** a user with `sales:record-payment` permission opens the action menu on a payment entry in the timeline
+- **THEN** they see "Edit {amount}" and "Delete {amount}" items
+- **WHEN** they click "Edit {amount}"
+- **THEN** a pre-filled payment dialog appears
+- **WHEN** they modify fields and submit
+- **THEN** the payment is updated
+- **AND** the timeline refreshes
+
+#### Scenario: Payment actions hidden without permission
+- **WHEN** a user without `sales:record-payment` permission views the timeline
+- **THEN** payment entries show no edit or delete actions
+
+### Requirement: Admin can delete a payment from the timeline
+The system SHALL allow users with `sales:record-payment` permission to delete a payment from the timeline after confirmation.
+
+#### Scenario: Delete payment from timeline
+- **WHEN** a user with `sales:record-payment` permission clicks "Delete {amount}" on a payment entry in the timeline
+- **THEN** a confirmation dialog appears
+- **WHEN** they confirm
+- **THEN** the payment is removed
+- **AND** the timeline refreshes
 
 ### Requirement: Server-side validation and authorization
 The system SHALL validate and authorize all server actions for activities and reminders.

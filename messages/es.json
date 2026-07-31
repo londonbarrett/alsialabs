@@ -452,6 +452,10 @@
     "referencePlaceholder": "Ej: N° de Cheque, ID de Transacción",
     "notes": "Notas",
     "paymentRecorded": "Pago registrado",
+    "paymentUpdated": "Pago actualizado",
+    "paymentDeleted": "Pago eliminado",
+    "editPayment": "Editar Pago",
+    "editPaymentDesc": "Actualiza los detalles de este pago.",
     "paymentHistory": "Historial de Pagos",
     "paymentHistoryDesc": "Pagos registrados para la factura {number}",
     "noPayments": "Aún no hay pagos registrados.",
@@ -581,8 +585,7 @@
     "cancelled": "Cancelada"
   },
   "paymentItem": {
-    "payment": "Pago",
-    "currencyPrefix": "$"
+    "payment": "Pago"
   },
   "ui": {
     "spinner": "Cargando",
