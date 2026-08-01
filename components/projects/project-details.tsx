@@ -2,6 +2,7 @@
 
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { Money } from "@/components/common/money"
+import type { ProjectMember } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -13,30 +14,28 @@ import {
 import {
   deleteProject,
   getProjectForEdit,
+  type ProjectDetail,
 } from "@/lib/actions/projects"
 import type { Project as DbProject } from "@/lib/drizzle/schema"
-import { Calendar, ClipboardList, Crown, FileText, MapPin, Pencil, Tag, Trash2, Wallet } from "lucide-react"
+import {
+  Calendar,
+  ClipboardList,
+  Crown,
+  FileText,
+  MapPin,
+  Pencil,
+  Tag,
+  Trash2,
+  Wallet,
+} from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
-import type { ProjectMember } from "./project-detail-view"
 import { ProjectDialog } from "./project-dialog"
 
 interface ProjectDetailsProps {
-  project: {
-    id: string
-    name: string
-    categoryId: string
-    categoryName: string | null
-    categorySlug: string | null
-    startDate: string
-    endDate: string | null
-    location: string | null
-    budget: string | null
-    description: string | null
-    status: string
-  }
+  project: ProjectDetail
   categories: { id: string; slug: string; name: string }[]
   primaryOwner: ProjectMember | undefined
   canEdit: boolean
@@ -53,7 +52,9 @@ export function ProjectDetails({
   const router = useRouter()
   const t = useTranslations()
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
-  const [editingProject, setEditingProject] = useState<DbProject | undefined>()
+  const [editingProject, setEditingProject] = useState<
+    DbProject | undefined
+  >()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -106,7 +107,8 @@ export function ProjectDetails({
                 {t("projects.category")}
               </p>
               <p className="text-sm font-medium">
-                {project.categorySlug && t.has(`categoryNames.${project.categorySlug}`)
+                {project.categorySlug &&
+                t.has(`categoryNames.${project.categorySlug}`)
                   ? t(`categoryNames.${project.categorySlug}`)
                   : project.categoryName || "—"}
               </p>

@@ -1,3 +1,10 @@
+export interface ProjectMember {
+  userId: string
+  userName: string | null
+  userEmail: string | null
+  userImage: string | null
+}
+
 export type Project = {
   id: string
   primaryOwnerId: string
