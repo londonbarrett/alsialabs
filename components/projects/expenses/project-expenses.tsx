@@ -18,22 +18,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import {
   deleteExpense,
   type ExpenseWithCategory,
 } from "@/lib/actions/expenses"
 import { deleteTask, upsertTask } from "@/lib/actions/project-tasks"
 import type { ProjectTask } from "@/lib/drizzle/schema"
-import type { ProjectMember } from "@/components/projects/project-detail-view"
-import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
+import type { ProjectMember } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useReducer, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { ExpenseDialog } from "./expense-dialog"
 import { TaskDialog } from "../task-dialog"
+import { ExpenseDialog } from "./expense-dialog"
 
 type TaskAction =
   | { type: "add"; task: ProjectTask }

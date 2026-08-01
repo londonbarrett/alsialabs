@@ -1,5 +1,42 @@
 ## MODIFIED Requirements
 
+### Requirement: Project subpage navigation
+
+The project detail area SHALL be split into four subpages under `/dashboard/projects/[id]`: tasks (default), details, people, and expenses. Accessing any subpage SHALL require the `projects:view` permission. All subpages SHALL share a persistent header (back button, project name, location, status badge) and a tab navigation that highlights the active subpage.
+
+- `/dashboard/projects/[id]` — tasks (default)
+- `/dashboard/projects/[id]/details`
+- `/dashboard/projects/[id]/people`
+- `/dashboard/projects/[id]/expenses`
+
+#### Scenario: Tasks is the default subpage
+
+- **GIVEN** a user with `projects:view` permission
+- **WHEN** the user opens a project from the projects list
+- **THEN** the user is navigated to `/dashboard/projects/[id]`
+- **AND** the tasks table is shown
+- **AND** the "Tasks" tab is highlighted
+
+#### Scenario: Navigate between project subpages
+
+- **GIVEN** a user with `projects:view` permission on a project subpage
+- **WHEN** the user clicks a tab in the project navigation
+- **THEN** the user is navigated to the corresponding subpage
+- **AND** the active tab is highlighted
+- **AND** the header (back button, project name, location, status badge) remains visible
+
+#### Scenario: Forbidden without projects view permission
+
+- **GIVEN** a user without `projects:view` permission
+- **WHEN** the user navigates to any project subpage
+- **THEN** a 403 forbidden screen is displayed
+
+#### Scenario: Unknown project shows not found
+
+- **GIVEN** a project that does not exist
+- **WHEN** the user navigates to any project subpage
+- **THEN** a 404 not found screen is displayed
+
 ### Requirement: Project CRUD
 
 The system SHALL allow owners to create, view, edit, and delete projects. The primary owner and super users SHALL have full control. Owners can manage collaborators and tasks. Collaborators can view projects and comment on tasks.
@@ -24,15 +61,15 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 
 - **GIVEN** a user viewing the projects list
 - **WHEN** the user clicks on a project card's title
-- **THEN** the user is navigated to the project detail page
+- **THEN** the user is navigated to `/dashboard/projects/[id]`
+- **AND** the tasks subpage is shown by default
 
-#### Scenario: View project detail
+#### Scenario: View project details subpage
 
 - **GIVEN** a user who is an owner of the project
-- **WHEN** the user navigates to the project detail page
-- **THEN** the detail page shows project info in Card sections (details, co-owners, collaborators, tasks)
+- **WHEN** the user navigates to `/dashboard/projects/[id]/details`
+- **THEN** the details subpage shows the project info in a Card
 - **AND** primary owner is shown in the details card
-- **AND** co-owners section excludes the primary owner
 - **AND** edit and delete buttons appear in the details card footer
 
 #### Scenario: Edit project
@@ -54,13 +91,13 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 #### Scenario: Update project status inline
 
 - **GIVEN** a user who is an owner of the project or a super user
-- **WHEN** the user selects a different status from the inline status dropdown
+- **WHEN** the user selects a different status from the inline status dropdown on the details subpage
 - **THEN** the project status changes immediately without a page reload
 
 #### Scenario: Collaborator cannot view project
 
 - **GIVEN** a user who is a collaborator (not an owner) of a project
-- **WHEN** the user navigates to the project detail page
+- **WHEN** the user navigates to a project subpage
 - **THEN** the project is not visible (only owners can access project details)
 
 ### Requirement: Project ownership model
@@ -70,14 +107,14 @@ Projects SHALL support multiple owners and collaborators. The primary owner has 
 #### Scenario: Primary owner manages co-owners
 
 - **GIVEN** a user who is the primary owner of a project
-- **WHEN** the user views the project detail page
+- **WHEN** the user views the people subpage
 - **THEN** a "Co-owners" section is visible with a combobox to search for users to add
 - **AND** a remove button appears next to each non-primary owner
 
 #### Scenario: Non-primary owner cannot manage owners
 
 - **GIVEN** a user who is an owner (but not primary) of a project
-- **WHEN** the user views the project detail page
+- **WHEN** the user views the people subpage
 - **THEN** the add/remove co-owner controls are not visible
 
 #### Scenario: Primary owner can transfer ownership
@@ -89,14 +126,14 @@ Projects SHALL support multiple owners and collaborators. The primary owner has 
 #### Scenario: Owner manages collaborators
 
 - **GIVEN** a user who is an owner of a project
-- **WHEN** the user views the project detail page
+- **WHEN** the user views the people subpage
 - **THEN** a "Collaborators" section is visible with a combobox to search for users to add
 - **AND** a remove button appears next to each collaborator
 
 #### Scenario: Collaborator cannot manage collaborators
 
 - **GIVEN** a user who is a collaborator (not an owner) of a project
-- **WHEN** the user views the project detail page
+- **WHEN** the user views the people subpage
 - **THEN** the add/remove collaborator controls are not visible
 
 ### Requirement: User search and invite
@@ -118,12 +155,12 @@ The system SHALL provide a combobox input for searching existing users and invit
 
 ### Requirement: Task management
 
-The system SHALL allow owners to manage tasks on their projects. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change) use optimistic updates with useReducer for instant UI feedback, global loading indicator during server requests, and success toasts on completion.
+The system SHALL allow owners to manage tasks on their projects. Tasks are managed on the tasks subpage (`/dashboard/projects/[id]`, the default project subpage). Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change) use optimistic updates with useReducer for instant UI feedback, global loading indicator during server requests, and success toasts on completion.
 
 #### Scenario: Create task
 
 - **GIVEN** a user who is an owner of the project
-- **WHEN** the user clicks "Add Task" in the tasks card header
+- **WHEN** the user clicks "Add Task" in the tasks card header on the tasks subpage
 - **THEN** a dialog opens with fields for name, description, cost, status, and assignee
 - **AND** the assignee dropdown shows project owners and collaborators
 - **WHEN** the user fills required fields and submits
@@ -134,7 +171,7 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 #### Scenario: Collaborator can change task status to blocked or in_review
 
 - **GIVEN** a user who is a collaborator of a project
-- **WHEN** the user views the task table
+- **WHEN** the user views the task table on the tasks subpage
 - **THEN** the status dropdown (TaskStatusSelect component) is restricted to "blocked" and "in_review" options only
 
 #### Scenario: Assignee can change task status
@@ -147,7 +184,7 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 #### Scenario: Collaborator cannot create or delete tasks
 
 - **GIVEN** a user who is a collaborator (not an owner) of a project
-- **WHEN** the user views the task table
+- **WHEN** the user views the task table on the tasks subpage
 - **THEN** the "Add Task" button and task action menus are not visible
 
 #### Scenario: Update task status inline
@@ -191,6 +228,57 @@ The system SHALL allow owners to manage tasks on their projects. Collaborators c
 - **GIVEN** a user viewing the task table
 - **WHEN** the user double-clicks anywhere on a task row
 - **THEN** the comments panel opens as a slide-over Sheet
+
+### Requirement: Expense management
+
+The system SHALL allow owners to manage expenses on the expenses subpage (`/dashboard/projects/[id]/expenses`). The subpage shows a budget progress card (total spend = expense amounts + task costs compared against the project budget, with an over-budget indicator) and a table listing expense rows and task cost rows. Owners can create, edit, and delete expenses, and can edit or delete task cost rows from the same table. Actions are granted via the `expenses:create`, `expenses:edit`, and `expenses:delete` permissions or project ownership rights.
+
+#### Scenario: View expenses subpage
+
+- **GIVEN** a user with `projects:view` permission
+- **WHEN** the user navigates to `/dashboard/projects/[id]/expenses`
+- **THEN** a Card is shown with a budget progress bar when the project has a budget
+- **AND** a table lists expense rows and task cost rows
+- **AND** each expense row shows description, a category badge translated via `categoryNames.*`, amount, and date
+- **AND** each task cost row shows a "Task" badge and the task creation date
+- **AND** a total of expenses and task costs is shown
+
+#### Scenario: Budget progress
+
+- **GIVEN** a project with a budget
+- **WHEN** the expenses subpage is displayed
+- **THEN** the total spend (expense amounts + task costs) is compared to the budget
+- **AND** the progress bar shows the percentage of budget used
+- **AND** when the total exceeds the budget, an over-budget indicator is shown in red
+
+#### Scenario: Create expense
+
+- **GIVEN** a user with `expenses:create` permission or project edit rights
+- **WHEN** the user clicks "Add Expense" in the expenses card header
+- **THEN** a dialog opens with fields for description, category, amount, and date
+- **WHEN** the user fills the required fields and submits
+- **THEN** the expense is created and the page refreshes
+
+#### Scenario: Edit expense
+
+- **GIVEN** a user with `expenses:edit` permission or project edit rights
+- **WHEN** the user clicks "Edit" on an expense row's action menu
+- **THEN** a dialog opens with the expense's current values pre-filled
+- **WHEN** the user modifies fields and submits
+- **THEN** the expense is updated and the page refreshes
+
+#### Scenario: Delete expense
+
+- **GIVEN** a user with `expenses:delete` permission or delete rights on the project
+- **WHEN** the user clicks "Delete" on an expense row's action menu
+- **THEN** the expense is deleted
+- **AND** a success toast confirms the deletion
+
+#### Scenario: Edit or delete task cost from expenses subpage
+
+- **GIVEN** a user with expense management rights
+- **WHEN** the user clicks "Edit" or "Delete" on a task row's action menu on the expenses subpage
+- **THEN** the task dialog opens pre-filled, or the task is deleted
 
 ### Requirement: Task comments
 
@@ -367,7 +455,7 @@ Project and expense category names SHALL be translated via i18n using the `categ
 #### Scenario: Project detail shows translated category
 
 - **GIVEN** a project with a category
-- **WHEN** the project detail page is displayed
+- **WHEN** the project details subpage is displayed
 - **THEN** the category label shows the translated name via `categoryNames.*`
 
 #### Scenario: Expense row shows translated category

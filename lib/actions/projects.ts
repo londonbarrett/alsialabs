@@ -1,30 +1,43 @@
-'use server'
+"use server"
 
-import { revalidatePath } from 'next/cache'
-import { db } from '@/lib/drizzle/client'
+import { auth, isSuperUser, requirePermission } from "@/lib/auth"
+import { db } from "@/lib/drizzle/client"
 import {
-  projectsTable,
   categoryTable,
-  projectTasksTable,
   expensesTable,
-  projectOwnersTable,
   projectCollaboratorsTable,
+  projectOwnersTable,
+  projectsTable,
+  projectTasksTable,
   usersTable,
-} from '@/lib/drizzle/schema'
-import { eq, and, desc, inArray, sql } from 'drizzle-orm'
-import { requirePermission, auth, isSuperUser } from '@/lib/auth'
-import { z } from 'zod'
-import { getActionT } from '@/lib/i18n-actions'
+} from "@/lib/drizzle/schema"
+import { getActionT } from "@/lib/i18n-actions"
+import { and, desc, eq, inArray, sql } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
 
 const projectSchema = z.object({
-  name: z.string().min(1, 'Name is required').transform((v) => v.trim()),
-  categoryId: z.string().min(1, 'Category is required'),
-  status: z.enum(['active', 'completed', 'cancelled', 'archived']).optional().default('active'),
-  description: z.string().transform((v) => v.trim()).optional().default(''),
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().optional().default(''),
-  location: z.string().min(1, 'Location is required').transform((v) => v.trim()),
-  budget: z.string().optional().default(''),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .transform((v) => v.trim()),
+  categoryId: z.string().min(1, "Category is required"),
+  status: z
+    .enum(["active", "completed", "cancelled", "archived"])
+    .optional()
+    .default("active"),
+  description: z
+    .string()
+    .transform((v) => v.trim())
+    .optional()
+    .default(""),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().optional().default(""),
+  location: z
+    .string()
+    .min(1, "Location is required")
+    .transform((v) => v.trim()),
+  budget: z.string().optional().default(""),
 })
 
 export type ProjectFormData = z.infer<typeof projectSchema>
@@ -38,7 +51,10 @@ async function getUserProjectIds(userId: string): Promise<string[]> {
   return owned.map((row) => row.projectId)
 }
 
-async function isProjectOwner(projectId: string, userId: string): Promise<boolean> {
+async function isProjectOwner(
+  projectId: string,
+  userId: string
+): Promise<boolean> {
   const owner = await db
     .select()
     .from(projectOwnersTable)
@@ -52,18 +68,24 @@ async function isProjectOwner(projectId: string, userId: string): Promise<boolea
   return !!owner
 }
 
-export type ProjectWithCategory = Awaited<ReturnType<typeof getProjects>>[number]
+export type ProjectWithCategory = Awaited<
+  ReturnType<typeof getProjects>
+>[number]
+
+export type ProjectDetail = NonNullable<
+  Awaited<ReturnType<typeof getProjectById>>
+>
 
 export async function getProjects() {
-  const t = await getActionT('actions.projects')
+  const t = await getActionT("actions.projects")
   try {
-    await requirePermission('projects', 'view')
+    await requirePermission("projects", "view")
   } catch {
-    throw new Error(t('forbidden'))
+    throw new Error(t("forbidden"))
   }
 
   const session = await auth()
-  if (!session?.user) throw new Error(t('unauthorized'))
+  if (!session?.user) throw new Error(t("unauthorized"))
 
   const isAdmin = isSuperUser(session)
 
@@ -85,7 +107,10 @@ export async function getProjects() {
       categoryName: categoryTable.name,
     })
     .from(projectsTable)
-    .leftJoin(categoryTable, eq(projectsTable.categoryId, categoryTable.id))
+    .leftJoin(
+      categoryTable,
+      eq(projectsTable.categoryId, categoryTable.id)
+    )
     .orderBy(desc(projectsTable.createdAt))
 
   if (isAdmin) return projects
@@ -97,15 +122,15 @@ export async function getProjects() {
 }
 
 export async function getProjectsWithDetails() {
-  const t = await getActionT('actions.projects')
+  const t = await getActionT("actions.projects")
   try {
-    await requirePermission('projects', 'view')
+    await requirePermission("projects", "view")
   } catch {
-    throw new Error(t('forbidden'))
+    throw new Error(t("forbidden"))
   }
 
   const session = await auth()
-  if (!session?.user) throw new Error(t('unauthorized'))
+  if (!session?.user) throw new Error(t("unauthorized"))
 
   const isAdmin = isSuperUser(session)
 
@@ -124,21 +149,37 @@ export async function getProjectsWithDetails() {
       categoryName: categoryTable.name,
     })
     .from(projectsTable)
-    .leftJoin(categoryTable, eq(projectsTable.categoryId, categoryTable.id))
+    .leftJoin(
+      categoryTable,
+      eq(projectsTable.categoryId, categoryTable.id)
+    )
     .orderBy(desc(projectsTable.createdAt))
 
   let filteredProjects = baseProjects
   if (!isAdmin) {
     const userProjectIds = await getUserProjectIds(session.user.id)
-    filteredProjects = baseProjects.filter((p) => userProjectIds.includes(p.id))
+    filteredProjects = baseProjects.filter((p) =>
+      userProjectIds.includes(p.id)
+    )
   }
 
   const projectIds = filteredProjects.map((p) => p.id)
   if (projectIds.length === 0) return []
 
-  const inProgressStatuses = ['in_progress', 'in_review', 'blocked'] as const
+  const inProgressStatuses = [
+    "in_progress",
+    "in_review",
+    "blocked",
+  ] as const
 
-  const [taskAggs, expenseAggs, taskCostAggs, inProgressTasks, ownerData, collaboratorData] = await Promise.all([
+  const [
+    taskAggs,
+    expenseAggs,
+    taskCostAggs,
+    inProgressTasks,
+    ownerData,
+    collaboratorData,
+  ] = await Promise.all([
     db
       .select({
         projectId: projectTasksTable.projectId,
@@ -176,12 +217,15 @@ export async function getProjectsWithDetails() {
         assigneeImage: usersTable.image,
       })
       .from(projectTasksTable)
-      .leftJoin(usersTable, eq(projectTasksTable.assigneeId, usersTable.id))
+      .leftJoin(
+        usersTable,
+        eq(projectTasksTable.assigneeId, usersTable.id)
+      )
       .where(
         and(
           inArray(projectTasksTable.projectId, projectIds),
-          inArray(projectTasksTable.status, inProgressStatuses),
-        ),
+          inArray(projectTasksTable.status, inProgressStatuses)
+        )
       )
       .orderBy(projectTasksTable.createdAt)
       .limit(3),
@@ -194,7 +238,10 @@ export async function getProjectsWithDetails() {
         image: usersTable.image,
       })
       .from(projectOwnersTable)
-      .innerJoin(usersTable, eq(projectOwnersTable.userId, usersTable.id))
+      .innerJoin(
+        usersTable,
+        eq(projectOwnersTable.userId, usersTable.id)
+      )
       .where(inArray(projectOwnersTable.projectId, projectIds)),
 
     db
@@ -205,13 +252,22 @@ export async function getProjectsWithDetails() {
         image: usersTable.image,
       })
       .from(projectCollaboratorsTable)
-      .innerJoin(usersTable, eq(projectCollaboratorsTable.userId, usersTable.id))
+      .innerJoin(
+        usersTable,
+        eq(projectCollaboratorsTable.userId, usersTable.id)
+      )
       .where(inArray(projectCollaboratorsTable.projectId, projectIds)),
   ])
 
-  const taskMap = new Map<string, { total: number; completed: number }>()
+  const taskMap = new Map<
+    string,
+    { total: number; completed: number }
+  >()
   for (const agg of taskAggs) {
-    taskMap.set(agg.projectId, { total: agg.total, completed: agg.completed })
+    taskMap.set(agg.projectId, {
+      total: agg.total,
+      completed: agg.completed,
+    })
   }
 
   const expenseMap = new Map<string, number>()
@@ -224,39 +280,54 @@ export async function getProjectsWithDetails() {
     taskCostMap.set(agg.projectId, Number(agg.total))
   }
 
-  const inProgressMap = new Map<string, { id: string; title: string; assignee: string; assigneeImage: string | null }[]>()
+  const inProgressMap = new Map<
+    string,
+    {
+      id: string
+      title: string
+      assignee: string
+      assigneeImage: string | null
+    }[]
+  >()
   for (const task of inProgressTasks) {
     const list = inProgressMap.get(task.projectId) ?? []
     list.push({
       id: task.id,
       title: task.name,
-      assignee: task.assigneeName ?? '',
+      assignee: task.assigneeName ?? "",
       assigneeImage: task.assigneeImage,
     })
     inProgressMap.set(task.projectId, list)
   }
 
-  const ownerMap = new Map<string, { id: string; name: string; image: string | null }[]>()
+  const ownerMap = new Map<
+    string,
+    { id: string; name: string; image: string | null }[]
+  >()
   for (const o of ownerData) {
     const list = ownerMap.get(o.projectId) ?? []
     if (!list.find((x) => x.id === o.userId)) {
-      list.push({ id: o.userId, name: o.name ?? '', image: o.image })
+      list.push({ id: o.userId, name: o.name ?? "", image: o.image })
     }
     ownerMap.set(o.projectId, list)
   }
 
-  const collaboratorMap = new Map<string, { id: string; name: string; image: string | null }[]>()
+  const collaboratorMap = new Map<
+    string,
+    { id: string; name: string; image: string | null }[]
+  >()
   for (const c of collaboratorData) {
     const list = collaboratorMap.get(c.projectId) ?? []
     if (!list.find((x) => x.id === c.userId)) {
-      list.push({ id: c.userId, name: c.name ?? '', image: c.image })
+      list.push({ id: c.userId, name: c.name ?? "", image: c.image })
     }
     collaboratorMap.set(c.projectId, list)
   }
 
   return filteredProjects.map((p) => {
     const tasks = taskMap.get(p.id) ?? { total: 0, completed: 0 }
-    const expenses = (expenseMap.get(p.id) ?? 0) + (taskCostMap.get(p.id) ?? 0)
+    const expenses =
+      (expenseMap.get(p.id) ?? 0) + (taskCostMap.get(p.id) ?? 0)
     const budget = p.budget ? Number(p.budget) : 0
 
     return {
@@ -267,7 +338,7 @@ export async function getProjectsWithDetails() {
       status: p.status,
       categorySlug: p.categorySlug,
       startDate: p.startDate,
-      endDate: p.endDate ?? '',
+      endDate: p.endDate ?? "",
       location: p.location,
       budget,
       expenses,
@@ -281,15 +352,15 @@ export async function getProjectsWithDetails() {
 }
 
 export async function getProjectById(id: string) {
-  const t = await getActionT('actions.projects')
+  const t = await getActionT("actions.projects")
   try {
-    await requirePermission('projects', 'view')
+    await requirePermission("projects", "view")
   } catch {
-    throw new Error(t('forbidden'))
+    throw new Error(t("forbidden"))
   }
 
   const session = await auth()
-  if (!session?.user) throw new Error(t('unauthorized'))
+  if (!session?.user) throw new Error(t("unauthorized"))
 
   const project = await db
     .select({
@@ -310,45 +381,67 @@ export async function getProjectById(id: string) {
     })
     .from(projectsTable)
     .where(eq(projectsTable.id, id))
-    .leftJoin(categoryTable, eq(projectsTable.categoryId, categoryTable.id))
+    .leftJoin(
+      categoryTable,
+      eq(projectsTable.categoryId, categoryTable.id)
+    )
     .then((rows) => rows[0])
 
   if (!project) {
-    throw new Error('notFound')
+    throw new Error("notFound")
   }
 
-  if (!isSuperUser(session) && !(await isProjectOwner(id, session.user.id))) {
-    throw new Error(t('forbidden'))
+  if (
+    !isSuperUser(session) &&
+    !(await isProjectOwner(id, session.user.id))
+  ) {
+    throw new Error(t("forbidden"))
   }
 
   return project
 }
 
-export async function upsertProject(data: ProjectFormData, id?: string) {
-  const t = await getActionT('actions.projects')
+export async function upsertProject(
+  data: ProjectFormData,
+  id?: string
+) {
+  const t = await getActionT("actions.projects")
   try {
-    await requirePermission('projects', id ? 'edit' : 'create')
+    await requirePermission("projects", id ? "edit" : "create")
   } catch {
-    return { success: false as const, error: t('forbidden') }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const session = await auth()
-  if (!session?.user) return { success: false as const, error: t('unauthorized') }
+  if (!session?.user)
+    return { success: false as const, error: t("unauthorized") }
 
   const parsed = projectSchema.safeParse(data)
   if (!parsed.success) {
     return {
       success: false as const,
-      error: t('validationFailed'),
+      error: t("validationFailed"),
       fieldErrors: parsed.error.flatten().fieldErrors,
     }
   }
 
-  const { name, categoryId, status, description, startDate, endDate, location, budget } = parsed.data
+  const {
+    name,
+    categoryId,
+    status,
+    description,
+    startDate,
+    endDate,
+    location,
+    budget,
+  } = parsed.data
 
   if (id) {
-    if (!(await isProjectOwner(id, session.user.id)) && !isSuperUser(session)) {
-      return { success: false as const, error: t('forbidden') }
+    if (
+      !(await isProjectOwner(id, session.user.id)) &&
+      !isSuperUser(session)
+    ) {
+      return { success: false as const, error: t("forbidden") }
     }
 
     await db
@@ -386,20 +479,20 @@ export async function upsertProject(data: ProjectFormData, id?: string) {
     })
   }
 
-  revalidatePath('/dashboard/projects')
+  revalidatePath("/dashboard/projects")
   return { success: true as const }
 }
 
 export async function getProjectForEdit(id: string) {
-  const t = await getActionT('actions.projects')
+  const t = await getActionT("actions.projects")
   try {
-    await requirePermission('projects', 'view')
+    await requirePermission("projects", "view")
   } catch {
-    throw new Error(t('forbidden'))
+    throw new Error(t("forbidden"))
   }
 
   const session = await auth()
-  if (!session?.user) throw new Error(t('unauthorized'))
+  if (!session?.user) throw new Error(t("unauthorized"))
 
   const project = await db
     .select({
@@ -421,26 +514,30 @@ export async function getProjectForEdit(id: string) {
     .then((rows) => rows[0])
 
   if (!project) {
-    throw new Error('notFound')
+    throw new Error("notFound")
   }
 
-  if (!isSuperUser(session) && !(await isProjectOwner(id, session.user.id))) {
-    throw new Error(t('forbidden'))
+  if (
+    !isSuperUser(session) &&
+    !(await isProjectOwner(id, session.user.id))
+  ) {
+    throw new Error(t("forbidden"))
   }
 
   return project
 }
 
 export async function deleteProject(id: string) {
-  const t = await getActionT('actions.projects')
+  const t = await getActionT("actions.projects")
   try {
-    await requirePermission('projects', 'delete')
+    await requirePermission("projects", "delete")
   } catch {
-    return { success: false as const, error: t('forbidden') }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const session = await auth()
-  if (!session?.user) return { success: false as const, error: t('unauthorized') }
+  if (!session?.user)
+    return { success: false as const, error: t("unauthorized") }
 
   const project = await db
     .select({ primaryOwnerId: projectsTable.primaryOwnerId })
@@ -448,13 +545,16 @@ export async function deleteProject(id: string) {
     .where(eq(projectsTable.id, id))
     .then((rows) => rows[0])
 
-  if (!project) return { success: false as const, error: t('notFound') }
+  if (!project) return { success: false as const, error: t("notFound") }
 
-  if (project.primaryOwnerId !== session.user.id && !isSuperUser(session)) {
-    return { success: false as const, error: t('forbidden') }
+  if (
+    project.primaryOwnerId !== session.user.id &&
+    !isSuperUser(session)
+  ) {
+    return { success: false as const, error: t("forbidden") }
   }
 
   await db.delete(projectsTable).where(eq(projectsTable.id, id))
-  revalidatePath('/dashboard/projects')
+  revalidatePath("/dashboard/projects")
   return { success: true as const }
 }

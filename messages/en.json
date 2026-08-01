@@ -77,7 +77,11 @@
     "profile": "Profile",
     "categories": "Categories",
     "projects": "Projects",
-    "myTasks": "My Tasks"
+    "myTasks": "My Tasks",
+    "details": "Details",
+    "people": "People",
+    "tasks": "Tasks",
+    "expenses": "Expenses"
   },
   "landing": {
     "title": "ALSIA Labs CRM",

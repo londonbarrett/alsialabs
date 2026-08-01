@@ -17,11 +17,11 @@ import {
   removeProjectCollaborator,
   removeProjectOwner,
 } from "@/lib/actions/project-users"
+import type { ProjectMember } from "@/lib/types"
 import { Crown, Users, X } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import type { ProjectMember } from "./project-detail-view"
 import { UserInviteInput } from "./user-invite-input"
 
 interface ProjectPeopleProps {
