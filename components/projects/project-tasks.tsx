@@ -2,6 +2,7 @@
 
 import { ActionMenu } from "@/components/common/action-menu"
 import { Money } from "@/components/common/money"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -20,6 +21,7 @@ import {
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import {
   deleteTask,
+  updateTaskPriority,
   updateTaskStatus,
   upsertTask,
 } from "@/lib/actions/project-tasks"
@@ -30,6 +32,7 @@ import { useReducer, useState, useTransition } from "react"
 import { toast } from "sonner"
 import { TaskCommentsPanel } from "./task-comments-panel"
 import { TaskDialog } from "./task-dialog"
+import { TaskPrioritySelect } from "./task-priority-select"
 import {
   TaskStatusSelect,
   taskStatusColors,
@@ -65,6 +68,7 @@ type TaskAction =
     }
   | { type: "delete"; taskId: string }
   | { type: "updateStatus"; taskId: string; status: string }
+  | { type: "updatePriority"; taskId: string; priority: string | null }
   | { type: "updateCommentCount"; taskId: string; delta: number }
   | { type: "reset"; tasks: ProjectTaskWithCommentCount[] }
 
@@ -93,6 +97,16 @@ function taskReducer(
               ...t,
               status:
                 action.status as ProjectTaskWithCommentCount["status"],
+            }
+          : t
+      )
+    case "updatePriority":
+      return state.map((t) =>
+        t.id === action.taskId
+          ? {
+              ...t,
+              priority:
+                action.priority as ProjectTaskWithCommentCount["priority"],
             }
           : t
       )
@@ -172,6 +186,7 @@ export function ProjectTasks({
     description: string
     cost: string
     status: string
+    priority: string | null
     assigneeId: string | null
   }) {
     const isEdit = !!editingTask
@@ -183,6 +198,7 @@ export function ProjectTasks({
       | "in_review"
       | "blocked"
       | "done"
+    const taskPriority = data.priority as "urgent" | "high" | null
 
     const optimisticTask: ProjectTaskWithCommentCount = {
       id: editingTask?.id ?? `temp-${Date.now()}`,
@@ -191,6 +207,7 @@ export function ProjectTasks({
       description: data.description || null,
       cost: data.cost || null,
       status: taskStatus,
+      priority: taskPriority,
       assigneeId: data.assigneeId,
       assigneeName:
         projectMembers.find((m) => m.userId === data.assigneeId)
@@ -207,7 +224,7 @@ export function ProjectTasks({
 
     startLoading()
     const result = await upsertTask(
-      { ...data, status: taskStatus },
+      { ...data, status: taskStatus, priority: taskPriority },
       projectId,
       editingTask?.id
     )
@@ -295,6 +312,24 @@ export function ProjectTasks({
     }
   }
 
+  async function handleTaskPriorityChange(
+    taskId: string,
+    priority: string | null
+  ) {
+    dispatch({ type: "updatePriority", taskId, priority })
+    startLoading()
+    const result = await updateTaskPriority(taskId, projectId, priority)
+    stopLoading()
+    if (!result.success) {
+      toast.error(result.error || t("common.somethingWentWrong"))
+      startTransition(() => {
+        dispatch({ type: "reset", tasks: initialTasks })
+      })
+    } else {
+      toast.success(t("projects.tasks.priorityChanged"))
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -329,6 +364,9 @@ export function ProjectTasks({
                   </TableHead>
                   <TableHead scope="col">
                     {t("projects.tasks.statusLabel")}
+                  </TableHead>
+                  <TableHead scope="col">
+                    {t("projects.tasks.priorityLabel")}
                   </TableHead>
                   <TableHead scope="col">
                     {t("projects.tasks.cost")}
@@ -373,13 +411,13 @@ export function ProjectTasks({
                         const allowed = getTaskAllowedStatuses(task)
                         if (!allowed) {
                           return (
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${taskStatusColors[task.status]}`}
+                            <Badge
+                              className={taskStatusColors[task.status]}
                             >
                               {t(
                                 `projects.tasks.status.${task.status}`
                               )}
-                            </span>
+                            </Badge>
                           )
                         }
                         return (
@@ -392,6 +430,24 @@ export function ProjectTasks({
                           />
                         )
                       })()}
+                    </TableCell>
+                    <TableCell>
+                      {isOwner && canEdit ? (
+                        <TaskPrioritySelect
+                          priority={task.priority}
+                          onPriorityChange={(p) =>
+                            handleTaskPriorityChange(task.id, p)
+                          }
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {task.priority
+                            ? t(
+                                `projects.tasks.priority.${task.priority}`
+                              )
+                            : t("projects.tasks.priority.none")}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {task.cost ? <Money value={task.cost} /> : "—"}

@@ -321,6 +321,7 @@
       "description": "Descripción",
       "cost": "Costo",
       "statusLabel": "Estado",
+      "priorityLabel": "Prioridad",
       "assignee": "Asignado",
       "unassigned": "Sin asignar",
       "actions": "Acciones",
@@ -328,6 +329,7 @@
       "taskUpdated": "Tarea actualizada",
       "taskCreated": "Tarea creada",
       "statusChanged": "Estado actualizado",
+      "priorityChanged": "Prioridad actualizada",
       "nameRequired": "El nombre de la tarea es obligatorio",
       "status": {
         "todo": "Por hacer",
@@ -335,6 +337,11 @@
         "in_review": "En revisión",
         "blocked": "Bloqueado",
         "done": "Completado"
+      },
+      "priority": {
+        "none": "Normal",
+        "urgent": "Urgente",
+        "high": "Alta"
       },
       "comments": {
         "title": "Comentarios",

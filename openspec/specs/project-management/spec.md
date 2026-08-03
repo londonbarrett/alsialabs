@@ -155,14 +155,15 @@ The system SHALL provide a combobox input for searching existing users and invit
 
 ### Requirement: Task management
 
-The system SHALL allow owners to manage tasks on their projects. Tasks are managed on the tasks subpage (`/dashboard/projects/[id]`, the default project subpage). Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change) use optimistic updates with useReducer for instant UI feedback, global loading indicator during server requests, and success toasts on completion.
+The system SHALL allow owners to manage tasks on their projects. Tasks are managed on the tasks subpage (`/dashboard/projects/[id]`, the default project subpage). Tasks SHALL carry an optional priority of `urgent` or `high`; tasks with no priority are allowed. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change, priority change) use optimistic updates with useReducer for instant UI feedback, global loading indicator during server requests, and success toasts on completion.
 
 #### Scenario: Create task
 
 - **GIVEN** a user who is an owner of the project
 - **WHEN** the user clicks "Add Task" in the tasks card header on the tasks subpage
-- **THEN** a dialog opens with fields for name, description, cost, status, and assignee
+- **THEN** a dialog opens with fields for name, description, cost, status, assignee, and priority
 - **AND** the assignee dropdown shows project owners and collaborators
+- **AND** the priority dropdown defaults to no priority
 - **WHEN** the user fills required fields and submits
 - **THEN** the task appears immediately in the task table via optimistic update
 - **AND** the global loading indicator shows during the server request
@@ -195,11 +196,32 @@ The system SHALL allow owners to manage tasks on their projects. Tasks are manag
 - **AND** the global loading indicator shows during the server request
 - **AND** a success toast confirms the status change
 
+#### Scenario: Update task priority inline
+
+- **GIVEN** a user who is an owner of the project
+- **WHEN** the user selects a priority from the inline priority dropdown on a task row
+- **THEN** the task priority changes immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the priority change
+
+#### Scenario: Owner can set priority on a task
+
+- **GIVEN** a user who is an owner of the project
+- **WHEN** the user creates or edits a task
+- **THEN** the priority field accepts "urgent" or "high" or no priority
+- **AND** the chosen priority is saved with the task
+
+#### Scenario: Priority is optional
+
+- **GIVEN** a user who is an owner of the project
+- **WHEN** the user creates a task without selecting a priority
+- **THEN** the task is created successfully with no priority
+
 #### Scenario: Edit task
 
 - **GIVEN** a user who is an owner of the project
 - **WHEN** the user clicks "Edit" on a task's action menu
-- **THEN** a dialog opens with the task's current values pre-filled
+- **THEN** a dialog opens with the task's current values pre-filled, including priority
 - **WHEN** the user modifies fields and submits
 - **THEN** the task updates immediately via optimistic update
 - **AND** the global loading indicator shows during the server request
@@ -231,16 +253,17 @@ The system SHALL allow owners to manage tasks on their projects. Tasks are manag
 
 ### Requirement: Expense management
 
-The system SHALL allow owners to manage expenses on the expenses subpage (`/dashboard/projects/[id]/expenses`). The subpage shows a budget progress card (total spend = expense amounts + task costs compared against the project budget, with an over-budget indicator) and a table listing expense rows and task cost rows. Owners can create, edit, and delete expenses, and can edit or delete task cost rows from the same table. Actions are granted via the `expenses:create`, `expenses:edit`, and `expenses:delete` permissions or project ownership rights.
+The system SHALL allow owners to manage expenses on the expenses subpage (`/dashboard/projects/[id]/expenses`). The subpage shows a budget progress card (total spend = expense amounts + task costs compared against the project budget, with an over-budget indicator) and a table listing expense rows and task cost rows ordered by date (expense `expense_date` and task creation date). Owners can create, edit, and delete expenses, and can edit or delete task cost rows from the same table. Actions are granted via the `expenses:create`, `expenses:edit`, and `expenses:delete` permissions or project ownership rights.
 
 #### Scenario: View expenses subpage
 
 - **GIVEN** a user with `projects:view` permission
 - **WHEN** the user navigates to `/dashboard/projects/[id]/expenses`
 - **THEN** a Card is shown with a budget progress bar when the project has a budget
-- **AND** a table lists expense rows and task cost rows
+- **AND** a table lists expense rows and task cost rows ordered by date ascending
 - **AND** each expense row shows description, a category badge translated via `categoryNames.*`, amount, and date
 - **AND** each task cost row shows a "Task" badge and the task creation date
+- **AND** expense dates and task creation dates are displayed in the same `YYYY-MM-DD` format
 - **AND** a total of expenses and task costs is shown
 
 #### Scenario: Budget progress

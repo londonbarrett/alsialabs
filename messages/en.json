@@ -321,6 +321,7 @@
       "description": "Description",
       "cost": "Cost",
       "statusLabel": "Status",
+      "priorityLabel": "Priority",
       "assignee": "Assignee",
       "unassigned": "Unassigned",
       "actions": "Actions",
@@ -328,6 +329,7 @@
       "taskUpdated": "Task updated",
       "taskCreated": "Task created",
       "statusChanged": "Status updated",
+      "priorityChanged": "Priority updated",
       "nameRequired": "Task name is required",
       "status": {
         "todo": "To Do",
@@ -335,6 +337,11 @@
         "in_review": "In Review",
         "blocked": "Blocked",
         "done": "Done"
+      },
+      "priority": {
+        "none": "Normal",
+        "urgent": "Urgent",
+        "high": "High"
       },
       "comments": {
         "title": "Comments",

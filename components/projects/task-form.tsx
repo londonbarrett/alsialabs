@@ -1,8 +1,14 @@
 "use client"
 
-import { Field } from "@/components/form-field"
+import { MoneyInput } from "@/components/common/money-input"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -10,9 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import type { ProjectTask } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
+import { TaskPrioritySelect } from "./task-priority-select"
+import { TaskStatusSelect } from "./task-status-select"
 
 interface ProjectMember {
   userId: string
@@ -29,6 +38,7 @@ interface TaskFormProps {
     description: string
     cost: string
     status: string
+    priority: string | null
     assigneeId: string | null
   }) => Promise<{
     success: boolean
@@ -59,6 +69,9 @@ export function TaskForm({
   )
   const [cost, setCost] = useState(task?.cost ?? "")
   const [status, setStatus] = useState<string>(task?.status ?? "todo")
+  const [priority, setPriority] = useState<string | null>(
+    task?.priority ?? null
+  )
   const [assigneeId, setAssigneeId] = useState<string>(
     task?.assigneeId ?? ""
   )
@@ -81,92 +94,108 @@ export function TaskForm({
       description: description.trim(),
       cost: cost.trim(),
       status,
+      priority,
       assigneeId: assigneeId || null,
     })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Field
-        name="name"
-        label={t("projects.tasks.name")}
-        value={name}
-        onChange={setName}
-        error={errors.name}
-      />
-      <Field
-        name="description"
-        label={t("projects.tasks.description")}
-        value={description}
-        onChange={setDescription}
-        error={errors.description}
-        type="textarea"
-      />
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field
-          name="cost"
-          label={t("projects.tasks.cost")}
-          value={cost}
-          onChange={setCost}
-          error={errors.cost}
-          type="money"
-        />
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="status">
+    <form onSubmit={handleSubmit}>
+      <FieldGroup>
+        <Field data-invalid={!!errors.name || undefined}>
+          <FieldLabel htmlFor="name">
+            {t("projects.tasks.name")}
+          </FieldLabel>
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-invalid={!!errors.name || undefined}
+          />
+          {errors.name && <FieldError>{errors.name}</FieldError>}
+        </Field>
+        <Field data-invalid={!!errors.description || undefined}>
+          <FieldLabel htmlFor="description">
+            {t("projects.tasks.description")}
+          </FieldLabel>
+          <Textarea
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            aria-invalid={!!errors.description || undefined}
+          />
+          {errors.description && (
+            <FieldError>{errors.description}</FieldError>
+          )}
+        </Field>
+        <Field data-invalid={!!errors.cost || undefined}>
+          <FieldLabel htmlFor="cost">
+            {t("projects.tasks.cost")}
+          </FieldLabel>
+          <MoneyInput
+            id="cost"
+            value={cost}
+            onChange={setCost}
+            aria-invalid={!!errors.cost || undefined}
+          />
+          {errors.cost && <FieldError>{errors.cost}</FieldError>}
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="status">
             {t("projects.tasks.statusLabel")}
-          </Label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger id="status">
+          </FieldLabel>
+          <TaskStatusSelect
+            id="status"
+            status={status}
+            allowedStatuses={taskStatuses}
+            onStatusChange={setStatus}
+            fullWidth
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="priority">
+            {t("projects.tasks.priorityLabel")}
+          </FieldLabel>
+          <TaskPrioritySelect
+            id="priority"
+            priority={priority}
+            onPriorityChange={setPriority}
+            fullWidth
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="assignee">
+            {t("projects.tasks.assignee")}
+          </FieldLabel>
+          <Select value={assigneeId} onValueChange={setAssigneeId}>
+            <SelectTrigger id="assignee" className="w-full">
               <SelectValue
-                placeholder={t("projects.tasks.statusLabel")}
+                placeholder={t("projects.tasks.unassigned")}
               />
             </SelectTrigger>
             <SelectContent>
-              {taskStatuses.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {t(`projects.tasks.status.${s}`)}
+              <SelectItem value="">
+                {t("projects.tasks.unassigned")}
+              </SelectItem>
+              {projectMembers.map((m) => (
+                <SelectItem key={m.userId} value={m.userId}>
+                  {m.userName || m.userEmail || m.userId}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="assignee">{t("projects.tasks.assignee")}</Label>
-        <Select value={assigneeId} onValueChange={setAssigneeId}>
-          <SelectTrigger id="assignee">
-            <SelectValue placeholder={t("projects.tasks.unassigned")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">
-              {t("projects.tasks.unassigned")}
-            </SelectItem>
-            {projectMembers.map((m) => (
-              <SelectItem key={m.userId} value={m.userId}>
-                {m.userName || m.userEmail || m.userId}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex justify-end gap-2 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-        >
-          {t("common.cancel")}
-        </Button>
-        <Button type="submit">
-          {task
-            ? t("common.saveChanges")
-            : t("projects.tasks.createTask")}
-        </Button>
-      </div>
+        </Field>
+        <Field orientation="horizontal">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button type="submit">
+            {task
+              ? t("common.saveChanges")
+              : t("projects.tasks.createTask")}
+          </Button>
+        </Field>
+      </FieldGroup>
     </form>
   )
 }

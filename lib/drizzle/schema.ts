@@ -417,6 +417,7 @@ export const projectTasksTable = pgTable("project_task", {
     .notNull()
     .default("todo")
     .$type<"todo" | "in_progress" | "in_review" | "blocked" | "done">(),
+  priority: text("priority").$type<"urgent" | "high" | null>(),
   assigneeId: text("assignee_id").references(() => usersTable.id, {
     onDelete: "set null",
   }),
