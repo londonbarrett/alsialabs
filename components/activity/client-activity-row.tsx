@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type MouseEvent } from "react"
+import { useEffect, useRef, useState, type MouseEvent } from "react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import {
@@ -28,10 +28,12 @@ export interface InactiveClient {
   comments: string | null
   userId: string | null
   lastInvoiceDate: string | null
+  activityCount: number
 }
 
 interface ClientActivityRowProps {
   client: InactiveClient
+  refreshKey?: number
   onEdit: (client: InactiveClient) => void
   onLogActivity: (client: InactiveClient) => void
   onAddReminder: (client: InactiveClient) => void
@@ -41,6 +43,7 @@ const PAGE_SIZE = 5
 
 export function ClientActivityRow({
   client,
+  refreshKey = 0,
   onEdit,
   onLogActivity,
   onAddReminder,
@@ -54,6 +57,14 @@ export function ClientActivityRow({
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const prevRefreshKey = useRef(refreshKey)
+
+  useEffect(() => {
+    if (refreshKey === prevRefreshKey.current) return
+    prevRefreshKey.current = refreshKey
+    loadFirstPage()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey])
 
   async function loadFirstPage() {
     setIsLoading(true)
@@ -165,6 +176,7 @@ export function ClientActivityRow({
         <TableCell>
           {client.lastInvoiceDate ?? t("activity.never")}
         </TableCell>
+        <TableCell>{client.activityCount}</TableCell>
         <TableCell>
           <div className="flex gap-1">
             <Button
@@ -196,7 +208,7 @@ export function ClientActivityRow({
       </TableRow>
       {expanded && (
         <TableRow>
-          <TableCell colSpan={5} className="bg-muted/30 px-6 py-3">
+          <TableCell colSpan={6} className="bg-muted/30 px-6 py-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">
                 {t("activity.recentActivity")}

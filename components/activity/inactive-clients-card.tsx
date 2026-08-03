@@ -56,6 +56,9 @@ export function InactiveClientsCard() {
   const [editingClient, setEditingClient] = useState<Client | null>(
     null
   )
+  const [activityRefreshKeys, setActivityRefreshKeys] = useState<
+    Record<string, number>
+  >({})
 
   useEffect(() => {
     getInactiveClients(period === "none" ? null : Number(period))
@@ -94,7 +97,14 @@ export function InactiveClientsCard() {
   }
 
   function handleActivityDialogSuccess() {
+    const clientId = activityClientId
     setActivityClientId(null)
+    if (clientId) {
+      setActivityRefreshKeys((prev) => ({
+        ...prev,
+        [clientId]: (prev[clientId] ?? 0) + 1,
+      }))
+    }
     router.refresh()
   }
 
@@ -178,6 +188,7 @@ export function InactiveClientsCard() {
                   <TableHead>{t("activity.email")}</TableHead>
                   <TableHead>{t("activity.phone")}</TableHead>
                   <TableHead>{t("activity.lastInvoice")}</TableHead>
+                  <TableHead>{t("activity.activities")}</TableHead>
                   <TableHead>{t("activity.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -186,6 +197,7 @@ export function InactiveClientsCard() {
                   <ClientActivityRow
                     key={c.clientId}
                     client={c}
+                    refreshKey={activityRefreshKeys[c.clientId] ?? 0}
                     onEdit={handleEditClient}
                     onLogActivity={handleLogActivity}
                     onAddReminder={handleAddReminder}

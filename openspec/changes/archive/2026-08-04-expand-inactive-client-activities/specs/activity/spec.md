@@ -43,6 +43,11 @@ The system SHALL allow users to expand an inactive client row in the inactive cl
 - **WHEN** a user uses the edit, log activity, or add reminder action on an inactive client row
 - **THEN** the action SHALL still work and SHALL NOT toggle the expanded panel
 
+#### Scenario: Expanded panel refreshes after logging an activity
+- **WHEN** a user logs a new activity for a client whose row is expanded
+- **THEN** the expanded panel SHALL reload the client's most recent 5 activities
+- **AND** the newly logged activity SHALL appear in the list
+
 ### Requirement: User can see inactive client count and period filter
 The inactive clients card SHALL display the number of inactive clients found and provide a labeled period selector within the card content, laid out like the sales invoice table.
 
@@ -55,6 +60,10 @@ The inactive clients card SHALL display the number of inactive clients found and
 - **WHEN** the inactive clients card is displayed
 - **THEN** the period selector SHALL have a "Period" label
 - **AND** it SHALL be aligned to the right within the card content
+
+#### Scenario: Card shows each client's activity count
+- **WHEN** the inactive clients table is displayed
+- **THEN** each row SHALL show the total number of activities registered for that client
 
 ### Requirement: Paginated client activity fetch
 The system SHALL provide a paginated server action to retrieve a client's activities for the inline panel.

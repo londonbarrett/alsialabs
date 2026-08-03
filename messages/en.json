@@ -512,6 +512,7 @@
     "phone": "Phone",
     "location": "Location",
     "lastInvoice": "Last Invoice",
+    "activities": "Activity",
     "never": "Never",
     "allClientsActive": "All clients are active.",
     "actions": "Actions",
