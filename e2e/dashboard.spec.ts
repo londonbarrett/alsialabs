@@ -29,8 +29,12 @@ async function cleanupMockAuth() {
   _userId = null
 }
 
-function getToggle(page: Page) {
-  return page.getByRole('button', { name: /Switch to/ })
+async function openUserMenu(page: Page) {
+  await page.getByRole('button', { name: /Test User/ }).click()
+}
+
+function getThemeToggle(page: Page) {
+  return page.getByRole('menuitem', { name: /(Light|Dark)/ })
 }
 
 test.describe('Dashboard sidebar', () => {
@@ -129,25 +133,27 @@ test.describe('Dashboard sidebar', () => {
   })
 
   test('shows the theme toggle button in the sidebar aux area', async ({ page }) => {
-    const toggle = getToggle(page)
+    await openUserMenu(page)
+    const toggle = getThemeToggle(page)
     await expect(toggle).toBeVisible()
   })
 
   test('changes theme class on click and persists after reload', async ({ page }) => {
-    const toggle = getToggle(page)
     const html = page.locator('html')
 
     // System starts as 'system' (resolves to 'light' in headless Chrome)
-    // Click 1: system → light
-    await toggle.click()
-    await expect(html).toHaveClass(/light/)
-
-    // Click 2: light → dark
-    await toggle.click()
+    // Click 1: light → dark
+    await openUserMenu(page)
+    await getThemeToggle(page).click()
     await expect(html).toHaveClass(/dark/)
+
+    // Click 2: dark → light
+    await openUserMenu(page)
+    await getThemeToggle(page).click()
+    await expect(html).toHaveClass(/light/)
 
     // Persists after reload
     await page.reload()
-    await expect(html).toHaveClass(/dark/)
+    await expect(html).toHaveClass(/light/)
   })
 })
