@@ -1,5 +1,6 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -21,37 +22,40 @@ const taskStatusColors: Record<string, string> = {
 }
 
 interface TaskStatusSelectProps {
+  id?: string
   status: string
   allowedStatuses: readonly string[]
   onStatusChange: (status: string) => void
+  fullWidth?: boolean
 }
 
 export function TaskStatusSelect({
+  id,
   status,
   allowedStatuses,
   onStatusChange,
+  fullWidth,
 }: TaskStatusSelectProps) {
   const t = useTranslations()
 
   return (
     <Select value={status} onValueChange={onStatusChange}>
-      <SelectTrigger className="h-7 w-35">
+      <SelectTrigger
+        id={id}
+        className={fullWidth ? "w-full" : "h-7 w-35"}
+      >
         <SelectValue>
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${taskStatusColors[status]}`}
-          >
+          <Badge className={taskStatusColors[status]}>
             {t(`projects.tasks.status.${status}`)}
-          </span>
+          </Badge>
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {allowedStatuses.map((s) => (
           <SelectItem key={s} value={s}>
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${taskStatusColors[s]}`}
-            >
+            <Badge className={taskStatusColors[s]}>
               {t(`projects.tasks.status.${s}`)}
-            </span>
+            </Badge>
           </SelectItem>
         ))}
       </SelectContent>

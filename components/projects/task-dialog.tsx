@@ -1,12 +1,6 @@
 "use client"
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog } from "@/components/common/dialog"
 import type { ProjectTask } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 import { TaskForm } from "./task-form"
@@ -28,6 +22,7 @@ interface TaskDialogProps {
     description: string
     cost: string
     status: string
+    priority: string | null
     assigneeId: string | null
   }) => Promise<{
     success: boolean
@@ -45,23 +40,19 @@ export function TaskDialog({
 }: TaskDialogProps) {
   const t = useTranslations("projects.tasks")
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()}>
-        <DialogHeader>
-          <DialogTitle>
-            {task ? t("editTask") : t("addTask")}
-          </DialogTitle>
-          <DialogDescription>
-            {task ? t("updateDetails") : t("fillDetails")}
-          </DialogDescription>
-        </DialogHeader>
-        <TaskForm
-          task={task}
-          projectMembers={projectMembers}
-          onSubmit={onSubmit}
-          onCancel={() => onOpenChange(false)}
-        />
-      </DialogContent>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={task ? t("editTask") : t("addTask")}
+      description={task ? t("updateDetails") : t("fillDetails")}
+      onInteractOutside={(e) => e.preventDefault()}
+    >
+      <TaskForm
+        task={task}
+        projectMembers={projectMembers}
+        onSubmit={onSubmit}
+        onCancel={() => onOpenChange(false)}
+      />
     </Dialog>
   )
 }

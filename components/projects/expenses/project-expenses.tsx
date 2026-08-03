@@ -2,6 +2,7 @@
 
 import { ActionMenu } from "@/components/common/action-menu"
 import { Money } from "@/components/common/money"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -41,6 +42,13 @@ type TaskAction =
   | { type: "replaceTemp"; tempId: string; task: ProjectTask }
   | { type: "delete"; taskId: string }
   | { type: "reset"; tasks: ProjectTask[] }
+
+function formatDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
 
 function taskReducer(
   state: ProjectTask[],
@@ -111,6 +119,7 @@ export function ProjectExpenses({
     description: string
     cost: string
     status: string
+    priority: string | null
     assigneeId: string | null
   }) {
     const isEdit = !!editingTask
@@ -122,6 +131,7 @@ export function ProjectExpenses({
       | "in_review"
       | "blocked"
       | "done"
+    const taskPriority = data.priority as "urgent" | "high" | null
 
     const optimisticTask: ProjectTask = {
       id: editingTask?.id ?? `temp-${Date.now()}`,
@@ -130,6 +140,7 @@ export function ProjectExpenses({
       description: data.description || null,
       cost: data.cost || null,
       status: taskStatus,
+      priority: taskPriority,
       assigneeId: data.assigneeId,
       createdAt: editingTask?.createdAt ?? new Date(),
       updatedAt: new Date(),
@@ -139,7 +150,7 @@ export function ProjectExpenses({
 
     startLoading()
     const result = await upsertTask(
-      { ...data, status: taskStatus },
+      { ...data, status: taskStatus, priority: taskPriority },
       projectId,
       editingTask?.id
     )
@@ -239,6 +250,23 @@ export function ProjectExpenses({
       : 0
   const overBudget = budgetNum > 0 && total > budgetNum
 
+  const rows = [
+    ...taskCosts.map((task) => ({
+      key: `task-${task.id}`,
+      type: "task" as const,
+      task,
+      date: task.createdAt
+        ? formatDate(new Date(task.createdAt))
+        : "9999-12-31",
+    })),
+    ...expenses.map((expense) => ({
+      key: expense.id,
+      type: "expense" as const,
+      expense,
+      date: expense.expenseDate,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date))
+
   return (
     <Card>
       <CardHeader>
@@ -280,7 +308,7 @@ export function ProjectExpenses({
                 value={spendPct}
                 className={cn(
                   overBudget &&
-                    "[&_[data-slot=progress-indicator]]:bg-red-500"
+                    "**:data-[slot=progress-indicator]:bg-red-500"
                 )}
               />
               <p className="text-xs text-muted-foreground">
@@ -321,78 +349,60 @@ export function ProjectExpenses({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {taskCosts.map((task) => (
-                    <TableRow key={`task-${task.id}`}>
+                  {rows.map((row) => (
+                    <TableRow key={row.key}>
                       <TableCell className="font-medium">
-                        {task.name}
+                        {row.type === "task"
+                          ? row.task.name
+                          : row.expense.description}
                       </TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                          {t("projects.expenses.task")}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Money value={task.cost} />
-                      </TableCell>
-                      <TableCell>
-                        {task.createdAt
-                          ? new Date(
-                              task.createdAt
-                            ).toLocaleDateString()
-                          : "—"}
-                      </TableCell>
-                      {(canEdit || canDelete) && (
-                        <TableCell>
-                          <ActionMenu
-                            entityName={task.name}
-                            onEdit={
-                              canEdit
-                                ? () => openEditTask(task)
-                                : undefined
-                            }
-                            onDelete={() => handleDeleteTask(task.id)}
-                            canEdit={canEdit}
-                            canDelete={canDelete}
-                          />
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                  {expenses.map((expense) => (
-                    <TableRow key={expense.id}>
-                      <TableCell className="font-medium">
-                        {expense.description}
-                      </TableCell>
-                      <TableCell>
-                        {expense.categorySlug ? (
-                          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
+                        {row.type === "task" ? (
+                          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                            {t("projects.expenses.task")}
+                          </Badge>
+                        ) : row.expense.categorySlug ? (
+                          <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
                             {t.has(
-                              `categoryNames.${expense.categorySlug}`
+                              `categoryNames.${row.expense.categorySlug}`
                             )
                               ? t(
-                                  `categoryNames.${expense.categorySlug}`
+                                  `categoryNames.${row.expense.categorySlug}`
                                 )
-                              : expense.categoryName}
-                          </span>
+                              : row.expense.categoryName}
+                          </Badge>
                         ) : (
                           "—"
                         )}
                       </TableCell>
                       <TableCell>
-                        <Money value={expense.amount} />
+                        {row.type === "task" ? (
+                          <Money value={row.task.cost} />
+                        ) : (
+                          <Money value={row.expense.amount} />
+                        )}
                       </TableCell>
-                      <TableCell>{expense.expenseDate}</TableCell>
+                      <TableCell>{row.date}</TableCell>
                       {(canEdit || canDelete) && (
                         <TableCell>
                           <ActionMenu
-                            entityName={expense.description}
+                            entityName={
+                              row.type === "task"
+                                ? row.task.name
+                                : row.expense.description
+                            }
                             onEdit={
                               canEdit
-                                ? () => openEdit(expense)
+                                ? () =>
+                                    row.type === "task"
+                                      ? openEditTask(row.task)
+                                      : openEdit(row.expense)
                                 : undefined
                             }
                             onDelete={() =>
-                              handleDeleteExpense(expense.id)
+                              row.type === "task"
+                                ? handleDeleteTask(row.task.id)
+                                : handleDeleteExpense(row.expense.id)
                             }
                             canEdit={canEdit}
                             canDelete={canDelete}

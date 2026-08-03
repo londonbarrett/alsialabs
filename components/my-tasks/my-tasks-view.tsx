@@ -3,6 +3,7 @@
 import { PageHeader } from "@/components/common/page-header"
 import { MyTasksList } from "@/components/my-tasks/my-tasks-list"
 import { taskStatusColors } from "@/components/projects/task-status-select"
+import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -94,7 +95,11 @@ export function MyTasksView({
     status: string
   ) {
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: status as MyTask["status"] } : t))
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, status: status as MyTask["status"] }
+          : t
+      )
     )
     showLoading()
     try {
@@ -150,11 +155,9 @@ export function MyTasksView({
             </SelectItem>
             {allTaskStatuses.map((s) => (
               <SelectItem key={s} value={s}>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${taskStatusColors[s]}`}
-                >
+                <Badge className={taskStatusColors[s]}>
                   {t(`projects.tasks.status.${s}`)}
-                </span>
+                </Badge>
               </SelectItem>
             ))}
           </SelectContent>

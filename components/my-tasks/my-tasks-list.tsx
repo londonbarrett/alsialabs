@@ -2,11 +2,13 @@
 
 import { Money } from "@/components/common/money"
 import { TaskCommentsPanel } from "@/components/projects/task-comments-panel"
+import { taskPriorityColors } from "@/components/projects/task-priority-select"
 import {
   TaskStatusSelect,
   taskStatusColors,
 } from "@/components/projects/task-status-select"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
@@ -68,6 +70,9 @@ export function MyTasksList({
                   <TableHead scope="col">
                     {t("myTasks.statusLabel")}
                   </TableHead>
+                  <TableHead scope="col">
+                    {t("projects.tasks.priorityLabel")}
+                  </TableHead>
                   <TableHead scope="col">{t("myTasks.cost")}</TableHead>
                   <TableHead scope="col" className="w-12" />
                 </TableRow>
@@ -98,13 +103,9 @@ export function MyTasksList({
                         const allowed = getTaskAllowedStatuses(task)
                         if (!allowed) {
                           return (
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${taskStatusColors[task.status]}`}
-                            >
-                              {t(
-                                `projects.tasks.status.${task.status}`
-                              )}
-                            </span>
+                            <Badge className={taskStatusColors[task.status]}>
+                              {t(`projects.tasks.status.${task.status}`)}
+                            </Badge>
                           )
                         }
                         return (
@@ -117,6 +118,17 @@ export function MyTasksList({
                           />
                         )
                       })()}
+                    </TableCell>
+                    <TableCell>
+                      {task.priority ? (
+                        <Badge className={taskPriorityColors[task.priority]}>
+                          {t(`projects.tasks.priority.${task.priority}`)}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {t("projects.tasks.priority.none")}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {task.cost ? (

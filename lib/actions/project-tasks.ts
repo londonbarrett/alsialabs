@@ -30,6 +30,7 @@ const taskSchema = z.object({
     .enum(["todo", "in_progress", "in_review", "blocked", "done"])
     .optional()
     .default("todo"),
+  priority: z.enum(["urgent", "high"]).nullable().optional(),
   assigneeId: z.string().nullable().optional(),
 })
 
@@ -122,6 +123,7 @@ export async function getProjectTasks(projectId: string) {
       description: projectTasksTable.description,
       cost: projectTasksTable.cost,
       status: projectTasksTable.status,
+      priority: projectTasksTable.priority,
       assigneeId: projectTasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       createdAt: projectTasksTable.createdAt,
@@ -179,7 +181,8 @@ export async function upsertTask(
     }
   }
 
-  const { name, description, cost, status, assigneeId } = parsed.data
+  const { name, description, cost, status, priority, assigneeId } =
+    parsed.data
 
   let taskRow: typeof projectTasksTable.$inferSelect
 
@@ -191,6 +194,7 @@ export async function upsertTask(
         description: description || null,
         cost: cost || null,
         status,
+        priority: priority ?? null,
         assigneeId: assigneeId ?? null,
       })
       .where(
@@ -210,6 +214,7 @@ export async function upsertTask(
         description: description || null,
         cost: cost || null,
         status,
+        priority: priority ?? null,
         assigneeId: assigneeId ?? null,
       })
       .returning()
@@ -253,7 +258,10 @@ export async function updateTaskStatus(
   )
 
   const currentTask = await db
-    .select({ status: projectTasksTable.status, assigneeId: projectTasksTable.assigneeId })
+    .select({
+      status: projectTasksTable.status,
+      assigneeId: projectTasksTable.assigneeId,
+    })
     .from(projectTasksTable)
     .where(
       and(
@@ -305,6 +313,56 @@ export async function updateTaskStatus(
         )
       )
   }
+
+  revalidatePath(`/dashboard/projects/${projectId}`)
+  return { success: true as const }
+}
+
+const taskPrioritySchema = z.enum(["urgent", "high"]).nullable()
+
+export async function updateTaskPriority(
+  taskId: string,
+  projectId: string,
+  priority: string | null
+) {
+  const t = await getActionT("actions.projects")
+
+  const session = await auth()
+  if (!session?.user)
+    return { success: false as const, error: t("unauthorized") }
+
+  const access = await verifyProjectAccess(
+    projectId,
+    session.user.id,
+    session.user.role ?? null
+  )
+  if (!access.hasAccess)
+    return { success: false as const, error: t("notFound") }
+
+  if (!access.isOwner) {
+    return { success: false as const, error: t("forbidden") }
+  }
+
+  try {
+    await requirePermission("projects", "edit")
+  } catch {
+    return { success: false as const, error: t("forbidden") }
+  }
+
+  const parsed = taskPrioritySchema.safeParse(priority)
+  if (!parsed.success) {
+    return { success: false as const, error: t("validationFailed") }
+  }
+
+  await db
+    .update(projectTasksTable)
+    .set({ priority: parsed.data })
+    .where(
+      and(
+        eq(projectTasksTable.id, taskId),
+        eq(projectTasksTable.projectId, projectId)
+      )
+    )
 
   revalidatePath(`/dashboard/projects/${projectId}`)
   return { success: true as const }
@@ -436,6 +494,7 @@ export async function getMyTasks(
       description: projectTasksTable.description,
       cost: projectTasksTable.cost,
       status: projectTasksTable.status,
+      priority: projectTasksTable.priority,
       assigneeId: projectTasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       isOwner: sql<boolean>`coalesce((
