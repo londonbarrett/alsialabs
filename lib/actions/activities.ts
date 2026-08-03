@@ -1,13 +1,16 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
-import { db } from "@/lib/drizzle/client"
-import { clientActivitiesTable } from "@/lib/drizzle/schema"
-import { and, eq, desc } from "drizzle-orm"
-import { requirePermission, auth } from "@/lib/auth"
 import { getEffectiveStoreId } from "@/lib/actions/stores"
-import { z } from "zod"
+import { auth, requirePermission } from "@/lib/auth"
+import { db } from "@/lib/drizzle/client"
+import {
+  clientActivitiesTable,
+  type ClientActivity,
+} from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
+import { and, desc, eq } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
 
 const activityType = z.enum(["call", "email", "meeting", "note"])
 
@@ -45,6 +48,57 @@ export async function getClientActivities(clientId: string) {
     .from(clientActivitiesTable)
     .where(eq(clientActivitiesTable.clientId, clientId))
     .orderBy(desc(clientActivitiesTable.activityDate))
+}
+
+const activityPageSchema = z.object({
+  offset: z.number().int().min(0).default(0),
+  limit: z.number().int().min(1).max(50).default(5),
+})
+
+export interface ClientActivityPage {
+  activities: ClientActivity[]
+  hasMore: boolean
+}
+
+export async function getClientActivityPage(
+  clientId: string,
+  page: { offset?: number; limit?: number } = {}
+): Promise<ClientActivityPage> {
+  try {
+    await requirePermission("client-activity", "view")
+  } catch {
+    return { activities: [], hasMore: false }
+  }
+
+  const parsed = activityPageSchema.safeParse({
+    offset: page.offset,
+    limit: page.limit,
+  })
+  if (!parsed.success) return { activities: [], hasMore: false }
+
+  const { offset, limit } = parsed.data
+  const storeId = await getEffectiveStoreId()
+  const conditions = [eq(clientActivitiesTable.clientId, clientId)]
+  if (storeId) {
+    conditions.push(eq(clientActivitiesTable.store_id, storeId))
+  }
+
+  const rows = await db
+    .select()
+    .from(clientActivitiesTable)
+    .where(and(...conditions))
+    .orderBy(
+      desc(clientActivitiesTable.activityDate),
+      desc(clientActivitiesTable.createdAt),
+      desc(clientActivitiesTable.id)
+    )
+    .limit(limit + 1)
+    .offset(offset)
+
+  return {
+    activities: rows.slice(0, limit),
+    hasMore: rows.length > limit,
+  }
 }
 
 export async function upsertActivity(

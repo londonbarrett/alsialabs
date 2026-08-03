@@ -512,6 +512,7 @@
     "phone": "Phone",
     "location": "Location",
     "lastInvoice": "Last Invoice",
+    "activities": "Activity",
     "never": "Never",
     "allClientsActive": "All clients are active.",
     "actions": "Actions",
@@ -521,7 +522,14 @@
     "noClientRevenue": "No client revenue data yet.",
     "quantity": "units",
     "edit": "Edit",
-    "markAsDone": "Done"
+    "markAsDone": "Done",
+    "recentActivity": "Recent Activity",
+    "toggleActivities": "Show or hide activities for {name}",
+    "loadingActivities": "Loading activities...",
+    "loadMoreActivities": "Load more",
+    "noActivities": "No activities registered.",
+    "resultCount": "{count, plural, =0 {0 results} =1 {1 result} other {# results}}",
+    "period": "Period"
   },
   "users": {
     "title": "Users",

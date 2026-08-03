@@ -3,7 +3,11 @@
 import { auth, requirePermission } from "@/lib/auth"
 import { getEffectiveStoreId } from "@/lib/actions/stores"
 import { db } from "@/lib/drizzle/client"
-import { clientsTable, invoicesTable } from "@/lib/drizzle/schema"
+import {
+  clientActivitiesTable,
+  clientsTable,
+  invoicesTable,
+} from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
 import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
@@ -43,6 +47,10 @@ export async function getInactiveClients(days: number | null) {
       comments: clientsTable.comments,
       userId: clientsTable.userId,
       lastInvoiceDate: sql<string>`max(${invoicesTable.issueDate})`,
+      activityCount: sql<number>`(
+        select count(*) from ${clientActivitiesTable}
+        where ${clientActivitiesTable.clientId} = ${clientsTable.id}
+      )`,
     })
     .from(clientsTable)
     .leftJoin(
