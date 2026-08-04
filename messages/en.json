@@ -64,7 +64,8 @@
   "store": {
     "selectStore": "Select store...",
     "allStores": "All Stores",
-    "switchStore": "Switch store"
+    "switchStore": "Switch store",
+    "count": "{count, plural, one {# store} other {# stores}}"
   },
   "breadcrumb": {
     "dashboard": "Dashboard",

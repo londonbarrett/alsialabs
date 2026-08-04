@@ -64,7 +64,8 @@
   "store": {
     "selectStore": "Seleccionar tienda...",
     "allStores": "Todas las tiendas",
-    "switchStore": "Cambiar tienda"
+    "switchStore": "Cambiar tienda",
+    "count": "{count, plural, one {# tienda} other {# tiendas}}"
   },
   "breadcrumb": {
     "dashboard": "Panel",
