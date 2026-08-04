@@ -40,6 +40,25 @@ The system shall highlight menu items when clicked and stay on the home route.
 - **THEN** the item is highlighted as active
 - **THEN** the user stays on the home route
 
+#### Scenario: Subpage keeps parent highlighted
+- **GIVEN** the user is on a subroute of a sidebar item (e.g., `/dashboard/projects/123`)
+- **WHEN** the sidebar renders
+- **THEN** the parent nav item (e.g., Projects) is highlighted as active
+
+### Requirement: Store switcher
+The store section of the sidebar SHALL include a store switcher that lets the user pick the active store. The switcher SHALL be a dropdown menu whose trigger shows the active store name and total store count. When the sidebar is collapsed, the switcher SHALL render as a compact icon-only button.
+
+#### Scenario: Switch active store
+- **GIVEN** a user with access to multiple stores
+- **WHEN** the user opens the store switcher dropdown
+- **THEN** all accessible stores are listed
+- **AND** selecting a store makes it the active store
+
+#### Scenario: Collapsed store switcher
+- **GIVEN** the sidebar is collapsed
+- **WHEN** the store switcher renders
+- **THEN** only its icon is displayed
+
 ### Requirement: Collapse sidebar
 The system shall allow the user to collapse the sidebar to icons-only.
 
