@@ -16,6 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { getSidebarMenu, type SidebarItem } from "@/config/sidebar-menu"
 import { useTranslations } from "next-intl"
@@ -39,6 +40,7 @@ export function AppSidebar({
 }) {
   const t = useTranslations("sidebar")
   const pathname = usePathname()
+  const { isMobile, setOpenMobile } = useSidebar()
 
   const sidebarMenu = getSidebarMenu(role, permissions)
 
@@ -73,7 +75,7 @@ export function AppSidebar({
                           pathname.startsWith(`${item.url}/`)
                         }
                       >
-                        <Link href={item.url}>
+                        <Link href={item.url} onClick={() => isMobile && setOpenMobile(false)}>
                           <Icon />
                           <span>{t(item.label)}</span>
                         </Link>

@@ -76,6 +76,12 @@ All menu items shall display an icon.
 ### Requirement: Responsive sidebar
 The sidebar shall adapt its layout on mobile viewports.
 
+#### Scenario: Nav item closes mobile sidebar
+- **GIVEN** the sidebar is open as a mobile overlay
+- **WHEN** the user clicks a navigation item
+- **THEN** the sidebar closes automatically
+- **AND** the user is taken to the selected route
+
 ### Requirement: Keyboard navigation
 The sidebar shall be fully keyboard navigable.
 
