@@ -305,7 +305,16 @@ The system SHALL allow owners to manage expenses on the expenses subpage (`/dash
 
 ### Requirement: Task comments
 
-The system SHALL allow project members (owners and collaborators) to have conversations on tasks. Comments are displayed in a slide-over Sheet panel. Only the comment author or project owners can delete comments. Only the comment author can edit their own comments.
+The system SHALL allow project members (owners and collaborators) and task assignees to have conversations on tasks. Comments are displayed in a slide-over Sheet panel. Only the comment author or project owners can delete comments. Only the comment author can edit their own comments. Comment operations (add, edit, delete) use optimistic updates with the global loading indicator during server requests and success toasts on completion.
+
+#### Scenario: Assignee who is not a project member can comment
+
+- **GIVEN** a user who is assigned to a task but is not an owner or collaborator of the project
+- **WHEN** the user opens the comments panel for that task from My Tasks
+- **THEN** the comments are loaded and shown
+- **AND** the user can add comments
+- **AND** the user can edit their own comments
+- **AND** the user can delete their own comments
 
 #### Scenario: Open comments panel via button
 
@@ -323,8 +332,7 @@ The system SHALL allow project members (owners and collaborators) to have conver
 
 - **GIVEN** a user with the comments panel open
 - **WHEN** the panel header is displayed
-- **THEN** the project name is shown as description text (muted)
-- **AND** the task name is shown as the title (bold, with MessageSquare icon)
+- **THEN** the task name is shown as the title
 - **AND** the task description is shown below as muted text
 
 #### Scenario: View comments
@@ -340,6 +348,8 @@ The system SHALL allow project members (owners and collaborators) to have conver
 - **GIVEN** a user with the comments panel open
 - **WHEN** the user types a comment and clicks Send (or presses Enter)
 - **THEN** the comment appears immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the comment was added
 - **AND** the comment count on the task row increments
 
 #### Scenario: Edit own comment in place
@@ -352,6 +362,8 @@ The system SHALL allow project members (owners and collaborators) to have conver
 - **AND** Save and Cancel buttons appear below the textarea
 - **WHEN** the user modifies the content and clicks Save (or presses Enter)
 - **THEN** the comment is updated immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the comment was updated
 - **AND** "(edited)" appears in the timestamp
 - **WHEN** the user clicks Cancel (or presses Escape)
 - **THEN** the edit is discarded and the original content is shown
@@ -369,6 +381,8 @@ The system SHALL allow project members (owners and collaborators) to have conver
 - **THEN** a trash (delete) icon appears
 - **WHEN** the user clicks the delete icon
 - **THEN** the comment is removed immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the comment was deleted
 - **AND** the comment count on the task row decrements
 
 #### Scenario: Owner deletes any comment

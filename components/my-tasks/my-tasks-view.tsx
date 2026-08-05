@@ -12,11 +12,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type { MyTask } from "@/lib/actions/project-tasks"
+import type { MyTask } from "@/lib/actions/tasks"
 import {
   getMyTasks,
   updateTaskStatus,
-} from "@/lib/actions/project-tasks"
+} from "@/lib/actions/tasks"
 import { ListTodo } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useMemo, useState, useTransition } from "react"

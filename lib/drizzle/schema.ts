@@ -130,7 +130,7 @@ export type InvoicePayment = typeof invoicePaymentsTable.$inferSelect
 export type Taxonomy = typeof taxonomyTable.$inferSelect
 export type Category = typeof categoryTable.$inferSelect
 export type Project = typeof projectsTable.$inferSelect
-export type ProjectTask = typeof projectTasksTable.$inferSelect
+export type Task = typeof tasksTable.$inferSelect
 export type TaskComment = typeof taskCommentsTable.$inferSelect
 export type Expense = typeof expensesTable.$inferSelect
 export type ProjectOwner = typeof projectOwnersTable.$inferSelect
@@ -403,7 +403,7 @@ export const projectsTable = pgTable("project", {
     .$onUpdate(() => new Date()),
 })
 
-export const projectTasksTable = pgTable("project_task", {
+export const tasksTable = pgTable("task", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -436,7 +436,7 @@ export const taskCommentsTable = pgTable("task_comment", {
     .$defaultFn(() => crypto.randomUUID()),
   taskId: text("task_id")
     .notNull()
-    .references(() => projectTasksTable.id, { onDelete: "cascade" }),
+    .references(() => tasksTable.id, { onDelete: "cascade" }),
   authorId: text("author_id")
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" }),

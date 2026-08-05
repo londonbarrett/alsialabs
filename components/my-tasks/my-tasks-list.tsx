@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { MyTask } from "@/lib/actions/project-tasks"
+import type { MyTask } from "@/lib/actions/tasks"
 import { MessageSquare } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -161,7 +161,6 @@ export function MyTasksList({
         <TaskCommentsPanel
           taskId={commentsTask.id}
           taskName={commentsTask.name}
-          projectName={commentsTask.projectName}
           description={commentsTask.description}
           open={!!commentsTask}
           onOpenChange={(open) => {

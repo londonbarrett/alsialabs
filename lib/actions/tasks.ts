@@ -5,7 +5,7 @@ import { db } from "@/lib/drizzle/client"
 import {
   projectCollaboratorsTable,
   projectOwnersTable,
-  projectTasksTable,
+  tasksTable,
   projectsTable,
   taskCommentsTable,
   usersTable,
@@ -88,7 +88,7 @@ async function verifyProjectAccess(
   return { hasAccess: false, isOwner: false }
 }
 
-export async function getProjectTasks(projectId: string) {
+export async function getTasks(projectId: string) {
   const t = await getActionT("actions.projects")
   try {
     await requirePermission("projects", "view")
@@ -117,30 +117,30 @@ export async function getProjectTasks(projectId: string) {
 
   return db
     .select({
-      id: projectTasksTable.id,
-      projectId: projectTasksTable.projectId,
-      name: projectTasksTable.name,
-      description: projectTasksTable.description,
-      cost: projectTasksTable.cost,
-      status: projectTasksTable.status,
-      priority: projectTasksTable.priority,
-      assigneeId: projectTasksTable.assigneeId,
+      id: tasksTable.id,
+      projectId: tasksTable.projectId,
+      name: tasksTable.name,
+      description: tasksTable.description,
+      cost: tasksTable.cost,
+      status: tasksTable.status,
+      priority: tasksTable.priority,
+      assigneeId: tasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
-      createdAt: projectTasksTable.createdAt,
-      updatedAt: projectTasksTable.updatedAt,
+      createdAt: tasksTable.createdAt,
+      updatedAt: tasksTable.updatedAt,
       commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
     })
-    .from(projectTasksTable)
+    .from(tasksTable)
     .leftJoin(
       commentCounts,
-      eq(projectTasksTable.id, commentCounts.taskId)
+      eq(tasksTable.id, commentCounts.taskId)
     )
     .leftJoin(
       usersTable,
-      eq(projectTasksTable.assigneeId, usersTable.id)
+      eq(tasksTable.assigneeId, usersTable.id)
     )
-    .where(eq(projectTasksTable.projectId, projectId))
-    .orderBy(desc(projectTasksTable.createdAt))
+    .where(eq(tasksTable.projectId, projectId))
+    .orderBy(desc(tasksTable.createdAt))
 }
 
 export async function upsertTask(
@@ -184,11 +184,11 @@ export async function upsertTask(
   const { name, description, cost, status, priority, assigneeId } =
     parsed.data
 
-  let taskRow: typeof projectTasksTable.$inferSelect
+  let taskRow: typeof tasksTable.$inferSelect
 
   if (taskId) {
     const rows = await db
-      .update(projectTasksTable)
+      .update(tasksTable)
       .set({
         name,
         description: description || null,
@@ -199,15 +199,15 @@ export async function upsertTask(
       })
       .where(
         and(
-          eq(projectTasksTable.id, taskId),
-          eq(projectTasksTable.projectId, projectId)
+          eq(tasksTable.id, taskId),
+          eq(tasksTable.projectId, projectId)
         )
       )
       .returning()
     taskRow = rows[0]
   } else {
     const rows = await db
-      .insert(projectTasksTable)
+      .insert(tasksTable)
       .values({
         projectId,
         name,
@@ -259,14 +259,14 @@ export async function updateTaskStatus(
 
   const currentTask = await db
     .select({
-      status: projectTasksTable.status,
-      assigneeId: projectTasksTable.assigneeId,
+      status: tasksTable.status,
+      assigneeId: tasksTable.assigneeId,
     })
-    .from(projectTasksTable)
+    .from(tasksTable)
     .where(
       and(
-        eq(projectTasksTable.id, taskId),
-        eq(projectTasksTable.projectId, projectId)
+        eq(tasksTable.id, taskId),
+        eq(tasksTable.projectId, projectId)
       )
     )
     .then((rows) => rows[0])
@@ -286,12 +286,12 @@ export async function updateTaskStatus(
       return { success: false as const, error: t("validationFailed") }
     }
     await db
-      .update(projectTasksTable)
+      .update(tasksTable)
       .set({ status: parsed.data })
       .where(
         and(
-          eq(projectTasksTable.id, taskId),
-          eq(projectTasksTable.projectId, projectId)
+          eq(tasksTable.id, taskId),
+          eq(tasksTable.projectId, projectId)
         )
       )
   } else {
@@ -304,12 +304,12 @@ export async function updateTaskStatus(
       return { success: false as const, error: t("validationFailed") }
     }
     await db
-      .update(projectTasksTable)
+      .update(tasksTable)
       .set({ status: parsed.data })
       .where(
         and(
-          eq(projectTasksTable.id, taskId),
-          eq(projectTasksTable.projectId, projectId)
+          eq(tasksTable.id, taskId),
+          eq(tasksTable.projectId, projectId)
         )
       )
   }
@@ -355,12 +355,12 @@ export async function updateTaskPriority(
   }
 
   await db
-    .update(projectTasksTable)
+    .update(tasksTable)
     .set({ priority: parsed.data })
     .where(
       and(
-        eq(projectTasksTable.id, taskId),
-        eq(projectTasksTable.projectId, projectId)
+        eq(tasksTable.id, taskId),
+        eq(tasksTable.projectId, projectId)
       )
     )
 
@@ -394,11 +394,11 @@ export async function deleteTask(taskId: string, projectId: string) {
   }
 
   await db
-    .delete(projectTasksTable)
+    .delete(tasksTable)
     .where(
       and(
-        eq(projectTasksTable.id, taskId),
-        eq(projectTasksTable.projectId, projectId)
+        eq(tasksTable.id, taskId),
+        eq(tasksTable.projectId, projectId)
       )
     )
 
@@ -427,7 +427,7 @@ export async function getMyTasks(
 
   const conditions = []
   if (!isSuper) {
-    conditions.push(eq(projectTasksTable.assigneeId, session.user.id))
+    conditions.push(eq(tasksTable.assigneeId, session.user.id))
   }
   if (statusFilter) {
     const validStatuses = [
@@ -444,14 +444,14 @@ export async function getMyTasks(
     ) {
       conditions.push(
         eq(
-          projectTasksTable.status,
+          tasksTable.status,
           statusFilter as (typeof validStatuses)[number]
         )
       )
     }
   }
   if (projectIdFilter) {
-    conditions.push(eq(projectTasksTable.projectId, projectIdFilter))
+    conditions.push(eq(tasksTable.projectId, projectIdFilter))
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
@@ -487,44 +487,44 @@ export async function getMyTasks(
 
   return db
     .select({
-      id: projectTasksTable.id,
-      projectId: projectTasksTable.projectId,
+      id: tasksTable.id,
+      projectId: tasksTable.projectId,
       projectName: sql<string>`concat(${projectsTable.name}, ' (', coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail}, '—'), ')')`,
-      name: projectTasksTable.name,
-      description: projectTasksTable.description,
-      cost: projectTasksTable.cost,
-      status: projectTasksTable.status,
-      priority: projectTasksTable.priority,
-      assigneeId: projectTasksTable.assigneeId,
+      name: tasksTable.name,
+      description: tasksTable.description,
+      cost: tasksTable.cost,
+      status: tasksTable.status,
+      priority: tasksTable.priority,
+      assigneeId: tasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       isOwner: sql<boolean>`coalesce((
         select true from ${projectOwnersTable}
-        where ${projectOwnersTable.projectId} = ${projectTasksTable.projectId}
+        where ${projectOwnersTable.projectId} = ${tasksTable.projectId}
         and ${projectOwnersTable.userId} = ${session.user.id}
         limit 1
       ), false)`,
       commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
-      createdAt: projectTasksTable.createdAt,
-      updatedAt: projectTasksTable.updatedAt,
+      createdAt: tasksTable.createdAt,
+      updatedAt: tasksTable.updatedAt,
     })
-    .from(projectTasksTable)
+    .from(tasksTable)
     .innerJoin(
       projectsTable,
-      eq(projectTasksTable.projectId, projectsTable.id)
+      eq(tasksTable.projectId, projectsTable.id)
     )
     .leftJoin(
       commentCounts,
-      eq(projectTasksTable.id, commentCounts.taskId)
+      eq(tasksTable.id, commentCounts.taskId)
     )
     .leftJoin(
       usersTable,
-      eq(projectTasksTable.assigneeId, usersTable.id)
+      eq(tasksTable.assigneeId, usersTable.id)
     )
     .leftJoin(
       primaryOwners,
-      eq(projectTasksTable.projectId, primaryOwners.projectId)
+      eq(tasksTable.projectId, primaryOwners.projectId)
     )
     .leftJoin(ownerUsers, eq(primaryOwners.userId, ownerUsers.userId))
     .where(where)
-    .orderBy(desc(projectTasksTable.createdAt))
+    .orderBy(desc(tasksTable.createdAt))
 }

@@ -349,6 +349,8 @@
         "addComment": "Agregar un comentario...",
         "send": "Enviar",
         "noComments": "Aún no hay comentarios",
+        "commentAdded": "Comentario agregado",
+        "commentUpdated": "Comentario actualizado",
         "commentDeleted": "Comentario eliminado",
         "edited": "editado",
         "deleteConfirm": "¿Eliminar este comentario?"

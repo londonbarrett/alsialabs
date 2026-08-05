@@ -349,6 +349,8 @@
         "addComment": "Add a comment...",
         "send": "Send",
         "noComments": "No comments yet",
+        "commentAdded": "Comment added",
+        "commentUpdated": "Comment updated",
         "commentDeleted": "Comment deleted",
         "edited": "edited",
         "deleteConfirm": "Delete this comment?"

@@ -1,7 +1,7 @@
 "use client"
 
 import { Dialog } from "@/components/common/dialog"
-import type { ProjectTask } from "@/lib/drizzle/schema"
+import type { Task } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 import { TaskForm } from "./task-form"
 
@@ -13,7 +13,7 @@ interface ProjectMember {
 }
 
 interface TaskDialogProps {
-  task?: ProjectTask
+  task?: Task
   projectMembers: ProjectMember[]
   open: boolean
   onOpenChange: (open: boolean) => void

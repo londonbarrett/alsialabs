@@ -8,7 +8,7 @@ import {
   projectCollaboratorsTable,
   projectOwnersTable,
   projectsTable,
-  projectTasksTable,
+  tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
@@ -182,13 +182,13 @@ export async function getProjectsWithDetails() {
   ] = await Promise.all([
     db
       .select({
-        projectId: projectTasksTable.projectId,
+        projectId: tasksTable.projectId,
         total: sql<number>`count(*)`,
-        completed: sql<number>`count(*) filter (where ${projectTasksTable.status} = 'done')`,
+        completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'done')`,
       })
-      .from(projectTasksTable)
-      .where(inArray(projectTasksTable.projectId, projectIds))
-      .groupBy(projectTasksTable.projectId),
+      .from(tasksTable)
+      .where(inArray(tasksTable.projectId, projectIds))
+      .groupBy(tasksTable.projectId),
 
     db
       .select({
@@ -201,33 +201,33 @@ export async function getProjectsWithDetails() {
 
     db
       .select({
-        projectId: projectTasksTable.projectId,
-        total: sql<string>`coalesce(sum(${projectTasksTable.cost}), '0')`,
+        projectId: tasksTable.projectId,
+        total: sql<string>`coalesce(sum(${tasksTable.cost}), '0')`,
       })
-      .from(projectTasksTable)
-      .where(inArray(projectTasksTable.projectId, projectIds))
-      .groupBy(projectTasksTable.projectId),
+      .from(tasksTable)
+      .where(inArray(tasksTable.projectId, projectIds))
+      .groupBy(tasksTable.projectId),
 
     db
       .select({
-        id: projectTasksTable.id,
-        projectId: projectTasksTable.projectId,
-        name: projectTasksTable.name,
+        id: tasksTable.id,
+        projectId: tasksTable.projectId,
+        name: tasksTable.name,
         assigneeName: usersTable.name,
         assigneeImage: usersTable.image,
       })
-      .from(projectTasksTable)
+      .from(tasksTable)
       .leftJoin(
         usersTable,
-        eq(projectTasksTable.assigneeId, usersTable.id)
+        eq(tasksTable.assigneeId, usersTable.id)
       )
       .where(
         and(
-          inArray(projectTasksTable.projectId, projectIds),
-          inArray(projectTasksTable.status, inProgressStatuses)
+          inArray(tasksTable.projectId, projectIds),
+          inArray(tasksTable.status, inProgressStatuses)
         )
       )
-      .orderBy(projectTasksTable.createdAt)
+      .orderBy(tasksTable.createdAt)
       .limit(3),
 
     db

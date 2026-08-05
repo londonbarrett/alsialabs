@@ -24,8 +24,8 @@ import {
   updateTaskPriority,
   updateTaskStatus,
   upsertTask,
-} from "@/lib/actions/project-tasks"
-import type { ProjectTask } from "@/lib/drizzle/schema"
+} from "@/lib/actions/tasks"
+import type { Task } from "@/lib/drizzle/schema"
 import { ListTodo, MessageSquare, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useReducer, useState, useTransition } from "react"
@@ -38,7 +38,7 @@ import {
   taskStatusColors,
 } from "./task-status-select"
 
-export type ProjectTaskWithCommentCount = ProjectTask & {
+export type TaskWithCommentCount = Task & {
   commentCount: number
   assigneeName: string | null
 }
@@ -59,24 +59,24 @@ const collaboratorTaskStatuses = [
 ] as const
 
 type TaskAction =
-  | { type: "add"; task: ProjectTaskWithCommentCount }
-  | { type: "update"; task: ProjectTaskWithCommentCount }
+  | { type: "add"; task: TaskWithCommentCount }
+  | { type: "update"; task: TaskWithCommentCount }
   | {
       type: "replaceTemp"
       tempId: string
-      task: ProjectTaskWithCommentCount
+      task: TaskWithCommentCount
     }
   | { type: "delete"; taskId: string }
   | { type: "updateStatus"; taskId: string; status: string }
   | { type: "updatePriority"; taskId: string; priority: string | null }
   | { type: "updateCommentCount"; taskId: string; delta: number }
-  | { type: "reset"; tasks: ProjectTaskWithCommentCount[] }
+  | { type: "reset"; tasks: TaskWithCommentCount[] }
 
 // TODO: Move reducer to another file
 function taskReducer(
-  state: ProjectTaskWithCommentCount[],
+  state: TaskWithCommentCount[],
   action: TaskAction
-): ProjectTaskWithCommentCount[] {
+): TaskWithCommentCount[] {
   switch (action.type) {
     case "add":
       return [action.task, ...state]
@@ -95,8 +95,7 @@ function taskReducer(
         t.id === action.taskId
           ? {
               ...t,
-              status:
-                action.status as ProjectTaskWithCommentCount["status"],
+              status: action.status as TaskWithCommentCount["status"],
             }
           : t
       )
@@ -106,7 +105,7 @@ function taskReducer(
           ? {
               ...t,
               priority:
-                action.priority as ProjectTaskWithCommentCount["priority"],
+                action.priority as TaskWithCommentCount["priority"],
             }
           : t
       )
@@ -131,10 +130,9 @@ interface ProjectMember {
   userImage: string | null
 }
 
-interface ProjectTasksProps {
-  initialTasks: ProjectTaskWithCommentCount[]
+interface TasksCardProps {
+  initialTasks: TaskWithCommentCount[]
   projectId: string
-  projectName: string
   canEdit: boolean
   isOwner: boolean
   isCollaborator: boolean
@@ -143,33 +141,30 @@ interface ProjectTasksProps {
   projectMembers: ProjectMember[]
 }
 
-export function ProjectTasks({
+export function TasksCard({
   initialTasks,
   projectId,
-  projectName,
   canEdit,
   isOwner,
   isCollaborator,
   currentUserId,
   permissions,
   projectMembers,
-}: ProjectTasksProps) {
+}: TasksCardProps) {
   const t = useTranslations()
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const [tasks, dispatch] = useReducer(taskReducer, initialTasks)
   const [, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingTask, setEditingTask] = useState<
-    ProjectTask | undefined
-  >()
+  const [editingTask, setEditingTask] = useState<Task | undefined>()
   const [commentsTask, setCommentsTask] = useState<
-    ProjectTaskWithCommentCount | undefined
+    TaskWithCommentCount | undefined
   >()
   const canMutate =
     isOwner && (canEdit || permissions.includes("projects:delete"))
 
-  function getTaskAllowedStatuses(task: ProjectTask) {
+  function getTaskAllowedStatuses(task: Task) {
     if (isOwner) return allTaskStatuses
     if (task.status === "done") return null
     if (isCollaborator && task.assigneeId === currentUserId)
@@ -177,7 +172,7 @@ export function ProjectTasks({
     return null
   }
 
-  function getAssigneeName(task: ProjectTaskWithCommentCount) {
+  function getAssigneeName(task: TaskWithCommentCount) {
     return task.assigneeName || task.assigneeId
   }
 
@@ -200,7 +195,7 @@ export function ProjectTasks({
       | "done"
     const taskPriority = data.priority as "urgent" | "high" | null
 
-    const optimisticTask: ProjectTaskWithCommentCount = {
+    const optimisticTask: TaskWithCommentCount = {
       id: editingTask?.id ?? `temp-${Date.now()}`,
       projectId,
       name: data.name,
@@ -234,7 +229,7 @@ export function ProjectTasks({
       const assignee = projectMembers.find(
         (m) => m.userId === result.data!.assigneeId
       )
-      const realTask: ProjectTaskWithCommentCount = {
+      const realTask: TaskWithCommentCount = {
         ...result.data!,
         assigneeName:
           assignee?.userName ??
@@ -271,7 +266,7 @@ export function ProjectTasks({
     setDialogOpen(true)
   }
 
-  function openEdit(task: ProjectTask) {
+  function openEdit(task: Task) {
     setEditingTask(task)
     setDialogOpen(true)
   }
@@ -497,7 +492,6 @@ export function ProjectTasks({
         <TaskCommentsPanel
           taskId={commentsTask.id}
           taskName={commentsTask.name}
-          projectName={projectName}
           description={commentsTask.description}
           open={!!commentsTask}
           onOpenChange={(open) => {

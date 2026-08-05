@@ -113,6 +113,13 @@
       "when": 1785638664432,
       "tag": "0015_add_task_priority",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1785893710795,
+      "tag": "0016_rename_project_task_to_task",
+      "breakpoints": true
     }
   ]
 }
