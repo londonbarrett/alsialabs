@@ -1,19 +1,13 @@
 "use client"
 
 import { Dialog } from "@/components/common/dialog"
-import type { Task } from "@/lib/drizzle/schema"
+import type { Routine } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
-import { TaskForm } from "./task-form"
+import type { ProjectMember } from "./routine-details-step"
+import { RoutineForm } from "./routine-form"
 
-interface ProjectMember {
-  userId: string
-  userName: string | null
-  userEmail: string | null
-  userImage: string | null
-}
-
-interface TaskDialogProps {
-  task?: Task
+interface RoutineDialogProps {
+  routine?: Routine
   projectMembers: ProjectMember[]
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -21,8 +15,12 @@ interface TaskDialogProps {
     name: string
     description: string
     cost: string
-    status: string
-    priority: string | null
+    recurrence: string
+    interval: string
+    daysOfWeek: string[]
+    time: string
+    startDate: string
+    endDate: string
     assigneeId: string | null
   }) => Promise<{
     success: boolean
@@ -31,24 +29,24 @@ interface TaskDialogProps {
   }>
 }
 
-export function TaskDialog({
-  task,
+export function RoutineDialog({
+  routine,
   projectMembers,
   open,
   onOpenChange,
   onSubmit,
-}: TaskDialogProps) {
-  const t = useTranslations("projects.tasks")
+}: RoutineDialogProps) {
+  const t = useTranslations("projects.routines")
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={task ? t("editTask") : t("addTask")}
-      description={task ? t("updateDetails") : t("fillDetails")}
+      title={routine ? t("editRoutine") : t("addRoutine")}
+      description={routine ? t("updateDetails") : t("fillDetails")}
       onInteractOutside={(e) => e.preventDefault()}
     >
-      <TaskForm
-        task={task}
+      <RoutineForm
+        routine={routine}
         projectMembers={projectMembers}
         onSubmit={onSubmit}
         onCancel={() => onOpenChange(false)}

@@ -14,19 +14,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import {
   createComment,
   deleteComment,
   getTaskComments,
   updateComment,
 } from "@/lib/actions/task-comments"
-import {
-  MessageSquare,
-  Pencil,
-  RefreshCw,
-  Send,
-  Trash2,
-} from "lucide-react"
+import { Pencil, RefreshCw, Send, Trash2 } from "lucide-react"
 import { useTranslations } from "next-intl"
 import {
   useCallback,
@@ -75,7 +70,6 @@ function commentReducer(
 interface TaskCommentsPanelProps {
   taskId: string
   taskName: string
-  projectName: string
   description?: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -110,7 +104,6 @@ function formatRelativeTime(date: Date) {
 export function TaskCommentsPanel({
   taskId,
   taskName,
-  projectName,
   description,
   open,
   onOpenChange,
@@ -119,6 +112,8 @@ export function TaskCommentsPanel({
   onCommentCountChange,
 }: TaskCommentsPanelProps) {
   const t = useTranslations()
+  const { start: startLoading, stop: stopLoading } =
+    useLoadingIndicator()
   const [comments, setComments] = useState<TaskCommentWithAuthor[]>([])
   const [optimisticComments, addOptimistic] = useOptimistic(
     comments,
@@ -145,7 +140,6 @@ export function TaskCommentsPanel({
 
   useEffect(() => {
     if (open) {
-      setLoading(true)
       startTransition(() => {
         fetchComments()
       })
@@ -158,7 +152,7 @@ export function TaskCommentsPanel({
     }
   }, [optimisticComments])
 
-  function handleSend() {
+  async function handleSend() {
     const content = newComment.trim()
     if (!content) return
 
@@ -177,25 +171,34 @@ export function TaskCommentsPanel({
     }
     setNewComment("")
 
-    startTransition(async () => {
+    startTransition(() => {
       addOptimistic({ type: "add", comment: tempComment })
-      const result = await createComment(taskId, content)
-      if (result.success) {
-        setComments((prev) => [...prev, result.data.comment])
-        onCommentCountChange?.(taskId, 1)
-      } else {
-        toast.error(result.error || t("common.somethingWentWrong"))
-      }
     })
+
+    startLoading()
+    const result = await createComment(taskId, content)
+    stopLoading()
+    if (result.success) {
+      setComments((prev) => [...prev, result.data.comment])
+      onCommentCountChange?.(taskId, 1)
+      toast.success(t("projects.tasks.comments.commentAdded"))
+    } else {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
   }
 
   function handleDelete(commentId: string) {
-    startTransition(async () => {
+    startTransition(() => {
       addOptimistic({ type: "delete", commentId })
-      const result = await deleteComment(commentId, taskId)
+    })
+
+    startLoading()
+    deleteComment(commentId, taskId).then((result) => {
+      stopLoading()
       if (result.success) {
         setComments((prev) => prev.filter((c) => c.id !== commentId))
         onCommentCountChange?.(taskId, -1)
+        toast.success(t("projects.tasks.comments.commentDeleted"))
       } else {
         toast.error(result.error || t("common.somethingWentWrong"))
       }
@@ -212,30 +215,34 @@ export function TaskCommentsPanel({
     setEditContent("")
   }
 
-  function handleEditSave() {
+  async function handleEditSave() {
     if (!editingId || !editContent.trim()) return
 
     const content = editContent.trim()
     setEditingId(null)
     setEditContent("")
 
-    startTransition(async () => {
+    startTransition(() => {
       addOptimistic({
         type: "update",
         commentId: editingId,
         content,
       })
-      const result = await updateComment(editingId, taskId, content)
-      if (result.success) {
-        setComments((prev) =>
-          prev.map((c) =>
-            c.id === result.data.comment.id ? result.data.comment : c
-          )
-        )
-      } else {
-        toast.error(result.error || t("common.somethingWentWrong"))
-      }
     })
+
+    startLoading()
+    const result = await updateComment(editingId, taskId, content)
+    stopLoading()
+    if (result.success) {
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === result.data.comment.id ? result.data.comment : c
+        )
+      )
+      toast.success(t("projects.tasks.comments.commentUpdated"))
+    } else {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
   }
 
   function handleEditKeyDown(e: React.KeyboardEvent) {

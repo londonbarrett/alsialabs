@@ -1,14 +1,15 @@
 "use client"
 
 import { Money } from "@/components/common/money"
+import { ScheduledAt } from "@/components/projects/scheduled-at"
 import { TaskCommentsPanel } from "@/components/projects/task-comments-panel"
 import { taskPriorityColors } from "@/components/projects/task-priority-select"
 import {
   TaskStatusSelect,
   taskStatusColors,
 } from "@/components/projects/task-status-select"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
@@ -18,8 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { MyTask } from "@/lib/actions/project-tasks"
-import { MessageSquare } from "lucide-react"
+import type { MyTask } from "@/lib/actions/tasks"
+import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 
@@ -74,6 +75,9 @@ export function MyTasksList({
                     {t("projects.tasks.priorityLabel")}
                   </TableHead>
                   <TableHead scope="col">{t("myTasks.cost")}</TableHead>
+                  <TableHead scope="col">
+                    {t("projects.tasks.scheduled")}
+                  </TableHead>
                   <TableHead scope="col" className="w-12" />
                 </TableRow>
               </TableHeader>
@@ -85,7 +89,18 @@ export function MyTasksList({
                   >
                     <TableCell className="font-medium">
                       <div>
-                        <p>{task.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p>{task.name}</p>
+                          {task.routineId && (
+                            <Badge
+                              variant="outline"
+                              className="gap-1 text-xs"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              {t("projects.routines.routine")}
+                            </Badge>
+                          )}
+                        </div>
                         {task.description && (
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {task.description}
@@ -103,8 +118,12 @@ export function MyTasksList({
                         const allowed = getTaskAllowedStatuses(task)
                         if (!allowed) {
                           return (
-                            <Badge className={taskStatusColors[task.status]}>
-                              {t(`projects.tasks.status.${task.status}`)}
+                            <Badge
+                              className={taskStatusColors[task.status]}
+                            >
+                              {t(
+                                `projects.tasks.status.${task.status}`
+                              )}
                             </Badge>
                           )
                         }
@@ -121,8 +140,12 @@ export function MyTasksList({
                     </TableCell>
                     <TableCell>
                       {task.priority ? (
-                        <Badge className={taskPriorityColors[task.priority]}>
-                          {t(`projects.tasks.priority.${task.priority}`)}
+                        <Badge
+                          className={taskPriorityColors[task.priority]}
+                        >
+                          {t(
+                            `projects.tasks.priority.${task.priority}`
+                          )}
                         </Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">
@@ -135,6 +158,15 @@ export function MyTasksList({
                         <Money value={task.cost} />
                       ) : (
                         "\u2014"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {task.scheduledFor ? (
+                        <ScheduledAt date={task.scheduledFor} />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {"\u2014"}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -161,7 +193,6 @@ export function MyTasksList({
         <TaskCommentsPanel
           taskId={commentsTask.id}
           taskName={commentsTask.name}
-          projectName={commentsTask.projectName}
           description={commentsTask.description}
           open={!!commentsTask}
           onOpenChange={(open) => {

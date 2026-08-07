@@ -46,9 +46,9 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="flex items-center justify-center group-data-[collapsible=icon]:pt-4">
+      <SidebarHeader className="flex items-center justify-center group-data-[collapsible=icon]:pt-2">
         <Logo className="mt-4 h-auto w-40 fill-green-800 group-data-[collapsible=icon]:hidden dark:fill-emerald-500" />
-        <LogoSmall className="mt-2 hidden h-auto w-5 fill-green-800 group-data-[collapsible=icon]:block dark:fill-emerald-500" />
+        <LogoSmall className="hidden h-8 w-8 fill-green-800 group-data-[collapsible=icon]:block dark:fill-emerald-500" />
       </SidebarHeader>
       <SidebarContent>
         {sidebarMenu.map((section) => (
@@ -75,7 +75,12 @@ export function AppSidebar({
                           pathname.startsWith(`${item.url}/`)
                         }
                       >
-                        <Link href={item.url} onClick={() => isMobile && setOpenMobile(false)}>
+                        <Link
+                          href={item.url}
+                          onClick={() =>
+                            isMobile && setOpenMobile(false)
+                          }
+                        >
                           <Icon />
                           <span>{t(item.label)}</span>
                         </Link>

@@ -1,16 +1,15 @@
 "use server"
 
-import { auth, isSuperUser, requirePermission } from "@/lib/auth"
+import { verifyProjectAccess } from "@/lib/actions/project-access"
+import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
-  projectCollaboratorsTable,
-  projectOwnersTable,
-  projectTasksTable,
   taskCommentsTable,
+  tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
-import { and, asc, eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { z } from "zod"
 
 const commentSchema = z.object({
@@ -21,52 +20,18 @@ const commentSchema = z.object({
     .transform((v) => v.trim()),
 })
 
-async function verifyProjectAccess(
-  projectId: string,
-  sessionUserId: string,
-  sessionRole: string | null
-): Promise<{ hasAccess: boolean; isOwner: boolean }> {
-  const session = { user: { role: sessionRole } }
-  if (isSuperUser(session)) return { hasAccess: true, isOwner: true }
-
-  const owner = await db
-    .select()
-    .from(projectOwnersTable)
-    .where(
-      and(
-        eq(projectOwnersTable.projectId, projectId),
-        eq(projectOwnersTable.userId, sessionUserId)
-      )
-    )
-    .then((rows) => rows[0])
-
-  if (owner) return { hasAccess: true, isOwner: true }
-
-  const collaborator = await db
-    .select()
-    .from(projectCollaboratorsTable)
-    .where(
-      and(
-        eq(projectCollaboratorsTable.projectId, projectId),
-        eq(projectCollaboratorsTable.userId, sessionUserId)
-      )
-    )
-    .then((rows) => rows[0])
-
-  if (collaborator) return { hasAccess: true, isOwner: false }
-
-  return { hasAccess: false, isOwner: false }
-}
-
-async function getProjectIdForTask(
+async function getTaskContext(
   taskId: string
-): Promise<string | null> {
+): Promise<{ projectId: string; assigneeId: string | null } | null> {
   const task = await db
-    .select({ projectId: projectTasksTable.projectId })
-    .from(projectTasksTable)
-    .where(eq(projectTasksTable.id, taskId))
+    .select({
+      projectId: tasksTable.projectId,
+      assigneeId: tasksTable.assigneeId,
+    })
+    .from(tasksTable)
+    .where(eq(tasksTable.id, taskId))
     .then((rows) => rows[0])
-  return task?.projectId ?? null
+  return task ?? null
 }
 
 export async function getTaskComments(taskId: string) {
@@ -81,15 +46,16 @@ export async function getTaskComments(taskId: string) {
   const session = await auth()
   if (!session?.user) throw new Error(t("unauthorized"))
 
-  const projectId = await getProjectIdForTask(taskId)
-  if (!projectId) throw new Error(t("notFound"))
+  const task = await getTaskContext(taskId)
+  if (!task) throw new Error(t("notFound"))
 
   const access = await verifyProjectAccess(
-    projectId,
+    task.projectId,
     session.user.id,
     session.user.role ?? null
   )
-  if (!access.hasAccess) throw new Error(t("notFound"))
+  const isAssignee = task.assigneeId === session.user.id
+  if (!access.hasAccess && !isAssignee) throw new Error(t("notFound"))
 
   return db
     .select({
@@ -118,16 +84,16 @@ export async function createComment(taskId: string, content: string) {
   if (!session?.user)
     return { success: false as const, error: t("unauthorized") }
 
-  const projectId = await getProjectIdForTask(taskId)
-  if (!projectId)
-    return { success: false as const, error: t("notFound") }
+  const task = await getTaskContext(taskId)
+  if (!task) return { success: false as const, error: t("notFound") }
 
   const access = await verifyProjectAccess(
-    projectId,
+    task.projectId,
     session.user.id,
     session.user.role ?? null
   )
-  if (!access.hasAccess)
+  const isAssignee = task.assigneeId === session.user.id
+  if (!access.hasAccess && !isAssignee)
     return { success: false as const, error: t("notFound") }
 
   const parsed = commentSchema.safeParse({ taskId, content })
@@ -182,16 +148,16 @@ export async function updateComment(
   if (!session?.user)
     return { success: false as const, error: t("unauthorized") }
 
-  const projectId = await getProjectIdForTask(taskId)
-  if (!projectId)
-    return { success: false as const, error: t("notFound") }
+  const task = await getTaskContext(taskId)
+  if (!task) return { success: false as const, error: t("notFound") }
 
   const access = await verifyProjectAccess(
-    projectId,
+    task.projectId,
     session.user.id,
     session.user.role ?? null
   )
-  if (!access.hasAccess)
+  const isAssignee = task.assigneeId === session.user.id
+  if (!access.hasAccess && !isAssignee)
     return { success: false as const, error: t("notFound") }
 
   const parsed = commentSchema.safeParse({ taskId, content })
@@ -250,16 +216,16 @@ export async function deleteComment(commentId: string, taskId: string) {
   if (!session?.user)
     return { success: false as const, error: t("unauthorized") }
 
-  const projectId = await getProjectIdForTask(taskId)
-  if (!projectId)
-    return { success: false as const, error: t("notFound") }
+  const task = await getTaskContext(taskId)
+  if (!task) return { success: false as const, error: t("notFound") }
 
   const access = await verifyProjectAccess(
-    projectId,
+    task.projectId,
     session.user.id,
     session.user.role ?? null
   )
-  if (!access.hasAccess)
+  const isAssignee = task.assigneeId === session.user.id
+  if (!access.hasAccess && !isAssignee)
     return { success: false as const, error: t("notFound") }
 
   const comment = await db

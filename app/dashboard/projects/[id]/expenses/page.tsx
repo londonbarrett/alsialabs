@@ -1,7 +1,7 @@
 import { ProjectExpenses } from "@/components/projects/expenses/project-expenses"
 import { getCategoriesByTaxonomyList } from "@/lib/actions/categories"
 import { getExpensesByProjectId } from "@/lib/actions/expenses"
-import { getProjectTasks } from "@/lib/actions/project-tasks"
+import { getTasks } from "@/lib/actions/tasks"
 import { getProjectContext } from "@/lib/actions/project-context"
 
 interface Props {
@@ -21,7 +21,7 @@ export default async function ProjectExpensesPage({ params }: Props) {
 
   const [expenses, tasks, expenseCategories] = await Promise.all([
     getExpensesByProjectId(id).catch(() => []),
-    getProjectTasks(id),
+    getTasks(id),
     getCategoriesByTaxonomyList("expense"),
   ])
 

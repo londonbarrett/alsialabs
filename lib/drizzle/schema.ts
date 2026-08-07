@@ -130,7 +130,8 @@ export type InvoicePayment = typeof invoicePaymentsTable.$inferSelect
 export type Taxonomy = typeof taxonomyTable.$inferSelect
 export type Category = typeof categoryTable.$inferSelect
 export type Project = typeof projectsTable.$inferSelect
-export type ProjectTask = typeof projectTasksTable.$inferSelect
+export type Task = typeof tasksTable.$inferSelect
+export type Routine = typeof routinesTable.$inferSelect
 export type TaskComment = typeof taskCommentsTable.$inferSelect
 export type Expense = typeof expensesTable.$inferSelect
 export type ProjectOwner = typeof projectOwnersTable.$inferSelect
@@ -403,7 +404,7 @@ export const projectsTable = pgTable("project", {
     .$onUpdate(() => new Date()),
 })
 
-export const projectTasksTable = pgTable("project_task", {
+export const tasksTable = pgTable("task", {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -418,6 +419,41 @@ export const projectTasksTable = pgTable("project_task", {
     .default("todo")
     .$type<"todo" | "in_progress" | "in_review" | "blocked" | "done">(),
   priority: text("priority").$type<"urgent" | "high" | null>(),
+  routineId: text("routine_id").references(() => routinesTable.id, {
+    onDelete: "set null",
+  }),
+  scheduledFor: timestamp("scheduled_for", { mode: "date" }),
+  assigneeId: text("assignee_id").references(() => usersTable.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { mode: "date" })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
+export const routinesTable = pgTable("routine", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projectsTable.id, { onDelete: "cascade" }),
+  name: text().notNull(),
+  description: text(),
+  cost: decimal("cost", { precision: 10, scale: 2 }),
+  recurrence: text()
+    .notNull()
+    .default("weekly")
+    .$type<"daily" | "weekly">(),
+  interval: integer("interval").notNull().default(1),
+  daysOfWeek: text("days_of_week").array(),
+  time: text("time"),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
   assigneeId: text("assignee_id").references(() => usersTable.id, {
     onDelete: "set null",
   }),
@@ -436,7 +472,7 @@ export const taskCommentsTable = pgTable("task_comment", {
     .$defaultFn(() => crypto.randomUUID()),
   taskId: text("task_id")
     .notNull()
-    .references(() => projectTasksTable.id, { onDelete: "cascade" }),
+    .references(() => tasksTable.id, { onDelete: "cascade" }),
   authorId: text("author_id")
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" }),

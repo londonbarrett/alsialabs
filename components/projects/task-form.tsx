@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { ProjectTask } from "@/lib/drizzle/schema"
+import type { Task } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { TaskPrioritySelect } from "./task-priority-select"
@@ -31,7 +31,7 @@ interface ProjectMember {
 }
 
 interface TaskFormProps {
-  task?: ProjectTask
+  task?: Task
   projectMembers: ProjectMember[]
   onSubmit: (data: {
     name: string

@@ -251,6 +251,127 @@ The system SHALL allow owners to manage tasks on their projects. Tasks are manag
 - **WHEN** the user double-clicks anywhere on a task row
 - **THEN** the comments panel opens as a slide-over Sheet
 
+### Requirement: Routine management
+
+The system SHALL allow owners to manage recurring tasks (routines) on the routines subpage (`/dashboard/projects/[id]/routines`). A routine defines a name, description, cost, assignee, and a schedule; routines have no status and no priority. The schedule is captured in a two-step form (details, then scheduling) and supports two recurrences: `daily` (an "every N days" interval) and `weekly` (selected weekdays combined with an "every N weeks" interval). Each routine optionally stores a perform-at time (HH:MM) and an optional start/end date range that bounds the occurrences. Creating a routine immediately spawns its first task instance scheduled for the next occurrence (no earlier than the start date), and marking a routine-instance task as done automatically spawns the next instance scheduled after the completed instance (status `todo`, no priority) unless an open instance already exists or the next occurrence falls after the end date. Routine-instance tasks carry a `scheduledFor` datetime and are identified by a `routineId`, shown with a "Routine" badge and their schedule in the Tasks and My Tasks tables. Common routines can be started from static templates (irrigation, fertilization, pest monitoring, weeding, harvest).
+
+#### Scenario: View routines subpage
+
+- **GIVEN** a user with `projects:view` permission
+- **WHEN** the user navigates to `/dashboard/projects/[id]/routines`
+- **THEN** a Routines card is shown listing each routine with name, assignee, recurrence badge, schedule summary (cadence, selected days, time, date range), and cost
+
+#### Scenario: Create routine from template
+
+- **GIVEN** a user who is an owner of the project
+- **WHEN** the user clicks "Add Routine" in the routines card header
+- **THEN** a dialog opens with a two-step form (Details, then Scheduling)
+- **WHEN** the user picks a template
+- **THEN** the name, description, recurrence, interval, and selected days are pre-filled from the template
+- **WHEN** the user completes both steps and submits
+- **THEN** the routine is created and its first task instance appears in the task table with status "To Do"
+- **AND** the first instance is scheduled for the next occurrence computed from the schedule
+
+#### Scenario: Create custom routine
+
+- **GIVEN** a user who is an owner of the project
+- **WHEN** the user clicks "Add Routine" and fills in custom values
+- **THEN** a custom routine is created without a template
+
+#### Scenario: Schedule a weekly routine with multiple weekdays
+
+- **GIVEN** a user creating a routine
+- **WHEN** the user selects "Weekly" recurrence
+- **THEN** the user can toggle weekdays and set an "every N weeks" interval
+- **WHEN** the user selects weekdays and submits
+- **THEN** occurrences are computed on the selected weekdays with the configured cadence
+
+#### Scenario: Daily routine repeats every N days
+
+- **GIVEN** a user creating a routine
+- **WHEN** the user selects "Daily" recurrence
+- **THEN** no day selection is shown and an "every N days" interval input is available
+- **AND** the routine occurs once every N days
+
+#### Scenario: Schedule time is optional
+
+- **GIVEN** a user on the scheduling step
+- **WHEN** the user leaves the perform-at time empty and submits
+- **THEN** the routine is created and its instances are not assigned a scheduled date
+
+#### Scenario: Bound the routine with start and end dates
+
+- **GIVEN** a user creating a routine
+- **WHEN** the user sets a start date
+- **THEN** the first instance is not scheduled before the start date
+- **WHEN** the user sets a start date earlier than today
+- **THEN** a "start date cannot be in the past" error is shown and the routine is not created
+- **WHEN** the user sets an end date
+- **THEN** no new instance is spawned once the next occurrence would fall after the end date
+- **WHEN** the user sets an end date that is not in the future
+- **THEN** an "end date must be in the future" error is shown and the routine is not created
+- **WHEN** the user sets an end date earlier than the start date
+- **THEN** an "end date must be after start date" error is shown and the routine is not created
+
+#### Scenario: Date bounds are relaxed when editing
+
+- **GIVEN** an existing routine whose start date is in the past or whose end date has passed
+- **WHEN** an owner edits and saves the routine without changing those dates
+- **THEN** the routine is saved successfully
+- **AND** only the end-date-after-start-date consistency check still applies
+
+#### Scenario: Validate scheduling step
+
+- **GIVEN** a user on the scheduling step
+- **WHEN** the user selects a weekly recurrence without picking a day
+- **THEN** a "select at least one day" error is shown and the routine is not created
+
+#### Scenario: Edit routine
+
+- **GIVEN** a user who is an owner of the project
+- **WHEN** the user clicks "Edit" on a routine's action menu
+- **THEN** a dialog opens with the routine's current values pre-filled
+- **WHEN** the user modifies fields and submits
+- **THEN** the routine is updated via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the update
+
+#### Scenario: Delete routine
+
+- **GIVEN** a user who is an owner of the project
+- **WHEN** the user clicks "Delete" on a routine's action menu
+- **THEN** the routine is deleted
+- **AND** existing task instances remain but are no longer linked to a routine
+
+#### Scenario: Completing a routine task spawns the next instance
+
+- **GIVEN** a routine task that is assigned and open
+- **WHEN** an owner marks the task as done
+- **THEN** a new task instance is created with the routine's name, description, cost, and assignee
+- **AND** the new task has status "To Do" and no priority
+- **AND** the new task is scheduled for the next occurrence after the completed instance's scheduled date
+- **AND** the new task is prepended to the task table
+- **AND** a "next occurrence created" toast is shown
+
+#### Scenario: No duplicate open instances
+
+- **GIVEN** a routine that already has an open (non-done) task instance
+- **WHEN** the routine's next instance would be created
+- **THEN** no additional instance is created
+
+#### Scenario: Routine ends after its end date
+
+- **GIVEN** a routine with an end date
+- **WHEN** a routine-instance task is marked as done and the next occurrence would fall after the end date
+- **THEN** no new instance is created
+
+#### Scenario: Routine tasks are marked in lists
+
+- **GIVEN** a task created from a routine
+- **WHEN** the task is displayed in the Tasks table or My Tasks
+- **THEN** a "Routine" badge is shown next to the task name
+- **AND** the task's scheduled date and time are shown in the Scheduled column
+
 ### Requirement: Expense management
 
 The system SHALL allow owners to manage expenses on the expenses subpage (`/dashboard/projects/[id]/expenses`). The subpage shows a budget progress card (total spend = expense amounts + task costs compared against the project budget, with an over-budget indicator) and a table listing expense rows and task cost rows ordered by date (expense `expense_date` and task creation date). Owners can create, edit, and delete expenses, and can edit or delete task cost rows from the same table. Actions are granted via the `expenses:create`, `expenses:edit`, and `expenses:delete` permissions or project ownership rights.
@@ -305,7 +426,16 @@ The system SHALL allow owners to manage expenses on the expenses subpage (`/dash
 
 ### Requirement: Task comments
 
-The system SHALL allow project members (owners and collaborators) to have conversations on tasks. Comments are displayed in a slide-over Sheet panel. Only the comment author or project owners can delete comments. Only the comment author can edit their own comments.
+The system SHALL allow project members (owners and collaborators) and task assignees to have conversations on tasks. Comments are displayed in a slide-over Sheet panel. Only the comment author or project owners can delete comments. Only the comment author can edit their own comments. Comment operations (add, edit, delete) use optimistic updates with the global loading indicator during server requests and success toasts on completion.
+
+#### Scenario: Assignee who is not a project member can comment
+
+- **GIVEN** a user who is assigned to a task but is not an owner or collaborator of the project
+- **WHEN** the user opens the comments panel for that task from My Tasks
+- **THEN** the comments are loaded and shown
+- **AND** the user can add comments
+- **AND** the user can edit their own comments
+- **AND** the user can delete their own comments
 
 #### Scenario: Open comments panel via button
 
@@ -323,8 +453,7 @@ The system SHALL allow project members (owners and collaborators) to have conver
 
 - **GIVEN** a user with the comments panel open
 - **WHEN** the panel header is displayed
-- **THEN** the project name is shown as description text (muted)
-- **AND** the task name is shown as the title (bold, with MessageSquare icon)
+- **THEN** the task name is shown as the title
 - **AND** the task description is shown below as muted text
 
 #### Scenario: View comments
@@ -340,6 +469,8 @@ The system SHALL allow project members (owners and collaborators) to have conver
 - **GIVEN** a user with the comments panel open
 - **WHEN** the user types a comment and clicks Send (or presses Enter)
 - **THEN** the comment appears immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the comment was added
 - **AND** the comment count on the task row increments
 
 #### Scenario: Edit own comment in place
@@ -352,6 +483,8 @@ The system SHALL allow project members (owners and collaborators) to have conver
 - **AND** Save and Cancel buttons appear below the textarea
 - **WHEN** the user modifies the content and clicks Save (or presses Enter)
 - **THEN** the comment is updated immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the comment was updated
 - **AND** "(edited)" appears in the timestamp
 - **WHEN** the user clicks Cancel (or presses Escape)
 - **THEN** the edit is discarded and the original content is shown
@@ -369,6 +502,8 @@ The system SHALL allow project members (owners and collaborators) to have conver
 - **THEN** a trash (delete) icon appears
 - **WHEN** the user clicks the delete icon
 - **THEN** the comment is removed immediately via optimistic update
+- **AND** the global loading indicator shows during the server request
+- **AND** a success toast confirms the comment was deleted
 - **AND** the comment count on the task row decrements
 
 #### Scenario: Owner deletes any comment
@@ -407,7 +542,8 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 - **GIVEN** a user on the My Tasks page
 - **WHEN** the page loads
 - **THEN** a table is displayed with all tasks assigned to the current user
-- **AND** each row shows task name, project name (formatted as "Project (Owner)" for owner context), status, cost, and comment count
+- **AND** each row shows task name, project name (formatted as "Project (Owner)" for owner context), status, cost, comment count, and a Scheduled column with the task's scheduled date and time when set
+- **AND** tasks spawned by a routine show a "Routine" badge next to the task name
 
 #### Scenario: Filter tasks by status
 

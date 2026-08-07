@@ -24,8 +24,8 @@ import {
   deleteExpense,
   type ExpenseWithCategory,
 } from "@/lib/actions/expenses"
-import { deleteTask, upsertTask } from "@/lib/actions/project-tasks"
-import type { ProjectTask } from "@/lib/drizzle/schema"
+import { deleteTask, upsertTask } from "@/lib/actions/tasks"
+import type { Task } from "@/lib/drizzle/schema"
 import type { ProjectMember } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Plus, Receipt, Wallet } from "lucide-react"
@@ -37,11 +37,11 @@ import { TaskDialog } from "../task-dialog"
 import { ExpenseDialog } from "./expense-dialog"
 
 type TaskAction =
-  | { type: "add"; task: ProjectTask }
-  | { type: "update"; task: ProjectTask }
-  | { type: "replaceTemp"; tempId: string; task: ProjectTask }
+  | { type: "add"; task: Task }
+  | { type: "update"; task: Task }
+  | { type: "replaceTemp"; tempId: string; task: Task }
   | { type: "delete"; taskId: string }
-  | { type: "reset"; tasks: ProjectTask[] }
+  | { type: "reset"; tasks: Task[] }
 
 function formatDate(date: Date): string {
   const year = date.getFullYear()
@@ -50,10 +50,8 @@ function formatDate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-function taskReducer(
-  state: ProjectTask[],
-  action: TaskAction
-): ProjectTask[] {
+// TODO: Move reducer to separate file
+function taskReducer(state: Task[], action: TaskAction): Task[] {
   switch (action.type) {
     case "add":
       return [action.task, ...state]
@@ -74,7 +72,7 @@ function taskReducer(
 
 interface ProjectExpensesProps {
   expenses: ExpenseWithCategory[]
-  tasks: ProjectTask[]
+  tasks: Task[]
   projectId: string
   budget: string | null
   categories: { id: string; slug: string; name: string }[]
@@ -103,9 +101,7 @@ export function ProjectExpenses({
   const [editingExpense, setEditingExpense] = useState<
     ExpenseWithCategory | undefined
   >()
-  const [editingTask, setEditingTask] = useState<
-    ProjectTask | undefined
-  >()
+  const [editingTask, setEditingTask] = useState<Task | undefined>()
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
 
   function handleSuccess() {
@@ -133,7 +129,7 @@ export function ProjectExpenses({
       | "done"
     const taskPriority = data.priority as "urgent" | "high" | null
 
-    const optimisticTask: ProjectTask = {
+    const optimisticTask: Task = {
       id: editingTask?.id ?? `temp-${Date.now()}`,
       projectId,
       name: data.name,
@@ -141,6 +137,8 @@ export function ProjectExpenses({
       cost: data.cost || null,
       status: taskStatus,
       priority: taskPriority,
+      routineId: null,
+      scheduledFor: null,
       assigneeId: data.assigneeId,
       createdAt: editingTask?.createdAt ?? new Date(),
       updatedAt: new Date(),
@@ -191,7 +189,7 @@ export function ProjectExpenses({
     setDialogOpen(true)
   }
 
-  function openEditTask(task: ProjectTask) {
+  function openEditTask(task: Task) {
     setEditingTask(task)
     setTaskDialogOpen(true)
   }
