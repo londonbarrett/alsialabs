@@ -137,6 +137,8 @@ export function ProjectExpenses({
       cost: data.cost || null,
       status: taskStatus,
       priority: taskPriority,
+      routineId: null,
+      scheduledFor: null,
       assigneeId: data.assigneeId,
       createdAt: editingTask?.createdAt ?? new Date(),
       updatedAt: new Date(),

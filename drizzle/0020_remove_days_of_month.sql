@@ -1,0 +1,1 @@
+ALTER TABLE "routine" DROP COLUMN "days_of_month";

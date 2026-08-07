@@ -2,6 +2,8 @@
   "common": {
     "loading": "Cargando...",
     "cancel": "Cancelar",
+    "continue": "Continuar",
+    "back": "Atrás",
     "save": "Guardar",
     "saveChanges": "Guardar cambios",
     "create": "Crear",
@@ -252,6 +254,28 @@
     "project": "Categorías de Proyecto",
     "expense": "Categorías de Gasto"
   },
+  "routineTemplates": {
+    "irrigation": {
+      "name": "Riego",
+      "description": "Regar el área de cultivo siguiendo el calendario de riego."
+    },
+    "fertilization": {
+      "name": "Fertilización",
+      "description": "Aplicar fertilizante para mantener los nutrientes del suelo."
+    },
+    "pestMonitoring": {
+      "name": "Monitoreo de Plagas",
+      "description": "Inspeccionar los cultivos para detectar plagas e informar hallazgos."
+    },
+    "weeding": {
+      "name": "Deshierbe",
+      "description": "Eliminar las malezas de las áreas sembradas."
+    },
+    "harvest": {
+      "name": "Cosecha",
+      "description": "Recolectar los productos maduros y prepararlos para su procesamiento."
+    }
+  },
   "projects": {
     "title": "Proyectos",
     "portfolio": "Portafolio",
@@ -292,7 +316,8 @@
       "tabs": {
         "people": "Personas",
         "details": "Detalles",
-        "expenses": "Gastos"
+        "expenses": "Gastos",
+        "routines": "Rutinas"
       }
     },
     "card": {
@@ -323,6 +348,7 @@
       "cost": "Costo",
       "statusLabel": "Estado",
       "priorityLabel": "Prioridad",
+      "scheduled": "Programado",
       "assignee": "Asignado",
       "unassigned": "Sin asignar",
       "actions": "Acciones",
@@ -380,6 +406,62 @@
       "categoryRequired": "La categoría es obligatoria",
       "amountRequired": "El monto es obligatorio",
       "dateRequired": "La fecha es obligatoria"
+    },
+    "routines": {
+      "title": "Rutinas",
+      "addRoutine": "Agregar Rutina",
+      "editRoutine": "Editar Rutina",
+      "createRoutine": "Crear Rutina",
+      "fillDetails": "Completa los detalles para crear una nueva rutina.",
+      "updateDetails": "Actualiza los detalles de la rutina a continuación.",
+      "stepDetails": "Detalles",
+      "stepScheduling": "Agendar",
+      "noRoutines": "Aún no hay rutinas",
+      "name": "Nombre de la Rutina",
+      "description": "Descripción",
+      "cost": "Costo",
+      "assignee": "Asignado a",
+      "unassigned": "Sin asignar",
+      "actions": "Acciones",
+      "template": "Empezar desde plantilla",
+      "noTemplate": "Personalizado",
+      "recurrenceLabel": "Frecuencia",
+      "recurrence": {
+        "daily": "Diaria",
+        "weekly": "Semanal"
+      },
+      "intervalLabel": "Repetir cada",
+      "day": "día",
+      "days": "días",
+      "week": "semana",
+      "weeks": "semanas",
+      "weekdaysLabel": "Días de la semana",
+      "performAt": "Realizar a las",
+      "startDate": "Fecha de inicio",
+      "endDate": "Fecha de fin",
+      "startNotPast": "La fecha de inicio no puede ser en el pasado",
+      "endFuture": "La fecha de fin debe ser en el futuro",
+      "endBeforeStart": "La fecha de fin debe ser posterior a la fecha de inicio",
+      "atLeastOneDay": "Selecciona al menos un día",
+      "everyDay": "todos los días",
+      "everyNDays": "cada {n} días",
+      "everyWeek": "cada semana",
+      "everyNWeeks": "cada {n} semanas",
+      "dayShort": {
+        "monday": "Lun",
+        "tuesday": "Mar",
+        "wednesday": "Mié",
+        "thursday": "Jue",
+        "friday": "Vie",
+        "saturday": "Sáb",
+        "sunday": "Dom"
+      },
+      "routine": "Rutina",
+      "routineCreated": "Rutina creada",
+      "routineUpdated": "Rutina actualizada",
+      "routineDeleted": "Rutina eliminada",
+      "nextOccurrenceCreated": "Siguiente ocurrencia creada",
+      "nameRequired": "El nombre de la rutina es obligatorio"
     },
     "owners": "Co-propietarios",
     "collaborators": "Colaboradores",

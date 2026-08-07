@@ -2,14 +2,16 @@
 
 import { auth, isSuperUser, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
+import { verifyProjectAccess } from "@/lib/actions/project-access"
+import { createNextRoutineTask } from "@/lib/actions/routines"
 import {
-  projectCollaboratorsTable,
   projectOwnersTable,
   tasksTable,
   projectsTable,
   taskCommentsTable,
   usersTable,
 } from "@/lib/drizzle/schema"
+import type { Task } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/i18n-actions"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
@@ -51,43 +53,6 @@ const collaboratorStatusSchema = z.enum([
 
 export type TaskFormData = z.infer<typeof taskSchema>
 
-async function verifyProjectAccess(
-  projectId: string,
-  sessionUserId: string,
-  sessionRole: string | null
-): Promise<{ hasAccess: boolean; isOwner: boolean }> {
-  const session = { user: { role: sessionRole } }
-  if (isSuperUser(session)) return { hasAccess: true, isOwner: true }
-
-  const owner = await db
-    .select()
-    .from(projectOwnersTable)
-    .where(
-      and(
-        eq(projectOwnersTable.projectId, projectId),
-        eq(projectOwnersTable.userId, sessionUserId)
-      )
-    )
-    .then((rows) => rows[0])
-
-  if (owner) return { hasAccess: true, isOwner: true }
-
-  const collaborator = await db
-    .select()
-    .from(projectCollaboratorsTable)
-    .where(
-      and(
-        eq(projectCollaboratorsTable.projectId, projectId),
-        eq(projectCollaboratorsTable.userId, sessionUserId)
-      )
-    )
-    .then((rows) => rows[0])
-
-  if (collaborator) return { hasAccess: true, isOwner: false }
-
-  return { hasAccess: false, isOwner: false }
-}
-
 export async function getTasks(projectId: string) {
   const t = await getActionT("actions.projects")
   try {
@@ -124,6 +89,8 @@ export async function getTasks(projectId: string) {
       cost: tasksTable.cost,
       status: tasksTable.status,
       priority: tasksTable.priority,
+      routineId: tasksTable.routineId,
+      scheduledFor: tasksTable.scheduledFor,
       assigneeId: tasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       createdAt: tasksTable.createdAt,
@@ -131,14 +98,8 @@ export async function getTasks(projectId: string) {
       commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
     })
     .from(tasksTable)
-    .leftJoin(
-      commentCounts,
-      eq(tasksTable.id, commentCounts.taskId)
-    )
-    .leftJoin(
-      usersTable,
-      eq(tasksTable.assigneeId, usersTable.id)
-    )
+    .leftJoin(commentCounts, eq(tasksTable.id, commentCounts.taskId))
+    .leftJoin(usersTable, eq(tasksTable.assigneeId, usersTable.id))
     .where(eq(tasksTable.projectId, projectId))
     .orderBy(desc(tasksTable.createdAt))
 }
@@ -261,6 +222,8 @@ export async function updateTaskStatus(
     .select({
       status: tasksTable.status,
       assigneeId: tasksTable.assigneeId,
+      routineId: tasksTable.routineId,
+      scheduledFor: tasksTable.scheduledFor,
     })
     .from(tasksTable)
     .where(
@@ -314,8 +277,17 @@ export async function updateTaskStatus(
       )
   }
 
+  let nextTask: Task | undefined
+  if (currentTask.routineId && status === "done") {
+    const spawned = await createNextRoutineTask(
+      currentTask.routineId,
+      currentTask.scheduledFor
+    )
+    if (spawned.success && spawned.spawned) nextTask = spawned.task
+  }
+
   revalidatePath(`/dashboard/projects/${projectId}`)
-  return { success: true as const }
+  return { success: true as const, nextTask }
 }
 
 const taskPrioritySchema = z.enum(["urgent", "high"]).nullable()
@@ -495,6 +467,8 @@ export async function getMyTasks(
       cost: tasksTable.cost,
       status: tasksTable.status,
       priority: tasksTable.priority,
+      routineId: tasksTable.routineId,
+      scheduledFor: tasksTable.scheduledFor,
       assigneeId: tasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       isOwner: sql<boolean>`coalesce((
@@ -512,14 +486,8 @@ export async function getMyTasks(
       projectsTable,
       eq(tasksTable.projectId, projectsTable.id)
     )
-    .leftJoin(
-      commentCounts,
-      eq(tasksTable.id, commentCounts.taskId)
-    )
-    .leftJoin(
-      usersTable,
-      eq(tasksTable.assigneeId, usersTable.id)
-    )
+    .leftJoin(commentCounts, eq(tasksTable.id, commentCounts.taskId))
+    .leftJoin(usersTable, eq(tasksTable.assigneeId, usersTable.id))
     .leftJoin(
       primaryOwners,
       eq(tasksTable.projectId, primaryOwners.projectId)

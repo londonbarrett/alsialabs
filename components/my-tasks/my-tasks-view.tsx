@@ -13,10 +13,7 @@ import {
 } from "@/components/ui/select"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { MyTask } from "@/lib/actions/tasks"
-import {
-  getMyTasks,
-  updateTaskStatus,
-} from "@/lib/actions/tasks"
+import { getMyTasks, updateTaskStatus } from "@/lib/actions/tasks"
 import { ListTodo } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useMemo, useState, useTransition } from "react"
@@ -109,6 +106,29 @@ export function MyTasksView({
         applyFilters(statusFilter, projectFilter)
       } else {
         toast.success(t("projects.tasks.statusChanged"))
+        if (result.nextTask) {
+          const completed = tasks.find((task) => task.id === taskId)
+          if (completed) {
+            const matchesStatus =
+              statusFilter === "all" ||
+              statusFilter === result.nextTask.status
+            const matchesProject =
+              projectFilter === "all" ||
+              projectFilter === completed.projectId
+            if (matchesStatus && matchesProject) {
+              const nextTask: MyTask = {
+                ...result.nextTask,
+                projectId: completed.projectId,
+                projectName: completed.projectName,
+                isOwner: completed.isOwner,
+                assigneeName: completed.assigneeName,
+                commentCount: 0,
+              }
+              setTasks((prev) => [nextTask, ...prev])
+            }
+          }
+          toast.success(t("projects.routines.nextOccurrenceCreated"))
+        }
       }
     } finally {
       hideLoading()

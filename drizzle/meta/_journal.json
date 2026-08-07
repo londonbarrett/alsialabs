@@ -120,6 +120,34 @@
       "when": 1785893710795,
       "tag": "0016_rename_project_task_to_task",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785945284009,
+      "tag": "0017_add_routines",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785963928455,
+      "tag": "0018_add_routine_schedule",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785965135834,
+      "tag": "0019_add_routine_dates",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786058288236,
+      "tag": "0020_remove_days_of_month",
+      "breakpoints": true
     }
   ]
 }

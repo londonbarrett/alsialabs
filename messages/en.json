@@ -2,6 +2,8 @@
   "common": {
     "loading": "Loading...",
     "cancel": "Cancel",
+    "continue": "Continue",
+    "back": "Back",
     "save": "Save",
     "saveChanges": "Save Changes",
     "create": "Create",
@@ -252,6 +254,28 @@
     "project": "Project Categories",
     "expense": "Expense Categories"
   },
+  "routineTemplates": {
+    "irrigation": {
+      "name": "Irrigation",
+      "description": "Water the crop area following the irrigation schedule."
+    },
+    "fertilization": {
+      "name": "Fertilization",
+      "description": "Apply fertilizer to maintain soil nutrients."
+    },
+    "pestMonitoring": {
+      "name": "Pest Monitoring",
+      "description": "Inspect crops for pests and report any findings."
+    },
+    "weeding": {
+      "name": "Weeding",
+      "description": "Remove weeds from the planted areas."
+    },
+    "harvest": {
+      "name": "Harvest",
+      "description": "Collect ripe produce and prepare it for processing."
+    }
+  },
   "projects": {
     "title": "Projects",
     "portfolio": "Portfolio",
@@ -292,7 +316,8 @@
       "tabs": {
         "people": "People",
         "details": "Details",
-        "expenses": "Expenses"
+        "expenses": "Expenses",
+        "routines": "Routines"
       }
     },
     "card": {
@@ -323,6 +348,7 @@
       "cost": "Cost",
       "statusLabel": "Status",
       "priorityLabel": "Priority",
+      "scheduled": "Scheduled",
       "assignee": "Assignee",
       "unassigned": "Unassigned",
       "actions": "Actions",
@@ -380,6 +406,62 @@
       "categoryRequired": "Category is required",
       "amountRequired": "Amount is required",
       "dateRequired": "Date is required"
+    },
+    "routines": {
+      "title": "Routines",
+      "addRoutine": "Add Routine",
+      "editRoutine": "Edit Routine",
+      "createRoutine": "Create Routine",
+      "fillDetails": "Fill in the details to create a new routine.",
+      "updateDetails": "Update the routine details below.",
+      "stepDetails": "Details",
+      "stepScheduling": "Scheduling",
+      "noRoutines": "No routines yet",
+      "name": "Routine Name",
+      "description": "Description",
+      "cost": "Cost",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "actions": "Actions",
+      "template": "Start from template",
+      "noTemplate": "Custom",
+      "recurrenceLabel": "Recurrence",
+      "recurrence": {
+        "daily": "Daily",
+        "weekly": "Weekly"
+      },
+      "intervalLabel": "Repeat every",
+      "day": "day",
+      "days": "days",
+      "week": "week",
+      "weeks": "weeks",
+      "weekdaysLabel": "Days of week",
+      "performAt": "Perform at",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "startNotPast": "Start date cannot be in the past",
+      "endFuture": "End date must be in the future",
+      "endBeforeStart": "End date must be after start date",
+      "atLeastOneDay": "Select at least one day",
+      "everyDay": "every day",
+      "everyNDays": "every {n} days",
+      "everyWeek": "every week",
+      "everyNWeeks": "every {n} weeks",
+      "dayShort": {
+        "monday": "Mon",
+        "tuesday": "Tue",
+        "wednesday": "Wed",
+        "thursday": "Thu",
+        "friday": "Fri",
+        "saturday": "Sat",
+        "sunday": "Sun"
+      },
+      "routine": "Routine",
+      "routineCreated": "Routine created",
+      "routineUpdated": "Routine updated",
+      "routineDeleted": "Routine deleted",
+      "nextOccurrenceCreated": "Next occurrence created",
+      "nameRequired": "Routine name is required"
     },
     "owners": "Co-owners",
     "collaborators": "Collaborators",

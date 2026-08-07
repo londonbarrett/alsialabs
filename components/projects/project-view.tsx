@@ -9,6 +9,7 @@ import {
   ListTodo,
   MapPin,
   Receipt,
+  RefreshCw,
   Users,
 } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -47,6 +48,12 @@ export function ProjectView({ project, children }: ProjectViewProps) {
       label: t("projects.tasks.title"),
       icon: ListTodo,
       active: pathname === base,
+    },
+    {
+      href: `${base}/routines`,
+      label: t("projects.routines.title"),
+      icon: RefreshCw,
+      active: pathname === `${base}/routines`,
     },
     {
       href: `${base}/details`,
@@ -95,7 +102,7 @@ export function ProjectView({ project, children }: ProjectViewProps) {
       </div>
 
       <nav aria-label={project.name}>
-        <div className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-muted p-[3px] text-muted-foreground">
+        <div className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground">
           {tabs.map((tab) => {
             const Icon = tab.icon
             return (

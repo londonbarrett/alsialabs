@@ -26,13 +26,14 @@ import {
   upsertTask,
 } from "@/lib/actions/tasks"
 import type { Task } from "@/lib/drizzle/schema"
-import { ListTodo, MessageSquare, Plus } from "lucide-react"
+import { ListTodo, MessageSquare, Plus, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useReducer, useState, useTransition } from "react"
 import { toast } from "sonner"
 import { TaskCommentsPanel } from "./task-comments-panel"
 import { TaskDialog } from "./task-dialog"
 import { TaskPrioritySelect } from "./task-priority-select"
+import { ScheduledAt } from "./scheduled-at"
 import {
   TaskStatusSelect,
   taskStatusColors,
@@ -203,6 +204,8 @@ export function TasksCard({
       cost: data.cost || null,
       status: taskStatus,
       priority: taskPriority,
+      routineId: editingTask?.routineId ?? null,
+      scheduledFor: editingTask?.scheduledFor ?? null,
       assigneeId: data.assigneeId,
       assigneeName:
         projectMembers.find((m) => m.userId === data.assigneeId)
@@ -304,6 +307,22 @@ export function TasksCard({
       startTransition(() => {
         dispatch({ type: "reset", tasks: initialTasks })
       })
+    } else {
+      if (result.nextTask) {
+        const assignee = projectMembers.find(
+          (m) => m.userId === result.nextTask!.assigneeId
+        )
+        const nextTask: TaskWithCommentCount = {
+          ...result.nextTask,
+          assigneeName:
+            assignee?.userName ?? assignee?.userEmail ?? null,
+          commentCount: 0,
+        }
+        startTransition(() => {
+          dispatch({ type: "add", task: nextTask })
+        })
+        toast.success(t("projects.routines.nextOccurrenceCreated"))
+      }
     }
   }
 
@@ -366,6 +385,9 @@ export function TasksCard({
                   <TableHead scope="col">
                     {t("projects.tasks.cost")}
                   </TableHead>
+                  <TableHead scope="col">
+                    {t("projects.tasks.scheduled")}
+                  </TableHead>
                   <TableHead scope="col" className="w-12" />
                   {canMutate && (
                     <TableHead scope="col">
@@ -382,7 +404,18 @@ export function TasksCard({
                   >
                     <TableCell className="font-medium">
                       <div>
-                        <p>{task.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p>{task.name}</p>
+                          {task.routineId && (
+                            <Badge
+                              variant="outline"
+                              className="gap-1 text-xs"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              {t("projects.routines.routine")}
+                            </Badge>
+                          )}
+                        </div>
                         {task.description && (
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {task.description}
@@ -446,6 +479,15 @@ export function TasksCard({
                     </TableCell>
                     <TableCell>
                       {task.cost ? <Money value={task.cost} /> : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {task.scheduledFor ? (
+                        <ScheduledAt date={task.scheduledFor} />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {"—"}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Button
