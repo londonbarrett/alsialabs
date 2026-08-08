@@ -116,6 +116,7 @@ export function ProjectExpenses({
     cost: string
     status: string
     priority: string | null
+    dueDate: string | null
     assigneeId: string | null
   }) {
     const isEdit = !!editingTask
@@ -138,7 +139,7 @@ export function ProjectExpenses({
       status: taskStatus,
       priority: taskPriority,
       routineId: null,
-      scheduledFor: null,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
       assigneeId: data.assigneeId,
       createdAt: editingTask?.createdAt ?? new Date(),
       updatedAt: new Date(),

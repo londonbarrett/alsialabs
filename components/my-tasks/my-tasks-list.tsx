@@ -1,7 +1,7 @@
 "use client"
 
 import { Money } from "@/components/common/money"
-import { ScheduledAt } from "@/components/projects/scheduled-at"
+import { DueDate } from "@/components/projects/due-date"
 import { TaskCommentsPanel } from "@/components/projects/task-comments-panel"
 import { taskPriorityColors } from "@/components/projects/task-priority-select"
 import {
@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { MyTask } from "@/lib/actions/tasks"
+import { isTaskOverdue } from "@/lib/utils"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -76,7 +77,7 @@ export function MyTasksList({
                   </TableHead>
                   <TableHead scope="col">{t("myTasks.cost")}</TableHead>
                   <TableHead scope="col">
-                    {t("projects.tasks.scheduled")}
+                    {t("projects.tasks.dueDate")}
                   </TableHead>
                   <TableHead scope="col" className="w-12" />
                 </TableRow>
@@ -161,13 +162,11 @@ export function MyTasksList({
                       )}
                     </TableCell>
                     <TableCell>
-                      {task.scheduledFor ? (
-                        <ScheduledAt date={task.scheduledFor} />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          {"\u2014"}
-                        </span>
-                      )}
+                      <DueDate
+                        date={task.dueDate}
+                        overdue={isTaskOverdue(task.status, task.dueDate)}
+                        overdueLabel={t("projects.tasks.overdue")}
+                      />
                     </TableCell>
                     <TableCell>
                       <Button

@@ -373,9 +373,9 @@ export async function createNextRoutineTask(
   if (startDate && anchor < startDate) {
     anchor = new Date(startDate.getTime() - 1)
   }
-  const scheduledFor = computeScheduledFor(anchor, schedule)
+  const dueDate = computeScheduledFor(anchor, schedule)
 
-  if (scheduledFor && endDate && startOfDay(scheduledFor) > endDate) {
+  if (dueDate && endDate && startOfDay(dueDate) > endDate) {
     return { success: true as const, spawned: false }
   }
 
@@ -389,7 +389,7 @@ export async function createNextRoutineTask(
       cost: routine.cost,
       status: "todo",
       priority: null,
-      scheduledFor,
+      dueDate,
       assigneeId: routine.assigneeId,
     })
     .returning()

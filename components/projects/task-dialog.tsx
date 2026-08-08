@@ -23,6 +23,7 @@ interface TaskDialogProps {
     cost: string
     status: string
     priority: string | null
+    dueDate: string | null
     assigneeId: string | null
   }) => Promise<{
     success: boolean

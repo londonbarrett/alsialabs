@@ -422,7 +422,7 @@ export const tasksTable = pgTable("task", {
   routineId: text("routine_id").references(() => routinesTable.id, {
     onDelete: "set null",
   }),
-  scheduledFor: timestamp("scheduled_for", { mode: "date" }),
+  dueDate: timestamp("due_date", { mode: "date" }),
   assigneeId: text("assignee_id").references(() => usersTable.id, {
     onDelete: "set null",
   }),

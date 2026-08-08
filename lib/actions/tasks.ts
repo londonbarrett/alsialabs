@@ -33,6 +33,7 @@ const taskSchema = z.object({
     .optional()
     .default("todo"),
   priority: z.enum(["urgent", "high"]).nullable().optional(),
+  dueDate: z.string().nullable().optional(),
   assigneeId: z.string().nullable().optional(),
 })
 
@@ -90,7 +91,7 @@ export async function getTasks(projectId: string) {
       status: tasksTable.status,
       priority: tasksTable.priority,
       routineId: tasksTable.routineId,
-      scheduledFor: tasksTable.scheduledFor,
+      dueDate: tasksTable.dueDate,
       assigneeId: tasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       createdAt: tasksTable.createdAt,
@@ -142,8 +143,15 @@ export async function upsertTask(
     }
   }
 
-  const { name, description, cost, status, priority, assigneeId } =
-    parsed.data
+  const {
+    name,
+    description,
+    cost,
+    status,
+    priority,
+    dueDate,
+    assigneeId,
+  } = parsed.data
 
   let taskRow: typeof tasksTable.$inferSelect
 
@@ -156,6 +164,7 @@ export async function upsertTask(
         cost: cost || null,
         status,
         priority: priority ?? null,
+        dueDate: dueDate ? new Date(dueDate) : null,
         assigneeId: assigneeId ?? null,
       })
       .where(
@@ -176,6 +185,7 @@ export async function upsertTask(
         cost: cost || null,
         status,
         priority: priority ?? null,
+        dueDate: dueDate ? new Date(dueDate) : null,
         assigneeId: assigneeId ?? null,
       })
       .returning()
@@ -223,7 +233,7 @@ export async function updateTaskStatus(
       status: tasksTable.status,
       assigneeId: tasksTable.assigneeId,
       routineId: tasksTable.routineId,
-      scheduledFor: tasksTable.scheduledFor,
+      dueDate: tasksTable.dueDate,
     })
     .from(tasksTable)
     .where(
@@ -281,7 +291,7 @@ export async function updateTaskStatus(
   if (currentTask.routineId && status === "done") {
     const spawned = await createNextRoutineTask(
       currentTask.routineId,
-      currentTask.scheduledFor
+      currentTask.dueDate
     )
     if (spawned.success && spawned.spawned) nextTask = spawned.task
   }
@@ -468,7 +478,7 @@ export async function getMyTasks(
       status: tasksTable.status,
       priority: tasksTable.priority,
       routineId: tasksTable.routineId,
-      scheduledFor: tasksTable.scheduledFor,
+      dueDate: tasksTable.dueDate,
       assigneeId: tasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       isOwner: sql<boolean>`coalesce((

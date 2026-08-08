@@ -148,6 +148,13 @@
       "when": 1786058288236,
       "tag": "0020_remove_days_of_month",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786068443914,
+      "tag": "0021_rename_task_scheduled_for_to_due_date",
+      "breakpoints": true
     }
   ]
 }
