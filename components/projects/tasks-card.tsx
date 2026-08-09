@@ -26,7 +26,7 @@ import {
   upsertTask,
 } from "@/lib/actions/tasks"
 import type { Task } from "@/lib/drizzle/schema"
-import { isTaskOverdue } from "@/lib/utils"
+import { isTaskOverdue } from "@/lib/util/utils"
 import { ListTodo, MessageSquare, Plus, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useReducer, useState, useTransition } from "react"

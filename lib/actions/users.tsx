@@ -11,7 +11,7 @@ import {
 import { eq, ilike, or, and } from "drizzle-orm"
 import { auth, isSuperUser, requirePermission } from "@/lib/auth"
 import { z } from "zod"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 
 const createUserSchema = z.object({
   email: z

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Task } from "@/lib/drizzle/schema"
-import { combineDateTime } from "@/lib/routines/schedule"
+import { combineDateTime } from "@/lib/util/schedule"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { TaskPrioritySelect } from "./task-priority-select"

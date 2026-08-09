@@ -11,7 +11,7 @@ import {
   invoicesTable,
   productsTable,
 } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 import { and, eq, ne, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"

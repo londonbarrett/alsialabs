@@ -16,7 +16,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { ActivityItem } from "@/components/clients/activity-item"
 import { getClientActivityPage } from "@/lib/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/util/utils"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 
 export interface InactiveClient {

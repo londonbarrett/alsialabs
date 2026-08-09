@@ -27,7 +27,7 @@ import {
 import { deleteTask, upsertTask } from "@/lib/actions/tasks"
 import type { Task } from "@/lib/drizzle/schema"
 import type { ProjectMember } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/util/utils"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"

@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/item"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
 import { completeReminder } from "@/lib/actions/reminders"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/util/utils"
 import { toast } from "sonner"
 import type { ActiveReminder } from "@/lib/actions/reminders"
 

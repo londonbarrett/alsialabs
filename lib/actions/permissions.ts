@@ -1,12 +1,16 @@
-'use server'
+"use server"
 
-import { revalidatePath, updateTag } from 'next/cache'
-import { db } from '@/lib/drizzle/client'
-import { permissionsTable, rolePermissionsTable, rolesTable } from '@/lib/drizzle/schema'
-import { eq, and } from 'drizzle-orm'
-import { auth, isSuperUser } from '@/lib/auth'
-import { z } from 'zod'
-import { getActionT } from '@/lib/i18n-actions'
+import { revalidatePath, updateTag } from "next/cache"
+import { db } from "@/lib/drizzle/client"
+import {
+  permissionsTable,
+  rolePermissionsTable,
+  rolesTable,
+} from "@/lib/drizzle/schema"
+import { eq, and } from "drizzle-orm"
+import { auth, isSuperUser } from "@/lib/auth"
+import { z } from "zod"
+import { getActionT } from "@/lib/util/i18n-actions"
 
 export type PermissionMatrixItem = {
   id: string
@@ -16,10 +20,10 @@ export type PermissionMatrixItem = {
 }
 
 export async function getPermissions() {
-  const t = await getActionT('actions.permissions')
+  const t = await getActionT("actions.permissions")
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: t('forbidden') }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const allPermissions = await db
@@ -57,39 +61,49 @@ export async function getPermissions() {
 }
 
 const manageModuleSchema = z.object({
-  action: z.enum(['create', 'delete']),
-  name: z.string().min(1).transform((v) => v.trim().toLowerCase()),
+  action: z.enum(["create", "delete"]),
+  name: z
+    .string()
+    .min(1)
+    .transform((v) => v.trim().toLowerCase()),
   actions: z.array(z.string().min(1)).optional(),
 })
 
-export async function manageModule(data: z.infer<typeof manageModuleSchema>) {
-  const t = await getActionT('actions.permissions')
+export async function manageModule(
+  data: z.infer<typeof manageModuleSchema>
+) {
+  const t = await getActionT("actions.permissions")
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: t('forbidden') }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const parsed = manageModuleSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false as const, error: t('validationFailed') }
+    return { success: false as const, error: t("validationFailed") }
   }
 
   const { action, name, actions } = parsed.data
 
-  if (action === 'create') {
+  if (action === "create") {
     if (!actions || actions.length === 0) {
-      return { success: false as const, error: t('actionRequired') }
+      return { success: false as const, error: t("actionRequired") }
     }
 
     for (const act of actions) {
-      await db.insert(permissionsTable).values({ module: name, action: act }).onConflictDoNothing()
+      await db
+        .insert(permissionsTable)
+        .values({ module: name, action: act })
+        .onConflictDoNothing()
     }
-  } else if (action === 'delete') {
-    await db.delete(permissionsTable).where(eq(permissionsTable.module, name))
+  } else if (action === "delete") {
+    await db
+      .delete(permissionsTable)
+      .where(eq(permissionsTable.module, name))
   }
 
-  revalidatePath('/dashboard/permissions')
-  updateTag('permissions')
+  revalidatePath("/dashboard/permissions")
+  updateTag("permissions")
   return { success: true as const }
 }
 
@@ -99,16 +113,18 @@ const toggleSchema = z.object({
   enabled: z.boolean(),
 })
 
-export async function togglePermission(data: z.infer<typeof toggleSchema>) {
-  const t = await getActionT('actions.permissions')
+export async function togglePermission(
+  data: z.infer<typeof toggleSchema>
+) {
+  const t = await getActionT("actions.permissions")
   const session = await auth()
   if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: t('forbidden') }
+    return { success: false as const, error: t("forbidden") }
   }
 
   const parsed = toggleSchema.safeParse(data)
   if (!parsed.success) {
-    return { success: false as const, error: t('validationFailed') }
+    return { success: false as const, error: t("validationFailed") }
   }
 
   const { roleId, permissionId, enabled } = parsed.data
@@ -124,12 +140,12 @@ export async function togglePermission(data: z.infer<typeof toggleSchema>) {
       .where(
         and(
           eq(rolePermissionsTable.roleId, roleId),
-          eq(rolePermissionsTable.permissionId, permissionId),
-        ),
+          eq(rolePermissionsTable.permissionId, permissionId)
+        )
       )
   }
 
-  revalidatePath('/dashboard/permissions')
-  updateTag('permissions')
+  revalidatePath("/dashboard/permissions")
+  updateTag("permissions")
   return { success: true as const }
 }

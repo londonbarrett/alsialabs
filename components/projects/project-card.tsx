@@ -29,7 +29,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { type Project } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/util/utils"
 
 const statusConfig: Record<
   string,

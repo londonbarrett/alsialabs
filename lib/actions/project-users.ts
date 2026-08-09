@@ -8,7 +8,7 @@ import {
   projectsTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 import { and, eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 

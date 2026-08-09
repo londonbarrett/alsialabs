@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { MyTask } from "@/lib/actions/tasks"
-import { isTaskOverdue } from "@/lib/utils"
+import { isTaskOverdue } from "@/lib/util/utils"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -164,7 +164,10 @@ export function MyTasksList({
                     <TableCell>
                       <DueDate
                         date={task.dueDate}
-                        overdue={isTaskOverdue(task.status, task.dueDate)}
+                        overdue={isTaskOverdue(
+                          task.status,
+                          task.dueDate
+                        )}
                         overdueLabel={t("projects.tasks.overdue")}
                       />
                     </TableCell>

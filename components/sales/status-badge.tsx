@@ -1,7 +1,7 @@
 "use client"
 
 import { useTranslations } from "next-intl"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/util/utils"
 
 const statusStyles: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -26,7 +26,7 @@ export function StatusBadge({
       className={cn(
         "inline-block rounded px-1.5 py-0.5 text-xs capitalize",
         statusStyles[status] ?? "bg-gray-100 text-gray-700",
-        className,
+        className
       )}
     >
       {t(`sales.statuses.${status}`)}

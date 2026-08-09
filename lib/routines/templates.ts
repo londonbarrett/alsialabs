@@ -1,4 +1,4 @@
-import type { RoutineRecurrence } from "@/lib/routines/schedule"
+import type { RoutineRecurrence } from "@/lib/util/schedule"
 
 export interface RoutineTemplate {
   id: string

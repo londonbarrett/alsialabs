@@ -2,7 +2,7 @@
 
 import { ActionMenu } from "@/components/common/action-menu"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
-import { formatCurrency } from "@/lib/money"
+import { formatCurrency } from "@/lib/util/money"
 import { Banknote } from "lucide-react"
 import { useTranslations } from "next-intl"
 

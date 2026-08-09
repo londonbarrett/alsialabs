@@ -3,7 +3,7 @@
 import { db } from "@/lib/drizzle/client"
 import { storesTable } from "@/lib/drizzle/schema"
 import { auth, isRetailer, requirePermission } from "@/lib/auth"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 import { eq } from "drizzle-orm"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
