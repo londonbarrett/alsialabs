@@ -183,7 +183,7 @@ export async function getProjectsWithDetails() {
     db
       .select({
         projectId: tasksTable.projectId,
-        total: sql<number>`count(*)`,
+        total: sql<number>`count(*) filter (where ${tasksTable.status} <> 'cancelled')`,
         completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'done')`,
       })
       .from(tasksTable)
@@ -217,10 +217,7 @@ export async function getProjectsWithDetails() {
         assigneeImage: usersTable.image,
       })
       .from(tasksTable)
-      .leftJoin(
-        usersTable,
-        eq(tasksTable.assigneeId, usersTable.id)
-      )
+      .leftJoin(usersTable, eq(tasksTable.assigneeId, usersTable.id))
       .where(
         and(
           inArray(tasksTable.projectId, projectIds),

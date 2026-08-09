@@ -51,6 +51,7 @@ const allTaskStatuses = [
   "in_review",
   "blocked",
   "done",
+  "cancelled",
 ] as const
 
 const collaboratorTaskStatuses = [
@@ -159,7 +160,9 @@ export function TasksCard({
   const [tasks, dispatch] = useReducer(taskReducer, initialTasks)
   const [, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingTask, setEditingTask] = useState<Task | undefined>()
+  const [editingTask, setEditingTask] = useState<
+    TaskWithCommentCount | undefined
+  >()
   const [commentsTask, setCommentsTask] = useState<
     TaskWithCommentCount | undefined
   >()
@@ -168,14 +171,19 @@ export function TasksCard({
 
   function getTaskAllowedStatuses(task: Task) {
     if (isOwner) return allTaskStatuses
-    if (task.status === "done") return null
+    if (task.status === "done" || task.status === "cancelled")
+      return null
     if (isCollaborator && task.assigneeId === currentUserId)
       return collaboratorTaskStatuses
     return null
   }
 
   function getAssigneeName(task: TaskWithCommentCount) {
-    return task.assigneeName || task.assigneeId
+    if (task.assigneeName) return task.assigneeName
+    const member = projectMembers.find(
+      (m) => m.userId === task.assigneeId
+    )
+    return member?.userEmail ?? task.assigneeId
   }
 
   async function handleTaskSubmit(data: {
@@ -211,7 +219,9 @@ export function TasksCard({
       assigneeId: data.assigneeId,
       assigneeName:
         projectMembers.find((m) => m.userId === data.assigneeId)
-          ?.userName ?? null,
+          ?.userName ??
+        editingTask?.assigneeName ??
+        null,
       commentCount: editingTask
         ? (tasks.find((t) => t.id === editingTask.id)?.commentCount ??
           0)
@@ -271,7 +281,7 @@ export function TasksCard({
     setDialogOpen(true)
   }
 
-  function openEdit(task: Task) {
+  function openEdit(task: TaskWithCommentCount) {
     setEditingTask(task)
     setDialogOpen(true)
   }
@@ -310,6 +320,7 @@ export function TasksCard({
         dispatch({ type: "reset", tasks: initialTasks })
       })
     } else {
+      toast.success(t("projects.tasks.statusChanged"))
       if (result.nextTask) {
         const assignee = projectMembers.find(
           (m) => m.userId === result.nextTask!.assigneeId

@@ -417,7 +417,14 @@ export const tasksTable = pgTable("task", {
   status: text()
     .notNull()
     .default("todo")
-    .$type<"todo" | "in_progress" | "in_review" | "blocked" | "done">(),
+    .$type<
+      | "todo"
+      | "in_progress"
+      | "in_review"
+      | "blocked"
+      | "done"
+      | "cancelled"
+    >(),
   priority: text("priority").$type<"urgent" | "high" | null>(),
   routineId: text("routine_id").references(() => routinesTable.id, {
     onDelete: "set null",

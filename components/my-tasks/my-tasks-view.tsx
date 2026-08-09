@@ -25,6 +25,7 @@ const allTaskStatuses = [
   "in_review",
   "blocked",
   "done",
+  "cancelled",
 ] as const
 
 const collaboratorTaskStatuses = [
@@ -137,7 +138,7 @@ export function MyTasksView({
 
   function getTaskAllowedStatuses(task: MyTask) {
     if (isSuperUser || task.isOwner) return allTaskStatuses
-    if (task.status === "done") return null
+    if (task.status === "done" || task.status === "cancelled") return null
     if (task.assigneeId === currentUserId)
       return collaboratorTaskStatuses
     return null

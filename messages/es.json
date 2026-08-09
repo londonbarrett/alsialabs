@@ -364,7 +364,8 @@
         "in_progress": "En progreso",
         "in_review": "En revisión",
         "blocked": "Bloqueado",
-        "done": "Completado"
+        "done": "Completado",
+        "cancelled": "Cancelado"
       },
       "priority": {
         "none": "Normal",

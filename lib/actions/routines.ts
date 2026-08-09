@@ -15,7 +15,7 @@ import {
   startOfDay,
   type ScheduleConfig,
 } from "@/lib/routines/schedule"
-import { and, desc, eq, ne, sql } from "drizzle-orm"
+import { and, desc, eq, notInArray, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -350,7 +350,7 @@ export async function createNextRoutineTask(
     .where(
       and(
         eq(tasksTable.routineId, routineId),
-        ne(tasksTable.status, "done")
+        notInArray(tasksTable.status, ["done", "cancelled"])
       )
     )
     .limit(1)

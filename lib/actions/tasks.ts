@@ -43,6 +43,7 @@ const ownerStatusSchema = z.enum([
   "in_review",
   "blocked",
   "done",
+  "cancelled",
 ])
 
 const collaboratorStatusSchema = z.enum([
@@ -268,7 +269,10 @@ export async function updateTaskStatus(
         )
       )
   } else {
-    if (currentTask.status === "done") {
+    if (
+      currentTask.status === "done" ||
+      currentTask.status === "cancelled"
+    ) {
       return { success: false as const, error: t("forbidden") }
     }
 
@@ -288,7 +292,10 @@ export async function updateTaskStatus(
   }
 
   let nextTask: Task | undefined
-  if (currentTask.routineId && status === "done") {
+  if (
+    currentTask.routineId &&
+    (status === "done" || status === "cancelled")
+  ) {
     const spawned = await createNextRoutineTask(
       currentTask.routineId,
       currentTask.dueDate
@@ -418,6 +425,7 @@ export async function getMyTasks(
       "in_review",
       "blocked",
       "done",
+      "cancelled",
     ] as const
     if (
       validStatuses.includes(
