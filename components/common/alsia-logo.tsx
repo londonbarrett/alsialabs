@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/util/utils"
 
 export type LogoProps = {
   className?: string
@@ -6,7 +6,7 @@ export type LogoProps = {
 
 export const Logo = ({ className }: LogoProps) => (
   <svg
-    className={cn('h-auto', className)}
+    className={cn("h-auto", className)}
     viewBox="0 0 200 48"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"

@@ -12,7 +12,7 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import type { Task } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
@@ -33,6 +33,7 @@ const taskSchema = z.object({
     .optional()
     .default("todo"),
   priority: z.enum(["urgent", "high"]).nullable().optional(),
+  dueDate: z.string().nullable().optional(),
   assigneeId: z.string().nullable().optional(),
 })
 
@@ -42,6 +43,7 @@ const ownerStatusSchema = z.enum([
   "in_review",
   "blocked",
   "done",
+  "cancelled",
 ])
 
 const collaboratorStatusSchema = z.enum([
@@ -90,7 +92,7 @@ export async function getTasks(projectId: string) {
       status: tasksTable.status,
       priority: tasksTable.priority,
       routineId: tasksTable.routineId,
-      scheduledFor: tasksTable.scheduledFor,
+      dueDate: tasksTable.dueDate,
       assigneeId: tasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       createdAt: tasksTable.createdAt,
@@ -142,8 +144,15 @@ export async function upsertTask(
     }
   }
 
-  const { name, description, cost, status, priority, assigneeId } =
-    parsed.data
+  const {
+    name,
+    description,
+    cost,
+    status,
+    priority,
+    dueDate,
+    assigneeId,
+  } = parsed.data
 
   let taskRow: typeof tasksTable.$inferSelect
 
@@ -156,6 +165,7 @@ export async function upsertTask(
         cost: cost || null,
         status,
         priority: priority ?? null,
+        dueDate: dueDate ? new Date(dueDate) : null,
         assigneeId: assigneeId ?? null,
       })
       .where(
@@ -176,6 +186,7 @@ export async function upsertTask(
         cost: cost || null,
         status,
         priority: priority ?? null,
+        dueDate: dueDate ? new Date(dueDate) : null,
         assigneeId: assigneeId ?? null,
       })
       .returning()
@@ -223,7 +234,7 @@ export async function updateTaskStatus(
       status: tasksTable.status,
       assigneeId: tasksTable.assigneeId,
       routineId: tasksTable.routineId,
-      scheduledFor: tasksTable.scheduledFor,
+      dueDate: tasksTable.dueDate,
     })
     .from(tasksTable)
     .where(
@@ -258,7 +269,10 @@ export async function updateTaskStatus(
         )
       )
   } else {
-    if (currentTask.status === "done") {
+    if (
+      currentTask.status === "done" ||
+      currentTask.status === "cancelled"
+    ) {
       return { success: false as const, error: t("forbidden") }
     }
 
@@ -278,10 +292,13 @@ export async function updateTaskStatus(
   }
 
   let nextTask: Task | undefined
-  if (currentTask.routineId && status === "done") {
+  if (
+    currentTask.routineId &&
+    (status === "done" || status === "cancelled")
+  ) {
     const spawned = await createNextRoutineTask(
       currentTask.routineId,
-      currentTask.scheduledFor
+      currentTask.dueDate
     )
     if (spawned.success && spawned.spawned) nextTask = spawned.task
   }
@@ -408,6 +425,7 @@ export async function getMyTasks(
       "in_review",
       "blocked",
       "done",
+      "cancelled",
     ] as const
     if (
       validStatuses.includes(
@@ -468,7 +486,7 @@ export async function getMyTasks(
       status: tasksTable.status,
       priority: tasksTable.priority,
       routineId: tasksTable.routineId,
-      scheduledFor: tasksTable.scheduledFor,
+      dueDate: tasksTable.dueDate,
       assigneeId: tasksTable.assigneeId,
       assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
       isOwner: sql<boolean>`coalesce((

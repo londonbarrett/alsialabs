@@ -9,7 +9,7 @@ import {
   userRolesTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 import crypto from "crypto"
 import { and, eq, ilike, or } from "drizzle-orm"
 import { revalidatePath } from "next/cache"

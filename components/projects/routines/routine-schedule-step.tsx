@@ -15,11 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  parseISODate,
-  startOfDay,
-  WEEKDAYS,
-} from "@/lib/routines/schedule"
+import { parseISODate, startOfDay, WEEKDAYS } from "@/lib/util/schedule"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 

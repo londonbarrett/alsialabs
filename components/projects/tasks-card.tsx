@@ -26,14 +26,15 @@ import {
   upsertTask,
 } from "@/lib/actions/tasks"
 import type { Task } from "@/lib/drizzle/schema"
+import { isTaskOverdue } from "@/lib/util/utils"
 import { ListTodo, MessageSquare, Plus, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useReducer, useState, useTransition } from "react"
 import { toast } from "sonner"
+import { DueDate } from "./due-date"
 import { TaskCommentsPanel } from "./task-comments-panel"
 import { TaskDialog } from "./task-dialog"
 import { TaskPrioritySelect } from "./task-priority-select"
-import { ScheduledAt } from "./scheduled-at"
 import {
   TaskStatusSelect,
   taskStatusColors,
@@ -50,6 +51,7 @@ const allTaskStatuses = [
   "in_review",
   "blocked",
   "done",
+  "cancelled",
 ] as const
 
 const collaboratorTaskStatuses = [
@@ -158,7 +160,9 @@ export function TasksCard({
   const [tasks, dispatch] = useReducer(taskReducer, initialTasks)
   const [, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingTask, setEditingTask] = useState<Task | undefined>()
+  const [editingTask, setEditingTask] = useState<
+    TaskWithCommentCount | undefined
+  >()
   const [commentsTask, setCommentsTask] = useState<
     TaskWithCommentCount | undefined
   >()
@@ -167,14 +171,19 @@ export function TasksCard({
 
   function getTaskAllowedStatuses(task: Task) {
     if (isOwner) return allTaskStatuses
-    if (task.status === "done") return null
+    if (task.status === "done" || task.status === "cancelled")
+      return null
     if (isCollaborator && task.assigneeId === currentUserId)
       return collaboratorTaskStatuses
     return null
   }
 
   function getAssigneeName(task: TaskWithCommentCount) {
-    return task.assigneeName || task.assigneeId
+    if (task.assigneeName) return task.assigneeName
+    const member = projectMembers.find(
+      (m) => m.userId === task.assigneeId
+    )
+    return member?.userEmail ?? task.assigneeId
   }
 
   async function handleTaskSubmit(data: {
@@ -183,6 +192,7 @@ export function TasksCard({
     cost: string
     status: string
     priority: string | null
+    dueDate: string | null
     assigneeId: string | null
   }) {
     const isEdit = !!editingTask
@@ -204,12 +214,14 @@ export function TasksCard({
       cost: data.cost || null,
       status: taskStatus,
       priority: taskPriority,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
       routineId: editingTask?.routineId ?? null,
-      scheduledFor: editingTask?.scheduledFor ?? null,
       assigneeId: data.assigneeId,
       assigneeName:
         projectMembers.find((m) => m.userId === data.assigneeId)
-          ?.userName ?? null,
+          ?.userName ??
+        editingTask?.assigneeName ??
+        null,
       commentCount: editingTask
         ? (tasks.find((t) => t.id === editingTask.id)?.commentCount ??
           0)
@@ -269,7 +281,7 @@ export function TasksCard({
     setDialogOpen(true)
   }
 
-  function openEdit(task: Task) {
+  function openEdit(task: TaskWithCommentCount) {
     setEditingTask(task)
     setDialogOpen(true)
   }
@@ -308,6 +320,7 @@ export function TasksCard({
         dispatch({ type: "reset", tasks: initialTasks })
       })
     } else {
+      toast.success(t("projects.tasks.statusChanged"))
       if (result.nextTask) {
         const assignee = projectMembers.find(
           (m) => m.userId === result.nextTask!.assigneeId
@@ -386,7 +399,7 @@ export function TasksCard({
                     {t("projects.tasks.cost")}
                   </TableHead>
                   <TableHead scope="col">
-                    {t("projects.tasks.scheduled")}
+                    {t("projects.tasks.dueDate")}
                   </TableHead>
                   <TableHead scope="col" className="w-12" />
                   {canMutate && (
@@ -481,13 +494,14 @@ export function TasksCard({
                       {task.cost ? <Money value={task.cost} /> : "—"}
                     </TableCell>
                     <TableCell>
-                      {task.scheduledFor ? (
-                        <ScheduledAt date={task.scheduledFor} />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          {"—"}
-                        </span>
-                      )}
+                      <DueDate
+                        date={task.dueDate}
+                        overdue={isTaskOverdue(
+                          task.status,
+                          task.dueDate
+                        )}
+                        overdueLabel={t("projects.tasks.overdue")}
+                      />
                     </TableCell>
                     <TableCell>
                       <Button

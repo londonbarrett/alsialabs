@@ -3,13 +3,16 @@
 import { requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import { categoryTable, taxonomyTable } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 import { and, eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 const categorySchema = z.object({
-  name: z.string().min(1, "Name is required").transform((v) => v.trim()),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .transform((v) => v.trim()),
   slug: z
     .string()
     .min(1, "Slug is required")
@@ -55,12 +58,17 @@ export async function getCategoriesByTaxonomy(taxonomySlug: string) {
       description: categoryTable.description,
     })
     .from(categoryTable)
-    .innerJoin(taxonomyTable, eq(categoryTable.taxonomyId, taxonomyTable.id))
+    .innerJoin(
+      taxonomyTable,
+      eq(categoryTable.taxonomyId, taxonomyTable.id)
+    )
     .where(eq(taxonomyTable.slug, slug))
     .orderBy(categoryTable.name)
 }
 
-export async function getCategoriesByTaxonomyList(taxonomySlug: string) {
+export async function getCategoriesByTaxonomyList(
+  taxonomySlug: string
+) {
   const slug = slugSchema.parse(taxonomySlug)
 
   return db
@@ -70,7 +78,10 @@ export async function getCategoriesByTaxonomyList(taxonomySlug: string) {
       name: categoryTable.name,
     })
     .from(categoryTable)
-    .innerJoin(taxonomyTable, eq(categoryTable.taxonomyId, taxonomyTable.id))
+    .innerJoin(
+      taxonomyTable,
+      eq(categoryTable.taxonomyId, taxonomyTable.id)
+    )
     .where(eq(taxonomyTable.slug, slug))
     .orderBy(categoryTable.name)
 }

@@ -348,7 +348,8 @@
       "cost": "Cost",
       "statusLabel": "Status",
       "priorityLabel": "Priority",
-      "scheduled": "Scheduled",
+      "dueDate": "Due Date",
+      "overdue": "Overdue",
       "assignee": "Assignee",
       "unassigned": "Unassigned",
       "actions": "Actions",
@@ -363,7 +364,8 @@
         "in_progress": "In Progress",
         "in_review": "In Review",
         "blocked": "Blocked",
-        "done": "Done"
+        "done": "Done",
+        "cancelled": "Cancelled"
       },
       "priority": {
         "none": "Normal",

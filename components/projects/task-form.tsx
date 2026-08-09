@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Task } from "@/lib/drizzle/schema"
+import { combineDateTime } from "@/lib/util/schedule"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { TaskPrioritySelect } from "./task-priority-select"
@@ -30,6 +31,19 @@ interface ProjectMember {
   userImage: string | null
 }
 
+function toDateInput(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function toTimeInput(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes()
+  ).padStart(2, "0")}`
+}
+
 interface TaskFormProps {
   task?: Task
   projectMembers: ProjectMember[]
@@ -39,6 +53,7 @@ interface TaskFormProps {
     cost: string
     status: string
     priority: string | null
+    dueDate: string | null
     assigneeId: string | null
   }) => Promise<{
     success: boolean
@@ -72,6 +87,12 @@ export function TaskForm({
   const [priority, setPriority] = useState<string | null>(
     task?.priority ?? null
   )
+  const [dueDate, setDueDate] = useState(
+    task?.dueDate ? toDateInput(task.dueDate) : ""
+  )
+  const [dueTime, setDueTime] = useState(
+    task?.dueDate ? toTimeInput(task.dueDate) : ""
+  )
   const [assigneeId, setAssigneeId] = useState<string>(
     task?.assigneeId ?? ""
   )
@@ -89,12 +110,15 @@ export function TaskForm({
     e.preventDefault()
     if (!validate()) return
 
+    const combinedDueDate = combineDateTime(dueDate, dueTime)
+
     onSubmit({
       name: name.trim(),
       description: description.trim(),
       cost: cost.trim(),
       status,
       priority,
+      dueDate: combinedDueDate ? combinedDueDate.toISOString() : null,
       assigneeId: assigneeId || null,
     })
   }
@@ -162,6 +186,25 @@ export function TaskForm({
             onPriorityChange={setPriority}
             fullWidth
           />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="dueDate">
+            {t("projects.tasks.dueDate")}
+          </FieldLabel>
+          <div className="flex gap-3">
+            <Input
+              id="dueDate"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+            <Input
+              id="dueTime"
+              type="time"
+              value={dueTime}
+              onChange={(e) => setDueTime(e.target.value)}
+            />
+          </div>
         </Field>
         <Field>
           <FieldLabel htmlFor="assignee">

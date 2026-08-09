@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/util/utils"
 import { Button } from "@/components/ui/button"
 import {
   InputGroup,
@@ -217,7 +217,10 @@ function ComboboxStatus({
   return (
     <ComboboxPrimitive.Status
       data-slot="combobox-status"
-      className={cn("px-2 py-1.5 text-xs text-muted-foreground", className)}
+      className={cn(
+        "px-2 py-1.5 text-xs text-muted-foreground",
+        className
+      )}
       {...props}
     />
   )

@@ -8,7 +8,7 @@ import {
   clientsTable,
   invoicesTable,
 } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
 

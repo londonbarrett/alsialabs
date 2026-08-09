@@ -6,7 +6,7 @@ import { expensesTable, categoryTable } from "@/lib/drizzle/schema"
 import { eq, and } from "drizzle-orm"
 import { requirePermission } from "@/lib/auth"
 import { z } from "zod"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 
 const expenseSchema = z.object({
   description: z

@@ -36,6 +36,14 @@ export function parseISODate(value: string): Date {
   return new Date(year || 0, (month || 1) - 1, day || 1)
 }
 
+export function combineDateTime(
+  date: string,
+  time: string
+): Date | null {
+  if (!date) return null
+  return applyTime(parseISODate(date), time || null)
+}
+
 export function startOfWeek(date: Date): Date {
   const day = date.getDay()
   const diff = (day + 6) % 7

@@ -8,14 +8,14 @@ import {
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/i18n-actions"
+import { getActionT } from "@/lib/util/i18n-actions"
 import {
   computeScheduledFor,
   parseISODate,
   startOfDay,
   type ScheduleConfig,
-} from "@/lib/routines/schedule"
-import { and, desc, eq, ne, sql } from "drizzle-orm"
+} from "@/lib/util/schedule"
+import { and, desc, eq, notInArray, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -350,7 +350,7 @@ export async function createNextRoutineTask(
     .where(
       and(
         eq(tasksTable.routineId, routineId),
-        ne(tasksTable.status, "done")
+        notInArray(tasksTable.status, ["done", "cancelled"])
       )
     )
     .limit(1)
@@ -373,9 +373,9 @@ export async function createNextRoutineTask(
   if (startDate && anchor < startDate) {
     anchor = new Date(startDate.getTime() - 1)
   }
-  const scheduledFor = computeScheduledFor(anchor, schedule)
+  const dueDate = computeScheduledFor(anchor, schedule)
 
-  if (scheduledFor && endDate && startOfDay(scheduledFor) > endDate) {
+  if (dueDate && endDate && startOfDay(dueDate) > endDate) {
     return { success: true as const, spawned: false }
   }
 
@@ -389,7 +389,7 @@ export async function createNextRoutineTask(
       cost: routine.cost,
       status: "todo",
       priority: null,
-      scheduledFor,
+      dueDate,
       assigneeId: routine.assigneeId,
     })
     .returning()

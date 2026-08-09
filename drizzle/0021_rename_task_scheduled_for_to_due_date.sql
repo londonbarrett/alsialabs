@@ -1,0 +1,1 @@
+ALTER TABLE "task" RENAME COLUMN "scheduled_for" TO "due_date";

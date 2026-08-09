@@ -102,7 +102,7 @@ export function RoutinesView({
   const [, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingRoutine, setEditingRoutine] = useState<
-    Routine | undefined
+    RoutineWithAssignee | undefined
   >()
   const canMutate =
     isOwner && (canEdit || permissions.includes("projects:delete"))
@@ -140,7 +140,9 @@ export function RoutinesView({
       assigneeId: data.assigneeId,
       assigneeName:
         projectMembers.find((m) => m.userId === data.assigneeId)
-          ?.userName ?? null,
+          ?.userName ??
+        editingRoutine?.assigneeName ??
+        null,
       createdAt: editingRoutine?.createdAt ?? new Date(),
       updatedAt: new Date(),
     }
@@ -191,7 +193,7 @@ export function RoutinesView({
     setDialogOpen(true)
   }
 
-  function openEdit(routine: Routine) {
+  function openEdit(routine: RoutineWithAssignee) {
     setEditingRoutine(routine)
     setDialogOpen(true)
   }
@@ -217,7 +219,11 @@ export function RoutinesView({
   }
 
   function getAssigneeName(routine: RoutineWithAssignee) {
-    return routine.assigneeName || routine.assigneeId
+    if (routine.assigneeName) return routine.assigneeName
+    const member = projectMembers.find(
+      (m) => m.userId === routine.assigneeId
+    )
+    return member?.userEmail ?? routine.assigneeId
   }
 
   function getScheduleSummary(routine: Routine): string {

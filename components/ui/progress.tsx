@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/util/utils"
 
 function Progress({
   className,
@@ -12,7 +12,7 @@ function Progress({
       data-slot="progress"
       className={cn(
         "h-2 w-full overflow-hidden rounded-full bg-primary/10",
-        className,
+        className
       )}
       {...props}
     >
