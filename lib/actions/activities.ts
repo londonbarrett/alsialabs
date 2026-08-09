@@ -36,6 +36,17 @@ const activitySchema = z.object({
 
 export type ActivityFormData = z.infer<typeof activitySchema>
 
+export type UpsertActivityResult =
+  | {
+      success: true
+      activity: ClientActivity
+    }
+  | {
+      success: false
+      error: string
+      fieldErrors?: Record<string, string[] | undefined>
+    }
+
 export async function getClientActivities(clientId: string) {
   try {
     await requirePermission("client-activity", "view")
@@ -104,7 +115,7 @@ export async function getClientActivityPage(
 export async function upsertActivity(
   data: ActivityFormData,
   activityId?: string
-) {
+): Promise<UpsertActivityResult> {
   const t = await getActionT("actions.activities")
   try {
     await requirePermission(
@@ -141,12 +152,13 @@ export async function upsertActivity(
     store_id: storeId,
   }
 
+  let activity: ClientActivity
   if (activityId) {
     const conditions = [eq(clientActivitiesTable.id, activityId)]
     if (storeId) {
       conditions.push(eq(clientActivitiesTable.store_id, storeId))
     }
-    await db
+    const [updated] = await db
       .update(clientActivitiesTable)
       .set({
         type: sanitized.type,
@@ -155,12 +167,23 @@ export async function upsertActivity(
         activityDate: sanitized.activityDate,
       })
       .where(and(...conditions))
+      .returning()
+    if (!updated)
+      return { success: false, error: t("invalidActivityId") }
+    activity = updated
   } else {
-    await db.insert(clientActivitiesTable).values(sanitized)
+    const [inserted] = await db
+      .insert(clientActivitiesTable)
+      .values(sanitized)
+      .returning()
+    if (!inserted)
+      return { success: false, error: t("validationFailed") }
+    activity = inserted
   }
 
   revalidatePath("/dashboard/clients")
-  return { success: true }
+  revalidatePath("/dashboard/activity")
+  return { success: true, activity }
 }
 
 export async function deleteActivity(activityId: string) {
@@ -179,5 +202,6 @@ export async function deleteActivity(activityId: string) {
   await db.delete(clientActivitiesTable).where(and(...conditions))
 
   revalidatePath("/dashboard/clients")
+  revalidatePath("/dashboard/activity")
   return { success: true as const }
 }

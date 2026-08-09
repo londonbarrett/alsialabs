@@ -11,7 +11,14 @@ import { EditPaymentForm } from "@/components/sales/edit-payment-form"
 import { InvoiceForm } from "@/components/sales/invoice-form"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { deleteActivity } from "@/lib/actions/activities"
+import {
+  deleteActivity,
+  upsertActivity,
+} from "@/lib/actions/activities"
+import type {
+  ActivityFormData,
+  UpsertActivityResult,
+} from "@/lib/actions/activities"
 import {
   completeReminder,
   deleteReminder,
@@ -101,6 +108,26 @@ export function ActivityTimeline({
 
   function handleSuccess() {
     router.refresh()
+  }
+
+  async function handleActivitySubmit(
+    data: ActivityFormData,
+    activityId?: string
+  ): Promise<UpsertActivityResult> {
+    setLogDialogOpen(false)
+    setEditingActivity(undefined)
+    const result = await upsertActivity(data, activityId)
+    if (result.success) {
+      toast.success(
+        activityId
+          ? t("activities.activityUpdated")
+          : t("activities.activityLogged")
+      )
+      router.refresh()
+    } else {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
+    return result
   }
 
   async function handleDeleteActivity(activity: ClientActivity) {
@@ -296,7 +323,7 @@ export function ActivityTimeline({
           setLogDialogOpen(open)
           if (!open) setEditingActivity(undefined)
         }}
-        onSuccess={handleSuccess}
+        onSubmit={handleActivitySubmit}
       />
 
       <ReminderDialog

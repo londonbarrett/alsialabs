@@ -1,8 +1,5 @@
 "use client"
 
-import { ClientDialog } from "@/components/clients/client-dialog"
-import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
-import { ReminderDialog } from "@/components/clients/reminder-dialog"
 import {
   Card,
   CardContent,
@@ -25,10 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { getInactiveClients } from "@/lib/actions/activity"
-import type { Client } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { use, useState } from "react"
 import {
   ClientActivityRow,
   type InactiveClient,
@@ -41,104 +36,47 @@ const PERIOD_OPTIONS = [
   { value: "none", labelKey: "noPurchases" },
 ] as const
 
-export function InactiveClientsCard() {
-  const router = useRouter()
-  const t = useTranslations()
-  const [period, setPeriod] = useState("30")
-  const [clients, setClients] = useState<InactiveClient[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activityClientId, setActivityClientId] = useState<
-    string | null
-  >(null)
-  const [reminderClientId, setReminderClientId] = useState<
-    string | null
-  >(null)
-  const [editingClient, setEditingClient] = useState<Client | null>(
-    null
+function fetchClients(periodValue: string) {
+  return getInactiveClients(
+    periodValue === "none" ? null : Number(periodValue)
   )
-  const [activityRefreshKeys, setActivityRefreshKeys] = useState<
-    Record<string, number>
-  >({})
+}
 
-  useEffect(() => {
-    getInactiveClients(period === "none" ? null : Number(period))
-      .then(setClients)
-      .finally(() => setLoading(false))
-  }, [period])
+interface InactiveClientsCardProps {
+  initialClients: Promise<InactiveClient[]>
+  defaultPeriod: string
+}
 
-  function handlePeriodChange(value: string) {
+export function InactiveClientsCard({
+  initialClients,
+  defaultPeriod,
+}: InactiveClientsCardProps) {
+  const t = useTranslations()
+  const initialData = use(initialClients)
+  const [period, setPeriod] = useState(defaultPeriod)
+  const [clients, setClients] = useState<InactiveClient[]>(initialData)
+  const [loading, setLoading] = useState(false)
+
+  async function handlePeriodChange(value: string) {
     setPeriod(value)
     setLoading(true)
-  }
-
-  function handleEditClient(client: InactiveClient) {
-    setEditingClient({
-      id: client.clientId,
-      name: client.clientName,
-      phone: client.phone ?? "",
-      email: client.email,
-      location: client.location,
-      comments: client.comments,
-      userId: client.userId,
-      store_id: null,
-    })
-  }
-
-  function handleLogActivity(client: InactiveClient) {
-    setActivityClientId(client.clientId)
-  }
-
-  function handleAddReminder(client: InactiveClient) {
-    setReminderClientId(client.clientId)
-  }
-
-  function handleActivityDialogOpenChange(open: boolean) {
-    if (!open) setActivityClientId(null)
-  }
-
-  function handleActivityDialogSuccess() {
-    const clientId = activityClientId
-    setActivityClientId(null)
-    if (clientId) {
-      setActivityRefreshKeys((prev) => ({
-        ...prev,
-        [clientId]: (prev[clientId] ?? 0) + 1,
-      }))
+    try {
+      const result = await fetchClients(value)
+      setClients(result)
+    } finally {
+      setLoading(false)
     }
-    router.refresh()
   }
 
-  function handleReminderDialogOpenChange(open: boolean) {
-    if (!open) setReminderClientId(null)
-  }
-
-  function handleReminderDialogSuccess() {
-    setReminderClientId(null)
-    router.refresh()
-  }
-
-  function handleEditDialogOpenChange(open: boolean) {
-    if (!open) setEditingClient(null)
-  }
-
-  function handleEditDialogSuccess(
-    data: Omit<Client, "id" | "store_id" | "userId">
+  function handleClientChange(
+    clientId: string,
+    patch: Partial<InactiveClient>
   ) {
     setClients((prev) =>
       prev.map((c) =>
-        c.clientId === editingClient?.id
-          ? {
-              ...c,
-              clientName: data.name,
-              phone: data.phone,
-              email: data.email,
-              location: data.location,
-              comments: data.comments,
-            }
-          : c
+        c.clientId === clientId ? { ...c, ...patch } : c
       )
     )
-    setEditingClient(null)
   }
 
   return (
@@ -197,10 +135,7 @@ export function InactiveClientsCard() {
                   <ClientActivityRow
                     key={c.clientId}
                     client={c}
-                    refreshKey={activityRefreshKeys[c.clientId] ?? 0}
-                    onEdit={handleEditClient}
-                    onLogActivity={handleLogActivity}
-                    onAddReminder={handleAddReminder}
+                    onClientChange={handleClientChange}
                   />
                 ))}
               </TableBody>
@@ -212,30 +147,6 @@ export function InactiveClientsCard() {
           )}
         </div>
       </CardContent>
-      {activityClientId && (
-        <LogActivityDialog
-          clientId={activityClientId}
-          open={!!activityClientId}
-          onOpenChange={handleActivityDialogOpenChange}
-          onSuccess={handleActivityDialogSuccess}
-        />
-      )}
-      {reminderClientId && (
-        <ReminderDialog
-          clientId={reminderClientId}
-          open={!!reminderClientId}
-          onOpenChange={handleReminderDialogOpenChange}
-          onSuccess={handleReminderDialogSuccess}
-        />
-      )}
-      {editingClient && (
-        <ClientDialog
-          client={editingClient}
-          open={!!editingClient}
-          onOpenChange={handleEditDialogOpenChange}
-          onSuccess={handleEditDialogSuccess}
-        />
-      )}
     </Card>
   )
 }
