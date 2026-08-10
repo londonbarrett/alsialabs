@@ -1,10 +1,14 @@
 "use client"
 
 import { ActionMenu } from "@/components/common/action-menu"
-import { Dialog } from "@/components/common/dialog"
-import { EditPaymentForm } from "@/components/sales/edit-payment-form"
+import { EditPaymentDialog } from "@/components/sales/edit-payment-dialog"
+import type { PaymentFormValues } from "@/components/sales/payment-form"
 import { Spinner } from "@/components/ui/spinner"
-import { deletePayment, getInvoicePayments } from "@/lib/actions/sales"
+import {
+  deletePayment,
+  getInvoicePayments,
+  updatePayment,
+} from "@/lib/actions/sales"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
 import { formatCurrency } from "@/lib/util/money"
 import { useTranslations } from "next-intl"
@@ -43,6 +47,20 @@ export function PaymentHistory({
     } else {
       toast.error(result.error || t("common.somethingWentWrong"))
     }
+  }
+
+  async function handleEditPaymentSubmit(values: PaymentFormValues) {
+    if (!editingPayment) return { success: false as const }
+    const paymentId = editingPayment.id
+    setEditingPayment(null)
+    const result = await updatePayment(paymentId, values)
+    if (result.success) {
+      toast.success(t("sales.paymentUpdated"))
+      load()
+    } else {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
+    return result
   }
 
   if (payments === null) {
@@ -96,22 +114,12 @@ export function PaymentHistory({
       ))}
 
       {editingPayment && (
-        <Dialog
-          key={editingPayment.id}
-          title={t("sales.editPayment")}
-          description={t("sales.editPaymentDesc")}
+        <EditPaymentDialog
+          payment={editingPayment}
           open={!!editingPayment}
           onOpenChange={() => setEditingPayment(null)}
-        >
-          <EditPaymentForm
-            payment={editingPayment}
-            onSuccess={() => {
-              setEditingPayment(null)
-              load()
-            }}
-            onCancel={() => setEditingPayment(null)}
-          />
-        </Dialog>
+          onSubmit={handleEditPaymentSubmit}
+        />
       )}
     </div>
   )

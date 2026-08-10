@@ -1,12 +1,17 @@
 ## ADDED Requirements
 
 ### Requirement: Admin can view activity timeline
-The system SHALL display a combined activity timeline on the client profile page, showing past activities, pending/completed reminders, invoices, and payments sorted by date descending.
+The system SHALL display a combined activity timeline on the client profile page, showing past activities, pending/completed reminders, invoices, and payments sorted by date descending. Entries with the same date SHALL be ordered deterministically (created-at descending, then id).
 
 #### Scenario: Timeline shows on client profile when permitted
 - **WHEN** a user with `activities:view` permission navigates to a client profile
 - **THEN** they see an "Activity" section with a chronological timeline
 - **AND** the timeline shows activities (past interactions), reminders (follow-ups), invoices, and payments
+
+#### Scenario: Timeline ordering is stable across reloads
+- **WHEN** multiple timeline entries share the same date
+- **THEN** they SHALL be sorted deterministically by created-at descending then id
+- **AND** the order SHALL NOT change between renders or reloads
 
 #### Scenario: Timeline hidden without permission
 - **WHEN** a user without `activities:view` permission navigates to a client profile
@@ -126,6 +131,21 @@ The system SHALL allow users with `sales:record-payment` permission to delete a 
 - **WHEN** they confirm
 - **THEN** the payment is removed
 - **AND** the timeline refreshes
+
+### Requirement: Timeline mutations are optimistic
+The system SHALL update the timeline optimistically when logging an activity, adding/editing a reminder, creating an invoice, or recording a payment, while showing the global loading bar during the server request.
+
+#### Scenario: New entry appears immediately
+- **WHEN** a user submits a new activity, reminder, invoice, or payment from the timeline
+- **THEN** a temporary entry SHALL appear in the timeline immediately
+- **AND** the global loading bar SHALL be visible during the server request
+- **AND** on success the temporary entry SHALL be replaced with the persisted record
+- **AND** on failure the temporary entry SHALL be removed and an error toast SHALL be shown
+
+#### Scenario: Loading bar stays visible through transition
+- **WHEN** a timeline mutation runs
+- **THEN** the loading bar SHALL remain visible until the server action completes
+- **AND** SHALL hide once the optimistic update resolves (success or error)
 
 ### Requirement: Server-side validation and authorization
 The system SHALL validate and authorize all server actions for activities and reminders.

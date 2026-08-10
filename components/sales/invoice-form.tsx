@@ -20,7 +20,7 @@ import { Spinner } from "@/components/ui/spinner"
 import {
   getInvoiceItems,
   getInvoiceProducts,
-  upsertInvoice,
+  type InvoiceFormData,
 } from "@/lib/actions/sales"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { Plus } from "lucide-react"
@@ -28,10 +28,19 @@ import { useTranslations } from "next-intl"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
+export interface InvoiceSubmitResult {
+  success: boolean
+  error?: string
+  fieldErrors?: Record<string, string[] | undefined>
+}
+
 interface InvoiceFormProps {
   invoice?: Invoice
   selectedClientId?: string
-  onSuccess: () => void
+  onSubmit: (
+    data: InvoiceFormData,
+    invoiceId?: string
+  ) => Promise<InvoiceSubmitResult>
   onCancel: () => void
 }
 
@@ -58,7 +67,7 @@ function createEmptyItem(
 export function InvoiceForm({
   invoice,
   selectedClientId,
-  onSuccess,
+  onSubmit,
   onCancel,
 }: InvoiceFormProps) {
   const t = useTranslations()
@@ -81,7 +90,6 @@ export function InvoiceForm({
     invoice?.id ? [] : [createEmptyItem("product")]
   )
   const loadingItems = invoice?.id != null && items.length === 0
-  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     getInvoiceProducts()
@@ -183,41 +191,25 @@ export function InvoiceForm({
       return
     }
 
-    setSaving(true)
-    try {
-      const result = await upsertInvoice(
-        {
-          type,
-          clientId,
-          issueDate,
-          dueDate,
-          paidAmount: invoice ? "0" : paidAmount,
-          notes: invoice?.notes ?? "",
-          items: items.map((item) => ({
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discountPercent: item.discountPercent,
-            taxPercent: item.taxPercent,
-            productId: item.productId,
-          })),
-        },
-        invoice?.id
-      )
-      if (result.success) {
-        toast.success(
-          invoice
-            ? t("sales.invoiceUpdated")
-            : t("sales.invoiceCreated")
-        )
-        onSuccess()
-      } else {
-        toast.error(result.error || t("common.somethingWentWrong"))
-      }
-    } catch {
-      toast.error(t("common.somethingWentWrong"))
-    }
-    setSaving(false)
+    await onSubmit(
+      {
+        type,
+        clientId,
+        issueDate,
+        dueDate,
+        paidAmount: invoice ? "0" : paidAmount,
+        notes: invoice?.notes ?? "",
+        items: items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent,
+          taxPercent: item.taxPercent,
+          productId: item.productId,
+        })),
+      },
+      invoice?.id
+    )
   }
 
   return (
@@ -351,16 +343,10 @@ export function InvoiceForm({
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={saving}
-        >
+        <Button type="button" variant="outline" onClick={onCancel}>
           {t("sales.cancel")}
         </Button>
-        <Button type="submit" disabled={saving}>
-          {saving && <Spinner data-icon="inline-start" />}
+        <Button type="submit">
           {invoice
             ? t("sales.saveChanges")
             : t("sales.createInvoiceBtn")}

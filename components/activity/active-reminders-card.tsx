@@ -1,32 +1,37 @@
 "use client"
 
-import { useState } from "react"
-import { useTranslations } from "next-intl"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Bell, BellOff, Check, Pencil } from "lucide-react"
+import { ReminderDialog } from "@/components/clients/reminder-dialog"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import {
   Item,
-  ItemMedia,
-  ItemContent,
   ItemActions,
-  ItemGroup,
-  ItemTitle,
+  ItemContent,
   ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
 } from "@/components/ui/item"
-import { ReminderDialog } from "@/components/clients/reminder-dialog"
-import { completeReminder } from "@/lib/actions/reminders"
-import { cn } from "@/lib/util/utils"
-import { toast } from "sonner"
+import { Spinner } from "@/components/ui/spinner"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
+import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
 import type { ActiveReminder } from "@/lib/actions/reminders"
+import {
+  completeReminder,
+  upsertReminder,
+} from "@/lib/actions/reminders"
+import { cn } from "@/lib/util/utils"
+import { Bell, BellOff, Check, Pencil } from "lucide-react"
+import { useTranslations } from "next-intl"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 
 interface ActiveRemindersCardProps {
   reminders: ActiveReminder[]
@@ -36,29 +41,62 @@ export function ActiveRemindersCard({
   reminders,
 }: ActiveRemindersCardProps) {
   const router = useRouter()
-  const t = useTranslations("activity")
-  const tReminders = useTranslations("reminders")
+  const t = useTranslations()
+  const { start: startLoading, stop: stopLoading } =
+    useLoadingIndicator()
+  useRefreshOnFocus()
   const [editingReminder, setEditingReminder] =
     useState<ActiveReminder | null>(null)
   const [completingId, setCompletingId] = useState<string | null>(null)
 
-  async function handleComplete(reminder: ActiveReminder) {
+  async function completeReminderClickHandler(
+    reminder: ActiveReminder
+  ) {
     setCompletingId(reminder.id)
-    const result = await completeReminder(reminder.id)
-    if (result.success) {
-      toast.success(tReminders("reminderCompleted"))
-      router.refresh()
-    } else {
-      toast.error(tReminders("failedToComplete"))
+    startLoading()
+    try {
+      const result = await completeReminder(reminder.id)
+      if (result.success) {
+        toast.success(t("reminders.reminderCompleted"))
+        router.refresh()
+      } else {
+        toast.error(t("reminders.failedToComplete"))
+      }
+    } finally {
+      stopLoading()
+      setCompletingId(null)
     }
-    setCompletingId(null)
+  }
+
+  async function reminderSubmitHandler(data: {
+    clientId: string
+    description: string
+    remindAt: string
+  }) {
+    if (!editingReminder) return { success: false }
+    const reminderId = editingReminder.id
+    setEditingReminder(null)
+    startLoading()
+    let result
+    try {
+      result = await upsertReminder(data, reminderId)
+      if (result.success) {
+        toast.success(t("reminders.reminderUpdated"))
+      } else {
+        toast.error(result.error || t("common.somethingWentWrong"))
+      }
+      router.refresh()
+    } finally {
+      stopLoading()
+    }
+    return result
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          {t("activeReminders")}
+          {t("activity.activeReminders")}
           {reminders.length > 0 && (
             <span className="ml-2 text-sm font-normal text-muted-foreground">
               ({reminders.length})
@@ -120,33 +158,26 @@ export function ActiveRemindersCard({
                       variant="outline"
                       size="icon-sm"
                       className="sm:hidden"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditingReminder(reminder)
-                      }}
+                      onClick={() => setEditingReminder(reminder)}
                     >
                       <Pencil />
                     </Button>
                     <Button
                       variant="outline"
                       className="hidden sm:inline-flex"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditingReminder(reminder)
-                      }}
+                      onClick={() => setEditingReminder(reminder)}
                     >
                       <Pencil />
-                      {t("edit")}
+                      {t("activity.edit")}
                     </Button>
                     <Button
                       variant="outline"
                       size="icon-sm"
                       className="sm:hidden"
-                      title={tReminders("markAsCompleted")}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleComplete(reminder)
-                      }}
+                      title={t("reminders.markAsCompleted")}
+                      onClick={() =>
+                        completeReminderClickHandler(reminder)
+                      }
                       disabled={completingId === reminder.id}
                     >
                       {completingId === reminder.id ? (
@@ -158,11 +189,10 @@ export function ActiveRemindersCard({
                     <Button
                       variant="outline"
                       className="hidden sm:inline-flex"
-                      title={tReminders("markAsCompleted")}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleComplete(reminder)
-                      }}
+                      title={t("reminders.markAsCompleted")}
+                      onClick={() =>
+                        completeReminderClickHandler(reminder)
+                      }
                       disabled={completingId === reminder.id}
                     >
                       {completingId === reminder.id ? (
@@ -170,7 +200,7 @@ export function ActiveRemindersCard({
                       ) : (
                         <Check />
                       )}
-                      {t("markAsDone")}
+                      {t("activity.markAsDone")}
                     </Button>
                   </ItemActions>
                 </Item>
@@ -180,7 +210,7 @@ export function ActiveRemindersCard({
         ) : (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <BellOff className="h-4 w-4" />
-            {t("noActiveReminders")}
+            {t("activity.noActiveReminders")}
           </div>
         )}
       </CardContent>
@@ -203,10 +233,7 @@ export function ActiveRemindersCard({
           onOpenChange={(open) => {
             if (!open) setEditingReminder(null)
           }}
-          onSuccess={() => {
-            setEditingReminder(null)
-            router.refresh()
-          }}
+          onSubmit={reminderSubmitHandler}
         />
       )}
     </Card>

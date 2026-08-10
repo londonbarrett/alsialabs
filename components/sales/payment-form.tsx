@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Spinner } from "@/components/ui/spinner"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -18,14 +17,16 @@ export interface PaymentFormValues {
   notes: string
 }
 
+export interface PaymentSubmitResult {
+  success: boolean
+  error?: string
+  fieldErrors?: Record<string, string[] | undefined>
+}
+
 interface PaymentFormProps {
   initialValues: PaymentFormValues
-  onSubmit: (
-    values: PaymentFormValues
-  ) => Promise<{ success: boolean; error?: string }>
+  onSubmit: (values: PaymentFormValues) => Promise<PaymentSubmitResult>
   submitLabel: string
-  successMessage: string
-  onSuccess: () => void
   onCancel: () => void
 }
 
@@ -33,17 +34,16 @@ export function PaymentForm({
   initialValues,
   onSubmit,
   submitLabel,
-  successMessage,
-  onSuccess,
   onCancel,
 }: PaymentFormProps) {
   const t = useTranslations()
   const [amount, setAmount] = useState(initialValues.amount)
-  const [paymentDate, setPaymentDate] = useState(initialValues.paymentDate)
+  const [paymentDate, setPaymentDate] = useState(
+    initialValues.paymentDate
+  )
   const [method, setMethod] = useState(initialValues.method)
   const [reference, setReference] = useState(initialValues.reference)
   const [notes, setNotes] = useState(initialValues.notes)
-  const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -53,25 +53,13 @@ export function PaymentForm({
       return
     }
 
-    setSaving(true)
-    try {
-      const result = await onSubmit({
-        amount,
-        paymentDate,
-        method,
-        reference,
-        notes,
-      })
-      if (result.success) {
-        toast.success(successMessage)
-        onSuccess()
-      } else {
-        toast.error(result.error || t("common.somethingWentWrong"))
-      }
-    } catch {
-      toast.error(t("common.somethingWentWrong"))
-    }
-    setSaving(false)
+    await onSubmit({
+      amount,
+      paymentDate,
+      method,
+      reference,
+      notes,
+    })
   }
 
   return (
@@ -122,18 +110,10 @@ export function PaymentForm({
         />
       </div>
       <DialogFooter className="pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={saving}
-        >
+        <Button type="button" variant="outline" onClick={onCancel}>
           {t("sales.cancel")}
         </Button>
-        <Button type="submit" disabled={saving}>
-          {saving && <Spinner data-icon="inline-start" />}
-          {submitLabel}
-        </Button>
+        <Button type="submit">{submitLabel}</Button>
       </DialogFooter>
     </form>
   )

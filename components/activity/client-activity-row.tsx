@@ -4,6 +4,7 @@ import { ActivityItem } from "@/components/clients/activity-item"
 import { ClientDialog } from "@/components/clients/client-dialog"
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
+import { ReminderItem } from "@/components/clients/reminder-item"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { TableCell, TableRow } from "@/components/ui/table"
@@ -12,11 +13,17 @@ import type {
   ActivityFormData,
   UpsertActivityResult,
 } from "@/lib/actions/activities"
+import { upsertActivity } from "@/lib/actions/activities"
 import {
-  getClientActivityPage,
-  upsertActivity,
-} from "@/lib/actions/activities"
-import type { Client, ClientActivity } from "@/lib/drizzle/schema"
+  getClientTimelinePage,
+  type ClientTimelineEntry,
+} from "@/lib/actions/client-timeline"
+import { upsertReminder } from "@/lib/actions/reminders"
+import type { Client } from "@/lib/drizzle/schema"
+import {
+  buildTempActivity,
+  buildTempReminder,
+} from "@/lib/util/temp-entries"
 import { cn } from "@/lib/util/utils"
 import {
   Bell,
@@ -66,7 +73,7 @@ export function ClientActivityRow({
   const [dialog, setDialog] = useState<RowDialog | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const [activities, setActivities] = useState<ClientActivity[]>([])
+  const [entries, setEntries] = useState<ClientTimelineEntry[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -75,11 +82,11 @@ export function ClientActivityRow({
     setIsLoading(true)
     startLoading()
     try {
-      const result = await getClientActivityPage(client.clientId, {
+      const result = await getClientTimelinePage(client.clientId, {
         offset: 0,
         limit: PAGE_SIZE,
       })
-      setActivities(result.activities)
+      setEntries(result.entries)
       setHasMore(result.hasMore)
       setLoaded(true)
     } finally {
@@ -92,11 +99,11 @@ export function ClientActivityRow({
     setIsLoadingMore(true)
     startLoading()
     try {
-      const result = await getClientActivityPage(client.clientId, {
-        offset: activities.length,
+      const result = await getClientTimelinePage(client.clientId, {
+        offset: entries.length,
         limit: PAGE_SIZE,
       })
-      setActivities((prev) => [...prev, ...result.activities])
+      setEntries((prev) => [...prev, ...result.entries])
       setHasMore(result.hasMore)
     } finally {
       setIsLoadingMore(false)
@@ -135,21 +142,11 @@ export function ClientActivityRow({
     data: ActivityFormData
   ): Promise<UpsertActivityResult> {
     setDialog(null)
-    const optimisticActivity: ClientActivity = {
-      id: `temp-${Date.now()}`,
-      store_id: null,
-      clientId: data.clientId,
-      type: data.type,
-      subject: data.subject,
-      description: data.description || null,
-      activityDate: data.activityDate,
-      performedBy: "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
+    const optimisticActivity: ClientTimelineEntry =
+      buildTempActivity(data)
 
     if (expanded && loaded) {
-      setActivities((prev) => [optimisticActivity, ...prev])
+      setEntries((prev) => [optimisticActivity, ...prev])
     }
     onClientChange(client.clientId, {
       activityCount: client.activityCount + 1,
@@ -160,14 +157,16 @@ export function ClientActivityRow({
     stopLoading()
 
     if (result.success) {
-      setActivities((prev) =>
+      setEntries((prev) =>
         prev.map((a) =>
-          a.id === optimisticActivity.id ? result.activity : a
+          a.id === optimisticActivity.id
+            ? { ...result.activity, kind: "activity" as const }
+            : a
         )
       )
       toast.success(t("activities.activityLogged"))
     } else {
-      setActivities((prev) =>
+      setEntries((prev) =>
         prev.filter((a) => a.id !== optimisticActivity.id)
       )
       onClientChange(client.clientId, {
@@ -179,9 +178,32 @@ export function ClientActivityRow({
     return result
   }
 
-  function handleReminderSuccess() {
+  async function handleReminderSubmit(data: {
+    clientId: string
+    description: string
+    remindAt: string
+  }) {
     setDialog(null)
+    const optimisticReminder: ClientTimelineEntry =
+      buildTempReminder(data)
+
+    if (expanded && loaded) {
+      setEntries((prev) => [optimisticReminder, ...prev])
+    }
+
+    startLoading()
+    const result = await upsertReminder(data)
+    stopLoading()
+    if (result.success) {
+      toast.success(t("reminders.reminderCreated"))
+    } else {
+      setEntries((prev) =>
+        prev.filter((r) => r.id !== optimisticReminder.id)
+      )
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
     router.refresh()
+    return result
   }
 
   function handleEditSuccess(
@@ -296,18 +318,28 @@ export function ClientActivityRow({
                 <Spinner />
                 {t("activity.loadingActivities")}
               </div>
-            ) : activities.length > 0 ? (
+            ) : entries.length > 0 ? (
               <div className="py-1">
-                {activities.map((a) => (
-                  <ActivityItem
-                    key={a.id}
-                    activity={a}
-                    onEdit={handleNoop}
-                    onDelete={handleNoopAsync}
-                    canEdit={false}
-                    canDelete={false}
-                  />
-                ))}
+                {entries.map((entry) =>
+                  entry.kind === "activity" ? (
+                    <ActivityItem
+                      key={entry.id}
+                      activity={entry}
+                      onEdit={handleNoop}
+                      onDelete={handleNoopAsync}
+                      canEdit={false}
+                      canDelete={false}
+                    />
+                  ) : (
+                    <ReminderItem
+                      key={entry.id}
+                      reminder={entry}
+                      onEdit={handleNoop}
+                      onDelete={handleNoopAsync}
+                      onComplete={handleNoopAsync}
+                    />
+                  )
+                )}
                 {hasMore && (
                   <div className="flex justify-center pt-2">
                     <Button
@@ -357,7 +389,7 @@ export function ClientActivityRow({
           onOpenChange={(open) => {
             if (!open) setDialog(null)
           }}
-          onSuccess={handleReminderSuccess}
+          onSubmit={handleReminderSubmit}
         />
       )}
     </>

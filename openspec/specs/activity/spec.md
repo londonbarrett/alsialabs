@@ -94,12 +94,16 @@ The system SHALL allow users to edit client details directly from the inactive c
 - **AND** the server action runs in the background
 
 ### Requirement: User can view a client's recent activities inline
-The system SHALL allow users to expand an inactive client row in the inactive clients table and view that client's most recent activities without navigating away from the activity page.
+The system SHALL allow users to expand an inactive client row in the inactive clients table and view that client's merged timeline (activities and non-completed reminders) without navigating away from the activity page.
 
-#### Scenario: Double-click expands a row with the last 5 activities
+#### Scenario: Double-click expands a row with the latest timeline entries
 - **WHEN** a user double-clicks an inactive client row
 - **THEN** the row expands inline
-- **AND** it loads and displays that client's 5 most recent activities, ordered newest first
+- **AND** it loads and displays that client's 5 most recent timeline entries (activities and non-completed reminders), ordered newest first
+
+#### Scenario: Expanded panel shows both activities and reminders
+- **WHEN** an expanded inactive client has logged activities and active reminders
+- **THEN** the panel SHALL show the activity entries alongside the pending reminder entries in a single merged list
 
 #### Scenario: Double-click again collapses the row
 - **WHEN** a user double-clicks an expanded inactive client row
@@ -138,8 +142,16 @@ The system SHALL allow users to expand an inactive client row in the inactive cl
 
 #### Scenario: Expanded panel refreshes after logging an activity
 - **WHEN** a user logs a new activity for a client whose row is expanded
-- **THEN** the expanded panel SHALL reload the client's most recent 5 activities
-- **AND** the newly logged activity SHALL appear in the list
+- **THEN** the new activity SHALL be prepended to the expanded panel optimistically
+- **AND** the panel SHALL NOT re-fetch on submission
+- **AND** on success the optimistic entry SHALL be replaced with the persisted activity
+- **AND** on failure the optimistic entry SHALL be removed
+- **AND** the client's activity count SHALL update immediately
+
+#### Scenario: Optimistic reminder appears immediately in expanded panel
+- **WHEN** a user adds a reminder for a client whose row is expanded
+- **THEN** the new reminder SHALL be prepended to the expanded panel immediately
+- **AND** on failure the optimistic entry SHALL be removed
 
 ### Requirement: User can see inactive client count and period filter
 The inactive clients card SHALL display the number of inactive clients found and provide a labeled period selector within the card content, laid out like the sales invoice table.
@@ -158,13 +170,14 @@ The inactive clients card SHALL display the number of inactive clients found and
 - **WHEN** the inactive clients table is displayed
 - **THEN** each row SHALL show the total number of activities registered for that client
 
-### Requirement: Paginated client activity fetch
-The system SHALL provide a paginated server action to retrieve a client's activities for the inline panel.
+### Requirement: Paginated client timeline fetch
+The system SHALL provide a paginated server action to retrieve a client's merged timeline (activities and non-completed reminders) for the inline panel.
 
-#### Scenario: Action returns a page of activities and hasMore flag
-- **WHEN** a server action fetches a page of activities for a client
-- **THEN** it SHALL return the requested activities ordered newest first
-- **AND** a `hasMore` flag SHALL indicate whether additional older activities exist
+#### Scenario: Action returns a page of entries and hasMore flag
+- **WHEN** a server action fetches a page of timeline entries for a client
+- **THEN** it SHALL return the requested entries ordered newest first
+- **AND** entries with the same date SHALL be ordered deterministically (created-at desc, then id)
+- **AND** a `hasMore` flag SHALL indicate whether additional older entries exist
 
 #### Scenario: Unauthorized request is rejected
 - **WHEN** a user without `client-activity:view` permission calls the paginated fetch

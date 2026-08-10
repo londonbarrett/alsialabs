@@ -61,57 +61,6 @@ export async function getClientActivities(clientId: string) {
     .orderBy(desc(clientActivitiesTable.activityDate))
 }
 
-const activityPageSchema = z.object({
-  offset: z.number().int().min(0).default(0),
-  limit: z.number().int().min(1).max(50).default(5),
-})
-
-export interface ClientActivityPage {
-  activities: ClientActivity[]
-  hasMore: boolean
-}
-
-export async function getClientActivityPage(
-  clientId: string,
-  page: { offset?: number; limit?: number } = {}
-): Promise<ClientActivityPage> {
-  try {
-    await requirePermission("client-activity", "view")
-  } catch {
-    return { activities: [], hasMore: false }
-  }
-
-  const parsed = activityPageSchema.safeParse({
-    offset: page.offset,
-    limit: page.limit,
-  })
-  if (!parsed.success) return { activities: [], hasMore: false }
-
-  const { offset, limit } = parsed.data
-  const storeId = await getEffectiveStoreId()
-  const conditions = [eq(clientActivitiesTable.clientId, clientId)]
-  if (storeId) {
-    conditions.push(eq(clientActivitiesTable.store_id, storeId))
-  }
-
-  const rows = await db
-    .select()
-    .from(clientActivitiesTable)
-    .where(and(...conditions))
-    .orderBy(
-      desc(clientActivitiesTable.activityDate),
-      desc(clientActivitiesTable.createdAt),
-      desc(clientActivitiesTable.id)
-    )
-    .limit(limit + 1)
-    .offset(offset)
-
-  return {
-    activities: rows.slice(0, limit),
-    hasMore: rows.length > limit,
-  }
-}
-
 export async function upsertActivity(
   data: ActivityFormData,
   activityId?: string
