@@ -3,20 +3,20 @@
 import {
   PaymentForm,
   type PaymentFormValues,
+  type PaymentSubmitResult,
 } from "@/components/sales/payment-form"
-import { updatePayment } from "@/lib/actions/sales"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 
 interface EditPaymentFormProps {
   payment: InvoicePayment
-  onSuccess: () => void
+  onSubmit: (values: PaymentFormValues) => Promise<PaymentSubmitResult>
   onCancel: () => void
 }
 
 export function EditPaymentForm({
   payment,
-  onSuccess,
+  onSubmit,
   onCancel,
 }: EditPaymentFormProps) {
   const t = useTranslations()
@@ -30,12 +30,8 @@ export function EditPaymentForm({
         reference: payment.reference ?? "",
         notes: payment.notes ?? "",
       }}
-      onSubmit={(values: PaymentFormValues) =>
-        updatePayment(payment.id, values)
-      }
+      onSubmit={onSubmit}
       submitLabel={t("sales.saveChanges")}
-      successMessage={t("sales.paymentUpdated")}
-      onSuccess={onSuccess}
       onCancel={onCancel}
     />
   )

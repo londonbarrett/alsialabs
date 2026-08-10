@@ -48,7 +48,7 @@ export async function getInactiveClients(days: number | null) {
       userId: clientsTable.userId,
       lastInvoiceDate: sql<string>`max(${invoicesTable.issueDate})`,
       activityCount: sql<number>`(
-        select count(*) from ${clientActivitiesTable}
+        select count(*)::int from ${clientActivitiesTable}
         where ${clientActivitiesTable.clientId} = ${clientsTable.id}
       )`,
     })

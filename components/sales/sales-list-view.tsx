@@ -1,16 +1,15 @@
 "use client"
 
-import { Dialog } from "@/components/common/dialog"
 import { PageHeader } from "@/components/common/page-header"
-import { InvoiceForm } from "@/components/sales/invoice-form"
+import { InvoiceDialog } from "@/components/sales/invoice-dialog"
 import {
   MonthlyRevenueChart,
   type MonthlyRevenue,
 } from "@/components/sales/monthly-revenue-chart"
-import { PaymentHistory } from "@/components/sales/payment-history"
-import { RecordPaymentForm } from "@/components/sales/record-payment-form"
+import type { PaymentFormValues } from "@/components/sales/payment-form"
+import { PaymentHistoryDialog } from "@/components/sales/payment-history-dialog"
+import { RecordPaymentDialog } from "@/components/sales/record-payment-dialog"
 import {
-  getOutstanding,
   SalesInvoiceTable,
   type InvoiceWithClientName,
 } from "@/components/sales/sales-invoice-table"
@@ -34,11 +33,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  recordPayment,
+  upsertInvoice,
+  type InvoiceFormData,
+} from "@/lib/actions/sales"
 import type { Invoice, InvoiceStatus } from "@/lib/drizzle/schema"
 import { ChartNoAxesCombined, Plus, Search, X } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 
 interface SalesListViewProps {
   invoices: InvoiceWithClientName[]
@@ -115,6 +120,37 @@ export function SalesListView({
     router.refresh()
     setEditingInvoice(undefined)
     setDialogOpen(false)
+  }
+
+  async function handleInvoiceSubmit(
+    data: InvoiceFormData,
+    invoiceId?: string
+  ) {
+    const result = await upsertInvoice(data, invoiceId)
+    if (result.success) {
+      toast.success(
+        invoiceId
+          ? t("sales.invoiceUpdated")
+          : t("sales.invoiceCreated")
+      )
+      handleSuccess()
+    } else {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
+    return result
+  }
+
+  async function handlePaymentSubmit(values: PaymentFormValues) {
+    if (!paymentInvoice) return { success: false as const }
+    const result = await recordPayment(paymentInvoice.id, values)
+    if (result.success) {
+      toast.success(t("sales.paymentRecorded"))
+      setPaymentInvoice(null)
+      router.refresh()
+    } else {
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
+    return result
   }
 
   function openNew() {
@@ -316,61 +352,27 @@ export function SalesListView({
           </Card>
         </div>
       )}
-      <Dialog
-        title={
-          editingInvoice
-            ? t("sales.editInvoice")
-            : t("sales.newInvoice")
-        }
-        description={
-          editingInvoice
-            ? t("sales.updateDetails")
-            : t("sales.fillDetails")
-        }
+      <InvoiceDialog
+        invoice={editingInvoice}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
-        className="sm:max-w-2xl"
-      >
-        <InvoiceForm
-          key={editingInvoice?.id ?? "new"}
-          invoice={editingInvoice}
-          onSuccess={handleSuccess}
-          onCancel={() => setDialogOpen(false)}
-        />
-      </Dialog>
+        onSubmit={handleInvoiceSubmit}
+      />
       {paymentInvoice && (
-        <Dialog
-          key={paymentInvoice.id}
-          title={t("sales.recordPayment")}
-          description={t("sales.recordPaymentDesc")}
+        <RecordPaymentDialog
+          invoice={paymentInvoice}
           open={!!paymentInvoice}
           onOpenChange={() => setPaymentInvoice(null)}
-        >
-          <RecordPaymentForm
-            invoiceId={paymentInvoice.id}
-            remainingBalance={getOutstanding(paymentInvoice)}
-            onSuccess={() => {
-              setPaymentInvoice(null)
-              router.refresh()
-            }}
-            onCancel={() => setPaymentInvoice(null)}
-          />
-        </Dialog>
+          onSubmit={handlePaymentSubmit}
+        />
       )}
       {historyInvoice && (
-        <Dialog
-          title={t("sales.paymentHistory")}
-          description={t("sales.paymentHistoryDesc", {
-            number: historyInvoice.invoiceNumber,
-          })}
+        <PaymentHistoryDialog
+          invoice={historyInvoice}
           open={!!historyInvoice}
           onOpenChange={() => setHistoryInvoice(null)}
-        >
-          <PaymentHistory
-            invoiceId={historyInvoice.id}
-            canManage={permissions.includes("sales:record-payment")}
-          />
-        </Dialog>
+          canManage={permissions.includes("sales:record-payment")}
+        />
       )}
     </>
   )

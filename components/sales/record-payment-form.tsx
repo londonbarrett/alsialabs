@@ -3,21 +3,19 @@
 import {
   PaymentForm,
   type PaymentFormValues,
+  type PaymentSubmitResult,
 } from "@/components/sales/payment-form"
-import { recordPayment } from "@/lib/actions/sales"
 import { useTranslations } from "next-intl"
 
 interface RecordPaymentFormProps {
-  invoiceId: string
   remainingBalance: string
-  onSuccess: () => void
+  onSubmit: (values: PaymentFormValues) => Promise<PaymentSubmitResult>
   onCancel: () => void
 }
 
 export function RecordPaymentForm({
-  invoiceId,
   remainingBalance,
-  onSuccess,
+  onSubmit,
   onCancel,
 }: RecordPaymentFormProps) {
   const t = useTranslations()
@@ -31,12 +29,8 @@ export function RecordPaymentForm({
         reference: "",
         notes: "",
       }}
-      onSubmit={(values: PaymentFormValues) =>
-        recordPayment(invoiceId, values)
-      }
+      onSubmit={onSubmit}
       submitLabel={t("sales.recordPayment")}
-      successMessage={t("sales.paymentRecorded")}
-      onSuccess={onSuccess}
       onCancel={onCancel}
     />
   )

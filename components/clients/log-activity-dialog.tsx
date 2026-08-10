@@ -3,18 +3,13 @@
 import { useState } from "react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import { Field } from "@/components/form-field"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
-import { upsertActivity } from "@/lib/actions/activities"
+import { Dialog } from "@/components/common/dialog"
+import type {
+  ActivityFormData,
+  UpsertActivityResult,
+} from "@/lib/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
-import { toast } from "sonner"
 import { cn } from "@/lib/util/utils"
 
 const activityTypes = ["call", "email", "meeting", "note"] as const
@@ -24,7 +19,10 @@ interface LogActivityDialogProps {
   activity?: ClientActivity
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
+  onSubmit: (
+    data: ActivityFormData,
+    activityId?: string
+  ) => Promise<UpsertActivityResult>
 }
 
 export function LogActivityDialog({
@@ -32,7 +30,7 @@ export function LogActivityDialog({
   activity,
   open,
   onOpenChange,
-  onSuccess,
+  onSubmit,
 }: LogActivityDialogProps) {
   const t = useTranslations()
   const [type, setType] = useState<(typeof activityTypes)[number]>(
@@ -46,7 +44,6 @@ export function LogActivityDialog({
     activity?.activityDate ?? new Date().toISOString().split("T")[0]
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState(false)
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
@@ -65,126 +62,98 @@ export function LogActivityDialog({
     return Object.keys(fieldErrors).length === 0
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
 
-    setSaving(true)
-    try {
-      const result = await upsertActivity(
-        {
-          clientId,
-          type,
-          subject: subject.trim(),
-          description: description.trim(),
-          activityDate,
-        },
-        activity?.id
-      )
-      if (result.success) {
-        toast.success(
-          activity
-            ? t("activities.activityUpdated")
-            : t("activities.activityLogged")
-        )
-        onSuccess()
-        onOpenChange(false)
-      } else {
-        if (result.fieldErrors) {
-          const mapped: Record<string, string> = {}
-          for (const [key, msgs] of Object.entries(
-            result.fieldErrors
-          )) {
-            if (msgs && msgs.length > 0) mapped[key] = msgs[0]
-          }
-          setErrors(mapped)
-        }
-        toast.error(result.error || t("common.somethingWentWrong"))
-      }
-    } catch {
-      toast.error(t("common.somethingWentWrong"))
-    }
-    setSaving(false)
+    onSubmit(
+      {
+        clientId,
+        type,
+        subject: subject.trim(),
+        description: description.trim(),
+        activityDate,
+      },
+      activity?.id
+    )
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()}>
-        <DialogHeader>
-          <DialogTitle>
-            {activity
-              ? t("activities.editActivity")
-              : t("activities.logActivity")}
-          </DialogTitle>
-          <DialogDescription>
-            {activity
-              ? t("activities.updateDetails")
-              : t("activities.recordInteraction")}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">
-              {t("activities.type")}
-            </label>
-            <div className="flex gap-2">
-              {activityTypes.map((at) => (
-                <button
-                  key={at}
-                  type="button"
-                  onClick={() => setType(at)}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    type === at
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  )}
-                >
-                  {t("activities.types." + at)}
-                </button>
-              ))}
-            </div>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={
+        activity
+          ? t("activities.editActivity")
+          : t("activities.logActivity")
+      }
+      description={
+        activity
+          ? t("activities.updateDetails")
+          : t("activities.recordInteraction")
+      }
+      onInteractOutside={(e) => e.preventDefault()}
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            {t("activities.type")}
+          </label>
+          <div className="flex gap-2">
+            {activityTypes.map((at) => (
+              <button
+                key={at}
+                type="button"
+                onClick={() => setType(at)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  type === at
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {t("activities.types." + at)}
+              </button>
+            ))}
           </div>
-          <Field
-            name="subject"
-            label={t("activities.subject")}
-            value={subject}
-            onChange={setSubject}
-            error={errors.subject}
-          />
-          <Field
-            name="description"
-            label={t("activities.description")}
-            value={description}
-            onChange={setDescription}
-            type="textarea"
-          />
-          <Field
-            name="activityDate"
-            label={t("activities.date")}
-            value={activityDate}
-            onChange={setActivityDate}
-            error={errors.activityDate}
-            type="date"
-          />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={saving}
-            >
-              {t("activities.cancel")}
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Spinner data-icon="inline-start" />}
-              {activity
-                ? t("activities.saveChanges")
-                : t("activities.logActivityBtn")}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
+        </div>
+        <Field
+          name="subject"
+          label={t("activities.subject")}
+          value={subject}
+          onChange={setSubject}
+          error={errors.subject}
+        />
+        <Field
+          name="description"
+          label={t("activities.description")}
+          value={description}
+          onChange={setDescription}
+          type="textarea"
+        />
+        <Field
+          name="activityDate"
+          label={t("activities.date")}
+          value={activityDate}
+          onChange={setActivityDate}
+          error={errors.activityDate}
+          type="date"
+        />
+        <div className="flex justify-end gap-2 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            {t("activities.cancel")}
+          </Button>
+          <Button type="submit">
+            {activity
+              ? t("activities.saveChanges")
+              : t("activities.logActivityBtn")}
+          </Button>
+        </div>
+      </form>
     </Dialog>
   )
 }

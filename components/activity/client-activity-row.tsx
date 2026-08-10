@@ -1,8 +1,30 @@
 "use client"
 
-import { useEffect, useRef, useState, type MouseEvent } from "react"
-import { useTranslations } from "next-intl"
-import Link from "next/link"
+import { ActivityItem } from "@/components/clients/activity-item"
+import { ClientDialog } from "@/components/clients/client-dialog"
+import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
+import { ReminderDialog } from "@/components/clients/reminder-dialog"
+import { ReminderItem } from "@/components/clients/reminder-item"
+import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
+import { TableCell, TableRow } from "@/components/ui/table"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
+import type {
+  ActivityFormData,
+  UpsertActivityResult,
+} from "@/lib/actions/activities"
+import { upsertActivity } from "@/lib/actions/activities"
+import {
+  getClientTimelinePage,
+  type ClientTimelineEntry,
+} from "@/lib/actions/client-timeline"
+import { upsertReminder } from "@/lib/actions/reminders"
+import type { Client } from "@/lib/drizzle/schema"
+import {
+  buildTempActivity,
+  buildTempReminder,
+} from "@/lib/util/temp-entries"
+import { cn } from "@/lib/util/utils"
 import {
   Bell,
   ChevronDown,
@@ -10,14 +32,11 @@ import {
   NotebookPen,
   Pencil,
 } from "lucide-react"
-import { TableCell, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
-import { ActivityItem } from "@/components/clients/activity-item"
-import { getClientActivityPage } from "@/lib/actions/activities"
-import type { ClientActivity } from "@/lib/drizzle/schema"
-import { cn } from "@/lib/util/utils"
-import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
+import { useTranslations } from "next-intl"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 
 export interface InactiveClient {
   clientId: string
@@ -33,48 +52,41 @@ export interface InactiveClient {
 
 interface ClientActivityRowProps {
   client: InactiveClient
-  refreshKey?: number
-  onEdit: (client: InactiveClient) => void
-  onLogActivity: (client: InactiveClient) => void
-  onAddReminder: (client: InactiveClient) => void
+  onClientChange: (
+    clientId: string,
+    patch: Partial<InactiveClient>
+  ) => void
 }
+
+type RowDialog = "edit" | "activity" | "reminder"
 
 const PAGE_SIZE = 5
 
 export function ClientActivityRow({
   client,
-  refreshKey = 0,
-  onEdit,
-  onLogActivity,
-  onAddReminder,
+  onClientChange,
 }: ClientActivityRowProps) {
   const t = useTranslations()
+  const router = useRouter()
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
+  const [dialog, setDialog] = useState<RowDialog | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const [activities, setActivities] = useState<ClientActivity[]>([])
+  const [entries, setEntries] = useState<ClientTimelineEntry[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const prevRefreshKey = useRef(refreshKey)
-
-  useEffect(() => {
-    if (refreshKey === prevRefreshKey.current) return
-    prevRefreshKey.current = refreshKey
-    loadFirstPage()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey])
 
   async function loadFirstPage() {
     setIsLoading(true)
     startLoading()
     try {
-      const result = await getClientActivityPage(client.clientId, {
+      const result = await getClientTimelinePage(client.clientId, {
         offset: 0,
         limit: PAGE_SIZE,
       })
-      setActivities(result.activities)
+      setEntries(result.entries)
       setHasMore(result.hasMore)
       setLoaded(true)
     } finally {
@@ -87,11 +99,11 @@ export function ClientActivityRow({
     setIsLoadingMore(true)
     startLoading()
     try {
-      const result = await getClientActivityPage(client.clientId, {
-        offset: activities.length,
+      const result = await getClientTimelinePage(client.clientId, {
+        offset: entries.length,
         limit: PAGE_SIZE,
       })
-      setActivities((prev) => [...prev, ...result.activities])
+      setEntries((prev) => [...prev, ...result.entries])
       setHasMore(result.hasMore)
     } finally {
       setIsLoadingMore(false)
@@ -110,28 +122,115 @@ export function ClientActivityRow({
     }
   }
 
-  function handleToggleClick(e: MouseEvent) {
-    e.stopPropagation()
+  function handleToggleClick() {
     toggleRow()
   }
 
-  function handleClientNameClick(e: MouseEvent) {
-    e.stopPropagation()
+  function handleEditClick() {
+    setDialog("edit")
   }
 
-  function handleEditClick(e: MouseEvent) {
-    e.stopPropagation()
-    onEdit(client)
+  function handleLogActivityClick() {
+    setDialog("activity")
   }
 
-  function handleLogActivityClick(e: MouseEvent) {
-    e.stopPropagation()
-    onLogActivity(client)
+  function handleAddReminderClick() {
+    setDialog("reminder")
   }
 
-  function handleAddReminderClick(e: MouseEvent) {
-    e.stopPropagation()
-    onAddReminder(client)
+  async function handleActivitySubmit(
+    data: ActivityFormData
+  ): Promise<UpsertActivityResult> {
+    setDialog(null)
+    const optimisticActivity: ClientTimelineEntry =
+      buildTempActivity(data)
+
+    if (expanded && loaded) {
+      setEntries((prev) => [optimisticActivity, ...prev])
+    }
+    onClientChange(client.clientId, {
+      activityCount: client.activityCount + 1,
+    })
+
+    startLoading()
+    const result = await upsertActivity(data)
+    stopLoading()
+
+    if (result.success) {
+      setEntries((prev) =>
+        prev.map((a) =>
+          a.id === optimisticActivity.id
+            ? { ...result.activity, kind: "activity" as const }
+            : a
+        )
+      )
+      toast.success(t("activities.activityLogged"))
+    } else {
+      setEntries((prev) =>
+        prev.filter((a) => a.id !== optimisticActivity.id)
+      )
+      onClientChange(client.clientId, {
+        activityCount: client.activityCount,
+      })
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
+
+    return result
+  }
+
+  async function handleReminderSubmit(data: {
+    clientId: string
+    description: string
+    remindAt: string
+  }) {
+    setDialog(null)
+    const optimisticReminder: ClientTimelineEntry =
+      buildTempReminder(data)
+
+    if (expanded && loaded) {
+      setEntries((prev) => [optimisticReminder, ...prev])
+    }
+
+    startLoading()
+    const result = await upsertReminder(data)
+    stopLoading()
+    if (result.success) {
+      toast.success(t("reminders.reminderCreated"))
+    } else {
+      setEntries((prev) =>
+        prev.filter((r) => r.id !== optimisticReminder.id)
+      )
+      toast.error(result.error || t("common.somethingWentWrong"))
+    }
+    router.refresh()
+    return result
+  }
+
+  function handleEditSuccess(
+    data: Omit<Client, "id" | "userId" | "store_id">
+  ) {
+    setDialog(null)
+    onClientChange(client.clientId, {
+      clientName: data.name,
+      phone: data.phone,
+      email: data.email,
+      location: data.location,
+      comments: data.comments,
+    })
+    router.refresh()
+  }
+
+  function toClient(c: InactiveClient): Client {
+    return {
+      id: c.clientId,
+      name: c.clientName,
+      phone: c.phone ?? "",
+      email: c.email,
+      location: c.location,
+      comments: c.comments,
+      userId: c.userId,
+      store_id: null,
+    }
   }
 
   function handleNoop() {}
@@ -165,7 +264,6 @@ export function ClientActivityRow({
             <Link
               href={`/dashboard/clients/${client.clientId}`}
               className="hover:underline"
-              onClick={handleClientNameClick}
             >
               {client.clientName}
             </Link>
@@ -220,18 +318,28 @@ export function ClientActivityRow({
                 <Spinner />
                 {t("activity.loadingActivities")}
               </div>
-            ) : activities.length > 0 ? (
+            ) : entries.length > 0 ? (
               <div className="py-1">
-                {activities.map((a) => (
-                  <ActivityItem
-                    key={a.id}
-                    activity={a}
-                    onEdit={handleNoop}
-                    onDelete={handleNoopAsync}
-                    canEdit={false}
-                    canDelete={false}
-                  />
-                ))}
+                {entries.map((entry) =>
+                  entry.kind === "activity" ? (
+                    <ActivityItem
+                      key={entry.id}
+                      activity={entry}
+                      onEdit={handleNoop}
+                      onDelete={handleNoopAsync}
+                      canEdit={false}
+                      canDelete={false}
+                    />
+                  ) : (
+                    <ReminderItem
+                      key={entry.id}
+                      reminder={entry}
+                      onEdit={handleNoop}
+                      onDelete={handleNoopAsync}
+                      onComplete={handleNoopAsync}
+                    />
+                  )
+                )}
                 {hasMore && (
                   <div className="flex justify-center pt-2">
                     <Button
@@ -253,6 +361,36 @@ export function ClientActivityRow({
             )}
           </TableCell>
         </TableRow>
+      )}
+      {dialog === "edit" && (
+        <ClientDialog
+          client={toClient(client)}
+          open
+          onOpenChange={(open) => {
+            if (!open) setDialog(null)
+          }}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+      {dialog === "activity" && (
+        <LogActivityDialog
+          clientId={client.clientId}
+          open
+          onOpenChange={(open) => {
+            if (!open) setDialog(null)
+          }}
+          onSubmit={handleActivitySubmit}
+        />
+      )}
+      {dialog === "reminder" && (
+        <ReminderDialog
+          clientId={client.clientId}
+          open
+          onOpenChange={(open) => {
+            if (!open) setDialog(null)
+          }}
+          onSubmit={handleReminderSubmit}
+        />
       )}
     </>
   )
