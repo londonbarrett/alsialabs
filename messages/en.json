@@ -59,6 +59,7 @@
     "categories": "Categories",
     "projects": "Projects",
     "myTasks": "My Tasks",
+    "calendar": "Calendar",
     "profile": "Profile",
     "help": "Help",
     "support": "Support"
@@ -81,6 +82,7 @@
     "categories": "Categories",
     "projects": "Projects",
     "myTasks": "My Tasks",
+    "calendar": "Calendar",
     "details": "Details",
     "people": "People",
     "tasks": "Tasks",
@@ -493,6 +495,16 @@
     "owner": "Owner",
     "statusLabel": "Status",
     "cost": "Cost"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "subtitle": "Your tasks and routines across all projects.",
+    "today": "Today",
+    "month": "Month",
+    "week": "Week",
+    "day": "Day",
+    "moreEvents": "+'{'count'} more",
+    "allDay": "All-day"
   },
   "sales": {
     "title": "Sales",

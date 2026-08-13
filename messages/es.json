@@ -59,6 +59,7 @@
     "categories": "Categorías",
     "projects": "Proyectos",
     "myTasks": "Mis Tareas",
+    "calendar": "Calendario",
     "profile": "Perfil",
     "help": "Ayuda",
     "support": "Soporte"
@@ -81,6 +82,7 @@
     "categories": "Categorías",
     "projects": "Proyectos",
     "myTasks": "Mis Tareas",
+    "calendar": "Calendario",
     "details": "Detalles",
     "people": "Personas",
     "tasks": "Tareas",
@@ -493,6 +495,16 @@
     "owner": "Propietario",
     "statusLabel": "Estado",
     "cost": "Costo"
+  },
+  "calendar": {
+    "title": "Calendario",
+    "subtitle": "Tus tareas y rutinas en todos los proyectos.",
+    "today": "Hoy",
+    "month": "Mes",
+    "week": "Semana",
+    "day": "Día",
+    "moreEvents": "+'{'count'} más",
+    "allDay": "Todo el día"
   },
   "sales": {
     "title": "Ventas",

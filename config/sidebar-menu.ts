@@ -1,5 +1,6 @@
 import {
   BellRing,
+  CalendarDays,
   ChartNoAxesCombined,
   FolderKanban,
   FolderTree,
@@ -115,6 +116,12 @@ function navigationSection(permissions?: string[]): SidebarSection[] {
       requiredPermission: "projects:view",
     },
     { label: "myTasks", icon: ListTodo, url: "/dashboard/my-tasks" },
+    {
+      label: "calendar",
+      icon: CalendarDays,
+      url: "/dashboard/calendar",
+      requiredPermission: "projects:view",
+    },
   ]
 
   const visible = items.filter((item) =>
