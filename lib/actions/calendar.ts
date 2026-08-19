@@ -4,7 +4,9 @@ import { auth, isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   projectOwnersTable,
+  projectsTable,
   routinesTable,
+  usersTable,
 } from "@/lib/drizzle/schema"
 import { getMyTasks } from "@/lib/actions/tasks"
 import type { CalendarEvent } from "@/lib/calendar"
@@ -44,7 +46,10 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
   for (const task of tasks) {
     if (!task.dueDate) continue
     const due = task.dueDate
-    if (due.getTime() < from.getTime() || due.getTime() > to.getTime()) {
+    if (
+      due.getTime() < from.getTime() ||
+      due.getTime() > to.getTime()
+    ) {
       continue
     }
     const isAllDay = due.getHours() === 0 && due.getMinutes() === 0
@@ -60,6 +65,20 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
       end,
       allDay: isAllDay,
       color: taskColor(task.projectId),
+      meta: {
+        kind: "task",
+        taskId: task.id,
+        projectId: task.projectId,
+        projectName: task.projectName,
+        projectOwnerName: task.projectOwnerName ?? null,
+        status: task.status,
+        priority: task.priority,
+        assigneeName: task.assigneeName,
+        dueDateIso: task.dueDate?.toISOString() ?? null,
+        description: task.description,
+        cost: task.cost,
+        commentCount: task.commentCount,
+      },
     })
   }
 
@@ -89,6 +108,22 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
         end,
         allDay: isAllDay,
         color: ROUTINE_COLOR,
+        meta: {
+          kind: "routine",
+          routineId: routine.id,
+          projectId: routine.projectId,
+          projectName: routine.projectName,
+          projectOwnerName: routine.projectOwnerName ?? null,
+          assigneeName: routine.assigneeName ?? null,
+          description: routine.description,
+          cost: routine.cost ? routine.cost.toString() : null,
+          recurrence: routine.recurrence,
+          interval: routine.interval,
+          daysOfWeek: routine.daysOfWeek ?? [],
+          time: routine.time,
+          startDate: routine.startDate ?? null,
+          endDate: routine.endDate ?? null,
+        },
       })
     }
   }
@@ -120,7 +155,10 @@ async function getVisibleRoutines(userId: string) {
             .from(projectOwnersTable)
             .where(
               and(
-                eq(projectOwnersTable.projectId, routinesTable.projectId),
+                eq(
+                  projectOwnersTable.projectId,
+                  routinesTable.projectId
+                ),
                 eq(projectOwnersTable.userId, userId)
               )
             )
@@ -129,10 +167,40 @@ async function getVisibleRoutines(userId: string) {
     )
   }
 
+  const primaryOwners = db
+    .select({
+      projectId: projectOwnersTable.projectId,
+      userId: sql<string>`min(${projectOwnersTable.userId})`.as(
+        "userId"
+      ),
+    })
+    .from(projectOwnersTable)
+    .groupBy(projectOwnersTable.projectId)
+    .as("primary_owners")
+
+  const ownerUsers = db
+    .select({
+      userId: usersTable.id,
+      userName: usersTable.name,
+      userEmail: usersTable.email,
+    })
+    .from(usersTable)
+    .as("owner_users")
+
   return db
     .select({
       id: routinesTable.id,
       name: routinesTable.name,
+      description: routinesTable.description,
+      cost: routinesTable.cost,
+      projectId: routinesTable.projectId,
+      projectName: projectsTable.name,
+      projectOwnerName: sql<
+        string | null
+      >`coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail})`,
+      assigneeName: sql<
+        string | null
+      >`coalesce(${usersTable.name}, ${usersTable.email})`,
       recurrence: routinesTable.recurrence,
       interval: routinesTable.interval,
       daysOfWeek: routinesTable.daysOfWeek,
@@ -141,5 +209,15 @@ async function getVisibleRoutines(userId: string) {
       endDate: routinesTable.endDate,
     })
     .from(routinesTable)
+    .innerJoin(
+      projectsTable,
+      eq(routinesTable.projectId, projectsTable.id)
+    )
+    .leftJoin(usersTable, eq(routinesTable.assigneeId, usersTable.id))
+    .leftJoin(
+      primaryOwners,
+      eq(routinesTable.projectId, primaryOwners.projectId)
+    )
+    .leftJoin(ownerUsers, eq(primaryOwners.userId, ownerUsers.userId))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
 }

@@ -399,7 +399,7 @@
       "task": "Task",
       "category": "Category",
       "selectCategory": "Select a category",
-    "amount": "Amount",
+      "amount": "Amount",
       "date": "Date",
       "total": "Total",
       "actions": "Actions",
@@ -504,7 +504,17 @@
     "week": "Week",
     "day": "Day",
     "moreEvents": "+'{'count'} more",
-    "allDay": "All-day"
+    "allDay": "All-day",
+    "eventDetails": "Event details",
+    "project": "Project",
+    "owner": "Owner",
+    "responsible": "Responsible",
+    "when": "When",
+    "status": "Status",
+    "priority": "Priority",
+    "cost": "Cost",
+    "description": "Description",
+    "routineEvent": "Routine"
   },
   "sales": {
     "title": "Sales",

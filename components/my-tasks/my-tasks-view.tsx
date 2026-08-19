@@ -56,7 +56,10 @@ export function MyTasksView({
   const projects = useMemo(() => {
     const map = new Map<string, string>()
     for (const task of initialTasks) {
-      map.set(task.projectId, task.projectName)
+      const owner = task.projectOwnerName
+        ? ` (${task.projectOwnerName})`
+        : ""
+      map.set(task.projectId, `${task.projectName}${owner}`)
     }
     return Array.from(map.entries()).sort((a, b) =>
       a[1].localeCompare(b[1])
@@ -121,6 +124,7 @@ export function MyTasksView({
                 ...result.nextTask,
                 projectId: completed.projectId,
                 projectName: completed.projectName,
+                projectOwnerName: completed.projectOwnerName,
                 isOwner: completed.isOwner,
                 assigneeName: completed.assigneeName,
                 commentCount: 0,
@@ -138,7 +142,8 @@ export function MyTasksView({
 
   function getTaskAllowedStatuses(task: MyTask) {
     if (isSuperUser || task.isOwner) return allTaskStatuses
-    if (task.status === "done" || task.status === "cancelled") return null
+    if (task.status === "done" || task.status === "cancelled")
+      return null
     if (task.assigneeId === currentUserId)
       return collaboratorTaskStatuses
     return null

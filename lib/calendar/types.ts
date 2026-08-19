@@ -1,5 +1,27 @@
 export type CalendarView = "month" | "week" | "day"
 
+export interface CalendarEventMeta {
+  kind?: "task" | "routine"
+  taskId?: string
+  routineId?: string
+  projectId?: string
+  projectName?: string
+  projectOwnerName?: string | null
+  status?: string
+  priority?: string | null
+  assigneeName?: string | null
+  dueDateIso?: string | null
+  description?: string | null
+  cost?: string | null
+  commentCount?: number
+  recurrence?: string
+  interval?: number
+  daysOfWeek?: string[]
+  time?: string | null
+  startDate?: string | null
+  endDate?: string | null
+}
+
 export interface CalendarEvent {
   id: string
   title: string
@@ -9,6 +31,8 @@ export interface CalendarEvent {
   /** CSS color used to tint the event. Falls back to the brand color. */
   color?: string
   description?: string
+  /** Optional app-level metadata carried through to click handlers. */
+  meta?: CalendarEventMeta
 }
 
 export interface CalendarLabels {

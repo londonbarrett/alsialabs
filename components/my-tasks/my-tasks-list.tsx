@@ -112,6 +112,9 @@ export function MyTasksList({
                     <TableCell>
                       <span className="text-sm">
                         {task.projectName}
+                        {task.projectOwnerName
+                          ? ` (${task.projectOwnerName})`
+                          : ""}
                       </span>
                     </TableCell>
                     <TableCell>
