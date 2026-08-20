@@ -1,10 +1,9 @@
 "use client"
 
-import { EventDetailDialog } from "@/components/calendar/event-detail-dialog"
 import { cn } from "@/lib/util/utils"
-import { memo, useMemo, useState } from "react"
+import { memo, useMemo } from "react"
 import { useCalendar } from "../hooks/use-calendar"
-import type { CalendarEvent, CalendarProps } from "../types"
+import type { CalendarProps } from "../types"
 import {
   capitalize,
   getDayLabel,
@@ -32,12 +31,6 @@ export const Calendar = memo(function Calendar({
   className,
 }: CalendarProps) {
   const resolvedLabels = useMemo(() => resolveLabels(labels), [labels])
-
-  const [selected, setSelected] = useState<CalendarEvent | null>(null)
-  const handleEventClick = (event: CalendarEvent) => {
-    setSelected(event)
-    onEventClick?.(event)
-  }
 
   const calendar = useCalendar({
     initialView,
@@ -96,7 +89,7 @@ export const Calendar = memo(function Calendar({
           maxMonthEvents={maxMonthEvents}
           labels={resolvedLabels}
           onDateClick={onDateClick}
-          onEventClick={handleEventClick}
+          onEventClick={onEventClick}
         />
       )}
       {(view === "week" || view === "day") && (
@@ -108,18 +101,9 @@ export const Calendar = memo(function Calendar({
           hourHeight={hourHeight}
           startHour={startHour}
           onDateClick={onDateClick}
-          onEventClick={handleEventClick}
+          onEventClick={onEventClick}
         />
       )}
-
-      <EventDetailDialog
-        event={selected}
-        locale={locale}
-        open={!!selected}
-        onOpenChange={(open) => {
-          if (!open) setSelected(null)
-        }}
-      />
     </div>
   )
 })
