@@ -76,7 +76,7 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
         description: task.description,
         cost: task.cost,
         commentCount: task.commentCount,
-        routineId: task.routineId,
+        routineId: task.routineId ?? undefined,
       },
     })
   }
@@ -128,30 +128,28 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
   }
 
   // Hide routine chips only on days when a task with the same routineId has a due date:
-  // Build a set of (routineId, start-of-day) pairs from tasks that have routineId
-  const taskRoutineDayPairs = new Set<
-    [string, Date]
-  >()
+  // Map: routineId -> set of task start-of-day timestamps
+  const taskRoutineDays = new Map<string, Set<number>>()
   for (const task of tasks) {
-    if (task.routineId) {
+    if (task.routineId && task.dueDate) {
       const routineId = task.routineId as string
-      const taskDay = startOfDay(task.dueDate!)
-      taskRoutineDayPairs.add([routineId, taskDay])
+      let days = taskRoutineDays.get(routineId)
+      if (!days) {
+        days = new Set<number>()
+        taskRoutineDays.set(routineId, days)
+      }
+      days.add(startOfDay(task.dueDate).getTime())
     }
   }
 
-  const filteredEvents = events.filter(
-    (event) => {
-      if (event.meta?.kind !== "routine") return true
-      const routineId = event.meta?.routineId as string | undefined
-      if (!routineId) return true
-      const routineDay = startOfDay(event.start)
-      // Hide this routine event if a task with the same routineId has a due date on the same day
-      return !taskRoutineDayPairs.some(
-        ( [rId, tDay] ) => rId === routineId && tDay.getTime() === routineDay.getTime()
-      )
-    }
-  )
+  const filteredEvents = events.filter((event) => {
+    if (event.meta?.kind !== "routine") return true
+    const routineId = event.meta?.routineId as string | undefined
+    if (!routineId) return true
+    const routineDay = startOfDay(event.start).getTime()
+    // Hide this routine event if a task with the same routineId has a due date on the same day
+    return !taskRoutineDays.get(routineId)?.has(routineDay)
+  })
 
   return filteredEvents
 }
