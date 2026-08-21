@@ -2,10 +2,12 @@
 
 import { EventDetailDialog } from "@/components/calendar/event-detail-dialog"
 import { cn } from "@/lib/util/utils"
+import { RefreshCw } from "lucide-react"
 import { memo, useState } from "react"
 import type { CalendarEvent } from "../types"
 import { formatTime } from "../util/date"
-import { eventDot, eventTint } from "../util/event-style"
+import { eventTint } from "../util/event-style"
+import { TaskStatusIcon } from "./task-status-icon"
 
 type MonthEventProps = {
   event: CalendarEvent
@@ -25,6 +27,8 @@ export const MonthEvent = memo(function MonthEvent({
   const isTimed =
     !event.allDay && event.start.getTime() !== event.end.getTime()
 
+  const isPast = event.end.getTime() < Date.now()
+
   return (
     <>
       <button
@@ -42,22 +46,34 @@ export const MonthEvent = memo(function MonthEvent({
             : "border-l-2 border-l-primary/70 bg-primary/10",
           !event.allDay && isTimed && "font-medium",
           "cursor-pointer hover:opacity-80",
-          event.allDay && "border"
+          event.allDay && "border",
+          isPast && "opacity-60"
         )}
       >
-        {event.allDay && (
-          <span
+        {event.meta?.kind === "task" && (
+          <TaskStatusIcon event={event} />
+        )}
+        {event.meta?.kind === "routine" && (
+          <RefreshCw
             aria-hidden
-            className="size-1.5 shrink-0 rounded-full"
-            style={eventDot(event.color)}
+            className="size-3 shrink-0 text-muted-foreground"
           />
         )}
-        {showTime && isTimed && (
+        {showTime && isTimed && !event.meta && (
           <span className="shrink-0 text-muted-foreground tabular-nums">
             {formatTime(event.start, locale)}
           </span>
         )}
-        <span className="truncate">{event.title}</span>
+        <span
+          className={cn(
+            "truncate",
+            event.meta?.kind === "task" &&
+              event.meta.status === "cancelled" &&
+              "line-through"
+          )}
+        >
+          {event.title}
+        </span>
       </button>
       {open && (
         <EventDetailDialog

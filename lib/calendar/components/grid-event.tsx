@@ -2,10 +2,12 @@
 
 import { EventDetailDialog } from "@/components/calendar/event-detail-dialog"
 import { cn } from "@/lib/util/utils"
+import { RefreshCw } from "lucide-react"
 import { memo, useState } from "react"
 import type { CalendarEvent, GridEventPosition } from "../types"
 import { formatTime } from "../util/date"
 import { eventTint } from "../util/event-style"
+import { TaskStatusIcon } from "./task-status-icon"
 
 type GridEventProps = {
   position: GridEventPosition
@@ -20,6 +22,8 @@ export const GridEvent = memo(function GridEvent({
 }: GridEventProps) {
   const { event, top, height, width, left, zIndex } = position
   const [open, setOpen] = useState(false)
+
+  const isPast = event.end.getTime() < Date.now()
 
   return (
     <>
@@ -43,11 +47,28 @@ export const GridEvent = memo(function GridEvent({
           event.color
             ? "border-l-2"
             : "border-l-2 border-l-primary/70 bg-primary/10",
-          "cursor-pointer hover:opacity-80"
+          "cursor-pointer hover:opacity-80",
+          isPast && "opacity-60"
         )}
       >
-        <span className="truncate text-xs leading-tight font-medium">
-          {event.title}
+        <span className="flex min-w-0 items-center gap-1 text-xs leading-tight font-medium">
+          {event.meta?.kind === "routine" && (
+            <RefreshCw
+              aria-hidden
+              className="size-3 shrink-0 text-muted-foreground"
+            />
+          )}
+          <span
+            className={cn(
+              "truncate",
+              event.meta?.kind === "task" &&
+                event.meta.status === "cancelled" &&
+                "line-through"
+            )}
+          >
+            {event.title}
+          </span>
+          <TaskStatusIcon event={event} />
         </span>
         <span className="truncate text-[11px] leading-tight text-muted-foreground tabular-nums">
           {formatTime(event.start, locale)}

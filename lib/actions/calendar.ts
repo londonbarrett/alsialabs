@@ -27,8 +27,6 @@ const TASK_COLORS = [
   "#6366f1",
 ]
 
-const ROUTINE_COLOR = "#0d9488"
-
 const RANGE_DAYS = 90
 
 export async function getCalendarEvents(): Promise<CalendarEvent[]> {
@@ -107,7 +105,7 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
         start: occurrence,
         end,
         allDay: isAllDay,
-        color: ROUTINE_COLOR,
+        color: taskColor(routine.projectId),
         meta: {
           kind: "routine",
           routineId: routine.id,
