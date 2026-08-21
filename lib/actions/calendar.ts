@@ -76,6 +76,7 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
         description: task.description,
         cost: task.cost,
         commentCount: task.commentCount,
+        routineId: task.routineId,
       },
     })
   }
@@ -126,7 +127,21 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
     }
   }
 
-  return events
+  // Hide routine chips when any task has a routineId spawned from a routine:
+  // if a task was spawned from a routine, only show the task, not the routine chip
+  const routineHasTaskInstance = tasks.some((t) => t.routineId)
+
+  const filteredEvents = events.filter(
+    (event) => {
+      if (event.meta?.kind !== "routine") return true
+      const routineId = event.meta?.routineId as string | undefined
+      if (!routineId) return true
+      // Hide routine chip if a task was spawned from this routine
+      return !routineHasTaskInstance
+    }
+  )
+
+  return filteredEvents
 }
 
 function taskColor(projectId: string): string {
