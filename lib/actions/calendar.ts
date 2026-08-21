@@ -127,17 +127,29 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
     }
   }
 
-  // Hide routine chips when any task has a routineId spawned from a routine:
-  // if a task was spawned from a routine, only show the task, not the routine chip
-  const routineHasTaskInstance = tasks.some((t) => t.routineId)
+  // Hide routine chips only on days when a task with the same routineId has a due date:
+  // Build a set of (routineId, start-of-day) pairs from tasks that have routineId
+  const taskRoutineDayPairs = new Set<
+    [string, Date]
+  >()
+  for (const task of tasks) {
+    if (task.routineId) {
+      const routineId = task.routineId as string
+      const taskDay = startOfDay(task.dueDate!)
+      taskRoutineDayPairs.add([routineId, taskDay])
+    }
+  }
 
   const filteredEvents = events.filter(
     (event) => {
       if (event.meta?.kind !== "routine") return true
       const routineId = event.meta?.routineId as string | undefined
       if (!routineId) return true
-      // Hide routine chip if a task was spawned from this routine
-      return !routineHasTaskInstance
+      const routineDay = startOfDay(event.start)
+      // Hide this routine event if a task with the same routineId has a due date on the same day
+      return !taskRoutineDayPairs.some(
+        ( [rId, tDay] ) => rId === routineId && tDay.getTime() === routineDay.getTime()
+      )
     }
   )
 
