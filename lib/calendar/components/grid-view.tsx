@@ -3,7 +3,7 @@
 import { cn } from "@/lib/util/utils"
 import { memo, useEffect, useEffectEvent, useRef } from "react"
 import type { CalendarEvent, CalendarLabels } from "../types"
-import { endOfDay, formatHour, isToday, startOfDay } from "../util/date"
+import { DAY_MS, formatHour, isToday, startOfDay } from "../util/date"
 import { layoutDayEvents } from "../util/layout"
 import { GridEvent } from "./grid-event"
 import { GridHeader } from "./grid-header"
@@ -35,8 +35,8 @@ export const GridView = memo(function GridView({
   onDateClick,
   onEventClick,
 }: GridViewProps) {
-  const firstDay = startOfDay(days[0])
-  const lastDay = endOfDay(days[days.length - 1])
+  const viewStart = startOfDay(days[0]).getTime()
+  const viewEnd = startOfDay(days[days.length - 1]).getTime() + DAY_MS
   const dayHeight = 24 * hourHeight
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -50,19 +50,24 @@ export const GridView = memo(function GridView({
     scrollToStartHour()
   }, [])
 
-  const allDayEvents = (day: Date) =>
-    events.filter(
+  // All-day events use an exclusive midnight end, so compare with
+  // strict inequalities to avoid spilling onto the following day.
+  const allDayEvents = (day: Date) => {
+    const dayStart = startOfDay(day).getTime()
+    const dayEnd = dayStart + DAY_MS
+    return events.filter(
       (event) =>
         event.allDay &&
-        event.start.getTime() <= endOfDay(day).getTime() &&
-        event.end.getTime() >= startOfDay(day).getTime()
+        event.start.getTime() < dayEnd &&
+        event.end.getTime() > dayStart
     )
+  }
 
   const hasAllDay = events.some(
     (event) =>
       event.allDay &&
-      event.start.getTime() < lastDay.getTime() &&
-      event.end.getTime() > firstDay.getTime()
+      event.start.getTime() < viewEnd &&
+      event.end.getTime() > viewStart
   )
 
   const todayIndex = days.findIndex((d) => isToday(d))

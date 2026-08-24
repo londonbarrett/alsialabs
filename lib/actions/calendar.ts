@@ -6,12 +6,13 @@ import {
   projectOwnersTable,
   projectsTable,
   routinesTable,
+  taskCommentsTable,
+  tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
 import type { CalendarRoutineData, CalendarTaskData } from "@/lib/types"
 import { getActionT } from "@/lib/util/i18n-actions"
 import { endOfDay, parseISODate, startOfDay } from "@/lib/util/schedule"
-import { getMyTasks } from "@/lib/actions/tasks"
 import { and, eq, exists, or, sql } from "drizzle-orm"
 
 const RANGE_DAYS = 90
@@ -50,12 +51,105 @@ export async function getCalendarTasks(range?: {
   const parsedTo = parseRangeDate(range?.to)
   const to = parsedTo ? endOfDay(parsedTo) : defaultTo
 
-  const tasks = await getMyTasks()
+  const tasks = await getVisibleTasks(session.user.id)
   return tasks.filter((task) => {
     if (!task.dueDate) return false
     const time = task.dueDate.getTime()
     return time >= from.getTime() && time <= to.getTime()
   })
+}
+
+/**
+ * Tasks assigned to the user or belonging to projects they own
+ * (co-owners included); superusers see everything.
+ */
+async function getVisibleTasks(userId: string) {
+  const session = await auth()
+  if (!session?.user) return []
+  const isSuper = isSuperUser(session)
+
+  const conditions = []
+  if (!isSuper) {
+    conditions.push(
+      or(
+        eq(tasksTable.assigneeId, userId),
+        exists(
+          db
+            .select({ one: sql`1` })
+            .from(projectOwnersTable)
+            .where(
+              and(
+                eq(projectOwnersTable.projectId, tasksTable.projectId),
+                eq(projectOwnersTable.userId, userId)
+              )
+            )
+        )
+      )
+    )
+  }
+
+  const commentCounts = db
+    .select({
+      taskId: taskCommentsTable.taskId,
+      cnt: sql<number>`count(*)::int`.as("cnt"),
+    })
+    .from(taskCommentsTable)
+    .groupBy(taskCommentsTable.taskId)
+    .as("task_comment_counts")
+
+  const primaryOwners = db
+    .select({
+      projectId: projectOwnersTable.projectId,
+      userId: sql<string>`min(${projectOwnersTable.userId})`.as(
+        "userId"
+      ),
+    })
+    .from(projectOwnersTable)
+    .groupBy(projectOwnersTable.projectId)
+    .as("primary_owners")
+
+  const ownerUsers = db
+    .select({
+      userId: usersTable.id,
+      userName: usersTable.name,
+      userEmail: usersTable.email,
+    })
+    .from(usersTable)
+    .as("owner_users")
+
+  return db
+    .select({
+      id: tasksTable.id,
+      name: tasksTable.name,
+      projectId: tasksTable.projectId,
+      projectName: projectsTable.name,
+      projectOwnerName: sql<
+        string | null
+      >`coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail})`,
+      description: tasksTable.description,
+      cost: tasksTable.cost,
+      status: tasksTable.status,
+      priority: tasksTable.priority,
+      routineId: tasksTable.routineId,
+      dueDate: tasksTable.dueDate,
+      assigneeName: sql<
+        string | null
+      >`coalesce(${usersTable.name}, ${usersTable.email})`,
+      commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
+    })
+    .from(tasksTable)
+    .innerJoin(
+      projectsTable,
+      eq(tasksTable.projectId, projectsTable.id)
+    )
+    .leftJoin(usersTable, eq(tasksTable.assigneeId, usersTable.id))
+    .leftJoin(commentCounts, eq(tasksTable.id, commentCounts.taskId))
+    .leftJoin(
+      primaryOwners,
+      eq(tasksTable.projectId, primaryOwners.projectId)
+    )
+    .leftJoin(ownerUsers, eq(primaryOwners.userId, ownerUsers.userId))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
 }
 
 /**
