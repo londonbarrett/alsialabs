@@ -479,7 +479,10 @@ export async function getMyTasks(
     .select({
       id: tasksTable.id,
       projectId: tasksTable.projectId,
-      projectName: sql<string>`concat(${projectsTable.name}, ' (', coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail}, '—'), ')')`,
+      projectName: projectsTable.name,
+      projectOwnerName: sql<
+        string | null
+      >`coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail})`,
       name: tasksTable.name,
       description: tasksTable.description,
       cost: tasksTable.cost,

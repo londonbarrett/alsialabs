@@ -27,9 +27,17 @@ import {
 import type { Routine } from "@/lib/drizzle/schema"
 import { Plus, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useReducer, useState, useTransition } from "react"
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useReducer,
+  useState,
+  useTransition,
+} from "react"
 import { toast } from "sonner"
 import { RoutineDialog } from "./routine-dialog"
+import { RoutineScheduleSummary } from "./routine-schedule-summary"
 
 export type RoutineWithAssignee = Routine & {
   assigneeName: string | null
@@ -84,7 +92,7 @@ interface RoutinesViewProps {
   projectMembers: ProjectMember[]
 }
 
-export function RoutinesView({
+export const RoutinesView = memo(function RoutinesView({
   initialRoutines,
   projectId,
   canEdit,
@@ -104,155 +112,161 @@ export function RoutinesView({
   const [editingRoutine, setEditingRoutine] = useState<
     RoutineWithAssignee | undefined
   >()
-  const canMutate =
-    isOwner && (canEdit || permissions.includes("projects:delete"))
 
-  async function handleRoutineSubmit(data: {
-    name: string
-    description: string
-    cost: string
-    recurrence: string
-    interval: string
-    daysOfWeek: string[]
-    time: string
-    startDate: string
-    endDate: string
-    assigneeId: string | null
-  }) {
-    const isEdit = !!editingRoutine
-    setEditingRoutine(undefined)
-    setDialogOpen(false)
-    const recurrence = data.recurrence as Routine["recurrence"]
-    const interval = Number(data.interval) || 1
+  const canMutate = useMemo(
+    () =>
+      isOwner && (canEdit || permissions.includes("projects:delete")),
+    [isOwner, canEdit, permissions]
+  )
 
-    const optimistic: RoutineWithAssignee = {
-      id: editingRoutine?.id ?? `temp-${Date.now()}`,
-      projectId,
-      name: data.name,
-      description: data.description || null,
-      cost: data.cost || null,
-      recurrence,
-      interval,
-      daysOfWeek: data.daysOfWeek,
-      time: data.time || null,
-      startDate: data.startDate || null,
-      endDate: data.endDate || null,
-      assigneeId: data.assigneeId,
-      assigneeName:
-        projectMembers.find((m) => m.userId === data.assigneeId)
-          ?.userName ??
-        editingRoutine?.assigneeName ??
-        null,
-      createdAt: editingRoutine?.createdAt ?? new Date(),
-      updatedAt: new Date(),
-    }
+  const handleRoutineSubmit = useCallback(
+    async function handleRoutineSubmit(data: {
+      name: string
+      description: string
+      cost: string
+      recurrence: string
+      interval: string
+      daysOfWeek: string[]
+      time: string
+      startDate: string
+      endDate: string
+      assigneeId: string | null
+    }) {
+      const isEdit = !!editingRoutine
+      setEditingRoutine(undefined)
+      setDialogOpen(false)
+      const recurrence = data.recurrence as Routine["recurrence"]
+      const interval = Number(data.interval) || 1
 
-    dispatch({
-      type: isEdit ? "update" : "add",
-      routine: optimistic,
-    })
-
-    startLoading()
-    const payload = { ...data, recurrence, interval }
-    const result = isEdit
-      ? await updateRoutine(payload, editingRoutine!.id, projectId)
-      : await createRoutine(payload, projectId)
-    stopLoading()
-
-    if (result.success && result.data) {
-      const realRoutine: RoutineWithAssignee = {
-        ...result.data,
-        assigneeName: optimistic.assigneeName,
+      const optimistic: RoutineWithAssignee = {
+        id: editingRoutine?.id ?? `temp-${Date.now()}`,
+        projectId,
+        name: data.name,
+        description: data.description || null,
+        cost: data.cost || null,
+        recurrence,
+        interval,
+        daysOfWeek: data.daysOfWeek,
+        time: data.time || null,
+        startDate: data.startDate || null,
+        endDate: data.endDate || null,
+        assigneeId: data.assigneeId,
+        assigneeName:
+          projectMembers.find((m) => m.userId === data.assigneeId)
+            ?.userName ??
+          editingRoutine?.assigneeName ??
+          null,
+        createdAt: editingRoutine?.createdAt ?? new Date(),
+        updatedAt: new Date(),
       }
-      startTransition(() => {
-        dispatch({
-          type: "replaceTemp",
-          tempId: optimistic.id,
-          routine: realRoutine,
-        })
+
+      dispatch({
+        type: isEdit ? "update" : "add",
+        routine: optimistic,
       })
-      toast.success(
-        isEdit
-          ? t("projects.routines.routineUpdated")
-          : t("projects.routines.routineCreated")
-      )
-    } else {
-      if (!isEdit) {
+
+      startLoading()
+      const payload = { ...data, recurrence, interval }
+      const result = isEdit
+        ? await updateRoutine(payload, editingRoutine!.id, projectId)
+        : await createRoutine(payload, projectId)
+      stopLoading()
+
+      if (result.success && result.data) {
+        const realRoutine: RoutineWithAssignee = {
+          ...result.data,
+          assigneeName: optimistic.assigneeName,
+        }
         startTransition(() => {
-          dispatch({ type: "delete", routineId: optimistic.id })
+          dispatch({
+            type: "replaceTemp",
+            tempId: optimistic.id,
+            routine: realRoutine,
+          })
         })
+        toast.success(
+          isEdit
+            ? t("projects.routines.routineUpdated")
+            : t("projects.routines.routineCreated")
+        )
+      } else {
+        if (!isEdit) {
+          startTransition(() => {
+            dispatch({ type: "delete", routineId: optimistic.id })
+          })
+        }
+        toast.error(result.error || t("common.somethingWentWrong"))
       }
-      toast.error(result.error || t("common.somethingWentWrong"))
-    }
 
-    return result
-  }
+      return result
+    },
+    [
+      t,
+      projectId,
+      editingRoutine,
+      projectMembers,
+      dispatch,
+      startLoading,
+      stopLoading,
+      startTransition,
+    ]
+  )
 
-  function openNew() {
+  const openNew = useCallback(function openNew() {
     setEditingRoutine(undefined)
     setDialogOpen(true)
-  }
+  }, [])
 
-  function openEdit(routine: RoutineWithAssignee) {
+  const openEdit = useCallback(function openEdit(
+    routine: RoutineWithAssignee
+  ) {
     setEditingRoutine(routine)
     setDialogOpen(true)
-  }
+  }, [])
 
-  function handleOpenChange(open: boolean) {
+  const handleOpenChange = useCallback(function handleOpenChange(
+    open: boolean
+  ) {
     setDialogOpen(open)
     if (!open) setEditingRoutine(undefined)
-  }
+  }, [])
 
-  async function handleDeleteRoutine(routineId: string) {
-    dispatch({ type: "delete", routineId })
-    startLoading()
-    const result = await deleteRoutine(routineId, projectId)
-    stopLoading()
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-      startTransition(() => {
-        dispatch({ type: "reset", routines: initialRoutines })
-      })
-    } else {
-      toast.success(t("projects.routines.routineDeleted"))
-    }
-  }
+  const handleDeleteRoutine = useCallback(
+    async function handleDeleteRoutine(routineId: string) {
+      dispatch({ type: "delete", routineId })
+      startLoading()
+      const result = await deleteRoutine(routineId, projectId)
+      stopLoading()
+      if (!result.success) {
+        toast.error(result.error || t("common.somethingWentWrong"))
+        startTransition(() => {
+          dispatch({ type: "reset", routines: initialRoutines })
+        })
+      } else {
+        toast.success(t("projects.routines.routineDeleted"))
+      }
+    },
+    [
+      t,
+      projectId,
+      initialRoutines,
+      dispatch,
+      startLoading,
+      stopLoading,
+      startTransition,
+    ]
+  )
 
-  function getAssigneeName(routine: RoutineWithAssignee) {
-    if (routine.assigneeName) return routine.assigneeName
-    const member = projectMembers.find(
-      (m) => m.userId === routine.assigneeId
-    )
-    return member?.userEmail ?? routine.assigneeId
-  }
-
-  function getScheduleSummary(routine: Routine): string {
-    const cadence =
-      routine.recurrence === "daily"
-        ? routine.interval === 1
-          ? t("projects.routines.everyDay")
-          : t("projects.routines.everyNDays", { n: routine.interval })
-        : routine.interval === 1
-          ? t("projects.routines.everyWeek")
-          : t("projects.routines.everyNWeeks", {
-              n: routine.interval,
-            })
-
-    const days =
-      routine.recurrence === "weekly"
-        ? (routine.daysOfWeek ?? [])
-            .map((d) => t(`projects.routines.dayShort.${d}`))
-            .join(", ")
-        : ""
-
-    const range = [routine.startDate, routine.endDate]
-      .filter(Boolean)
-      .join(" – ")
-
-    return [cadence, days, routine.time, range]
-      .filter(Boolean)
-      .join(" · ")
-  }
+  const getAssigneeName = useCallback(
+    function getAssigneeName(routine: RoutineWithAssignee) {
+      if (routine.assigneeName) return routine.assigneeName
+      const member = projectMembers.find(
+        (m) => m.userId === routine.assigneeId
+      )
+      return member?.userEmail ?? routine.assigneeId
+    },
+    [projectMembers]
+  )
 
   return (
     <Card>
@@ -331,7 +345,7 @@ export function RoutinesView({
                           )}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {getScheduleSummary(routine)}
+                          <RoutineScheduleSummary routine={routine} />
                         </span>
                       </div>
                     </TableCell>
@@ -374,4 +388,4 @@ export function RoutinesView({
       />
     </Card>
   )
-}
+})

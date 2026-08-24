@@ -5,6 +5,8 @@ export interface ScheduleConfig {
   interval: number
   daysOfWeek: string[]
   time: string | null
+  startDate?: string
+  endDate?: string
 }
 
 const WEEKDAY_TO_JS: Record<string, number> = {
@@ -31,9 +33,28 @@ export function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
+export function endOfDay(date: Date): Date {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999
+  )
+}
+
 export function parseISODate(value: string): Date {
   const [year, month, day] = value.split("-").map(Number)
   return new Date(year || 0, (month || 1) - 1, day || 1)
+}
+
+/** Local-time inverse of parseISODate: "YYYY-MM-DD". */
+export function toDateKey(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0")
+  const day = `${date.getDate()}`.padStart(2, "0")
+  return `${date.getFullYear()}-${month}-${day}`
 }
 
 export function combineDateTime(
@@ -74,6 +95,11 @@ function applyTime(date: Date, time: string | null): Date {
 
 function weekdayOffset(jsDay: number): number {
   return jsDay === 0 ? 6 : jsDay - 1
+}
+
+export interface RoutineWindow {
+  startDate?: string
+  endDate?: string
 }
 
 export function computeScheduledFor(

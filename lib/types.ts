@@ -5,6 +5,29 @@ export interface ProjectMember {
   userImage: string | null
 }
 
+/** App-level metadata carried by calendar events. */
+export interface CalendarEventMeta {
+  kind?: "task" | "routine"
+  taskId?: string
+  routineId?: string
+  projectId?: string
+  projectName?: string
+  projectOwnerName?: string | null
+  status?: string
+  priority?: string | null
+  assigneeName?: string | null
+  dueDateIso?: string | null
+  description?: string | null
+  cost?: string | null
+  commentCount?: number
+  recurrence?: string
+  interval?: number
+  daysOfWeek?: string[]
+  time?: string | null
+  startDate?: string | null
+  endDate?: string | null
+}
+
 export type Project = {
   id: string
   primaryOwnerId: string
@@ -27,4 +50,39 @@ export type Project = {
   }[]
   owners: { id: string; name: string; image: string | null }[]
   collaborators: { id: string; name: string; image: string | null }[]
+}
+
+/** Minimal task row needed to build calendar task events. */
+export interface CalendarTaskData {
+  id: string
+  name: string
+  projectId: string
+  projectName: string
+  projectOwnerName: string | null
+  description: string | null
+  cost: string | null
+  status: string
+  priority: string | null
+  routineId: string | null
+  dueDate: Date | null
+  assigneeName: string | null
+  commentCount: number
+}
+
+/** Minimal routine row needed to expand recurring events on the client. */
+export interface CalendarRoutineData {
+  id: string
+  name: string
+  description: string | null
+  cost: string | null
+  projectId: string
+  projectName: string
+  projectOwnerName: string | null
+  assigneeName: string | null
+  recurrence: "daily" | "weekly"
+  interval: number
+  daysOfWeek: string[] | null
+  time: string | null
+  startDate: string | null
+  endDate: string | null
 }

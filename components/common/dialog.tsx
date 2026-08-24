@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/dialog"
 
 interface DialogProps {
-  title: string
-  description: string
+  title: React.ReactNode
+  description?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
@@ -35,7 +35,9 @@ export function Dialog({
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          {description ? (
+            <DialogDescription>{description}</DialogDescription>
+          ) : null}
         </DialogHeader>
         {children}
       </DialogContent>

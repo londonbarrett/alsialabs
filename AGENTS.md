@@ -58,6 +58,7 @@ Current specs:
 - `dashboard-navigation` — Sidebar navigation
 - `client-crud` — Client create/edit
 - `category-management` — Taxonomy/category CRUD and i18n translations
+- `calendar` — Month/week/day calendar component, demo page, and event data source
 
 ## Commands
 
