@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/util/utils"
-import { memo, useMemo } from "react"
+import { memo, useEffect, useMemo } from "react"
 import { useCalendar } from "../hooks/use-calendar"
 import type { CalendarProps } from "../types"
 import {
@@ -25,9 +25,11 @@ export const Calendar = memo(function Calendar({
   hourHeight = 64,
   startHour = 8,
   maxMonthEvents = 3,
+  isPending,
   labels,
   onDateClick,
   onEventClick,
+  onVisibleRangeChange,
   className,
 }: CalendarProps) {
   const resolvedLabels = useMemo(() => resolveLabels(labels), [labels])
@@ -38,6 +40,16 @@ export const Calendar = memo(function Calendar({
     weekStartsOn,
   })
   const { view, anchor, range } = calendar
+
+  const rangeStart = range.start.getTime()
+  const rangeEnd = range.end.getTime()
+
+  useEffect(() => {
+    onVisibleRangeChange?.({
+      start: new Date(rangeStart),
+      end: new Date(rangeEnd),
+    })
+  }, [onVisibleRangeChange, rangeStart, rangeEnd])
 
   const weekDays = useMemo(
     () =>
@@ -74,6 +86,7 @@ export const Calendar = memo(function Calendar({
         title={title}
         view={view}
         labels={resolvedLabels}
+        isPending={isPending}
         onToday={calendar.goToToday}
         onPrev={calendar.goToPrev}
         onNext={calendar.goToNext}

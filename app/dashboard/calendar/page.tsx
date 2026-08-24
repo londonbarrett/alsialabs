@@ -1,27 +1,14 @@
-import { Suspense } from "react"
-import { getLocale, getTranslations } from "next-intl/server"
-import { forbidden } from "next/navigation"
+import { CalendarView } from "@/components/calendar/calendar-view"
 import { PageHeader } from "@/components/common/page-header"
-import { Calendar } from "@/lib/calendar"
-import { getCalendarEvents } from "@/lib/actions/calendar"
+import { getCalendarRoutines } from "@/lib/actions/calendar"
+import { getMyTasks } from "@/lib/actions/tasks"
 import { auth, hasPermission } from "@/lib/auth"
 import { CalendarDays } from "lucide-react"
+import { getLocale, getTranslations } from "next-intl/server"
+import { forbidden } from "next/navigation"
+import { Suspense } from "react"
 
-export default function CalendarPage() {
-  return (
-    <div className="flex h-[calc(100svh-3rem)] flex-col gap-6 p-6">
-      <Suspense
-        fallback={
-          <div className="flex h-full animate-pulse rounded-xl bg-muted" />
-        }
-      >
-        <CalendarContent />
-      </Suspense>
-    </div>
-  )
-}
-
-async function CalendarContent() {
+export default async function CalendarPage() {
   const session = await auth()
   if (
     !session?.user?.id ||
@@ -30,31 +17,37 @@ async function CalendarContent() {
     forbidden()
   }
 
-  const [t, locale, events] = await Promise.all([
+  const [t, locale] = await Promise.all([
     getTranslations("calendar"),
     getLocale(),
-    getCalendarEvents(),
   ])
 
   return (
-    <>
+    <div className="flex h-[calc(100svh-3rem)] flex-col gap-6 p-6">
       <PageHeader
         title={t("title")}
         subtitle={t("subtitle")}
         icon={CalendarDays}
       />
-      <Calendar
-        events={events}
-        locale={locale}
-        labels={{
-          today: t("today"),
-          month: t("month"),
-          week: t("week"),
-          day: t("day"),
-          moreEvents: t("moreEvents"),
-          allDay: t("allDay"),
-        }}
-      />
-    </>
+      <Suspense
+        fallback={
+          <div className="min-h-0 flex-1 animate-pulse rounded-xl bg-muted" />
+        }
+      >
+        <CalendarView
+          tasks={getMyTasks()}
+          routines={getCalendarRoutines()}
+          locale={locale}
+          labels={{
+            today: t("today"),
+            month: t("month"),
+            week: t("week"),
+            day: t("day"),
+            moreEvents: t("moreEvents"),
+            allDay: t("allDay"),
+          }}
+        />
+      </Suspense>
+    </div>
   )
 }

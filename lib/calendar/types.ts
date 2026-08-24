@@ -1,26 +1,6 @@
-export type CalendarView = "month" | "week" | "day"
+import type { CalendarEventMeta } from "@/lib/types"
 
-export interface CalendarEventMeta {
-  kind?: "task" | "routine"
-  taskId?: string
-  routineId?: string
-  projectId?: string
-  projectName?: string
-  projectOwnerName?: string | null
-  status?: string
-  priority?: string | null
-  assigneeName?: string | null
-  dueDateIso?: string | null
-  description?: string | null
-  cost?: string | null
-  commentCount?: number
-  recurrence?: string
-  interval?: number
-  daysOfWeek?: string[]
-  time?: string | null
-  startDate?: string | null
-  endDate?: string | null
-}
+export type CalendarView = "month" | "week" | "day"
 
 export interface CalendarEvent {
   id: string
@@ -58,10 +38,19 @@ export interface CalendarProps {
   startHour?: number
   /** Max event chips rendered per day in month view. Defaults to 3. */
   maxMonthEvents?: number
+  /** Shows a spinner next to the period title while data is loading. */
+  isPending?: boolean
   labels?: Partial<CalendarLabels>
   onDateClick?: (date: Date) => void
   onEventClick?: (event: CalendarEvent) => void
+  /** Fired whenever the visible date range changes via navigation or view switch. */
+  onVisibleRangeChange?: (range: CalendarVisibleRange) => void
   className?: string
+}
+
+export interface CalendarVisibleRange {
+  start: Date
+  end: Date
 }
 
 export interface GridEventPosition {

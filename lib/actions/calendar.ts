@@ -1,6 +1,6 @@
 "use server"
 
-import { auth, isSuperUser } from "@/lib/auth"
+import { auth, isSuperUser, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   projectOwnersTable,
@@ -8,158 +8,75 @@ import {
   routinesTable,
   usersTable,
 } from "@/lib/drizzle/schema"
+import type { CalendarRoutineData, CalendarTaskData } from "@/lib/types"
+import { getActionT } from "@/lib/util/i18n-actions"
+import { endOfDay, parseISODate, startOfDay } from "@/lib/util/schedule"
 import { getMyTasks } from "@/lib/actions/tasks"
-import type { CalendarEvent } from "@/lib/calendar"
-import { occurrencesInRange } from "@/lib/calendar/util/schedule"
-import {
-  endOfDay,
-  startOfDay,
-  type ScheduleConfig,
-} from "@/lib/util/schedule"
 import { and, eq, exists, or, sql } from "drizzle-orm"
 
-const TASK_COLORS = [
-  "#0ea5e9",
-  "#8b5cf6",
-  "#10b981",
-  "#f59e0b",
-  "#f43f5e",
-  "#6366f1",
-]
-
 const RANGE_DAYS = 90
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
-export async function getCalendarEvents(): Promise<CalendarEvent[]> {
-  const session = await auth()
-  if (!session?.user) return []
-
-  const from = startOfDay(new Date())
-  from.setDate(from.getDate() - RANGE_DAYS)
-  const to = endOfDay(new Date())
-  to.setDate(to.getDate() + RANGE_DAYS)
-
-  const events: CalendarEvent[] = []
-
-  const tasks = await getMyTasks()
-  for (const task of tasks) {
-    if (!task.dueDate) continue
-    const due = task.dueDate
-    if (
-      due.getTime() < from.getTime() ||
-      due.getTime() > to.getTime()
-    ) {
-      continue
-    }
-    const isAllDay = due.getHours() === 0 && due.getMinutes() === 0
-    const end = isAllDay
-      ? new Date(due.getFullYear(), due.getMonth(), due.getDate() + 1)
-      : new Date(due.getTime() + 60 * 60 * 1000)
-
-    events.push({
-      id: `task-${task.id}`,
-      title: task.name,
-      description: task.projectName,
-      start: due,
-      end,
-      allDay: isAllDay,
-      color: taskColor(task.projectId),
-      meta: {
-        kind: "task",
-        taskId: task.id,
-        projectId: task.projectId,
-        projectName: task.projectName,
-        projectOwnerName: task.projectOwnerName ?? null,
-        status: task.status,
-        priority: task.priority,
-        assigneeName: task.assigneeName,
-        dueDateIso: task.dueDate?.toISOString() ?? null,
-        description: task.description,
-        cost: task.cost,
-        commentCount: task.commentCount,
-        routineId: task.routineId ?? undefined,
-      },
-    })
-  }
-
-  const routines = await getVisibleRoutines(session.user.id)
-  for (const routine of routines) {
-    const schedule: ScheduleConfig = {
-      recurrence: routine.recurrence,
-      interval: routine.interval,
-      daysOfWeek: routine.daysOfWeek ?? [],
-      time: routine.time,
-      startDate: routine.startDate ?? undefined,
-      endDate: routine.endDate ?? undefined,
-    }
-    for (const occurrence of occurrencesInRange(schedule, from, to)) {
-      const isAllDay = !routine.time
-      const end = isAllDay
-        ? new Date(
-            occurrence.getFullYear(),
-            occurrence.getMonth(),
-            occurrence.getDate() + 1
-          )
-        : new Date(occurrence.getTime() + 60 * 60 * 1000)
-      events.push({
-        id: `routine-${routine.id}-${occurrence.getTime()}`,
-        title: routine.name,
-        start: occurrence,
-        end,
-        allDay: isAllDay,
-        color: taskColor(routine.projectId),
-        meta: {
-          kind: "routine",
-          routineId: routine.id,
-          projectId: routine.projectId,
-          projectName: routine.projectName,
-          projectOwnerName: routine.projectOwnerName ?? null,
-          assigneeName: routine.assigneeName ?? null,
-          description: routine.description,
-          cost: routine.cost ? routine.cost.toString() : null,
-          recurrence: routine.recurrence,
-          interval: routine.interval,
-          daysOfWeek: routine.daysOfWeek ?? [],
-          time: routine.time,
-          startDate: routine.startDate ?? null,
-          endDate: routine.endDate ?? null,
-        },
-      })
-    }
-  }
-
-  // Hide routine chips only on days when a task with the same routineId has a due date:
-  // Map: routineId -> set of task start-of-day timestamps
-  const taskRoutineDays = new Map<string, Set<number>>()
-  for (const task of tasks) {
-    if (task.routineId && task.dueDate) {
-      const routineId = task.routineId as string
-      let days = taskRoutineDays.get(routineId)
-      if (!days) {
-        days = new Set<number>()
-        taskRoutineDays.set(routineId, days)
-      }
-      days.add(startOfDay(task.dueDate).getTime())
-    }
-  }
-
-  const filteredEvents = events.filter((event) => {
-    if (event.meta?.kind !== "routine") return true
-    const routineId = event.meta?.routineId as string | undefined
-    if (!routineId) return true
-    const routineDay = startOfDay(event.start).getTime()
-    // Hide this routine event if a task with the same routineId has a due date on the same day
-    return !taskRoutineDays.get(routineId)?.has(routineDay)
-  })
-
-  return filteredEvents
+function parseRangeDate(value: string | undefined): Date | null {
+  if (!value || !ISO_DATE_PATTERN.test(value)) return null
+  return parseISODate(value)
 }
 
-function taskColor(projectId: string): string {
-  let hash = 0
-  for (let i = 0; i < projectId.length; i++) {
-    hash = (hash * 31 + projectId.charCodeAt(i)) >>> 0
+/**
+ * Returns the tasks with a due date inside the requested range. Raw rows
+ * only; event building happens on the client.
+ */
+export async function getCalendarTasks(range?: {
+  from?: string
+  to?: string
+}): Promise<CalendarTaskData[]> {
+  const t = await getActionT("actions.projects")
+
+  try {
+    await requirePermission("projects", "view")
+  } catch {
+    throw new Error(t("forbidden"))
   }
-  return TASK_COLORS[hash % TASK_COLORS.length]
+
+  const session = await auth()
+  if (!session?.user) throw new Error(t("unauthorized"))
+
+  const defaultFrom = startOfDay(new Date())
+  defaultFrom.setDate(defaultFrom.getDate() - RANGE_DAYS)
+  const defaultTo = endOfDay(new Date())
+  defaultTo.setDate(defaultTo.getDate() + RANGE_DAYS)
+
+  const from = parseRangeDate(range?.from) ?? defaultFrom
+  const parsedTo = parseRangeDate(range?.to)
+  const to = parsedTo ? endOfDay(parsedTo) : defaultTo
+
+  const tasks = await getMyTasks()
+  return tasks.filter((task) => {
+    if (!task.dueDate) return false
+    const time = task.dueDate.getTime()
+    return time >= from.getTime() && time <= to.getTime()
+  })
+}
+
+/**
+ * Returns the raw routine rows visible to the current user. Occurrence
+ * expansion happens on the client so navigation never hits the server.
+ */
+export async function getCalendarRoutines(): Promise<
+  CalendarRoutineData[]
+> {
+  const t = await getActionT("actions.projects")
+
+  try {
+    await requirePermission("projects", "view")
+  } catch {
+    throw new Error(t("forbidden"))
+  }
+
+  const session = await auth()
+  if (!session?.user) throw new Error(t("unauthorized"))
+
+  return getVisibleRoutines(session.user.id)
 }
 
 async function getVisibleRoutines(userId: string) {

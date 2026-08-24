@@ -50,6 +50,13 @@ export function parseISODate(value: string): Date {
   return new Date(year || 0, (month || 1) - 1, day || 1)
 }
 
+/** Local-time inverse of parseISODate: "YYYY-MM-DD". */
+export function toDateKey(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0")
+  const day = `${date.getDate()}`.padStart(2, "0")
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
 export function combineDateTime(
   date: string,
   time: string

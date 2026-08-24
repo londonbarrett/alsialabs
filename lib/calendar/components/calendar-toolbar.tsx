@@ -1,9 +1,9 @@
 "use client"
 
-import { memo } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/util/utils"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2Icon } from "lucide-react"
+import { memo } from "react"
 import type { CalendarView } from "../types"
 
 const views: CalendarView[] = ["month", "week", "day"]
@@ -12,6 +12,7 @@ interface CalendarToolbarProps {
   title: string
   view: CalendarView
   labels: Record<"today" | "month" | "week" | "day", string>
+  isPending?: boolean
   onToday: () => void
   onPrev: () => void
   onNext: () => void
@@ -22,6 +23,7 @@ export const CalendarToolbar = memo(function CalendarToolbar({
   title,
   view,
   labels,
+  isPending,
   onToday,
   onPrev,
   onNext,
@@ -51,9 +53,17 @@ export const CalendarToolbar = memo(function CalendarToolbar({
         </Button>
       </div>
 
-      <h2 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">
-        {title}
-      </h2>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <h2 className="truncate text-lg font-semibold tracking-tight">
+          {title}
+        </h2>
+        {isPending && (
+          <Loader2Icon
+            aria-hidden="true"
+            className="size-4 shrink-0 animate-spin text-muted-foreground"
+          />
+        )}
+      </div>
 
       <div
         role="group"

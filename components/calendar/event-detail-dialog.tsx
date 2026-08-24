@@ -6,7 +6,9 @@ import { RoutineScheduleSummary } from "@/components/projects/routines/routine-s
 import { taskPriorityColors } from "@/components/projects/task-priority-select"
 import { taskStatusColors } from "@/components/projects/task-status-select"
 import { Badge } from "@/components/ui/badge"
-import type { CalendarEvent, CalendarEventMeta } from "@/lib/calendar"
+import type { CalendarEvent } from "@/lib/calendar"
+import { formatWhen } from "@/lib/calendar/util/date"
+import type { CalendarEventMeta } from "@/lib/types"
 import { cn, isTaskOverdue } from "@/lib/util/utils"
 import { AlertTriangle, CalendarClock, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -17,26 +19,6 @@ interface EventDetailDialogProps {
   locale: string
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-function formatWhen(event: CalendarEvent, locale: string) {
-  const dateFmt = new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-  })
-  const timeFmt = new Intl.DateTimeFormat(locale, {
-    hour: "numeric",
-    minute: "2-digit",
-  })
-
-  if (event.allDay) return dateFmt.format(event.start)
-
-  const start = `${dateFmt.format(event.start)} · ${timeFmt.format(
-    event.start
-  )}`
-  if (event.end.getTime() !== event.start.getTime()) {
-    return `${start} – ${timeFmt.format(event.end)}`
-  }
-  return start
 }
 
 const Row = memo(function Row({

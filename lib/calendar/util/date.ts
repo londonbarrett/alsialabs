@@ -1,3 +1,5 @@
+import type { CalendarEvent, CalendarVisibleRange } from "../types"
+
 export const DAY_MS = 86_400_000
 
 export function startOfDay(date: Date): Date {
@@ -56,8 +58,7 @@ export function isSameDay(a: Date, b: Date): boolean {
 
 export function isSameMonth(a: Date, b: Date): boolean {
   return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth()
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
   )
 }
 
@@ -89,7 +90,10 @@ export function minutesSinceMidnight(date: Date): number {
   return date.getHours() * 60 + date.getMinutes()
 }
 
-export function getFirstDayOfWeek(locale: string, fallback = 1): number {
+export function getFirstDayOfWeek(
+  locale: string,
+  fallback = 1
+): number {
   const normalized = locale.trim().toLowerCase()
   return (
     WEEK_START_BY_LOCALE[normalized] ??
@@ -220,6 +224,43 @@ export function formatTime(date: Date, locale: string): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(date)
+}
+
+/** Human-readable "when" line for a calendar event (date, plus time range when timed). */
+export function formatWhen(
+  event: CalendarEvent,
+  locale: string
+): string {
+  const dateFmt = new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+  })
+  const timeFmt = new Intl.DateTimeFormat(locale, {
+    hour: "numeric",
+    minute: "2-digit",
+  })
+
+  if (event.allDay) return dateFmt.format(event.start)
+
+  const start = `${dateFmt.format(event.start)} · ${timeFmt.format(
+    event.start
+  )}`
+  if (event.end.getTime() !== event.start.getTime()) {
+    return `${start} – ${timeFmt.format(event.end)}`
+  }
+  return start
+}
+
+/** Expands a visible range by a week on each side so grid overflow days have data. */
+export function paddedRange(range: CalendarVisibleRange): {
+  from: Date
+  to: Date
+} {
+  const from = new Date(range.start)
+  from.setDate(from.getDate() - 7)
+  const to = new Date(range.end)
+  to.setDate(to.getDate() + 7)
+  to.setHours(23, 59, 59, 999)
+  return { from, to }
 }
 
 export function capitalize(str: string): string {

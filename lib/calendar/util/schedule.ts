@@ -17,6 +17,12 @@ const WEEKDAY_TO_JS: Record<string, number> = {
 
 const DAY_MS = 86_400_000
 
+/**
+ * Stable origin for schedules without a start date, so occurrence days
+ * never depend on the queried range. 1970-01-05 is a Monday.
+ */
+const FALLBACK_START = "1970-01-05"
+
 function addDays(date: Date, days: number): Date {
   return new Date(
     date.getFullYear(),
@@ -39,9 +45,9 @@ export function occurrencesInRange(
   rangeStart: Date,
   rangeEnd: Date
 ): Date[] {
-  const windowStart = schedule.startDate
-    ? parseISODate(schedule.startDate)
-    : startOfDay(rangeStart)
+  const windowStart = parseISODate(
+    schedule.startDate ?? FALLBACK_START
+  )
   const windowEnd = schedule.endDate
     ? endOfDay(parseISODate(schedule.endDate))
     : endOfDay(rangeEnd)
@@ -73,8 +79,15 @@ export function occurrencesInRange(
   const interval = Math.max(1, schedule.interval)
 
   if (schedule.recurrence === "daily") {
+    // Align the iteration to the schedule's own origin so every-N-day
+    // routines land on the same days regardless of the queried range.
+    const base = startOfDay(windowStart)
+    const offsetDays = Math.round(
+      (startOfDay(from).getTime() - base.getTime()) / DAY_MS
+    )
+    const remainder = ((offsetDays % interval) + interval) % interval
     for (
-      let date = from;
+      let date = addDays(base, offsetDays - remainder);
       date.getTime() <= to.getTime();
       date = addDays(date, interval)
     ) {
