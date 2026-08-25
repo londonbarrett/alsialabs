@@ -10,6 +10,7 @@ import {
   unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
+import { PROJECT_COLORS } from "@/components/projects/colors"
 
 export const usersTable = pgTable("user", {
   id: text()
@@ -395,6 +396,7 @@ export const projectsTable = pgTable("project", {
   endDate: date("end_date"),
   location: text(),
   budget: decimal("budget", { precision: 12, scale: 2 }),
+  color: text().notNull().default(PROJECT_COLORS[0]),
   createdAt: timestamp("created_at", { mode: "date" })
     .notNull()
     .defaultNow(),

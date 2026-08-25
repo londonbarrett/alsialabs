@@ -8,24 +8,7 @@ import type {
 import { startOfDay, type ScheduleConfig } from "@/lib/util/schedule"
 import { occurrencesInRange } from "./schedule"
 
-const TASK_COLORS = [
-  "#0ea5e9",
-  "#8b5cf6",
-  "#10b981",
-  "#f59e0b",
-  "#f43f5e",
-  "#6366f1",
-]
-
 const HOUR_MS = 60 * 60 * 1000
-
-export function taskColor(projectId: string): string {
-  let hash = 0
-  for (let i = 0; i < projectId.length; i++) {
-    hash = (hash * 31 + projectId.charCodeAt(i)) >>> 0
-  }
-  return TASK_COLORS[hash % TASK_COLORS.length]
-}
 
 function buildTaskEvents(
   tasks: CalendarTaskData[],
@@ -51,7 +34,7 @@ function buildTaskEvents(
       start: due,
       end,
       allDay: isAllDay,
-      color: taskColor(task.projectId),
+      color: task.projectColor,
       meta: {
         kind: "task",
         taskId: task.id,
@@ -102,7 +85,7 @@ function buildRoutineEvents(
         start: occurrence,
         end,
         allDay: isAllDay,
-        color: taskColor(routine.projectId),
+        color: routine.projectColor,
         meta: {
           kind: "routine",
           routineId: routine.id,

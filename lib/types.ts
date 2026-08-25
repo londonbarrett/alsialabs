@@ -34,6 +34,7 @@ export type Project = {
   name: string
   description: string | null
   status: "active" | "completed" | "cancelled" | "archived"
+  color: string
   categorySlug: string | null
   startDate: string
   endDate: string
@@ -58,6 +59,7 @@ export interface CalendarTaskData {
   name: string
   projectId: string
   projectName: string
+  projectColor: string
   projectOwnerName: string | null
   description: string | null
   cost: string | null
@@ -77,6 +79,7 @@ export interface CalendarRoutineData {
   cost: string | null
   projectId: string
   projectName: string
+  projectColor: string
   projectOwnerName: string | null
   assigneeName: string | null
   recurrence: "daily" | "weekly"

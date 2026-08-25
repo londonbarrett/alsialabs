@@ -124,6 +124,7 @@ export function MyTasksView({
                 ...result.nextTask,
                 projectId: completed.projectId,
                 projectName: completed.projectName,
+                projectColor: completed.projectColor,
                 projectOwnerName: completed.projectOwnerName,
                 isOwner: completed.isOwner,
                 assigneeName: completed.assigneeName,

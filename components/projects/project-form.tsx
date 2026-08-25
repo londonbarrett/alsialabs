@@ -13,9 +13,11 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { upsertProject } from "@/lib/actions/projects"
 import type { Project } from "@/lib/drizzle/schema"
+import { type ProjectColor } from "./colors"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { toast } from "sonner"
+import { ProjectColorField } from "./project-color-field"
 
 interface ProjectFormProps {
   project?: Project
@@ -45,6 +47,7 @@ export function ProjectForm({
   const [endDate, setEndDate] = useState(project?.endDate ?? "")
   const [location, setLocation] = useState(project?.location ?? "")
   const [budget, setBudget] = useState(project?.budget ?? "")
+  const [color, setColor] = useState<string | undefined>(project?.color)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
@@ -57,6 +60,7 @@ export function ProjectForm({
       fieldErrors.startDate = t("projects.startDateRequired")
     if (!location.trim())
       fieldErrors.location = t("projects.locationRequired")
+    if (!color) fieldErrors.color = t("projects.colorRequired")
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
   }
@@ -81,6 +85,7 @@ export function ProjectForm({
           endDate: endDate.trim(),
           location: location.trim(),
           budget: budget.trim(),
+          color: color as ProjectColor,
         },
         project?.id
       )
@@ -151,6 +156,12 @@ export function ProjectForm({
           </p>
         )}
       </div>
+
+      <ProjectColorField
+        value={color}
+        onChange={setColor}
+        error={errors.color}
+      />
 
       {project && (
         <div className="flex flex-col gap-2">

@@ -195,7 +195,7 @@ Raw data SHALL be served separately from event building:
 
 - `getCalendarRoutines` SHALL return raw routine rows visible to the user (assignee, project owner/co-owner, or superuser) once per page load.
 - `getCalendarTasks({ from, to })` SHALL return raw task rows with a due date inside the requested range, visible to the user under the same rule (assignee, project owner/co-owner, or superuser).
-- A pure client function (`buildCalendarEvents`) SHALL expand routine occurrences for the visible window, build task events, derive colors deterministically from the project id, and hide a routine chip on any day where a task spawned by the same routine is due.
+- A pure client function (`buildCalendarEvents`) SHALL expand routine occurrences for the visible window, build task events colored with each project's stored color, and hide a routine chip on any day where a task spawned by the same routine is due.
 
 Routine expansion SHALL anchor occurrences to the schedule's own start date (or a fixed epoch when absent) so occurrence days never depend on the queried range. On visible-range change the client SHALL refetch tasks for the padded visible window, clear stale tasks while loading, trigger the global loading bar and the toolbar spinner, and apply only the latest response.
 
@@ -203,7 +203,13 @@ Routine expansion SHALL anchor occurrences to the schedule's own start date (or 
 
 - **GIVEN** a visible task with a due date inside the fetched range
 - **WHEN** events are built
-- **THEN** the task appears as an event whose color derives from its project
+- **THEN** the task appears as an event whose color is the stored color of its project
+
+#### Scenario: Task and routine from the same project share one color
+
+- **GIVEN** a task and a routine belonging to the same project
+- **WHEN** events are built for both
+- **THEN** both events use that project's stored color
 
 #### Scenario: Routine occurrences stay consistent across ranges
 

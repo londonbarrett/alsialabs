@@ -297,6 +297,7 @@
     "endDate": "Fecha de fin",
     "location": "Ubicación",
     "budget": "Presupuesto",
+    "color": "Color",
     "actions": "Acciones",
     "projectDeleted": "Proyecto eliminado",
     "failedToDelete": "Error al eliminar el proyecto",
@@ -306,7 +307,16 @@
     "categoryRequired": "La categoría es obligatoria",
     "startDateRequired": "La fecha de inicio es obligatoria",
     "locationRequired": "La ubicación es obligatoria",
+    "colorRequired": "El color es obligatorio",
     "selectCategory": "Selecciona una categoría",
+    "colors": {
+      "yellow": "Amarillo",
+      "orange": "Naranja",
+      "violet": "Violeta",
+      "blue": "Azul",
+      "green": "Verde",
+      "gray": "Gris"
+    },
     "status": {
       "active": "Activo",
       "completed": "Completado",
