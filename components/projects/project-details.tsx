@@ -2,7 +2,6 @@
 
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { Money } from "@/components/common/money"
-import type { ProjectMember } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -17,6 +16,12 @@ import {
   type ProjectDetail,
 } from "@/lib/actions/projects"
 import type { Project as DbProject } from "@/lib/drizzle/schema"
+import {
+  PROJECT_COLORS,
+  PROJECT_COLOR_NAME_KEYS,
+  type ProjectColor,
+} from "@/components/projects/colors"
+import type { ProjectMember } from "@/lib/types"
 import {
   Calendar,
   ClipboardList,
@@ -57,6 +62,11 @@ export function ProjectDetails({
   >()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const colorIndex = PROJECT_COLORS.indexOf(
+    project.color as ProjectColor
+  )
+  const colorNameKey =
+    colorIndex >= 0 ? PROJECT_COLOR_NAME_KEYS[colorIndex] : undefined
 
   async function handleEdit() {
     const full = await getProjectForEdit(project.id)
@@ -115,6 +125,23 @@ export function ProjectDetails({
             </div>
           </div>
           <div className="flex items-start gap-3">
+            <span
+              className="mt-0.5 size-4 shrink-0 rounded-full border border-border/50"
+              style={{ backgroundColor: project.color }}
+              aria-hidden
+            />
+            <div>
+              <p className="mb-1 text-xs text-muted-foreground">
+                {t("projects.color")}
+              </p>
+              <p className="text-sm font-medium">
+                {colorNameKey
+                  ? t(`projects.colors.${colorNameKey}`)
+                  : project.color}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
             <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <div>
               <p className="mb-1 text-xs text-muted-foreground">
@@ -122,17 +149,6 @@ export function ProjectDetails({
               </p>
               <p className="text-sm font-medium">
                 {project.location || "—"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Wallet className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <div>
-              <p className="mb-1 text-xs text-muted-foreground">
-                {t("projects.budget")}
-              </p>
-              <p className="text-sm font-medium">
-                <Money value={project.budget} />
               </p>
             </div>
           </div>
@@ -153,6 +169,17 @@ export function ProjectDetails({
               </p>
               <p className="text-sm font-medium">
                 {project.endDate || "—"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Wallet className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="mb-1 text-xs text-muted-foreground">
+                {t("projects.budget")}
+              </p>
+              <p className="text-sm font-medium">
+                <Money value={project.budget} />
               </p>
             </div>
           </div>

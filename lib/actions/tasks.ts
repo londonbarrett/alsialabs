@@ -480,6 +480,7 @@ export async function getMyTasks(
       id: tasksTable.id,
       projectId: tasksTable.projectId,
       projectName: projectsTable.name,
+      projectColor: projectsTable.color,
       projectOwnerName: sql<
         string | null
       >`coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail})`,

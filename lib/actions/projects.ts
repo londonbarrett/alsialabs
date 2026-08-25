@@ -11,6 +11,7 @@ import {
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
+import { PROJECT_COLORS } from "@/components/projects/colors"
 import { getActionT } from "@/lib/util/i18n-actions"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
@@ -38,6 +39,9 @@ const projectSchema = z.object({
     .min(1, "Location is required")
     .transform((v) => v.trim()),
   budget: z.string().optional().default(""),
+  color: z.enum(PROJECT_COLORS, {
+    message: "Color is required",
+  }),
 })
 
 export type ProjectFormData = z.infer<typeof projectSchema>
@@ -101,6 +105,7 @@ export async function getProjects() {
       endDate: projectsTable.endDate,
       location: projectsTable.location,
       budget: projectsTable.budget,
+      color: projectsTable.color,
       createdAt: projectsTable.createdAt,
       updatedAt: projectsTable.updatedAt,
       categorySlug: categoryTable.slug,
@@ -145,6 +150,7 @@ export async function getProjectsWithDetails() {
       endDate: projectsTable.endDate,
       location: projectsTable.location,
       budget: projectsTable.budget,
+      color: projectsTable.color,
       categorySlug: categoryTable.slug,
       categoryName: categoryTable.name,
     })
@@ -333,6 +339,7 @@ export async function getProjectsWithDetails() {
       name: p.name,
       description: p.description,
       status: p.status,
+      color: p.color,
       categorySlug: p.categorySlug,
       startDate: p.startDate,
       endDate: p.endDate ?? "",
@@ -371,6 +378,7 @@ export async function getProjectById(id: string) {
       endDate: projectsTable.endDate,
       location: projectsTable.location,
       budget: projectsTable.budget,
+      color: projectsTable.color,
       createdAt: projectsTable.createdAt,
       updatedAt: projectsTable.updatedAt,
       categorySlug: categoryTable.slug,
@@ -431,6 +439,7 @@ export async function upsertProject(
     endDate,
     location,
     budget,
+    color,
   } = parsed.data
 
   if (id) {
@@ -452,6 +461,7 @@ export async function upsertProject(
         endDate: endDate || null,
         location: location || null,
         budget: budget ? budget : null,
+        color,
       })
       .where(eq(projectsTable.id, id))
   } else {
@@ -467,6 +477,7 @@ export async function upsertProject(
         endDate: endDate || null,
         location: location || null,
         budget: budget ? budget : null,
+        color,
       })
       .returning({ id: projectsTable.id })
 
@@ -503,6 +514,7 @@ export async function getProjectForEdit(id: string) {
       endDate: projectsTable.endDate,
       location: projectsTable.location,
       budget: projectsTable.budget,
+      color: projectsTable.color,
       createdAt: projectsTable.createdAt,
       updatedAt: projectsTable.updatedAt,
     })

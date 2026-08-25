@@ -1,0 +1,1 @@
+ALTER TABLE "project" ALTER COLUMN "color" SET DEFAULT '#eab308';

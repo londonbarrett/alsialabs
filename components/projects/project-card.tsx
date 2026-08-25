@@ -125,8 +125,13 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <CardTitle className="text-lg leading-tight text-balance">
             <Link
               href={`/dashboard/projects/${project.id}`}
-              className="hover:underline"
+              className="inline-flex items-center gap-2 hover:underline"
             >
+              <span
+                className="size-3 shrink-0 rounded-full"
+                style={{ backgroundColor: project.color }}
+                aria-hidden
+              />
               {project.name}
             </Link>
           </CardTitle>
@@ -219,7 +224,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             value={spendPct}
             className={cn(
               overBudget &&
-                "[&_[data-slot=progress-indicator]]:bg-red-500"
+                "**:data-[slot=progress-indicator]:bg-red-500"
             )}
           />
           <p className="text-xs text-muted-foreground">

@@ -123,6 +123,7 @@ async function getVisibleTasks(userId: string) {
       name: tasksTable.name,
       projectId: tasksTable.projectId,
       projectName: projectsTable.name,
+      projectColor: projectsTable.color,
       projectOwnerName: sql<
         string | null
       >`coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail})`,
@@ -229,6 +230,7 @@ async function getVisibleRoutines(userId: string) {
       cost: routinesTable.cost,
       projectId: routinesTable.projectId,
       projectName: projectsTable.name,
+      projectColor: projectsTable.color,
       projectOwnerName: sql<
         string | null
       >`coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail})`,
