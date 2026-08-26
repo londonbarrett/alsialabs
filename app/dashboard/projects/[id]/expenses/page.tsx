@@ -3,6 +3,7 @@ import { getCategoriesByTaxonomyList } from "@/lib/actions/categories"
 import { getExpensesByProjectId } from "@/lib/actions/expenses"
 import { getTasks } from "@/lib/actions/tasks"
 import { getProjectContext } from "@/lib/actions/project-context"
+import { unwrapArray } from "@/lib/util/unwrap"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -22,7 +23,7 @@ export default async function ProjectExpensesPage({ params }: Props) {
   const [expenses, tasks, expenseCategories] = await Promise.all([
     getExpensesByProjectId(id).catch(() => []),
     getTasks(id),
-    getCategoriesByTaxonomyList("expense"),
+    getCategoriesByTaxonomyList({ taxonomySlug: "expense" }),
   ])
 
   const isOwner =
@@ -40,7 +41,7 @@ export default async function ProjectExpensesPage({ params }: Props) {
       tasks={tasks}
       projectId={project.id}
       budget={project.budget}
-      categories={expenseCategories}
+      categories={unwrapArray(expenseCategories)}
       canEdit={!!permissions.includes("expenses:create") || canEdit}
       canDelete={!!permissions.includes("expenses:delete") || canDelete}
       projectMembers={[...owners, ...collaborators]}

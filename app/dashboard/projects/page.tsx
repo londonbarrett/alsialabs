@@ -3,6 +3,7 @@ import { auth, getUserPermissions } from "@/lib/auth"
 import { getProjectsWithDetails } from "@/lib/actions/projects"
 import { getCategoriesByTaxonomyList } from "@/lib/actions/categories"
 import { ProjectListView } from "@/components/projects/project-list-view"
+import { unwrapArray } from "@/lib/util/unwrap"
 
 export default function ProjectsPage() {
   return (
@@ -33,14 +34,14 @@ async function ProjectsContent() {
 
   const [projects, categories, permissions] = await Promise.all([
     getProjectsWithDetails(),
-    getCategoriesByTaxonomyList("project"),
+    getCategoriesByTaxonomyList({ taxonomySlug: "project" }),
     getUserPermissions(session?.user?.id ?? ""),
   ])
 
   return (
     <ProjectListView
       projects={projects}
-      categories={categories}
+      categories={unwrapArray(categories)}
       permissions={permissions}
     />
   )

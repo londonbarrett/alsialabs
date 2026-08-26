@@ -2,10 +2,13 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
+import { useAction } from 'next-safe-action/hooks'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Field } from '@/components/form-field'
-import { upsertCategory, checkSlugExists } from '@/lib/actions/categories'
+import { createCategory, updateCategory, checkSlugExists } from '@/lib/actions/categories'
+import { useActionError } from '@/lib/util/action-errors'
+import { unwrap } from '@/lib/util/unwrap'
 import type { Category } from '@/lib/drizzle/schema'
 import { toast } from 'sonner'
 
@@ -18,13 +21,41 @@ interface CategoryFormProps {
 
 export function CategoryForm({ category, taxonomyId, onSuccess, onCancel }: CategoryFormProps) {
   const t = useTranslations()
+  const translateError = useActionError()
   const [name, setName] = useState(category?.name ?? '')
   const [slug, setSlug] = useState(category?.slug ?? '')
   const [description, setDescription] = useState(category?.description ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState(false)
   const [slugExists, setSlugExists] = useState(false)
   const slugTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const isEditing = !!category
+
+  const { execute: executeCreate, isExecuting: isCreating } = useAction(createCategory, {
+    onSuccess: () => {
+      toast.success(t('categories.categoryCreated'))
+      onSuccess()
+    },
+    onError: ({ error }) => {
+      if (error.serverError) {
+        toast.error(translateError(error.serverError.code))
+      }
+    },
+  })
+
+  const { execute: executeUpdate, isExecuting: isUpdating } = useAction(updateCategory, {
+    onSuccess: () => {
+      toast.success(t('categories.categoryUpdated'))
+      onSuccess()
+    },
+    onError: ({ error }) => {
+      if (error.serverError) {
+        toast.error(translateError(error.serverError.code))
+      }
+    },
+  })
+
+  const saving = isCreating || isUpdating
 
   const debouncedSlugCheck = useCallback((value: string) => {
     if (slugTimer.current) clearTimeout(slugTimer.current)
@@ -33,8 +64,8 @@ export function CategoryForm({ category, taxonomyId, onSuccess, onCancel }: Cate
       return
     }
     slugTimer.current = setTimeout(async () => {
-      const result = await checkSlugExists(taxonomyId, value, category?.id)
-      setSlugExists(result.exists)
+      const result = await checkSlugExists({ taxonomyId, slug: value, excludeId: category?.id })
+      setSlugExists(unwrap(result, { exists: false }).exists)
     }, 500)
   }, [taxonomyId, category?.id, category?.slug])
 
@@ -52,7 +83,7 @@ export function CategoryForm({ category, taxonomyId, onSuccess, onCancel }: Cate
     return Object.keys(fieldErrors).length === 0
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
 
@@ -61,30 +92,13 @@ export function CategoryForm({ category, taxonomyId, onSuccess, onCancel }: Cate
       return
     }
 
-    setSaving(true)
-    try {
-      const result = await upsertCategory(
-        { name: name.trim(), slug: slug.trim(), description: description.trim() },
-        taxonomyId,
-        category?.id,
-      )
-      if (result.success) {
-        toast.success(category ? t('categories.categoryUpdated') : t('categories.categoryCreated'))
-        onSuccess()
-      } else {
-        if (result.fieldErrors) {
-          const mapped: Record<string, string> = {}
-          for (const [key, msgs] of Object.entries(result.fieldErrors)) {
-            if (msgs && msgs.length > 0) mapped[key] = msgs[0]
-          }
-          setErrors(mapped)
-        }
-        toast.error(result.error || t('common.somethingWentWrong'))
-      }
-    } catch {
-      toast.error(t('common.somethingWentWrong'))
+    const data = { name: name.trim(), slug: slug.trim(), description: description.trim() }
+
+    if (isEditing) {
+      executeUpdate({ ...data, id: category!.id })
+    } else {
+      executeCreate({ ...data, taxonomyId })
     }
-    setSaving(false)
   }
 
   return (
@@ -119,7 +133,7 @@ export function CategoryForm({ category, taxonomyId, onSuccess, onCancel }: Cate
         </Button>
         <Button type="submit" disabled={saving}>
           {saving && <Spinner data-icon="inline-start" />}
-          {category ? t('common.saveChanges') : t('categories.createCategory')}
+          {isEditing ? t('common.saveChanges') : t('categories.createCategory')}
         </Button>
       </div>
     </form>

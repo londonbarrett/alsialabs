@@ -1,10 +1,13 @@
-'use client'
+"use client"
 
-import { useState, useCallback } from 'react'
-import { useTranslations } from 'next-intl'
-import { Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ActionMenu } from "@/components/common/action-menu"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -12,12 +15,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { CategoryDialog } from './category-dialog'
-import { ActionMenu } from '@/components/common/action-menu'
-import { deleteCategory } from '@/lib/actions/categories'
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+} from "@/components/ui/table"
+import { deleteCategory } from "@/lib/actions/categories"
+import { useActionError } from "@/lib/util/action-errors"
+import { Plus } from "lucide-react"
+import { useTranslations } from "next-intl"
+import { useOptimisticAction } from "next-safe-action/hooks"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
+import { CategoryDialog } from "./category-dialog"
 
 type CategoryItem = {
   id: string
@@ -34,16 +41,38 @@ interface CategoryListViewProps {
   permissions?: string[]
 }
 
-export function CategoryListView({ categories, taxonomyId, taxonomyName, permissions = [] }: CategoryListViewProps) {
+export function CategoryListView({
+  categories,
+  taxonomyId,
+  taxonomyName,
+  permissions = [],
+}: CategoryListViewProps) {
   const router = useRouter()
   const t = useTranslations()
+  const translateError = useActionError()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<CategoryItem | undefined>()
-  const [localCategories, setLocalCategories] = useState<CategoryItem[]>(categories)
+  const [editingCategory, setEditingCategory] = useState<
+    CategoryItem | undefined
+  >()
 
-  const handleCategoriesChange = useCallback((updater: (prev: CategoryItem[]) => CategoryItem[]) => {
-    setLocalCategories(updater)
-  }, [])
+  const { execute, optimisticState } = useOptimisticAction(
+    deleteCategory,
+    {
+      currentState: categories,
+      updateFn: (currentCategories, { id }) => {
+        return currentCategories.filter((c) => c.id !== id)
+      },
+      onSuccess: () => {
+        toast.success(t("categories.categoryDeleted"))
+      },
+      onError: ({ error }) => {
+        if (error.serverError) {
+          toast.error(translateError(error.serverError.code))
+        }
+        router.refresh()
+      },
+    }
+  )
 
   function handleSuccess() {
     router.refresh()
@@ -65,27 +94,21 @@ export function CategoryListView({ categories, taxonomyId, taxonomyName, permiss
     if (!open) setEditingCategory(undefined)
   }
 
-  async function handleDelete(category: CategoryItem) {
-    handleCategoriesChange((prev) => prev.filter((c) => c.id !== category.id))
-    const result = await deleteCategory(category.id)
-    if (!result.success) {
-      handleCategoriesChange((prev) => [...prev, category].sort((a, b) => a.name.localeCompare(b.name)))
-      toast.error(result.error || t('common.somethingWentWrong'))
-    } else {
-      toast.success(t('categories.categoryDeleted'))
-    }
-  }
-
   return (
     <>
-      {localCategories.length === 0 ? (
+      {optimisticState.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center h-full gap-4 py-12">
-            <p className="text-muted-foreground">{t('categories.noCategories')}</p>
-            {permissions.includes('categories:create') && (
-              <Button onClick={openNew} aria-label={t('categories.addCategory')}>
+          <CardContent className="flex h-full flex-col items-center justify-center gap-4 py-12">
+            <p className="text-muted-foreground">
+              {t("categories.noCategories")}
+            </p>
+            {permissions.includes("categories:create") && (
+              <Button
+                onClick={openNew}
+                aria-label={t("categories.addCategory")}
+              >
                 <Plus />
-                {t('categories.addCategory')}
+                {t("categories.addCategory")}
               </Button>
             )}
           </CardContent>
@@ -95,42 +118,71 @@ export function CategoryListView({ categories, taxonomyId, taxonomyName, permiss
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               {taxonomyName}
-              {permissions.includes('categories:create') && (
-                <Button onClick={openNew} size="sm" aria-label={t('categories.addCategory')}>
+              {permissions.includes("categories:create") && (
+                <Button
+                  onClick={openNew}
+                  size="sm"
+                  aria-label={t("categories.addCategory")}
+                >
                   <Plus />
-                  {t('categories.addCategory')}
+                  {t("categories.addCategory")}
                 </Button>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border overflow-auto max-h-[calc(100vh-14rem)]" role="region" aria-label={taxonomyName}>
+            <div
+              className="max-h-[calc(100vh-14rem)] overflow-auto rounded-md border"
+              role="region"
+              aria-label={taxonomyName}
+            >
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead scope="col">{t('categories.name')}</TableHead>
-                    <TableHead scope="col">{t('categories.slug')}</TableHead>
-                    <TableHead scope="col">{t('categories.description')}</TableHead>
-                    <TableHead scope="col">{t('categories.actions')}</TableHead>
+                    <TableHead scope="col">
+                      {t("categories.name")}
+                    </TableHead>
+                    <TableHead scope="col">
+                      {t("categories.slug")}
+                    </TableHead>
+                    <TableHead scope="col">
+                      {t("categories.description")}
+                    </TableHead>
+                    <TableHead scope="col">
+                      {t("categories.actions")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {localCategories.map((cat) => (
-                    <TableRow key={cat.id} className="select-none" onDoubleClick={() => openEdit(cat)}>
+                  {optimisticState.map((cat) => (
+                    <TableRow
+                      key={cat.id}
+                      className="select-none"
+                      onDoubleClick={() => openEdit(cat)}
+                    >
                       <TableCell className="font-medium">
                         {t.has(`categoryNames.${cat.slug}`)
                           ? t(`categoryNames.${cat.slug}`)
                           : cat.name}
                       </TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground">{cat.slug}</TableCell>
-                      <TableCell>{cat.description || '—'}</TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">
+                        {cat.slug}
+                      </TableCell>
+                      <TableCell>{cat.description || "—"}</TableCell>
                       <TableCell>
                         <ActionMenu
                           entityName={cat.name}
                           onEdit={() => openEdit(cat)}
-                          onDelete={() => handleDelete(cat)}
-                          canEdit={permissions.includes('categories:edit')}
-                          canDelete={permissions.includes('categories:delete')}
+                          onDelete={() => {
+                            execute({ id: cat.id })
+                            return Promise.resolve()
+                          }}
+                          canEdit={permissions.includes(
+                            "categories:edit"
+                          )}
+                          canDelete={permissions.includes(
+                            "categories:delete"
+                          )}
                         />
                       </TableCell>
                     </TableRow>
