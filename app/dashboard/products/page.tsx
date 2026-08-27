@@ -2,6 +2,7 @@ import { ProductListView } from "@/components/products/product-list-view"
 import { getProducts } from "@/lib/actions/products"
 import { getUserStores } from "@/lib/actions/stores"
 import { auth, getUserPermissions, hasPermission } from "@/lib/auth"
+import { unwrap } from "@/lib/util/unwrap"
 import { forbidden } from "next/navigation"
 
 export default async function ProductsPage() {
@@ -14,11 +15,13 @@ export default async function ProductsPage() {
     forbidden()
   }
 
-  const [products, stores, permissions] = await Promise.all([
+  const [productsResult, stores, permissions] = await Promise.all([
     getProducts(),
     getUserStores(),
     getUserPermissions(session.user.id),
   ])
+
+  const products = unwrap(productsResult, [])
 
   return (
     <ProductListView

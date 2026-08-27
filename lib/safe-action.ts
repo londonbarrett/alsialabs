@@ -13,8 +13,8 @@ import type { ActionErrorCode } from "@/lib/actions/error-codes"
 
 type ServerError = { code: ActionErrorCode }
 
-export const returnActionError: (code: ActionErrorCode) => never =
-  returnServerError
+export const returnActionError = (code: ActionErrorCode): never =>
+  returnServerError({ code })
 
 // ---------- Base client ----------
 
@@ -82,23 +82,28 @@ export const basicAction = actionClient.use(async ({ next, metadata }) => {
 
 export const storeAction = basicAction.use(async ({ next }) => {
   const storeId = await getEffectiveStoreId()
-  return next({ ctx: { storeId } })
+  if (!storeId) {
+    returnActionError("UNAUTHORIZED")
+  }
+  return next({ ctx: { storeId: storeId! } })
 })
 
-// ---------- ownershipAction ----------
+// ---------- sessionAction ----------
+// Authenticates the session and injects it into context. This does NOT check
+// resource ownership — ownership is domain-specific and enforced separately
+// (e.g. projectAction via verifyProjectAccess, storeAction via store scoping).
 
-export const ownershipAction = basicAction.use(async ({ next }) => {
+export const sessionAction = basicAction.use(async ({ next }) => {
   const session = await auth()
   if (!session?.user) {
     returnActionError("UNAUTHORIZED")
   }
-  const superUser = isSuperUser(session!)
-  return next({ ctx: { session: session!, superUser } })
+  return next({ ctx: { session: session! } })
 })
 
 // ---------- projectAction ----------
 
-export const projectAction = ownershipAction
+export const projectAction = sessionAction
   .inputSchema(
     z.object({
       projectId: z.string().uuid(),

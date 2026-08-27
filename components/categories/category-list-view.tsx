@@ -55,7 +55,7 @@ export function CategoryListView({
     CategoryItem | undefined
   >()
 
-  const { execute, optimisticState } = useOptimisticAction(
+  const { executeAsync, optimisticState } = useOptimisticAction(
     deleteCategory,
     {
       currentState: categories,
@@ -173,9 +173,8 @@ export function CategoryListView({
                         <ActionMenu
                           entityName={cat.name}
                           onEdit={() => openEdit(cat)}
-                          onDelete={() => {
-                            execute({ id: cat.id })
-                            return Promise.resolve()
+                          onDelete={async () => {
+                            await executeAsync({ id: cat.id })
                           }}
                           canEdit={permissions.includes(
                             "categories:edit"

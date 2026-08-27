@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  type MockedFunction,
+} from "vitest"
+import type { Session } from "next-auth"
 import { z } from "zod"
 
 vi.mock("next/cache", () => ({
@@ -22,21 +30,37 @@ vi.mock("@/lib/actions/project-access", () => ({
 
 import { auth, isSuperUser, hasPermission } from "@/lib/auth"
 import { getEffectiveStoreId } from "@/lib/actions/stores"
-import { verifyProjectAccess } from "@/lib/actions/project-access"
 import { revalidatePath, updateTag } from "next/cache"
-import { basicAction, storeAction, ownershipAction, adminAction } from "@/lib/safe-action"
+import {
+  basicAction,
+  storeAction,
+  sessionAction,
+  adminAction,
+} from "@/lib/safe-action"
 
-const mockAuth = vi.mocked(auth)
+const mockAuth = vi.mocked(auth) as unknown as MockedFunction<
+  () => Promise<Session | null>
+>
 const mockIsSuperUser = vi.mocked(isSuperUser)
 const mockHasPermission = vi.mocked(hasPermission)
 const mockGetEffectiveStoreId = vi.mocked(getEffectiveStoreId)
-const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
 const mockRevalidatePath = vi.mocked(revalidatePath)
 const mockUpdateTag = vi.mocked(updateTag)
 
+function buildSession(user: {
+  id: string
+  role: string
+  name?: string
+}): Session {
+  return {
+    user,
+    expires: new Date(Date.now() + 86400000).toISOString(),
+  }
+}
+
 const testAction = basicAction
   .metadata({ permission: { module: "categories", action: "view" } })
-  .inputSchema(z.object({ name: z.string() }))
+  .inputSchema(z.object({ name: z.string().min(1) }))
   .action(async ({ parsedInput }) => {
     return { greeting: `Hello, ${parsedInput.name}` }
   })
@@ -51,9 +75,9 @@ const actionWithoutPermission = basicAction
 describe("basicAction", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockAuth.mockResolvedValue({
-      user: { id: "user-1", role: "user", name: "Test" },
-    } as any)
+    mockAuth.mockResolvedValue(
+      buildSession({ id: "user-1", role: "user", name: "Test" })
+    )
     mockHasPermission.mockResolvedValue(true)
   })
 
@@ -65,7 +89,7 @@ describe("basicAction", () => {
   })
 
   it("rejects unauthenticated users", async () => {
-    mockAuth.mockResolvedValue(null as any)
+    mockAuth.mockResolvedValue(null)
     const result = await testAction({ name: "World" })
     expect(result.serverError).toEqual({ code: "UNAUTHORIZED" })
   })
@@ -112,9 +136,9 @@ describe("basicAction", () => {
 describe("storeAction", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockAuth.mockResolvedValue({
-      user: { id: "user-1", role: "retailer", name: "Test" },
-    } as any)
+    mockAuth.mockResolvedValue(
+      buildSession({ id: "user-1", role: "retailer", name: "Test" })
+    )
     mockHasPermission.mockResolvedValue(true)
     mockGetEffectiveStoreId.mockResolvedValue("store-123")
   })
@@ -130,35 +154,35 @@ describe("storeAction", () => {
   })
 })
 
-describe("ownershipAction", () => {
+describe("sessionAction", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockAuth.mockResolvedValue({
-      user: { id: "user-1", role: "user", name: "Test" },
-    } as any)
+    mockAuth.mockResolvedValue(
+      buildSession({ id: "user-1", role: "user", name: "Test" })
+    )
     mockHasPermission.mockResolvedValue(true)
     mockIsSuperUser.mockReturnValue(false)
   })
 
-  it("provides session and superUser in context", async () => {
-    const ownTest = ownershipAction
+  it("provides the authenticated session in context", async () => {
+    const sessionTest = sessionAction
       .metadata({ permission: { module: "projects", action: "view" } })
       .action(async ({ ctx }) => {
         return {
           userId: ctx.session.user.id,
-          isSuper: ctx.superUser,
+          role: ctx.session.user.role,
         }
       })
-    const result = await ownTest()
-    expect(result.data).toEqual({ userId: "user-1", isSuper: false })
+    const result = await sessionTest()
+    expect(result.data).toEqual({ userId: "user-1", role: "user" })
   })
 
   it("rejects unauthenticated users", async () => {
-    mockAuth.mockResolvedValue(null as any)
-    const ownTest = ownershipAction
+    mockAuth.mockResolvedValue(null)
+    const sessionTest = sessionAction
       .metadata({ permission: { module: "projects", action: "view" } })
       .action(async () => "should not run")
-    const result = await ownTest()
+    const result = await sessionTest()
     expect(result.serverError).toEqual({ code: "UNAUTHORIZED" })
   })
 })
@@ -169,11 +193,12 @@ describe("adminAction", () => {
   })
 
   it("allows super users", async () => {
-    mockAuth.mockResolvedValue({
-      user: { id: "admin-1", role: "super", name: "Admin" },
-    } as any)
+    mockAuth.mockResolvedValue(
+      buildSession({ id: "admin-1", role: "super", name: "Admin" })
+    )
     mockIsSuperUser.mockReturnValue(true)
     const adminTest = adminAction
+      .metadata({})
       .action(async ({ ctx }) => {
         return { adminId: ctx.session.user.id }
       })
@@ -182,19 +207,21 @@ describe("adminAction", () => {
   })
 
   it("rejects non-super users", async () => {
-    mockAuth.mockResolvedValue({
-      user: { id: "user-1", role: "user", name: "Test" },
-    } as any)
+    mockAuth.mockResolvedValue(
+      buildSession({ id: "user-1", role: "user", name: "Test" })
+    )
     mockIsSuperUser.mockReturnValue(false)
     const adminTest = adminAction
+      .metadata({})
       .action(async () => "should not run")
     const result = await adminTest()
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
   })
 
   it("rejects unauthenticated users", async () => {
-    mockAuth.mockResolvedValue(null as any)
+    mockAuth.mockResolvedValue(null)
     const adminTest = adminAction
+      .metadata({})
       .action(async () => "should not run")
     const result = await adminTest()
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
@@ -202,6 +229,14 @@ describe("adminAction", () => {
 })
 
 describe("validation errors", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuth.mockResolvedValue(
+      buildSession({ id: "user-1", role: "user", name: "Test" })
+    )
+    mockHasPermission.mockResolvedValue(true)
+  })
+
   it("returns validation errors for bad input", async () => {
     const result = await testAction({ name: "" })
     expect(result.validationErrors).toBeDefined()

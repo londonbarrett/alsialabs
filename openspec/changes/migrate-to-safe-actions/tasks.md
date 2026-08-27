@@ -3,7 +3,7 @@
 - [x] 1.1 Install dependencies: `npm install next-safe-action` and `npm install -D vitest @vitest/coverage-v8`
 - [x] 1.2 Create `vitest.config.ts` with path alias support matching `tsconfig.json`
 - [x] 1.3 Create `lib/actions/error-codes.ts` — `ActionError` constant object with all UPPERCASE codes matching existing `actions.*` translation keys (FORBIDDEN, UNAUTHORIZED, NOT_FOUND, VALIDATION_FAILED, PHONE_ALREADY_EXISTS, SKU_ALREADY_EXISTS, CLIENT_NOT_FOUND, EMAIL_ALREADY_EXISTS, etc.)
-- [x] 1.4 Create `lib/safe-action.ts` — base `actionClient` with logging middleware, `basicAction` with permission + revalidation middleware, `storeAction` extending basic with `getEffectiveStoreId()`, `ownershipAction` extending basic with `auth()` + `isSuperUser()`, `projectAction` extending ownership with `verifyProjectAccess()` via `useValidated`, `adminAction` with `auth()` + `isSuperUser()` bypassing permission system
+- [x] 1.4 Create `lib/safe-action.ts` — base `actionClient` with logging middleware, `basicAction` with permission + revalidation middleware, `storeAction` extending basic with `getEffectiveStoreId()`, `sessionAction` extending basic with `auth()`, `projectAction` extending session with `verifyProjectAccess()` via `useValidated`, `adminAction` with `auth()` + `isSuperUser()` bypassing permission system
 - [x] 1.5 Create `lib/util/action-errors.ts` — `useActionError()` hook that returns a `(code: string) => string` translator using `useTranslations("errors")`
 - [x] 1.6 Add `"test": "vitest"` and `"test:run": "vitest run"` scripts to `package.json`
 - [x] 1.7 Create `lib/__tests__/safe-action.test.ts` — unit tests for middleware behavior: permission allows/rejects, store context provided, ownership check, admin check, revalidation called, updateTag called
@@ -37,17 +37,17 @@
 
 ### Server
 
-- [ ] 4.1 Create `lib/schemas/product.ts` — extract product schema with UPPERCASE error codes
-- [ ] 4.2 Rewrite `lib/actions/products.ts` — split `upsertProduct` into `createProduct` and `updateProduct` using `storeAction` (products are store-scoped); replace boilerplate with metadata; add `deleteProduct` with reference check
-- [ ] 4.3 **Optimization**: Use `buildStoreCondition()` from `query-helpers.ts` for all store-scoped queries (replaces 5+ duplicated WHERE clause blocks)
+- [x] 4.1 Create `lib/schemas/product.ts` — extract product schema with UPPERCASE error codes
+- [x] 4.2 Rewrite `lib/actions/products.ts` — split `upsertProduct` into `createProduct` and `updateProduct` using `basicAction` (products are store-scoped); replace boilerplate with metadata; add `deleteProduct` with reference check
+- [x] 4.3 **Optimization**: Use `ctx.storeId` from middleware for all store-scoped queries (replaces 5+ duplicated WHERE clause blocks)
 
 ### Client
 
-- [ ] 4.4 Update product form and list components to use `useAction`/`useOptimisticAction`
+- [x] 4.4 Update product form and list components to use `useAction`/`useOptimisticAction`
 
 ### Tests
 
-- [ ] 4.5 Create `lib/__tests__/products.test.ts` — test create, update, delete with store scoping, SKU uniqueness, reference check on delete
+- [x] 4.5 Create `lib/__tests__/products.test.ts` — test create, update, delete with store scoping, SKU uniqueness, reference check on delete
 
 ## 5. Expenses Domain
 
@@ -88,7 +88,7 @@
 ### Server
 
 - [ ] 7.1 Create `lib/schemas/project.ts` — extract project schema with UPPERCASE error codes
-- [ ] 7.2 Rewrite `lib/actions/projects.ts` — split `upsertProject` into `createProject` and `updateProject` using `ownershipAction`; replace boilerplate with metadata; add `deleteProject`
+- [ ] 7.2 Rewrite `lib/actions/projects.ts` — split `upsertProject` into `createProject` and `updateProject` using `projectAction` (ownership via `verifyProjectAccess`); replace boilerplate with metadata; add `deleteProject`
 - [ ] 7.3 **Optimization**: Eliminate "fetch-all-then-filter" pattern in `getProjects`/`getProjectsWithDetails` — push the `WHERE IN` clause into SQL instead of filtering in JS with `getUserProjectIds()`
 - [ ] 7.4 **Optimization**: Remove duplicate `isProjectOwner` helper (lines 58-73) — reuse `verifyProjectAccess` from `project-access.ts` or fold owner check into the main query via JOIN
 - [ ] 7.5 **Optimization**: Fix revalidation — `upsertProject` should revalidate both `/dashboard/projects` and `/dashboard/projects/${id}` for detail pages
@@ -142,7 +142,7 @@
 
 ### Sales
 
-- [ ] 10.1 Create `lib/schemas/invoice.ts` and rewrite `lib/actions/sales.ts` using `ownershipAction`
+- [ ] 10.1 Create `lib/schemas/invoice.ts` and rewrite `lib/actions/sales.ts` using `projectAction` (ownership via `verifyProjectAccess`)
 - [ ] 10.2 **Optimization**: Batch invoice line-item inserts (lines 227-244, 289-306) into a single `db.insert().values([...])` instead of one-by-one in a loop — this is the highest-impact N+1 fix
 - [ ] 10.3 **Optimization**: Extract duplicated line-item computation loop (lines 228-243 and 289-305) into a shared `computeLineItems()` helper
 - [ ] 10.4 **Optimization**: Wrap `requirePermission` in try/catch for `getMonthlyRevenue` and `getTopClientsByRevenue` (currently unhandled throws)

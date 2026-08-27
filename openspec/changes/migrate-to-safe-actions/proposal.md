@@ -7,7 +7,7 @@ The goal is to adopt `next-safe-action` to eliminate boilerplate, standardize th
 ## What Changes
 
 - Install `next-safe-action` and `vitest`
-- Create `lib/safe-action.ts` with 5 action clients: `basicAction`, `storeAction`, `ownershipAction`, `projectAction`, `adminAction` — each adding a layer of middleware (permission, store scoping, ownership, project access)
+- Create `lib/safe-action.ts` with 5 action clients: `basicAction`, `storeAction`, `sessionAction`, `projectAction`, `adminAction` — each adding a layer of middleware (permission, store scoping, session auth, project access)
 - Create `lib/actions/error-codes.ts` with `UPPERCASE_CODE` constants for all action errors
 - Create `lib/util/action-errors.ts` with a client-side `useActionError()` hook that maps codes to translated messages
 - Create `lib/util/query-helpers.ts` with shared DB utilities (store-scoped conditions, role lookups) to eliminate duplicated logic across 8+ files
@@ -31,7 +31,7 @@ The goal is to adopt `next-safe-action` to eliminate boilerplate, standardize th
 - `category-management`: Same pattern as client-crud
 - `project-management`: Actions use `projectAction` client; components use safe-action hooks
 - `user-management`: Actions use `adminAction` client
-- `sales`: Actions use `ownershipAction` client
+- `sales`: Actions use `projectAction` client
 - All other action domains follow the same migration pattern
 
 ## Impact

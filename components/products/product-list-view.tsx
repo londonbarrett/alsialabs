@@ -11,11 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { ProductWithStore } from "@/lib/actions/products"
 import { deleteProduct } from "@/lib/actions/products"
+import { useActionError } from "@/lib/util/action-errors"
+import type { ProductWithStore } from "@/lib/actions/products"
 import type { StoreOption } from "@/lib/actions/stores"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { useOptimisticAction } from "next-safe-action/hooks"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -33,10 +35,30 @@ export function ProductListView({
 }: ProductListViewProps) {
   const router = useRouter()
   const t = useTranslations()
+  const translateError = useActionError()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<
     ProductWithStore | undefined
   >()
+
+  const { executeAsync, optimisticState } = useOptimisticAction(
+    deleteProduct,
+    {
+      currentState: products,
+      updateFn: (currentProducts, { id }) => {
+        return currentProducts.filter((p) => p.id !== id)
+      },
+      onSuccess: () => {
+        toast.success(t("products.productDeleted"))
+      },
+      onError: ({ error }) => {
+        if (error.serverError) {
+          toast.error(translateError(error.serverError.code))
+        }
+        router.refresh()
+      },
+    }
+  )
 
   function handleSuccess() {
     router.refresh()
@@ -60,7 +82,7 @@ export function ProductListView({
 
   return (
     <>
-      {products.length === 0 ? (
+      {optimisticState.length === 0 ? (
         <div className="flex h-full flex-col items-center justify-center gap-4">
           <p className="text-muted-foreground">
             {t("products.noProducts")}
@@ -112,7 +134,7 @@ export function ProductListView({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product) => (
+                {optimisticState.map((product) => (
                   <TableRow
                     key={product.id}
                     className="select-none"
@@ -127,14 +149,7 @@ export function ProductListView({
                         entityName={product.name}
                         onEdit={() => openEdit(product)}
                         onDelete={async () => {
-                          const result = await deleteProduct(product.id)
-                          if (!result.success)
-                            toast.error(
-                              result.error ||
-                                t("products.failedToDelete")
-                            )
-                          else
-                            toast.success(t("products.productDeleted"))
+                          await executeAsync({ id: product.id })
                         }}
                         canDelete={permissions.includes(
                           "products:delete"

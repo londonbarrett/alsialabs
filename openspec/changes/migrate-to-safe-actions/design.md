@@ -17,12 +17,14 @@ Five clients form an inheritance chain, each adding one middleware layer:
 actionClient (logging)
   ├── basicAction (permission + revalidation)
   │     ├── storeAction (+ getEffectiveStoreId)
-  │     └── ownershipAction (+ auth + isSuperUser)
+  │     └── sessionAction (+ auth session)
   │           └── projectAction (+ verifyProjectAccess, post-validation)
   └── adminAction (auth + isSuperUser, no permission system)
 ```
 
-Each domain picks exactly the client it needs. Mutations typically use `basicAction`. Store-scoped queries use `storeAction`. Ownership-gated queries use `ownershipAction` or `projectAction`. Admin-only endpoints use `adminAction`.
+Each domain picks exactly the client it needs. Mutations typically use `basicAction`. Store-scoped queries use `storeAction`. Session-authenticated queries use `sessionAction` or `projectAction`. Admin-only endpoints use `adminAction`.
+
+> **Note on ownership:** `sessionAction` only authenticates and exposes the session. It does *not* check resource ownership. Ownership is domain-specific and enforced by shared per-resource helpers — e.g. `projectAction` via `verifyProjectAccess()` (also reused by tasks/routines/task-comments), and store scoping via `getEffectiveStoreId()`. This keeps ownership rules close to each resource instead of in a forced generic middleware.
 
 ### Metadata-driven middleware
 

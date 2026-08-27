@@ -861,6 +861,7 @@
     "LINKED_USER_NOT_FOUND": "Linked user not found",
     "SKU_ALREADY_EXISTS": "A product with this SKU already exists",
     "CANNOT_DELETE_WITH_REFERENCES": "Cannot delete product with existing references",
+    "REFERENCE_EXISTS": "Cannot delete: record is referenced by other data",
     "EMAIL_ALREADY_EXISTS": "A user with this email already exists",
     "USER_NOT_FOUND": "User not found",
     "INVALID_USER_ID": "Invalid user ID",
