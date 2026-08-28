@@ -121,6 +121,29 @@ export const projectAction = sessionAction
     return next({ ctx: { ...ctx, isProjectOwner: access.isOwner } })
   })
 
+// ---------- projectScopedAction ----------
+// Factory for project-scoped actions. Callers provide their own input schema,
+// which must include a `projectId` field; this verifies project ownership via
+// verifyProjectAccess and injects `isProjectOwner` into context.
+
+export function projectScopedAction<Schema extends z.ZodTypeAny>(
+  schema: Schema
+) {
+  return sessionAction
+    .inputSchema(schema)
+    .use(async ({ clientInput, ctx, next }) => {
+      const access = await verifyProjectAccess(
+        (clientInput as { projectId: string }).projectId,
+        ctx.session.user.id,
+        ctx.session.user.role
+      )
+      if (!access.hasAccess) {
+        returnActionError("FORBIDDEN")
+      }
+      return next({ ctx: { ...ctx, isProjectOwner: access.isOwner } })
+    })
+}
+
 // ---------- adminAction ----------
 
 export const adminAction = actionClient.use(async ({ next }) => {

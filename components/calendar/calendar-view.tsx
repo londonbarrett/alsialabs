@@ -11,11 +11,11 @@ import { paddedRange } from "@/lib/calendar/util/date"
 import { buildCalendarEvents } from "@/lib/calendar/util/events"
 import type { CalendarRoutineData, CalendarTaskData } from "@/lib/types"
 import { toDateKey } from "@/lib/util/schedule"
-import { use, useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 
 export interface CalendarViewProps {
-  tasks: Promise<CalendarTaskData[]>
-  routines: Promise<CalendarRoutineData[]>
+  tasks: CalendarTaskData[]
+  routines: CalendarRoutineData[]
   locale: string
   labels: Partial<CalendarLabels>
 }
@@ -26,9 +26,8 @@ export function CalendarView({
   locale,
   labels,
 }: CalendarViewProps) {
-  const initialTasks = use(tasks)
-  const routineRows = use(routines)
-  const [tasksState, setTasks] = useState(initialTasks)
+  const [tasksState, setTasks] = useState(tasks)
+  const routineRows = routines
   const [isFetching, setIsFetching] = useState(false)
   // Start with a wide window so the first paint has data; the first
   // visible-range callback narrows it to what is actually rendered.

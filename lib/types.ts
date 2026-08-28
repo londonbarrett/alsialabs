@@ -5,6 +5,19 @@ export interface ProjectMember {
   userImage: string | null
 }
 
+export type ExpenseWithCategory = {
+  id: string
+  projectId: string
+  categoryId: string
+  description: string
+  amount: string
+  expenseDate: string
+  createdAt: Date
+  updatedAt: Date
+  categoryName: string | null
+  categorySlug: string | null
+}
+
 /** App-level metadata carried by calendar events. */
 export interface CalendarEventMeta {
   kind?: "task" | "routine"

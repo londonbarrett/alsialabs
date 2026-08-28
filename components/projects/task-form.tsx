@@ -17,7 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Task } from "@/lib/drizzle/schema"
+import type {
+  Task,
+  TaskPriority,
+  TaskStatus,
+} from "@/lib/drizzle/schema"
 import { combineDateTime } from "@/lib/util/schedule"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -55,21 +59,17 @@ interface TaskFormProps {
     priority: string | null
     dueDate: string | null
     assigneeId: string | null
-  }) => Promise<{
-    success: boolean
-    fieldErrors?: Record<string, string[]>
-    error?: string
-  }>
+  }) => void
   onCancel: () => void
 }
 
-const taskStatuses = [
+const taskStatuses: TaskStatus[] = [
   "todo",
   "in_progress",
   "in_review",
   "blocked",
   "done",
-] as const
+]
 
 export function TaskForm({
   task,
@@ -83,8 +83,10 @@ export function TaskForm({
     task?.description ?? ""
   )
   const [cost, setCost] = useState(task?.cost ?? "")
-  const [status, setStatus] = useState<string>(task?.status ?? "todo")
-  const [priority, setPriority] = useState<string | null>(
+  const [status, setStatus] = useState<TaskStatus>(
+    task?.status ?? "todo"
+  )
+  const [priority, setPriority] = useState<TaskPriority>(
     task?.priority ?? null
   )
   const [dueDate, setDueDate] = useState(

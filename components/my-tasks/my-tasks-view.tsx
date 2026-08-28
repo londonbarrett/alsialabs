@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/select"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { MyTask } from "@/lib/actions/tasks"
+import type { Task, TaskStatus } from "@/lib/drizzle/schema"
 import { getMyTasks, updateTaskStatus } from "@/lib/actions/tasks"
+import { useActionError } from "@/lib/util/action-errors"
 import { ListTodo } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useMemo, useState, useTransition } from "react"
@@ -46,6 +48,7 @@ export function MyTasksView({
   isSuperUser,
 }: MyTasksViewProps) {
   const t = useTranslations()
+  const translateError = useActionError()
   const { start: showLoading, stop: hideLoading } =
     useLoadingIndicator()
   const [tasks, setTasks] = useState(initialTasks)
@@ -68,13 +71,15 @@ export function MyTasksView({
 
   function applyFilters(newStatus: string, newProject: string) {
     startTransition(async () => {
-      try {
-        const result = await getMyTasks(
-          newStatus === "all" ? undefined : newStatus,
-          newProject === "all" ? undefined : newProject
-        )
-        setTasks(result)
-      } catch {
+      const result = await getMyTasks({
+        statusFilter: newStatus === "all" ? undefined : newStatus,
+        projectIdFilter: newProject === "all" ? undefined : newProject,
+      })
+      if (result.data) {
+        setTasks(result.data)
+      } else if (result.serverError) {
+        toast.error(translateError(result.serverError.code))
+      } else {
         toast.error(t("common.somethingWentWrong"))
       }
     })
@@ -93,35 +98,36 @@ export function MyTasksView({
   async function handleStatusChange(
     taskId: string,
     projectId: string,
-    status: string
+    status: TaskStatus
   ) {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, status: status as MyTask["status"] }
-          : t
-      )
+      prev.map((t) => (t.id === taskId ? { ...t, status } : t))
     )
     showLoading()
     try {
-      const result = await updateTaskStatus(taskId, projectId, status)
-      if (!result.success) {
-        toast.error(result.error || t("common.somethingWentWrong"))
+      const result = await updateTaskStatus({
+        projectId,
+        taskId,
+        status,
+      })
+      if (result.serverError) {
+        toast.error(translateError(result.serverError.code))
         applyFilters(statusFilter, projectFilter)
       } else {
         toast.success(t("projects.tasks.statusChanged"))
-        if (result.nextTask) {
+        const nextTask = (result.data as unknown as { nextTask?: Task })
+          ?.nextTask
+        if (nextTask) {
           const completed = tasks.find((task) => task.id === taskId)
           if (completed) {
             const matchesStatus =
-              statusFilter === "all" ||
-              statusFilter === result.nextTask.status
+              statusFilter === "all" || statusFilter === nextTask.status
             const matchesProject =
               projectFilter === "all" ||
               projectFilter === completed.projectId
             if (matchesStatus && matchesProject) {
-              const nextTask: MyTask = {
-                ...result.nextTask,
+              const mapped: MyTask = {
+                ...nextTask,
                 projectId: completed.projectId,
                 projectName: completed.projectName,
                 projectColor: completed.projectColor,
@@ -129,13 +135,16 @@ export function MyTasksView({
                 isOwner: completed.isOwner,
                 assigneeName: completed.assigneeName,
                 commentCount: 0,
-              }
-              setTasks((prev) => [nextTask, ...prev])
+              } as unknown as MyTask
+              setTasks((prev) => [mapped, ...prev])
             }
           }
           toast.success(t("projects.routines.nextOccurrenceCreated"))
         }
       }
+    } catch {
+      toast.error(t("common.somethingWentWrong"))
+      applyFilters(statusFilter, projectFilter)
     } finally {
       hideLoading()
     }
@@ -212,10 +221,12 @@ export function MyTasksView({
 
       <MyTasksList
         tasks={tasks}
+        statuses={Object.fromEntries(
+          tasks.map((task) => [task.id, getTaskAllowedStatuses(task)])
+        )}
         isPending={isPending}
         currentUserId={currentUserId}
         isSuperUser={isSuperUser}
-        getTaskAllowedStatuses={getTaskAllowedStatuses}
         onStatusChange={handleStatusChange}
         onCommentCountChange={handleCommentCountChange}
       />

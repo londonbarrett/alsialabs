@@ -3,8 +3,25 @@ import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import { getMyTasks } from "@/lib/actions/tasks"
 import { MyTasksView } from "@/components/my-tasks/my-tasks-view"
 import { forbidden } from "next/navigation"
+import { unwrapArray } from "@/lib/util/unwrap"
 
-export default function MyTasksPage() {
+export default async function MyTasksPage() {
+  const session = await auth()
+
+  if (
+    !session?.user?.id ||
+    !(await hasPermission(session.user.id, "projects", "view"))
+  ) {
+    forbidden()
+  }
+
+  const userId = session.user.id
+  const superUser = isSuperUser(
+    session as { user: { role: string | null } }
+  )
+
+  const tasks = unwrapArray(await getMyTasks({}))
+
   return (
     <Suspense
       fallback={
@@ -21,31 +38,11 @@ export default function MyTasksPage() {
         </div>
       }
     >
-      <MyTasksContent />
+      <MyTasksView
+        initialTasks={tasks}
+        currentUserId={userId}
+        isSuperUser={superUser}
+      />
     </Suspense>
-  )
-}
-
-async function MyTasksContent() {
-  const session = await auth()
-
-  if (
-    !session?.user?.id ||
-    !(await hasPermission(session.user.id, "projects", "view"))
-  ) {
-    forbidden()
-  }
-
-  const userId = session.user.id
-  const superUser = isSuperUser(session as { user: { role: string | null } })
-
-  const tasks = await getMyTasks()
-
-  return (
-    <MyTasksView
-      initialTasks={tasks}
-      currentUserId={userId}
-      isSuperUser={superUser}
-    />
   )
 }

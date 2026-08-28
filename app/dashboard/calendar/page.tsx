@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/common/page-header"
 import { getCalendarRoutines } from "@/lib/actions/calendar"
 import { getMyTasks } from "@/lib/actions/tasks"
 import { auth, hasPermission } from "@/lib/auth"
+import { unwrapArray } from "@/lib/util/unwrap"
 import { CalendarDays } from "lucide-react"
 import { getLocale, getTranslations } from "next-intl/server"
 import { forbidden } from "next/navigation"
@@ -22,6 +23,9 @@ export default async function CalendarPage() {
     getLocale(),
   ])
 
+  const tasks = unwrapArray(await getMyTasks({}))
+  const routines = await getCalendarRoutines()
+
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col gap-6 p-6">
       <PageHeader
@@ -35,8 +39,8 @@ export default async function CalendarPage() {
         }
       >
         <CalendarView
-          tasks={getMyTasks()}
-          routines={getCalendarRoutines()}
+          tasks={tasks}
+          routines={routines}
           locale={locale}
           labels={{
             today: t("today"),

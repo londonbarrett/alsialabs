@@ -131,6 +131,14 @@ export type InvoicePayment = typeof invoicePaymentsTable.$inferSelect
 export type Taxonomy = typeof taxonomyTable.$inferSelect
 export type Category = typeof categoryTable.$inferSelect
 export type Project = typeof projectsTable.$inferSelect
+export type TaskStatus =
+  | "todo"
+  | "in_progress"
+  | "in_review"
+  | "blocked"
+  | "done"
+  | "cancelled"
+export type TaskPriority = "urgent" | "high" | null
 export type Task = typeof tasksTable.$inferSelect
 export type Routine = typeof routinesTable.$inferSelect
 export type TaskComment = typeof taskCommentsTable.$inferSelect
@@ -416,18 +424,8 @@ export const tasksTable = pgTable("task", {
   name: text().notNull(),
   description: text(),
   cost: decimal("cost", { precision: 10, scale: 2 }),
-  status: text()
-    .notNull()
-    .default("todo")
-    .$type<
-      | "todo"
-      | "in_progress"
-      | "in_review"
-      | "blocked"
-      | "done"
-      | "cancelled"
-    >(),
-  priority: text("priority").$type<"urgent" | "high" | null>(),
+  status: text().notNull().default("todo").$type<TaskStatus>(),
+  priority: text("priority").$type<TaskPriority>(),
   routineId: text("routine_id").references(() => routinesTable.id, {
     onDelete: "set null",
   }),

@@ -1,15 +1,10 @@
-'use client'
+"use client"
 
-import { useTranslations } from 'next-intl'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
-import { ExpenseForm } from './expense-form'
-import type { ExpenseWithCategory } from '@/lib/actions/expenses'
+import { Dialog } from "@/components/common/dialog"
+import { useTranslations } from "next-intl"
+import { ExpenseForm } from "./expense-form"
+import type { Expense } from "@/lib/drizzle/schema"
+import type { ExpenseWithCategory } from "@/lib/types"
 
 interface ExpenseDialogProps {
   expense?: ExpenseWithCategory
@@ -17,7 +12,7 @@ interface ExpenseDialogProps {
   categories: { id: string; slug: string; name: string }[]
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
+  onSubmit: (data: Expense) => void
 }
 
 export function ExpenseDialog({
@@ -26,31 +21,24 @@ export function ExpenseDialog({
   categories,
   open,
   onOpenChange,
-  onSuccess,
+  onSubmit,
 }: ExpenseDialogProps) {
-  const t = useTranslations('projects.expenses')
+  const t = useTranslations("projects.expenses")
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()}>
-        <DialogHeader>
-          <DialogTitle>
-            {expense ? t('editExpense') : t('addExpense')}
-          </DialogTitle>
-          <DialogDescription>
-            {expense ? t('updateDetails') : t('fillDetails')}
-          </DialogDescription>
-        </DialogHeader>
-        <ExpenseForm
-          expense={expense}
-          projectId={projectId}
-          categories={categories}
-          onSuccess={() => {
-            onSuccess()
-            onOpenChange(false)
-          }}
-          onCancel={() => onOpenChange(false)}
-        />
-      </DialogContent>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={expense ? t("editExpense") : t("addExpense")}
+      description={expense ? t("updateDetails") : t("fillDetails")}
+      onInteractOutside={(e) => e.preventDefault()}
+    >
+      <ExpenseForm
+        expense={expense}
+        projectId={projectId}
+        categories={categories}
+        onSubmit={onSubmit}
+        onCancel={() => onOpenChange(false)}
+      />
     </Dialog>
   )
 }

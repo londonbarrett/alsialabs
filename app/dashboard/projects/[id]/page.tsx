@@ -1,6 +1,7 @@
 import { TasksCard } from "@/components/projects/tasks-card"
 import { getProjectContext } from "@/lib/actions/project-context"
 import { getTasks } from "@/lib/actions/tasks"
+import { unwrapArray } from "@/lib/util/unwrap"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -17,7 +18,7 @@ export default async function TasksPage({ params }: Props) {
     isCurrentUserAdmin,
   } = await getProjectContext(id)
 
-  const tasks = await getTasks(id)
+  const tasks = unwrapArray(await getTasks({ projectId: id }))
 
   const isOwner =
     owners.some((o) => o.userId === session.user.id) ||
