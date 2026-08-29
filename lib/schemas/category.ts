@@ -1,13 +1,9 @@
 import { z } from "zod"
 
 export const categorySchema = z.object({
-  name: z
-    .string()
-    .min(1, "NAME_REQUIRED")
+  name: z.string().min(1, { message: "NAME_REQUIRED" })
     .transform((v) => v.trim()),
-  slug: z
-    .string()
-    .min(1, "SLUG_REQUIRED")
+  slug: z.string().min(1, { message: "SLUG_REQUIRED" })
     .transform((v) => v.trim().toLowerCase()),
   description: z
     .string()

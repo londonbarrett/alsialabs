@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/drizzle/client"
 import { categoryTable, taxonomyTable } from "@/lib/drizzle/schema"
-import { basicAction } from "@/lib/safe-action"
+import { basicAction, sessionAction } from "@/lib/safe-action"
 import { categorySchema } from "@/lib/schemas/category"
 import { returnActionError } from "@/lib/safe-action"
 import { and, eq } from "drizzle-orm"
@@ -68,6 +68,24 @@ export const getCategoriesByTaxonomyList = basicAction
       .orderBy(categoryTable.name)
   })
 
+export const getProjectCategories = sessionAction
+  .metadata({})
+  .action(async () => {
+    return db
+      .select({
+        id: categoryTable.id,
+        slug: categoryTable.slug,
+        name: categoryTable.name,
+      })
+      .from(categoryTable)
+      .innerJoin(
+        taxonomyTable,
+        eq(categoryTable.taxonomyId, taxonomyTable.id)
+      )
+      .where(eq(taxonomyTable.slug, "project"))
+      .orderBy(categoryTable.name)
+  })
+
 export const checkSlugExists = basicAction
   .metadata({
     permission: { module: "categories", action: "view" },
@@ -82,7 +100,8 @@ export const checkSlugExists = basicAction
   .action(async ({ parsedInput }) => {
     const { taxonomyId, slug, excludeId } = parsedInput
     const slugResult = slugSchema.safeParse(slug)
-    if (!slugResult.success || !slugResult.data) return { exists: false }
+    if (!slugResult.success || !slugResult.data)
+      return { exists: false }
 
     const existing = await db
       .select({ id: categoryTable.id })
@@ -135,7 +154,7 @@ export const updateCategory = basicAction
   })
   .inputSchema(
     categorySchema.extend({
-      id: z.string().uuid(),
+      id: z.uuid(),
     })
   )
   .action(async ({ parsedInput }) => {
@@ -165,7 +184,7 @@ export const deleteCategory = basicAction
     permission: { module: "categories", action: "delete" },
     revalidate: ["/dashboard/categories"],
   })
-  .inputSchema(z.object({ id: z.string().uuid() }))
+  .inputSchema(z.object({ id: z.uuid() }))
   .action(async ({ parsedInput }) => {
     const [deleted] = await db
       .delete(categoryTable)

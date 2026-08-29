@@ -13,28 +13,17 @@ import {
 } from "@/components/ui/select"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { MyTask } from "@/lib/actions/tasks"
-import type { Task, TaskStatus } from "@/lib/drizzle/schema"
 import { getMyTasks, updateTaskStatus } from "@/lib/actions/tasks"
+import type { Task, TaskStatus } from "@/lib/drizzle/schema"
+import {
+  ALL_TASK_STATUSES,
+  COLLABORATOR_TASK_STATUSES,
+} from "@/lib/schemas/task"
 import { useActionError } from "@/lib/util/action-errors"
 import { ListTodo } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useMemo, useState, useTransition } from "react"
 import { toast } from "sonner"
-
-const allTaskStatuses = [
-  "todo",
-  "in_progress",
-  "in_review",
-  "blocked",
-  "done",
-  "cancelled",
-] as const
-
-const collaboratorTaskStatuses = [
-  "in_progress",
-  "blocked",
-  "in_review",
-] as const
 
 interface MyTasksViewProps {
   initialTasks: MyTask[]
@@ -151,11 +140,11 @@ export function MyTasksView({
   }
 
   function getTaskAllowedStatuses(task: MyTask) {
-    if (isSuperUser || task.isOwner) return allTaskStatuses
+    if (isSuperUser || task.isOwner) return ALL_TASK_STATUSES
     if (task.status === "done" || task.status === "cancelled")
       return null
     if (task.assigneeId === currentUserId)
-      return collaboratorTaskStatuses
+      return COLLABORATOR_TASK_STATUSES
     return null
   }
 
@@ -189,7 +178,7 @@ export function MyTasksView({
             <SelectItem value="all">
               {t("myTasks.allStatuses")}
             </SelectItem>
-            {allTaskStatuses.map((s) => (
+            {ALL_TASK_STATUSES.map((s) => (
               <SelectItem key={s} value={s}>
                 <Badge className={taskStatusColors[s]}>
                   {t(`projects.tasks.status.${s}`)}

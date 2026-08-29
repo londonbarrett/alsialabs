@@ -16,7 +16,7 @@ const commentSchema = z.object({
   taskId: z.string().min(1),
   content: z
     .string()
-    .min(1, "Comment is required")
+    .min(1, { message: "Comment is required" })
     .transform((v) => v.trim()),
 })
 

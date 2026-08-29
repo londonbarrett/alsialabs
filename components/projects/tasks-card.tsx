@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/card"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import {
+  createTask,
   deleteTask,
+  updateTask,
   updateTaskPriority,
   updateTaskStatus,
-  upsertTask,
 } from "@/lib/actions/tasks"
 import type {
   Task,
@@ -76,7 +77,8 @@ export function TasksCard({
   const canMutate =
     isOwner && (canEdit || permissions.includes("projects:delete"))
   const translateError = useActionError()
-  const { executeAsync: executeUpsert } = useAction(upsertTask)
+  const { executeAsync: executeCreate } = useAction(createTask)
+  const { executeAsync: executeUpdate } = useAction(updateTask)
   const { executeAsync: executeDelete } = useAction(deleteTask)
   const { executeAsync: executeStatus } = useAction(updateTaskStatus)
   const { executeAsync: executePriority } =
@@ -124,17 +126,28 @@ export function TasksCard({
     dispatch({ type: isEdit ? "update" : "add", task: optimisticTask })
 
     startLoading()
-    const result = await executeUpsert({
-      projectId,
-      taskId: editingTask?.id,
-      name: data.name,
-      description: data.description,
-      cost: data.cost,
-      status: taskStatus,
-      priority: taskPriority,
-      dueDate: data.dueDate,
-      assigneeId: data.assigneeId,
-    })
+    const result = isEdit
+      ? await executeUpdate({
+          projectId,
+          taskId: editingTask!.id,
+          name: data.name,
+          description: data.description,
+          cost: data.cost,
+          status: taskStatus,
+          priority: taskPriority,
+          dueDate: data.dueDate,
+          assigneeId: data.assigneeId,
+        })
+      : await executeCreate({
+          projectId,
+          name: data.name,
+          description: data.description,
+          cost: data.cost,
+          status: taskStatus,
+          priority: taskPriority,
+          dueDate: data.dueDate,
+          assigneeId: data.assigneeId,
+        })
     stopLoading()
 
     if (result?.data) {

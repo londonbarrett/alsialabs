@@ -15,7 +15,7 @@ import {
   deleteExpense,
   updateExpense,
 } from "@/lib/actions/expenses"
-import { deleteTask, upsertTask } from "@/lib/actions/tasks"
+import { createTask, deleteTask, updateTask } from "@/lib/actions/tasks"
 import { useActionError } from "@/lib/util/action-errors"
 import type {
   Expense,
@@ -89,7 +89,8 @@ export function ProjectExpenses({
     useAction(updateExpense)
   const { executeAsync: executeDeleteExpense } =
     useAction(deleteExpense)
-  const { executeAsync: executeUpsertTask } = useAction(upsertTask)
+  const { executeAsync: executeCreateTask } = useAction(createTask)
+  const { executeAsync: executeUpdateTask } = useAction(updateTask)
   const { executeAsync: executeDeleteTask } = useAction(deleteTask)
 
   async function handleTaskSubmit(data: {
@@ -125,17 +126,28 @@ export function ProjectExpenses({
     dispatch({ type: isEdit ? "update" : "add", task: optimisticTask })
 
     startLoading()
-    const result = await executeUpsertTask({
-      projectId,
-      taskId: editingTask?.id,
-      name: data.name,
-      description: data.description,
-      cost: data.cost,
-      status: taskStatus,
-      priority: taskPriority,
-      dueDate: data.dueDate,
-      assigneeId: data.assigneeId,
-    })
+    const result = isEdit
+      ? await executeUpdateTask({
+          projectId,
+          taskId: editingTask!.id,
+          name: data.name,
+          description: data.description,
+          cost: data.cost,
+          status: taskStatus,
+          priority: taskPriority,
+          dueDate: data.dueDate,
+          assigneeId: data.assigneeId,
+        })
+      : await executeCreateTask({
+          projectId,
+          name: data.name,
+          description: data.description,
+          cost: data.cost,
+          status: taskStatus,
+          priority: taskPriority,
+          dueDate: data.dueDate,
+          assigneeId: data.assigneeId,
+        })
     stopLoading()
 
     if (result?.data) {

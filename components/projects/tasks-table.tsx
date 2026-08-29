@@ -17,6 +17,10 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "@/lib/drizzle/schema"
+import {
+  ALL_TASK_STATUSES,
+  COLLABORATOR_TASK_STATUSES,
+} from "@/lib/schemas/task"
 import { isTaskOverdue } from "@/lib/util/utils"
 import type { TaskWithCommentCount } from "@/reducers/task-reducer"
 import { MessageSquare, RefreshCw } from "lucide-react"
@@ -27,21 +31,6 @@ import {
   TaskStatusSelect,
   taskStatusColors,
 } from "./task-status-select"
-
-const allTaskStatuses = [
-  "todo",
-  "in_progress",
-  "in_review",
-  "blocked",
-  "done",
-  "cancelled",
-] as const
-
-const collaboratorTaskStatuses = [
-  "in_progress",
-  "blocked",
-  "in_review",
-] as const
 
 interface ProjectMember {
   userId: string
@@ -84,11 +73,11 @@ export function TasksTable({
   const t = useTranslations()
 
   function getTaskAllowedStatuses(task: Task) {
-    if (isOwner) return allTaskStatuses
+    if (isOwner) return ALL_TASK_STATUSES
     if (task.status === "done" || task.status === "cancelled")
       return null
     if (isCollaborator && task.assigneeId === currentUserId)
-      return collaboratorTaskStatuses
+      return COLLABORATOR_TASK_STATUSES
     return null
   }
 

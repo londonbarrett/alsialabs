@@ -11,40 +11,18 @@ import {
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { PROJECT_COLORS } from "@/components/projects/colors"
+import {
+  projectScopedAction,
+  returnActionError,
+  sessionAction,
+} from "@/lib/safe-action"
 import { getActionT } from "@/lib/util/i18n-actions"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import { z } from "zod"
-
-const projectSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Name is required")
-    .transform((v) => v.trim()),
-  categoryId: z.string().min(1, "Category is required"),
-  status: z
-    .enum(["active", "completed", "cancelled", "archived"])
-    .optional()
-    .default("active"),
-  description: z
-    .string()
-    .transform((v) => v.trim())
-    .optional()
-    .default(""),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().optional().default(""),
-  location: z
-    .string()
-    .min(1, "Location is required")
-    .transform((v) => v.trim()),
-  budget: z.string().optional().default(""),
-  color: z.enum(PROJECT_COLORS, {
-    message: "Color is required",
-  }),
-})
-
-export type ProjectFormData = z.infer<typeof projectSchema>
+import {
+  createProjectSchema,
+  updateProjectSchema,
+} from "@/lib/schemas/project"
 
 async function getUserProjectIds(userId: string): Promise<string[]> {
   const owned = await db
@@ -406,65 +384,26 @@ export async function getProjectById(id: string) {
   return project
 }
 
-export async function upsertProject(
-  data: ProjectFormData,
-  id?: string
-) {
-  const t = await getActionT("actions.projects")
-  try {
-    await requirePermission("projects", id ? "edit" : "create")
-  } catch {
-    return { success: false as const, error: t("forbidden") }
-  }
+export const createProject = sessionAction
+  .metadata({
+    permission: { module: "projects", action: "create" },
+    revalidate: ["/dashboard/projects"],
+  })
+  .inputSchema(createProjectSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const session = ctx.session
+    const {
+      name,
+      categoryId,
+      status,
+      description,
+      startDate,
+      endDate,
+      location,
+      budget,
+      color,
+    } = parsedInput
 
-  const session = await auth()
-  if (!session?.user)
-    return { success: false as const, error: t("unauthorized") }
-
-  const parsed = projectSchema.safeParse(data)
-  if (!parsed.success) {
-    return {
-      success: false as const,
-      error: t("validationFailed"),
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    }
-  }
-
-  const {
-    name,
-    categoryId,
-    status,
-    description,
-    startDate,
-    endDate,
-    location,
-    budget,
-    color,
-  } = parsed.data
-
-  if (id) {
-    if (
-      !(await isProjectOwner(id, session.user.id)) &&
-      !isSuperUser(session)
-    ) {
-      return { success: false as const, error: t("forbidden") }
-    }
-
-    await db
-      .update(projectsTable)
-      .set({
-        name,
-        categoryId,
-        status,
-        description: description || null,
-        startDate,
-        endDate: endDate || null,
-        location: location || null,
-        budget: budget ? budget : null,
-        color,
-      })
-      .where(eq(projectsTable.id, id))
-  } else {
     const [created] = await db
       .insert(projectsTable)
       .values({
@@ -485,11 +424,57 @@ export async function upsertProject(
       projectId: created.id,
       userId: session.user.id,
     })
-  }
 
-  revalidatePath("/dashboard/projects")
-  return { success: true as const }
-}
+    return created
+  })
+
+export const updateProject = projectScopedAction(updateProjectSchema)
+  .metadata({
+    permission: { module: "projects", action: "edit" },
+    revalidate: ["/dashboard/projects"],
+  })
+  .action(async ({ parsedInput, ctx }) => {
+    const {
+      projectId,
+      name,
+      categoryId,
+      status,
+      description,
+      startDate,
+      endDate,
+      location,
+      budget,
+      color,
+    } = parsedInput
+
+    if (!ctx.isProjectOwner) {
+      returnActionError("FORBIDDEN")
+    }
+
+    const [updated] = await db
+      .update(projectsTable)
+      .set({
+        name,
+        categoryId,
+        status,
+        description: description || null,
+        startDate,
+        endDate: endDate || null,
+        location: location || null,
+        budget: budget ? budget : null,
+        color,
+      })
+      .where(eq(projectsTable.id, projectId))
+      .returning({ id: projectsTable.id })
+
+    if (!updated) {
+      returnActionError("NOT_FOUND")
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`)
+
+    return updated
+  })
 
 export async function getProjectForEdit(id: string) {
   const t = await getActionT("actions.projects")

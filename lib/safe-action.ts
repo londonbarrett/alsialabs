@@ -106,7 +106,7 @@ export const sessionAction = basicAction.use(async ({ next }) => {
 export const projectAction = sessionAction
   .inputSchema(
     z.object({
-      projectId: z.string().uuid(),
+      projectId: z.uuid(),
     })
   )
   .useValidated(async ({ parsedInput, ctx, next }) => {

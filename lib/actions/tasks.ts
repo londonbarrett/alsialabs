@@ -17,53 +17,18 @@ import {
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
+import type { TaskStatus } from "@/lib/schemas/task"
+import {
+  ALL_TASK_STATUSES,
+  collaboratorStatusSchema,
+  createTaskSchema,
+  ownerStatusSchema,
+  taskPrioritySchema,
+  updateTaskSchema,
+} from "@/lib/schemas/task"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-
-const taskSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Name is required")
-    .transform((v) => v.trim()),
-  description: z
-    .string()
-    .transform((v) => v.trim())
-    .optional()
-    .default(""),
-  cost: z.string().optional().default(""),
-  status: z
-    .enum([
-      "todo",
-      "in_progress",
-      "in_review",
-      "blocked",
-      "done",
-      "cancelled",
-    ])
-    .optional()
-    .default("todo"),
-  priority: z.enum(["urgent", "high"]).nullable().optional(),
-  dueDate: z.string().nullable().optional(),
-  assigneeId: z.string().nullable().optional(),
-})
-
-const ownerStatusSchema = z.enum([
-  "todo",
-  "in_progress",
-  "in_review",
-  "blocked",
-  "done",
-  "cancelled",
-])
-
-const collaboratorStatusSchema = z.enum([
-  "in_progress",
-  "blocked",
-  "in_review",
-])
-
-export type TaskFormData = z.infer<typeof taskSchema>
 
 // ---------- Queries ----------
 
@@ -127,24 +92,11 @@ export const getMyTasks = sessionAction
       conditions.push(eq(tasksTable.assigneeId, session.user.id))
     }
     if (statusFilter) {
-      const validStatuses = [
-        "todo",
-        "in_progress",
-        "in_review",
-        "blocked",
-        "done",
-        "cancelled",
-      ] as const
       if (
-        validStatuses.includes(
-          statusFilter as (typeof validStatuses)[number]
-        )
+        (ALL_TASK_STATUSES as readonly string[]).includes(statusFilter)
       ) {
         conditions.push(
-          eq(
-            tasksTable.status,
-            statusFilter as (typeof validStatuses)[number]
-          )
+          eq(tasksTable.status, statusFilter as TaskStatus)
         )
       }
     }
@@ -233,12 +185,48 @@ export type MyTask = NonNullable<
 
 // ---------- Mutations ----------
 
-const upsertTaskSchema = taskSchema.extend({
-  projectId: z.uuid(),
-  taskId: z.uuid().optional(),
-})
+export const createTask = projectScopedAction(createTaskSchema)
+  .metadata({ permission: { module: "projects", action: "edit" } })
+  .action(async ({ parsedInput, ctx }) => {
+    if (!ctx.isProjectOwner) {
+      returnActionError("FORBIDDEN")
+    }
 
-export const upsertTask = projectScopedAction(upsertTaskSchema)
+    const {
+      projectId,
+      name,
+      description,
+      cost,
+      status,
+      priority,
+      dueDate,
+      assigneeId,
+    } = parsedInput
+
+    const [taskRow] = await db
+      .insert(tasksTable)
+      .values({
+        projectId,
+        name,
+        description: description || null,
+        cost: cost || null,
+        status,
+        priority: priority ?? null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        assigneeId: assigneeId ?? null,
+      })
+      .returning()
+
+    revalidatePath(`/dashboard/projects/${projectId}`)
+
+    return {
+      ...taskRow,
+      assigneeName: null as string | null,
+      commentCount: 0,
+    }
+  })
+
+export const updateTask = projectScopedAction(updateTaskSchema)
   .metadata({ permission: { module: "projects", action: "edit" } })
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
@@ -257,59 +245,32 @@ export const upsertTask = projectScopedAction(upsertTaskSchema)
       assigneeId,
     } = parsedInput
 
-    let taskRow: typeof tasksTable.$inferSelect
-
-    if (taskId) {
-      const rows = await db
-        .update(tasksTable)
-        .set({
-          name,
-          description: description || null,
-          cost: cost || null,
-          status,
-          priority: priority ?? null,
-          dueDate: dueDate ? new Date(dueDate) : null,
-          assigneeId: assigneeId ?? null,
-        })
-        .where(
-          and(
-            eq(tasksTable.id, taskId),
-            eq(tasksTable.projectId, projectId)
-          )
+    const [taskRow] = await db
+      .update(tasksTable)
+      .set({
+        name,
+        description: description || null,
+        cost: cost || null,
+        status,
+        priority: priority ?? null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        assigneeId: assigneeId ?? null,
+      })
+      .where(
+        and(
+          eq(tasksTable.id, taskId),
+          eq(tasksTable.projectId, projectId)
         )
-        .returning()
-      if (!rows[0]) returnActionError("NOT_FOUND")
-      taskRow = rows[0]
-    } else {
-      const rows = await db
-        .insert(tasksTable)
-        .values({
-          projectId,
-          name,
-          description: description || null,
-          cost: cost || null,
-          status,
-          priority: priority ?? null,
-          dueDate: dueDate ? new Date(dueDate) : null,
-          assigneeId: assigneeId ?? null,
-        })
-        .returning()
-      taskRow = rows[0]
-    }
+      )
+      .returning()
 
-    const assignee = taskRow.assigneeId
-      ? await db
-          .select({ name: usersTable.name, email: usersTable.email })
-          .from(usersTable)
-          .where(eq(usersTable.id, taskRow.assigneeId))
-          .then((rows) => rows[0])
-      : null
+    if (!taskRow) returnActionError("NOT_FOUND")
 
     revalidatePath(`/dashboard/projects/${projectId}`)
 
     return {
       ...taskRow,
-      assigneeName: assignee ? assignee.name || assignee.email : null,
+      assigneeName: null as string | null,
       commentCount: 0,
     }
   })
@@ -427,7 +388,6 @@ export const updateTaskPriority = projectScopedAction(
     }
 
     const { projectId, taskId, priority } = parsedInput
-    const taskPrioritySchema = z.enum(["urgent", "high"]).nullable()
     const parsed = taskPrioritySchema.safeParse(priority)
     if (!parsed.success) {
       returnActionError("VALIDATION_FAILED")

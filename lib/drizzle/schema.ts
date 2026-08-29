@@ -1,3 +1,5 @@
+import type { TaskPriority, TaskStatus } from "@/lib/schemas/task"
+export type { TaskPriority, TaskStatus }
 import {
   boolean,
   date,
@@ -131,14 +133,6 @@ export type InvoicePayment = typeof invoicePaymentsTable.$inferSelect
 export type Taxonomy = typeof taxonomyTable.$inferSelect
 export type Category = typeof categoryTable.$inferSelect
 export type Project = typeof projectsTable.$inferSelect
-export type TaskStatus =
-  | "todo"
-  | "in_progress"
-  | "in_review"
-  | "blocked"
-  | "done"
-  | "cancelled"
-export type TaskPriority = "urgent" | "high" | null
 export type Task = typeof tasksTable.$inferSelect
 export type Routine = typeof routinesTable.$inferSelect
 export type TaskComment = typeof taskCommentsTable.$inferSelect

@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import { auth, getUserPermissions } from "@/lib/auth"
 import { getProjectsWithDetails } from "@/lib/actions/projects"
-import { getCategoriesByTaxonomyList } from "@/lib/actions/categories"
+import { getProjectCategories } from "@/lib/actions/categories"
 import { ProjectListView } from "@/components/projects/project-list-view"
 import { unwrapArray } from "@/lib/util/unwrap"
 
@@ -34,7 +34,7 @@ async function ProjectsContent() {
 
   const [projects, categories, permissions] = await Promise.all([
     getProjectsWithDetails(),
-    getCategoriesByTaxonomyList({ taxonomySlug: "project" }),
+    getProjectCategories(),
     getUserPermissions(session?.user?.id ?? ""),
   ])
 

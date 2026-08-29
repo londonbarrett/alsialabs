@@ -4,10 +4,13 @@ import { db } from "@/lib/drizzle/client"
 import { productsTable, storesTable } from "@/lib/drizzle/schema"
 import {
   basicAction,
-  storeAction,
   returnActionError,
+  storeAction,
 } from "@/lib/safe-action"
-import { productSchema } from "@/lib/schemas/product"
+import {
+  createProductSchema,
+  updateProductSchema,
+} from "@/lib/schemas/product"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 
@@ -32,16 +35,6 @@ export const getProducts = storeAction
       .leftJoin(storesTable, eq(productsTable.store_id, storesTable.id))
       .where(eq(productsTable.store_id, ctx.storeId))
   })
-
-export type ProductWithStore = {
-  id: string
-  name: string
-  description: string | null
-  store_id: string
-  store_name: string | null
-  sku: string | null
-  unit: string | null
-}
 
 export const checkSkuExists = basicAction
   .metadata({
@@ -69,12 +62,12 @@ export const checkSkuExists = basicAction
 
 // ---------- Mutation actions ----------
 
-export const createProduct = basicAction
+export const createProduct = storeAction
   .metadata({
     permission: { module: "products", action: "create" },
     revalidate: ["/dashboard/products"],
   })
-  .inputSchema(productSchema)
+  .inputSchema(createProductSchema)
   .action(async ({ parsedInput }) => {
     const { name, description, store_id, sku, unit } = parsedInput
 
@@ -104,7 +97,7 @@ export const updateProduct = storeAction
     permission: { module: "products", action: "edit" },
     revalidate: ["/dashboard/products"],
   })
-  .inputSchema(productSchema.extend({ id: z.string().uuid() }))
+  .inputSchema(updateProductSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { id, name, description, store_id, sku, unit } = parsedInput
 

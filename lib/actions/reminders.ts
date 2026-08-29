@@ -13,10 +13,10 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 const reminderSchema = z.object({
-  clientId: z.string().uuid("Invalid client ID"),
+  clientId: z.uuid({ message: "Invalid client ID" }),
   description: z
     .string()
-    .min(1, "Description is required")
+    .min(1, { message: "Description is required" })
     .transform((v) => v.trim()),
   remindAt: z.string().refine((v) => {
     const d = new Date(v + "T00:00:00")

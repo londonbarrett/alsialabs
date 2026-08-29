@@ -118,8 +118,8 @@ export const updateExpense = projectScopedAction(updateExpenseSchema)
 
 export const deleteExpense = projectScopedAction(
   z.object({
-    projectId: z.string().uuid(),
-    id: z.string().uuid(),
+    projectId: z.uuid(),
+    id: z.uuid(),
   })
 )
   .metadata({

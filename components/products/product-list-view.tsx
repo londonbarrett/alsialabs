@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table"
 import { deleteProduct } from "@/lib/actions/products"
 import { useActionError } from "@/lib/util/action-errors"
-import type { ProductWithStore } from "@/lib/actions/products"
+import type { ProductWithStore } from "@/lib/types"
 import type { StoreOption } from "@/lib/actions/stores"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
