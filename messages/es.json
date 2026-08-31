@@ -527,6 +527,7 @@
     "routineEvent": "Rutina"
   },
   "sales": {
+    "title": "Ventas",
     "subtitle": "Gestiona tus facturas y rastrea el rendimiento de ventas",
     "newInvoice": "Nueva Factura",
     "editInvoice": "Editar Factura",
