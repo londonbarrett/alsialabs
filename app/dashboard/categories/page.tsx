@@ -4,8 +4,8 @@ import {
   getTaxonomies,
 } from "@/lib/actions/categories"
 import { auth, getUserPermissions } from "@/lib/auth"
+import { unwrapResponse } from "@/lib/util/unwrap"
 import { forbidden } from "next/navigation"
-import { unwrapArray } from "@/lib/util/unwrap"
 
 type CategoryItem = {
   id: string
@@ -28,7 +28,7 @@ export default async function CategoriesPage() {
     forbidden()
   }
 
-  const taxonomies = unwrapArray(await getTaxonomies())
+  const taxonomies = unwrapResponse(await getTaxonomies())
 
   const categoriesResults = await Promise.all(
     taxonomies.map((t) =>
@@ -38,7 +38,7 @@ export default async function CategoriesPage() {
 
   const categoriesByTaxonomy: Record<string, CategoryItem[]> = {}
   taxonomies.forEach((t, i) => {
-    categoriesByTaxonomy[t.id] = unwrapArray(categoriesResults[i])
+    categoriesByTaxonomy[t.id] = unwrapResponse(categoriesResults[i])
   })
 
   return (

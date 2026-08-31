@@ -1,5 +1,6 @@
 import { ProjectPeople } from "@/components/projects/project-people"
-import { getProjectContext } from "@/lib/actions/project-context"
+import { getProjectContext } from "@/lib/actions/projects"
+import { unwrapResponse } from "@/lib/util/unwrap"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -13,12 +14,13 @@ export default async function ProjectPeoplePage({ params }: Props) {
     owners,
     collaborators,
     isCurrentUserAdmin,
-  } = await getProjectContext(id)
+  } = unwrapResponse(await getProjectContext({ projectId: id }))
 
   const isPrimaryOwner = project.primaryOwnerId === session.user.id
   const isOwner =
-    owners.some((o) => o.userId === session.user.id) ||
-    isCurrentUserAdmin
+    owners.some(
+      (o: { userId: string }) => o.userId === session.user.id
+    ) || isCurrentUserAdmin
 
   return (
     <ProjectPeople

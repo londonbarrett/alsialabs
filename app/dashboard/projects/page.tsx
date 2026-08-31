@@ -1,11 +1,19 @@
-import { Suspense } from "react"
-import { auth, getUserPermissions } from "@/lib/auth"
-import { getProjectsWithDetails } from "@/lib/actions/projects"
-import { getProjectCategories } from "@/lib/actions/categories"
 import { ProjectListView } from "@/components/projects/project-list-view"
-import { unwrapArray } from "@/lib/util/unwrap"
+import { getProjectCategories } from "@/lib/actions/categories"
+import { getProjectsWithDetails } from "@/lib/actions/projects"
+import { auth, getUserPermissions } from "@/lib/auth"
+import { unwrapResponse } from "@/lib/util/unwrap"
+import { Suspense } from "react"
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const session = await auth()
+
+  const [projects, categories, permissions] = await Promise.all([
+    getProjectsWithDetails(),
+    getProjectCategories(),
+    getUserPermissions(session?.user?.id ?? ""),
+  ])
+
   return (
     <Suspense
       fallback={
@@ -24,25 +32,11 @@ export default function ProjectsPage() {
         </div>
       }
     >
-      <ProjectsContent />
+      <ProjectListView
+        projects={unwrapResponse(projects)}
+        categories={unwrapResponse(categories)}
+        permissions={permissions}
+      />
     </Suspense>
-  )
-}
-
-async function ProjectsContent() {
-  const session = await auth()
-
-  const [projects, categories, permissions] = await Promise.all([
-    getProjectsWithDetails(),
-    getProjectCategories(),
-    getUserPermissions(session?.user?.id ?? ""),
-  ])
-
-  return (
-    <ProjectListView
-      projects={projects}
-      categories={unwrapArray(categories)}
-      permissions={permissions}
-    />
   )
 }

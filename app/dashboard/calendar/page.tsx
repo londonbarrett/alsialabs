@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/common/page-header"
 import { getCalendarRoutines } from "@/lib/actions/calendar"
 import { getMyTasks } from "@/lib/actions/tasks"
 import { auth, hasPermission } from "@/lib/auth"
-import { unwrapArray } from "@/lib/util/unwrap"
+import { unwrapResponse } from "@/lib/util/unwrap"
 import { CalendarDays } from "lucide-react"
 import { getLocale, getTranslations } from "next-intl/server"
 import { forbidden } from "next/navigation"
@@ -23,7 +23,7 @@ export default async function CalendarPage() {
     getLocale(),
   ])
 
-  const tasks = unwrapArray(await getMyTasks({}))
+  const tasks = unwrapResponse(await getMyTasks({}))
   const routines = await getCalendarRoutines()
 
   return (

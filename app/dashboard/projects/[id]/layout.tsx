@@ -1,5 +1,6 @@
 import { ProjectView } from "@/components/projects/project-view"
-import { getProjectContext } from "@/lib/actions/project-context"
+import { getProjectContext } from "@/lib/actions/projects"
+import { unwrapResponse } from "@/lib/util/unwrap"
 
 interface Props {
   children: React.ReactNode
@@ -11,9 +12,9 @@ export default async function ProjectDetailLayout({
   params,
 }: Props) {
   const { id } = await params
-  const { project } = await getProjectContext(id)
-
-  return (
-    <ProjectView project={project}>{children}</ProjectView>
+  const { project } = unwrapResponse(
+    await getProjectContext({ projectId: id })
   )
+
+  return <ProjectView project={project}>{children}</ProjectView>
 }

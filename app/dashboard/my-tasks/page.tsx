@@ -3,7 +3,7 @@ import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import { getMyTasks } from "@/lib/actions/tasks"
 import { MyTasksView } from "@/components/my-tasks/my-tasks-view"
 import { forbidden } from "next/navigation"
-import { unwrapArray } from "@/lib/util/unwrap"
+import { unwrapResponse } from "@/lib/util/unwrap"
 
 export default async function MyTasksPage() {
   const session = await auth()
@@ -20,7 +20,7 @@ export default async function MyTasksPage() {
     session as { user: { role: string | null } }
   )
 
-  const tasks = unwrapArray(await getMyTasks({}))
+  const tasks = unwrapResponse(await getMyTasks({}))
 
   return (
     <Suspense

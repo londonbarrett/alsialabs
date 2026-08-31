@@ -17,7 +17,7 @@ import {
   checkSkuExists,
 } from "@/lib/actions/products"
 import { useActionError } from "@/lib/util/action-errors"
-import { unwrap } from "@/lib/util/unwrap"
+import { unwrapResponse } from "@/lib/util/unwrap"
 import type { Product } from "@/lib/drizzle/schema"
 import { useAction } from "next-safe-action/hooks"
 import { useTranslations } from "next-intl"
@@ -103,7 +103,7 @@ export function ProductForm({
           sku: value,
           excludeId: product?.id,
         })
-        setSkuExists(unwrap(result, { exists: false }).exists)
+        setSkuExists(unwrapResponse(result, { exists: false }).exists)
       }, 500)
     },
     [product?.id, product?.sku]
