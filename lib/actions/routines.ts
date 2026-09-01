@@ -22,7 +22,7 @@ import { z } from "zod"
 const routineFields = z.object({
   name: z
     .string()
-    .min(1, "Name is required")
+    .min(1, { message: "Name is required" })
     .transform((v) => v.trim()),
   description: z
     .string()

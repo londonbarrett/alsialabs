@@ -1,12 +1,35 @@
-export interface ProjectMember {
+export type ProjectMember = {
   userId: string
   userName: string | null
   userEmail: string | null
   userImage: string | null
 }
 
+export type ExpenseWithCategory = {
+  id: string
+  projectId: string
+  categoryId: string
+  description: string
+  amount: string
+  expenseDate: string
+  createdAt: Date
+  updatedAt: Date
+  categoryName: string | null
+  categorySlug: string | null
+}
+
+export type ProductWithStore = {
+  id: string
+  name: string
+  description: string | null
+  store_id: string
+  store_name: string | null
+  sku: string | null
+  unit: string | null
+}
+
 /** App-level metadata carried by calendar events. */
-export interface CalendarEventMeta {
+export type CalendarEventMeta = {
   kind?: "task" | "routine"
   taskId?: string
   routineId?: string
@@ -54,7 +77,7 @@ export type Project = {
 }
 
 /** Minimal task row needed to build calendar task events. */
-export interface CalendarTaskData {
+export type CalendarTaskData = {
   id: string
   name: string
   projectId: string
@@ -72,7 +95,7 @@ export interface CalendarTaskData {
 }
 
 /** Minimal routine row needed to expand recurring events on the client. */
-export interface CalendarRoutineData {
+export type CalendarRoutineData = {
   id: string
   name: string
   description: string | null

@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { MyTask } from "@/lib/actions/tasks"
+import type { TaskStatus } from "@/lib/drizzle/schema"
 import { isTaskOverdue } from "@/lib/util/utils"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -27,24 +28,24 @@ import { useState } from "react"
 
 interface MyTasksListProps {
   tasks: MyTask[]
+  statuses: Record<string, readonly TaskStatus[] | null>
   isPending: boolean
   currentUserId: string
   isSuperUser: boolean
-  getTaskAllowedStatuses: (task: MyTask) => readonly string[] | null
   onStatusChange: (
     taskId: string,
     projectId: string,
-    status: string
+    status: TaskStatus
   ) => void
   onCommentCountChange?: (taskId: string, delta: number) => void
 }
 
 export function MyTasksList({
   tasks,
+  statuses,
   isPending,
   currentUserId,
   isSuperUser,
-  getTaskAllowedStatuses,
   onStatusChange,
   onCommentCountChange,
 }: MyTasksListProps) {
@@ -119,7 +120,7 @@ export function MyTasksList({
                     </TableCell>
                     <TableCell>
                       {(() => {
-                        const allowed = getTaskAllowedStatuses(task)
+                        const allowed = statuses[task.id]
                         if (!allowed) {
                           return (
                             <Badge

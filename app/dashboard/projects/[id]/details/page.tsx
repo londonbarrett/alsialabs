@@ -1,6 +1,7 @@
 import { ProjectDetails } from "@/components/projects/project-details"
-import { getCategoriesByTaxonomyList } from "@/lib/actions/categories"
-import { getProjectContext } from "@/lib/actions/project-context"
+import { getProjectCategories } from "@/lib/actions/categories"
+import { getProjectContext } from "@/lib/actions/projects"
+import { unwrapResponse } from "@/lib/util/unwrap"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -9,9 +10,9 @@ interface Props {
 export default async function ProjectDetailsPage({ params }: Props) {
   const { id } = await params
   const { session, project, owners, permissions, isCurrentUserAdmin } =
-    await getProjectContext(id)
+    unwrapResponse(await getProjectContext({ projectId: id }))
 
-  const categories = await getCategoriesByTaxonomyList("project")
+  const categories = unwrapResponse(await getProjectCategories())
 
   const primaryOwner = owners.find(
     (o) => o.userId === project.primaryOwnerId

@@ -11,12 +11,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { upsertProject } from "@/lib/actions/projects"
+import { createProject, updateProject } from "@/lib/actions/projects"
 import type { Project } from "@/lib/drizzle/schema"
-import { type ProjectColor } from "./colors"
+import { useActionError } from "@/lib/util/action-errors"
 import { useTranslations } from "next-intl"
+import { useAction } from "next-safe-action/hooks"
 import { useState } from "react"
 import { toast } from "sonner"
+import { type ProjectColor } from "./colors"
 import { ProjectColorField } from "./project-color-field"
 
 interface ProjectFormProps {
@@ -50,6 +52,9 @@ export function ProjectForm({
   const [color, setColor] = useState<string | undefined>(project?.color)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const translateError = useActionError()
+  const { executeAsync: executeCreate } = useAction(createProject)
+  const { executeAsync: executeUpdate } = useAction(updateProject)
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
@@ -70,46 +75,48 @@ export function ProjectForm({
     if (!validate()) return
 
     setSaving(true)
-    try {
-      const result = await upsertProject(
-        {
-          name: name.trim(),
-          categoryId,
-          status: status as
-            | "active"
-            | "completed"
-            | "cancelled"
-            | "archived",
-          description: description.trim(),
-          startDate,
-          endDate: endDate.trim(),
-          location: location.trim(),
-          budget: budget.trim(),
-          color: color as ProjectColor,
-        },
-        project?.id
+    const data = {
+      name: name.trim(),
+      categoryId,
+      status: status as
+        | "active"
+        | "completed"
+        | "cancelled"
+        | "archived",
+      description: description.trim(),
+      startDate,
+      endDate: endDate.trim(),
+      location: location.trim(),
+      budget: budget.trim(),
+      color: color as ProjectColor,
+    }
+
+    const result = project
+      ? await executeUpdate({ ...data, projectId: project.id })
+      : await executeCreate(data)
+
+    if (result?.data) {
+      toast.success(
+        project
+          ? t("projects.projectUpdated")
+          : t("projects.projectCreated")
       )
-      if (result.success) {
-        toast.success(
-          project
-            ? t("projects.projectUpdated")
-            : t("projects.projectCreated")
-        )
-        onSuccess()
-      } else {
-        if (result.fieldErrors) {
-          const mapped: Record<string, string> = {}
-          for (const [key, msgs] of Object.entries(
-            result.fieldErrors
-          )) {
-            if (msgs && msgs.length > 0) mapped[key] = msgs[0]
-          }
-          setErrors(mapped)
+      onSuccess()
+    } else {
+      if (result?.validationErrors) {
+        const mapped: Record<string, string> = {}
+        for (const [key, msgs] of Object.entries(
+          result.validationErrors as Record<string, string[]>
+        )) {
+          if (msgs && msgs.length > 0) mapped[key] = msgs[0]
         }
-        toast.error(result.error || t("common.somethingWentWrong"))
+        setErrors(mapped)
       }
-    } catch {
-      toast.error(t("common.somethingWentWrong"))
+      if (result?.serverError) {
+        toast.error(translateError(result.serverError.code))
+      } else {
+        toast.error(t("common.somethingWentWrong"))
+      }
     }
     setSaving(false)
   }

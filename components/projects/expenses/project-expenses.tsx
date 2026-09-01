@@ -1,8 +1,6 @@
 "use client"
 
-import { ActionMenu } from "@/components/common/action-menu"
 import { Money } from "@/components/common/money"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -11,63 +9,39 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import {
+  createExpense,
   deleteExpense,
-  type ExpenseWithCategory,
+  updateExpense,
 } from "@/lib/actions/expenses"
-import { deleteTask, upsertTask } from "@/lib/actions/tasks"
-import type { Task } from "@/lib/drizzle/schema"
-import type { ProjectMember } from "@/lib/types"
+import { createTask, deleteTask, updateTask } from "@/lib/actions/tasks"
+import { useActionError } from "@/lib/util/action-errors"
+import type {
+  Expense,
+  Task,
+  TaskPriority,
+  TaskStatus,
+} from "@/lib/drizzle/schema"
+import type { ExpenseWithCategory, ProjectMember } from "@/lib/types"
 import { cn } from "@/lib/util/utils"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
+import { useAction } from "next-safe-action/hooks"
 import { useReducer, useState, useTransition } from "react"
 import { toast } from "sonner"
 import { TaskDialog } from "../task-dialog"
 import { ExpenseDialog } from "./expense-dialog"
-
-type TaskAction =
-  | { type: "add"; task: Task }
-  | { type: "update"; task: Task }
-  | { type: "replaceTemp"; tempId: string; task: Task }
-  | { type: "delete"; taskId: string }
-  | { type: "reset"; tasks: Task[] }
+import { ExpensesTable } from "./expenses-table"
+import { expenseReducer } from "@/reducers/expense-reducer"
+import { taskReducer } from "@/reducers/task-reducer"
 
 function formatDate(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, "0")
   const day = String(date.getDate()).padStart(2, "0")
   return `${year}-${month}-${day}`
-}
-
-// TODO: Move reducer to separate file
-function taskReducer(state: Task[], action: TaskAction): Task[] {
-  switch (action.type) {
-    case "add":
-      return [action.task, ...state]
-    case "update":
-      return state.map((t) =>
-        t.id === action.task.id ? action.task : t
-      )
-    case "replaceTemp":
-      return state.map((t) =>
-        t.id === action.tempId ? action.task : t
-      )
-    case "delete":
-      return state.filter((t) => t.id !== action.taskId)
-    case "reset":
-      return action.tasks
-  }
 }
 
 interface ProjectExpensesProps {
@@ -93,9 +67,14 @@ export function ProjectExpenses({
 }: ProjectExpensesProps) {
   const router = useRouter()
   const t = useTranslations()
+  const translateError = useActionError()
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const [localTasks, dispatch] = useReducer(taskReducer, tasks)
+  const [optimisticExpenses, dispatchExpenses] = useReducer(
+    expenseReducer,
+    expenses
+  )
   const [, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<
@@ -104,11 +83,15 @@ export function ProjectExpenses({
   const [editingTask, setEditingTask] = useState<Task | undefined>()
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
 
-  function handleSuccess() {
-    router.refresh()
-    setEditingExpense(undefined)
-    setEditingTask(undefined)
-  }
+  const { executeAsync: executeCreateExpense } =
+    useAction(createExpense)
+  const { executeAsync: executeUpdateExpense } =
+    useAction(updateExpense)
+  const { executeAsync: executeDeleteExpense } =
+    useAction(deleteExpense)
+  const { executeAsync: executeCreateTask } = useAction(createTask)
+  const { executeAsync: executeUpdateTask } = useAction(updateTask)
+  const { executeAsync: executeDeleteTask } = useAction(deleteTask)
 
   async function handleTaskSubmit(data: {
     name: string
@@ -122,13 +105,8 @@ export function ProjectExpenses({
     const isEdit = !!editingTask
     setEditingTask(undefined)
     setTaskDialogOpen(false)
-    const taskStatus = data.status as
-      | "todo"
-      | "in_progress"
-      | "in_review"
-      | "blocked"
-      | "done"
-    const taskPriority = data.priority as "urgent" | "high" | null
+    const taskStatus = data.status as TaskStatus
+    const taskPriority = data.priority as TaskPriority
 
     const optimisticTask: Task = {
       id: editingTask?.id ?? `temp-${Date.now()}`,
@@ -148,14 +126,31 @@ export function ProjectExpenses({
     dispatch({ type: isEdit ? "update" : "add", task: optimisticTask })
 
     startLoading()
-    const result = await upsertTask(
-      { ...data, status: taskStatus, priority: taskPriority },
-      projectId,
-      editingTask?.id
-    )
+    const result = isEdit
+      ? await executeUpdateTask({
+          projectId,
+          taskId: editingTask!.id,
+          name: data.name,
+          description: data.description,
+          cost: data.cost,
+          status: taskStatus,
+          priority: taskPriority,
+          dueDate: data.dueDate,
+          assigneeId: data.assigneeId,
+        })
+      : await executeCreateTask({
+          projectId,
+          name: data.name,
+          description: data.description,
+          cost: data.cost,
+          status: taskStatus,
+          priority: taskPriority,
+          dueDate: data.dueDate,
+          assigneeId: data.assigneeId,
+        })
     stopLoading()
 
-    if (result.success && result.data) {
+    if (result?.data) {
       startTransition(() => {
         dispatch({
           type: "replaceTemp",
@@ -174,7 +169,11 @@ export function ProjectExpenses({
           dispatch({ type: "delete", taskId: optimisticTask.id })
         })
       }
-      toast.error(result.error || t("common.somethingWentWrong"))
+      if (result?.serverError) {
+        toast.error(translateError(result.serverError.code))
+      } else {
+        toast.error(t("common.somethingWentWrong"))
+      }
     }
 
     return result
@@ -208,10 +207,10 @@ export function ProjectExpenses({
   async function handleDeleteTask(taskId: string) {
     dispatch({ type: "delete", taskId })
     startLoading()
-    const result = await deleteTask(taskId, projectId)
+    const result = await executeDeleteTask({ projectId, taskId })
     stopLoading()
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
+    if (result?.serverError) {
+      toast.error(translateError(result.serverError.code))
       startTransition(() => {
         dispatch({ type: "reset", tasks })
       })
@@ -221,18 +220,97 @@ export function ProjectExpenses({
   }
 
   async function handleDeleteExpense(expenseId: string) {
-    const result = await deleteExpense(expenseId, projectId)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
+    dispatchExpenses({ type: "delete", expenseId })
+    startLoading()
+    const result = await executeDeleteExpense({
+      projectId,
+      id: expenseId,
+    })
+    stopLoading()
+    if (result?.serverError) {
+      toast.error(translateError(result.serverError.code))
+      dispatchExpenses({ type: "reset", expenses })
+      router.refresh()
     } else {
       toast.success(t("projects.expenses.expenseDeleted"))
+    }
+  }
+
+  async function handleExpenseSubmit(data: Expense) {
+    const isEdit = !!editingExpense
+    const tempId = editingExpense?.id ?? `temp-${Date.now()}`
+    const cat = categories.find((c) => c.id === data.categoryId)
+
+    const optimisticExpense: ExpenseWithCategory = {
+      id: data.id || tempId,
+      projectId: data.projectId,
+      categoryId: data.categoryId,
+      description: data.description,
+      amount: data.amount,
+      expenseDate: data.expenseDate,
+      createdAt: editingExpense?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+      categoryName: cat?.name ?? null,
+      categorySlug: cat?.slug ?? null,
+    }
+
+    dispatchExpenses({
+      type: isEdit ? "update" : "add",
+      expense: optimisticExpense,
+    })
+
+    const canonical: ExpenseWithCategory = {
+      ...optimisticExpense,
+      categoryName: cat?.name ?? null,
+      categorySlug: cat?.slug ?? null,
+    }
+
+    if (isEdit) {
+      startLoading()
+      const result = await executeUpdateExpense({
+        ...data,
+        projectId: data.projectId,
+        id: editingExpense!.id,
+      })
+      stopLoading()
+      if (result?.serverError) {
+        toast.error(translateError(result.serverError.code))
+        dispatchExpenses({ type: "reset", expenses })
+        router.refresh()
+        return
+      }
+      dispatchExpenses({
+        type: "replaceTemp",
+        tempId,
+        expense: { ...canonical, id: result.data?.id ?? tempId },
+      })
+      toast.success(t("projects.expenses.expenseUpdated"))
+    } else {
+      startLoading()
+      const result = await executeCreateExpense({
+        ...data,
+        projectId: data.projectId,
+      })
+      stopLoading()
+      if (result?.serverError) {
+        toast.error(translateError(result.serverError.code))
+        dispatchExpenses({ type: "delete", expenseId: tempId })
+        router.refresh()
+        return
+      }
+      dispatchExpenses({
+        type: "replaceTemp",
+        tempId,
+        expense: { ...canonical, id: result.data?.id ?? tempId },
+      })
+      toast.success(t("projects.expenses.expenseCreated"))
     }
   }
 
   const taskCosts = localTasks.filter(
     (t) => t.cost && Number(t.cost) > 0
   )
-  const expenseTotal = expenses.reduce(
+  const expenseTotal = optimisticExpenses.reduce(
     (sum, e) => sum + Number(e.amount),
     0
   )
@@ -241,7 +319,7 @@ export function ProjectExpenses({
     0
   )
   const total = expenseTotal + taskCostTotal
-  const hasItems = expenses.length > 0 || taskCosts.length > 0
+  const hasItems = optimisticExpenses.length > 0 || taskCosts.length > 0
   const budgetNum = budget ? Number(budget) : 0
   const spendPct =
     budgetNum > 0
@@ -258,7 +336,7 @@ export function ProjectExpenses({
         ? formatDate(new Date(task.createdAt))
         : "9999-12-31",
     })),
-    ...expenses.map((expense) => ({
+    ...optimisticExpenses.map((expense) => ({
       key: expense.id,
       type: "expense" as const,
       expense,
@@ -324,95 +402,15 @@ export function ProjectExpenses({
         )}
         {hasItems ? (
           <>
-            <div className="overflow-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead scope="col">
-                      {t("projects.expenses.description")}
-                    </TableHead>
-                    <TableHead scope="col">
-                      {t("projects.expenses.type")}
-                    </TableHead>
-                    <TableHead scope="col">
-                      {t("projects.expenses.amount")}
-                    </TableHead>
-                    <TableHead scope="col">
-                      {t("projects.expenses.date")}
-                    </TableHead>
-                    {(canEdit || canDelete) && (
-                      <TableHead scope="col">
-                        {t("common.actions")}
-                      </TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.key}>
-                      <TableCell className="font-medium">
-                        {row.type === "task"
-                          ? row.task.name
-                          : row.expense.description}
-                      </TableCell>
-                      <TableCell>
-                        {row.type === "task" ? (
-                          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                            {t("projects.expenses.task")}
-                          </Badge>
-                        ) : row.expense.categorySlug ? (
-                          <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
-                            {t.has(
-                              `categoryNames.${row.expense.categorySlug}`
-                            )
-                              ? t(
-                                  `categoryNames.${row.expense.categorySlug}`
-                                )
-                              : row.expense.categoryName}
-                          </Badge>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {row.type === "task" ? (
-                          <Money value={row.task.cost} />
-                        ) : (
-                          <Money value={row.expense.amount} />
-                        )}
-                      </TableCell>
-                      <TableCell>{row.date}</TableCell>
-                      {(canEdit || canDelete) && (
-                        <TableCell>
-                          <ActionMenu
-                            entityName={
-                              row.type === "task"
-                                ? row.task.name
-                                : row.expense.description
-                            }
-                            onEdit={
-                              canEdit
-                                ? () =>
-                                    row.type === "task"
-                                      ? openEditTask(row.task)
-                                      : openEdit(row.expense)
-                                : undefined
-                            }
-                            onDelete={() =>
-                              row.type === "task"
-                                ? handleDeleteTask(row.task.id)
-                                : handleDeleteExpense(row.expense.id)
-                            }
-                            canEdit={canEdit}
-                            canDelete={canDelete}
-                          />
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <ExpensesTable
+              rows={rows}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              onEditExpense={openEdit}
+              onEditTask={openEditTask}
+              onDeleteExpense={handleDeleteExpense}
+              onDeleteTask={handleDeleteTask}
+            />
             <div className="mt-4 flex justify-end">
               <p className="text-sm text-muted-foreground">
                 {t("projects.expenses.total")}: <Money value={total} />
@@ -432,7 +430,11 @@ export function ProjectExpenses({
         categories={categories}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
-        onSuccess={handleSuccess}
+        onSubmit={(data) => {
+          setDialogOpen(false)
+          setEditingExpense(undefined)
+          void handleExpenseSubmit(data)
+        }}
       />
 
       <TaskDialog

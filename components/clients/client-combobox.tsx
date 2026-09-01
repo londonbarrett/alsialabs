@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, useTransition } from "react"
+import { useState, useRef, useTransition } from "react"
+import { useDebounced } from "@/hooks/use-debounced"
 import { useTranslations } from "next-intl"
 import {
   Combobox,
@@ -18,7 +19,10 @@ import {
   ItemTitle,
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
-import { searchClients, getClientByClientId } from "@/lib/actions/clients"
+import {
+  getClientByClientId,
+  searchClients,
+} from "@/lib/actions/clients"
 import type { ClientOption } from "@/lib/actions/clients"
 
 interface ClientComboboxProps {
@@ -36,49 +40,49 @@ export function ClientCombobox({
   disabled,
   placeholder,
 }: ClientComboboxProps) {
-  const t = useTranslations('clients')
+  const t = useTranslations("clients")
   const [searchResults, setSearchResults] = useState<ClientOption[]>([])
-  const [selectedValue, setSelectedValue] = useState<ClientOption | null>(null)
+  const [selectedValue, setSelectedValue] =
+    useState<ClientOption | null>(null)
   const [isPending, startTransition] = useTransition()
   const abortRef = useRef<AbortController | null>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const resolvedRef = useRef(false)
 
-  useEffect(() => {
-    if (!value || resolvedRef.current) return
-    resolvedRef.current = true
-    getClientByClientId(value).then((client) => {
-      if (client) {
-        setSelectedValue({ id: client.id, name: client.name, phone: client.phone })
+  const handleSearch = useDebounced((query: string) => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    if (!query.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    startTransition(async () => {
+      const result = await searchClients({ query })
+      if (!controller.signal.aborted) {
+        setSearchResults(result.data ?? [])
       }
     })
-  }, [value])
+  }, 300)
 
-  const handleSearch = useCallback((query: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-
-    debounceRef.current = setTimeout(() => {
-      abortRef.current?.abort()
-      const controller = new AbortController()
-      abortRef.current = controller
-
-      if (!query.trim()) {
-        setSearchResults([])
-        return
+  const handleOpenChange = async (open: boolean) => {
+    if (open && value && !selectedValue) {
+      const result = await getClientByClientId({ id: value })
+      if (result.data) {
+        setSelectedValue({
+          id: result.data.id,
+          name: result.data.name,
+          phone: result.data.phone,
+        })
       }
+    }
+  }
 
-      startTransition(async () => {
-        const results = await searchClients(query)
-        if (!controller.signal.aborted) {
-          setSearchResults(results)
-        }
-      })
-    }, 300)
-  }, [])
-
-  const items = selectedValue && !searchResults.some((c) => c.id === selectedValue.id)
-    ? [selectedValue, ...searchResults]
-    : searchResults
+  const items =
+    selectedValue &&
+    !searchResults.some((c) => c.id === selectedValue.id)
+      ? [selectedValue, ...searchResults]
+      : searchResults
 
   return (
     <div>
@@ -86,7 +90,7 @@ export function ClientCombobox({
         items={items}
         value={selectedValue}
         onValueChange={(client) => {
-          setSelectedValue(client)
+          setSelectedValue(client ?? null)
           onValueChange(client?.id ?? null)
         }}
         itemToStringValue={(client) => client?.name ?? ""}
@@ -95,7 +99,8 @@ export function ClientCombobox({
           if (reason === "item-press") return
           handleSearch(inputValue)
         }}
-        onOpenChangeComplete={(open) => {
+        onOpenChange={(open) => {
+          handleOpenChange(open)
           if (!open && selectedValue) {
             setSearchResults([])
           }
@@ -104,7 +109,7 @@ export function ClientCombobox({
         disabled={disabled}
       >
         <ComboboxInput
-          placeholder={placeholder ?? t('selectClient')}
+          placeholder={placeholder ?? t("selectClient")}
           aria-invalid={!!error || undefined}
           showClear
         />
@@ -113,11 +118,11 @@ export function ClientCombobox({
             <ComboboxStatus>
               <span className="flex items-center gap-2">
                 <Spinner className="size-3" />
-                {t('searching')}
+                {t("searching")}
               </span>
             </ComboboxStatus>
           )}
-          <ComboboxEmpty>{t('noClientsFound')}</ComboboxEmpty>
+          <ComboboxEmpty>{t("noClientsFound")}</ComboboxEmpty>
           <ComboboxList>
             {(client) => (
               <ComboboxItem key={client.id} value={client}>

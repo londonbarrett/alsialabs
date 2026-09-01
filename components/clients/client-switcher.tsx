@@ -1,14 +1,14 @@
 "use client"
 
-import { useTranslations } from "next-intl"
 import { ClientCombobox } from "@/components/clients/client-combobox"
+import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 
 export function ClientSwitcher() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const t = useTranslations('clients')
+  const t = useTranslations("clients")
 
   return (
     <div className="w-full max-w-sm">
@@ -21,7 +21,7 @@ export function ClientSwitcher() {
             })
           }
         }}
-        placeholder={t('switchClient')}
+        placeholder={t("switchClient")}
       />
     </div>
   )

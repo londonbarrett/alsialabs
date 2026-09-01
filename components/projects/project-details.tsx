@@ -33,10 +33,13 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
+import { useActionError } from "@/lib/util/action-errors"
 import { ProjectDialog } from "./project-dialog"
 
 interface ProjectDetailsProps {
@@ -56,12 +59,16 @@ export function ProjectDetails({
 }: ProjectDetailsProps) {
   const router = useRouter()
   const t = useTranslations()
+  const translateError = useActionError()
+  const { start: startLoading, stop: stopLoading } =
+    useLoadingIndicator()
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<
     DbProject | undefined
   >()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [loadingEdit, setLoadingEdit] = useState(false)
   const colorIndex = PROJECT_COLORS.indexOf(
     project.color as ProjectColor
   )
@@ -69,7 +76,16 @@ export function ProjectDetails({
     colorIndex >= 0 ? PROJECT_COLOR_NAME_KEYS[colorIndex] : undefined
 
   async function handleEdit() {
-    const full = await getProjectForEdit(project.id)
+    setLoadingEdit(true)
+    startLoading()
+    const result = await getProjectForEdit({ projectId: project.id })
+    stopLoading()
+    setLoadingEdit(false)
+    const full = result.data
+    if (!full) {
+      toast.error(t("common.somethingWentWrong"))
+      return
+    }
     setEditingProject(full)
     setProjectDialogOpen(true)
   }
@@ -77,9 +93,11 @@ export function ProjectDetails({
   async function handleDelete() {
     setDeleteDialogOpen(false)
     setDeleting(true)
-    const result = await deleteProject(project.id)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
+    startLoading()
+    const result = await deleteProject({ projectId: project.id })
+    stopLoading()
+    if (result.serverError) {
+      toast.error(translateError(result.serverError.code))
       setDeleting(false)
     } else {
       toast.success(t("projects.projectDeleted"))
@@ -199,8 +217,17 @@ export function ProjectDetails({
       {(canEdit || canDelete) && (
         <CardFooter className="flex justify-end gap-2">
           {canEdit && (
-            <Button variant="secondary" size="sm" onClick={handleEdit}>
-              <Pencil className="h-4 w-4" />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleEdit}
+              disabled={loadingEdit}
+            >
+              {loadingEdit ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <Pencil className="h-4 w-4" />
+              )}
               {t("projects.card.edit")}
             </Button>
           )}

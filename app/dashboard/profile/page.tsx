@@ -17,7 +17,8 @@ export default async function ProfilePage() {
     redirect("/login")
   }
 
-  const client = await getClientByUserId(session.user.id)
+  const clientResult = await getClientByUserId({ userId: session.user.id })
+  const client = clientResult.data
 
   const permissions = await getUserPermissions(session.user.id)
   const canView = permissions.includes("client-activity:view")

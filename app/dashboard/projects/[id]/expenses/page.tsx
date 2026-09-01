@@ -1,10 +1,13 @@
 import { ProjectExpenses } from "@/components/projects/expenses/project-expenses"
-import { getCategoriesByTaxonomyList } from "@/lib/actions/categories"
-import { getExpensesByProjectId } from "@/lib/actions/expenses"
+import {
+  getExpenseCategories,
+  getExpensesByProjectId,
+} from "@/lib/actions/expenses"
+import { getProjectContext } from "@/lib/actions/projects"
 import { getTasks } from "@/lib/actions/tasks"
-import { getProjectContext } from "@/lib/actions/project-context"
+import { unwrapResponse } from "@/lib/util/unwrap"
 
-interface Props {
+type Props = {
   params: Promise<{ id: string }>
 }
 
@@ -17,13 +20,14 @@ export default async function ProjectExpensesPage({ params }: Props) {
     collaborators,
     permissions,
     isCurrentUserAdmin,
-  } = await getProjectContext(id)
+  } = unwrapResponse(await getProjectContext({ projectId: id }))
 
-  const [expenses, tasks, expenseCategories] = await Promise.all([
-    getExpensesByProjectId(id).catch(() => []),
-    getTasks(id),
-    getCategoriesByTaxonomyList("expense"),
+  const [expenses, tasksResult, expenseCategories] = await Promise.all([
+    getExpensesByProjectId({ projectId: id }),
+    getTasks({ projectId: id }),
+    getExpenseCategories(),
   ])
+  const tasks = unwrapResponse(tasksResult)
 
   const isOwner =
     owners.some((o) => o.userId === session.user.id) ||
@@ -36,11 +40,11 @@ export default async function ProjectExpensesPage({ params }: Props) {
 
   return (
     <ProjectExpenses
-      expenses={expenses}
+      expenses={unwrapResponse(expenses)}
       tasks={tasks}
       projectId={project.id}
       budget={project.budget}
-      categories={expenseCategories}
+      categories={unwrapResponse(expenseCategories)}
       canEdit={!!permissions.includes("expenses:create") || canEdit}
       canDelete={!!permissions.includes("expenses:delete") || canDelete}
       projectMembers={[...owners, ...collaborators]}

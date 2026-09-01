@@ -1,3 +1,5 @@
+import type { TaskPriority, TaskStatus } from "@/lib/schemas/task"
+export type { TaskPriority, TaskStatus }
 import {
   boolean,
   date,
@@ -416,18 +418,8 @@ export const tasksTable = pgTable("task", {
   name: text().notNull(),
   description: text(),
   cost: decimal("cost", { precision: 10, scale: 2 }),
-  status: text()
-    .notNull()
-    .default("todo")
-    .$type<
-      | "todo"
-      | "in_progress"
-      | "in_review"
-      | "blocked"
-      | "done"
-      | "cancelled"
-    >(),
-  priority: text("priority").$type<"urgent" | "high" | null>(),
+  status: text().notNull().default("todo").$type<TaskStatus>(),
+  priority: text("priority").$type<TaskPriority>(),
   routineId: text("routine_id").references(() => routinesTable.id, {
     onDelete: "set null",
   }),

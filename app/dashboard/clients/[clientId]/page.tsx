@@ -33,7 +33,8 @@ export default async function ClientProfilePage({
     forbidden()
   }
 
-  const client = await getClientByClientId(clientId)
+  const clientResult = await getClientByClientId({ id: clientId })
+  const client = clientResult.data
 
   if (!client) {
     return (

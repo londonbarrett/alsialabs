@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useTranslations } from "next-intl"
+import type { TaskStatus } from "@/lib/drizzle/schema"
 
 const taskStatusColors: Record<string, string> = {
   todo: "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400",
@@ -25,9 +26,9 @@ const taskStatusColors: Record<string, string> = {
 
 interface TaskStatusSelectProps {
   id?: string
-  status: string
-  allowedStatuses: readonly string[]
-  onStatusChange: (status: string) => void
+  status: TaskStatus
+  allowedStatuses: readonly TaskStatus[]
+  onStatusChange: (status: TaskStatus) => void
   fullWidth?: boolean
 }
 

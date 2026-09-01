@@ -17,9 +17,7 @@ const activityType = z.enum(["call", "email", "meeting", "note"])
 const activitySchema = z.object({
   clientId: z.uuid("Invalid client ID"),
   type: activityType,
-  subject: z
-    .string()
-    .min(1, "Subject is required")
+  subject: z.string().min(1, { message: "Subject is required" })
     .transform((v) => v.trim()),
   description: z
     .string()

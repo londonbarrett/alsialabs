@@ -25,11 +25,7 @@ interface TaskDialogProps {
     priority: string | null
     dueDate: string | null
     assigneeId: string | null
-  }) => Promise<{
-    success: boolean
-    fieldErrors?: Record<string, string[]>
-    error?: string
-  }>
+  }) => void
 }
 
 export function TaskDialog({

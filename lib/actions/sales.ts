@@ -24,10 +24,10 @@ const lineItemSchema = z.object({
   id: z.string().optional(),
   description: z
     .string()
-    .min(1, "Description is required")
+    .min(1, { message: "Description is required" })
     .transform((v) => v.trim()),
-  quantity: z.string().min(1, "Quantity is required"),
-  unitPrice: z.string().min(1, "Unit price is required"),
+  quantity: z.string().min(1, { message: "Quantity is required" }),
+  unitPrice: z.string().min(1, { message: "Unit price is required" }),
   discountPercent: z.string().optional().default("0"),
   taxPercent: z.string().optional().default("0"),
   productId: z.string().nullable().optional(),
@@ -35,14 +35,14 @@ const lineItemSchema = z.object({
 
 const invoiceSchema = z.object({
   type: z.enum(["product", "service"]),
-  clientId: z.string().min(1, "Client is required"),
-  issueDate: z.string().min(1, "Issue date is required"),
+  clientId: z.string().min(1, { message: "Client is required" }),
+  issueDate: z.string().min(1, { message: "Issue date is required" }),
   dueDate: z.string().optional().default(""),
   paidAmount: z.string().optional().default("0"),
   notes: z.string().optional().default(""),
   items: z
     .array(lineItemSchema)
-    .min(1, "At least one line item is required"),
+    .min(1, { message: "At least one line item is required" }),
 })
 
 export type InvoiceFormData = z.infer<typeof invoiceSchema>
@@ -311,8 +311,10 @@ export async function upsertInvoice(
 }
 
 const paymentSchema = z.object({
-  amount: z.string().min(1, "Amount is required"),
-  paymentDate: z.string().min(1, "Payment date is required"),
+  amount: z.string().min(1, { message: "Amount is required" }),
+  paymentDate: z
+    .string()
+    .min(1, { message: "Payment date is required" }),
   method: z.string().optional().default(""),
   reference: z.string().optional().default(""),
   notes: z.string().optional().default(""),

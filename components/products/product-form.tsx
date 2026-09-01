@@ -11,8 +11,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { checkSkuExists, upsertProduct } from "@/lib/actions/products"
+import {
+  createProduct,
+  updateProduct,
+  checkSkuExists,
+} from "@/lib/actions/products"
+import { useActionError } from "@/lib/util/action-errors"
+import { unwrapResponse } from "@/lib/util/unwrap"
 import type { Product } from "@/lib/drizzle/schema"
+import { useAction } from "next-safe-action/hooks"
 import { useTranslations } from "next-intl"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -36,6 +43,7 @@ export function ProductForm({
   onCancel,
 }: ProductFormProps) {
   const t = useTranslations()
+  const translateError = useActionError()
   const [name, setName] = useState(product?.name ?? "")
   const [description, setDescription] = useState(
     product?.description ?? ""
@@ -44,11 +52,44 @@ export function ProductForm({
   const [sku, setSku] = useState(product?.sku ?? "")
   const [unit, setUnit] = useState(product?.unit ?? "")
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState(false)
   const [skuExists, setSkuExists] = useState(false)
   const skuTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
   )
+
+  const isEditing = !!product
+
+  const { execute: executeCreate, isExecuting: isCreating } = useAction(
+    createProduct,
+    {
+      onSuccess: () => {
+        toast.success(t("products.productCreated"))
+        onSuccess()
+      },
+      onError: ({ error }) => {
+        if (error.serverError) {
+          toast.error(translateError(error.serverError.code))
+        }
+      },
+    }
+  )
+
+  const { execute: executeUpdate, isExecuting: isUpdating } = useAction(
+    updateProduct,
+    {
+      onSuccess: () => {
+        toast.success(t("products.productUpdated"))
+        onSuccess()
+      },
+      onError: ({ error }) => {
+        if (error.serverError) {
+          toast.error(translateError(error.serverError.code))
+        }
+      },
+    }
+  )
+
+  const saving = isCreating || isUpdating
 
   const debouncedSkuCheck = useCallback(
     (value: string) => {
@@ -58,8 +99,11 @@ export function ProductForm({
         return
       }
       skuTimer.current = setTimeout(async () => {
-        const result = await checkSkuExists(value, product?.id)
-        setSkuExists(result.exists)
+        const result = await checkSkuExists({
+          sku: value,
+          excludeId: product?.id,
+        })
+        setSkuExists(unwrapResponse(result, { exists: false }).exists)
       }, 500)
     },
     [product?.id, product?.sku]
@@ -79,7 +123,7 @@ export function ProductForm({
     return Object.keys(fieldErrors).length === 0
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
 
@@ -88,41 +132,19 @@ export function ProductForm({
       return
     }
 
-    setSaving(true)
-    try {
-      const result = await upsertProduct(
-        {
-          name: name.trim(),
-          description: description.trim(),
-          store_id: storeId,
-          sku: sku.trim(),
-          unit: unit.trim(),
-        },
-        product?.id
-      )
-      if (result.success) {
-        toast.success(
-          product
-            ? t("products.productUpdated")
-            : t("products.productCreated")
-        )
-        onSuccess()
-      } else {
-        if (result.fieldErrors) {
-          const mapped: Record<string, string> = {}
-          for (const [key, msgs] of Object.entries(
-            result.fieldErrors
-          )) {
-            if (msgs && msgs.length > 0) mapped[key] = msgs[0]
-          }
-          setErrors(mapped)
-        }
-        toast.error(result.error || t("common.somethingWentWrong"))
-      }
-    } catch {
-      toast.error(t("common.somethingWentWrong"))
+    const data = {
+      name: name.trim(),
+      description: description.trim(),
+      store_id: storeId,
+      sku: sku.trim(),
+      unit: unit.trim(),
     }
-    setSaving(false)
+
+    if (isEditing) {
+      executeUpdate({ ...data, id: product.id })
+    } else {
+      executeCreate(data)
+    }
   }
 
   return (
@@ -199,7 +221,7 @@ export function ProductForm({
         </Button>
         <Button type="submit" disabled={saving}>
           {saving && <Spinner data-icon="inline-start" />}
-          {product
+          {isEditing
             ? t("common.saveChanges")
             : t("products.createProduct")}
         </Button>
