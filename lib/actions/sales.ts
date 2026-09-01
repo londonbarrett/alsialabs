@@ -14,7 +14,7 @@ import {
 import {
   computeLineTotal,
   computeInvoiceTotals,
-} from "@/lib/sales/totals"
+} from "@/lib/util/invoices"
 import { getActionT } from "@/lib/util/i18n-actions"
 import { and, eq, ne, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"

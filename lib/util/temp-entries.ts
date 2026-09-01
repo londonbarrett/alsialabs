@@ -5,7 +5,7 @@ import type {
   ClientReminder,
   Invoice,
 } from "@/lib/drizzle/schema"
-import { computeInvoiceTotals } from "@/lib/sales/totals"
+import { computeInvoiceTotals } from "@/lib/util/invoices"
 
 export type TempActivityEntry = { kind: "activity" } & ClientActivity
 export type TempReminderEntry = { kind: "reminder" } & ClientReminder

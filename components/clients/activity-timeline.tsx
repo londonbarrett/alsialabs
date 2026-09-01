@@ -44,7 +44,7 @@ import type {
   Invoice,
   InvoicePayment,
 } from "@/lib/drizzle/schema"
-import { computeInvoiceTotals } from "@/lib/sales/totals"
+import { computeInvoiceTotals } from "@/lib/util/invoices"
 import {
   buildTempActivity,
   buildTempInvoice,
