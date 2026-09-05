@@ -22,20 +22,15 @@ export function MyInvoicesList({ invoices }: Props) {
   return (
     <Card>
       <CardContent>
-        <div className="overflow-auto rounded-md border">
+        <div className="overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("myInvoices.invoiceHash")}</TableHead>
                 <TableHead>{t("myInvoices.date")}</TableHead>
                 <TableHead>{t("myInvoices.status")}</TableHead>
-                <TableHead className="text-right">
-                  {t("myInvoices.total")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {t("myInvoices.outstanding")}
-                </TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="text-right">{t("myInvoices.outstanding")}</TableHead>
+                <TableHead className="text-right">{t("myInvoices.total")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

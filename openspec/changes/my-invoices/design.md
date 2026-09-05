@@ -1,57 +1,64 @@
 ## Context
 
-Current invoice visibility is split: staff use `/dashboard/sales` (requires `sales:view`) for global invoices; linked clients see a mixed timeline (`ActivityTimeline` on `/dashboard/profile`) that requires `client-activity:view` to show invoices. There is no standalone client-facing invoice page. Staff who are also linked clients have the same profile timeline, but no focused view. The sidebar's Navigation section (`config/sidebar-menu.ts:107`) already groups user-facing items (Profile, Projects, My Tasks, Calendar) and is permission-agnostic for Profile.
+Current invoice visibility is split: staff use `/dashboard/sales` (`sales:view`) for global invoices; linked clients see a mixed timeline (`ActivityTimeline` on `/dashboard/profile`) that requires `client-activity:view` (which `user` lacks) and `clients:view` for `getClientByUserId`. There is no standalone client-facing invoice page. Staff who are also linked clients have same profile timeline, but no focused view. Sidebar Navigation (`config/sidebar-menu.ts:107`) groups user-facing items and is permission-agnostic for Profile.
 
-Constraints: no DB migration; reuse `invoice`/`invoice_item`/`invoice_payment`; respect `store_id` scoping via `getEffectiveStoreId()`; keep profile timeline unchanged; do not add permission gates for the new page (per product decision).
+Constraints: no DB migration; reuse `invoice`/`invoice_item`/`invoice_payment`; keep profile timeline; new page must be permission-less and handle legacy `clients.email` fallback.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Add "My Invoices" nav item above My Tasks, visible to everyone, with correct active state and translations.
-- Provide `/dashboard/my-invoices` page that resolves the linked client (`clients.userId = session.user.id`) store-scoped and lists that client's invoices sorted by issue date desc, with status derivation (`overdue`) and decoded totals.
-- Support read-only view of line items and payment history per invoice (expand/dialog pattern), reusing existing UI primitives.
-- Keep behavior deterministic for unlinked users and empty states, with no forbidden errors.
+- Add "My Invoices" nav item above My Tasks, visible to everyone, with `Page` as `@container`.
+- Provide `/dashboard/my-invoices` page that resolves the linked client(s) via `userId OR email` (legacy fallback) and lists invoices sorted `issueDate desc` with `overdue` derivation, in a 5-column table (caret icon left, no border, row click to expand).
+- Expanded row shows `MyInvoiceDetails` (6 fields: type, issueDate, dueDate, total, paid, outstanding — no invoiceNumber/status) plus `MyInvoicesItemsTable`/`MyInvoicesPaymentsTable` via `Activity` hidden, lazy on first expand with `useLoadingIndicator`, container-query responsive (`@[900px]:flex-row`, `@[600px]:grid-cols-3`).
+- Parent view (`MyInvoicesView`) owns empty states (`noClient`/`noInvoices`) and `use(invoicesPromise)`; list is pure table.
+- `Page` (`components/common/page.tsx`) is `@container flex flex-1 flex-col gap-6 p-6` with `header` outside `Suspense` and `children` inside `Suspense` fallback showing `LoadingDispatcher` (top `LoadingBar`) + optional pulsing rectangle.
+- Safe actions for invoices with `z.void()` (no `{}`) and explicit empty `metadata({})` for no-permission actions, without `as any`.
 
 **Non-Goals:**
 - No invoice creation/edit/payment mutation on this page (read-only).
-- No pagination/filtering beyond simple list (status filter deferred).
-- No PDF export or download.
-- No changes to `/dashboard/profile` or `/dashboard/sales`.
+- No pagination/filtering beyond simple list.
+- No PDF export.
 
 ## Decisions
 
 **1. Navigation placement & gating**
-- Insert `myInvoices` into `navigationSection()` before `myTasks` in `config/sidebar-menu.ts`. No `requiredPermission`. Rationale: matches Profile pattern (`dashboard-navigation/spec.md:103`); product wants everyone to see it. Alternative considered: gate on `sales:view-invoice-history` — rejected because clients lack it per `client-invoice-history/spec.md:6` and would hide the feature from its primary audience.
+- Insert `myInvoices` into `navigationSection()` before `myTasks` in `config/sidebar-menu.ts` with `Receipt`, no `requiredPermission`. Rationale: matches Profile pattern; product wants everyone to see it.
 
-**2. Data access**
-- Add `getMyInvoices()` (and `getMyInvoiceDetails(invoiceId)`) to `lib/actions/invoices.ts` using `auth()` + `getEffectiveStoreId()` + `clientsTable.userId` lookup. No `requirePermission`. Rationale: reuses existing ownership check (`invoices.ts:51`) but drops permission requirement; store-scoped to avoid cross-store leakage (same pattern as `lib/actions/sales.ts:92`). Alternative: reuse `getClientInvoices` — rejected due to permission gate.
-- Derive `overdue` like `lib/actions/sales.ts:99` (compare `dueDate < today` when `status not in (paid,cancelled,draft)` and `paidAmount < grandTotal`). Return `Invoice & { outstandingBalance }` for UI.
+**2. Data access — safe actions**
+- `getMyInvoices`/`getMyPayments` as `sessionAction.inputSchema(z.void()).metadata({}).action` (no `as any`) — `z.void()` allows `getMyInvoices()` with no `{}`, empty `metadata({})` explicitly documents no permission and satisfies `SafeActionClient` builder (`this` requires `inputSchema`→`metadata`→`action`, see `tasks.ts:278` `updateTaskStatus`). Alternative `actionClient.use(...).action` without metadata fails type; `as any` hack removed.
+- `getMyInvoiceDetails` as `sessionAction.inputSchema(z.object({invoiceId:z.uuid()})).metadata({}).action` without empty object param.
+- `getClientInvoices`/`getClientPayments` as `sessionAction.inputSchema(z.object({clientId:z.uuid()})).metadata({permission:{module:"client-activity",action:"view"}}).action` with `ctx.session` ownership check.
+- Derive `overdue` like `sales.ts:99`. Return `MyInvoice & {outstandingBalance}` and `{clientId,invoices}` for `getMyInvoices`; callers use `use(promise)` or `result.data`/`unwrapResponse`.
+- Email fallback: `or(eq(userId), eq(email))` to cover legacy `clients.email` without `userId`; `inArray(clientId, uniqueIds)` for invoices/payments.
 
-**3. Route auth**
-- `app/dashboard/my-invoices/page.tsx` mirrors `app/dashboard/my-tasks/page.tsx:8` minimal guard: `if (!session?.user) redirect("/login")`. No `hasPermission` check. Fetches `client` via `getClientByUserId` (store-scoped) and then `getMyInvoices()`. If `client == null`, renders empty state without querying invoices.
+**3. Route & Page**
+- `app/dashboard/my-invoices/page.tsx` is async server, `auth()` guard, `getTranslations("myInvoices")`, `const invoicesPromise = getMyInvoices()`, renders `<Page header={<PageHeader .../>} fallback={<div className="h-96 animate-pulse..."/>}><MyInvoicesView invoicesPromise={...}/></Page>`. Header outside `Suspense` shows immediately; `Page`’s `Suspense` shows `LoadingDispatcher` + rectangle while `MyInvoicesView` suspends via `use`. No `loading.tsx` (replaced by `Page`’s `Suspense`).
+- `Page` (`components/common/page.tsx`) is `@container` reference for container queries, with `header` prop outside `Suspense`, `children` inside.
 
 **4. UI composition**
-- New `components/my-invoices/my-invoices-view.tsx` (header via `PageHeader` + `Receipt` icon) and `my-invoices-list.tsx` (table using `Table` + `StatusBadge` + `Badge` for totals, expand row for items/payments). Reuse `computeInvoiceTotals` not needed; display `grandTotal`/`paidAmount`/`outstanding`. Payment history reuses `PaymentItem` styling or inline table.
-- Fetch items/payments lazily per invoice on expand via `getMyInvoiceDetails` to avoid N+1 on initial load (initial list only needs invoice headers). Alternative: eager join — deferred to keep initial query light.
+- `MyInvoicesView` (`use client`, `use(invoicesPromise)`) handles `hasClient = !!data?.clientId` and empty `data.length===0` with `Card` (`noClient`/`noInvoices`), delegates to `MyInvoicesList`.
+- `MyInvoicesList` is pure `Card` + `Table` (5 headers, no `border` on container `overflow-auto` only, `colSpan={5}` for details row).
+- `MyInvoicesRow` holds `expanded` (`useState(false)`), `details` (`{items,payments}|null`) and `loading` plus `useLoadingIndicator` (`startLoading`/`stopLoading`). `TableRow` is `cursor-pointer onClick` toggling `expanded`; caret is plain `ChevronUp/Down` icon `inline-flex` with `invoiceNumber` in same `TableCell` (no `Button` cell, no `stopPropagation`). `useEffect` loads `getMyInvoiceDetails({invoiceId})` only when `expanded && details===null`, with `startLoading`/`stopLoading`.
+- `InvoiceDetailsRow` is hidden via `Activity mode={expanded?"visible":"hidden"}` keeping mounted, with `MyInvoiceDetails` (6-field grid) on top and `flex flex-col @[900px]:flex-row` for items/payments below. Split into `MyInvoicesItemsTable`/`MyInvoicesPaymentsTable`.
+- Formatting via `formatCurrency`/`formatQuantity` (`lib/util/money.ts`) and `formatISODate` (`lib/util/schedule.ts: formatISODate` wrapping `parseISODate` + `Intl.DateTimeFormat`).
 
-**5. i18n**
-- Keys: `sidebar.myInvoices`, `breadcrumb.myInvoices`, `myInvoices.title/subtitle/noInvoices/noClient/noInvoicesDesc/invoiceHash/status/...` to avoid colliding with `sales.*`.
+**5. i18n & Profile**
+- Keys `sidebar.myInvoices`, `breadcrumb.myInvoices`, `myInvoices.*` in EN/ES.
+- `app/dashboard/profile/page.tsx` for `user` role bypasses `clients:view`/`client-activity:view` and uses `getMyInvoices()`/`getMyPayments()` plus direct `db` client lookup to show own invoices, with `client && (canView||isUser)` for `ActivityTimeline`.
 
 ## Risks / Trade-offs
 
-- **Unlinked staff sees empty state** → Mitigation: subtitle explains linking via client record; sales page remains source for global view. No forbidden to avoid confusion.
-- **Permission-less data access must still enforce ownership** → Mitigation: ownership check `clients.userId = session.user.id` + store scoping; return empty if not owner.
-- **Stale overdue derivation** → Mitigation: compute on read like Sales; no cron needed.
-- **Profile duplication** → Keeping profile timeline means two invoice surfaces; mitigate by clearly labeling "My Invoices" as dedicated list, profile remains composite.
-- **i18n drift** → Add both EN/ES keys together; fallback to key name visible in breadcrumb if missing.
+- **Eager fetch if `Activity` always mounted** → Mitigated by lazy `useEffect` gated on `expanded && details===null`, plus `Activity` hidden keeps mounted without remount reload.
+- **Empty `metadata({})` looks redundant** → Required for builder; explicitly documents no permission vs `permission:{...}`.
+- **Cross-store legacy email fallback** → Shows invoices from all stores for same email; acceptable for client history, store filter deferred.
+- **Container query vs viewport** → `Page` is `@container`, details use `@[900px]:flex-row` and `MyInvoiceDetails` uses `@[600px]:grid-cols-3` relative to page, not viewport (`lg:`).
 
 ## Migration Plan
 
-- Deploy is additive; no migration.
-- Rollback: remove sidebar item and route; no data loss.
-- Verification: `pnpm build`, nav highlights, mobile close behavior, store-switcher isolation, empty/populated states, expand items/payments.
+- Additive, no migration; `pnpm build` verifies `SafeActionClient` types, nav, table, Activity, container queries, `Page` fallback.
+- Rollback: remove sidebar item and `app/dashboard/my-invoices`, revert `lib/actions/invoices.ts` to non-safe actions.
 
 ## Open Questions
 
-- Future filter (status/date) and pagination — out of scope now; table component designed to accept them later.
-- Whether to cache `getMyInvoices` with `unstable_cache` + `invoice` tag — deferred (list is user-scoped and small).
+- Pagination/filter for my-invoices — deferred.
+- Cache `getMyInvoices` with `unstable_cache` — deferred.
