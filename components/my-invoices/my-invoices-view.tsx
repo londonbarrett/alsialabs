@@ -9,16 +9,15 @@ import { use } from "react"
 export function MyInvoicesView({
   invoicesPromise,
 }: {
-  invoicesPromise: Promise<
-    | { success: true; data: MyInvoice[]; clientId: string }
-    | { success: false; error: string }
-    | { success: true; data: []; clientId: null }
-  >
+  invoicesPromise: Promise<{
+    data?: { clientId: string | null; invoices: MyInvoice[] }
+    serverError?: { code: string }
+  }>
 }) {
   const t = useTranslations()
-  const invoices = use(invoicesPromise)
-  const hasClient = invoices.success && invoices.clientId !== null
-  const data = hasClient ? invoices.data : []
+  const result = use(invoicesPromise)
+  const hasClient = !!result.data?.clientId
+  const data = result.data?.invoices ?? []
 
   if (!hasClient) {
     return (

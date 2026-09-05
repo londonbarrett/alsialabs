@@ -81,13 +81,15 @@ export function MyInvoicesRow({ invoice }: { invoice: MyInvoice }) {
     async function load() {
       setLoading(true)
       startLoading()
-      const result = await getMyInvoiceDetails(invoice.id)
+      const result = await getMyInvoiceDetails({
+        invoiceId: invoice.id,
+      })
       if (cancelled) {
         setLoading(false)
         stopLoading()
         return
       }
-      if (result.success) {
+      if (result.data) {
         setDetails({
           items: result.data.items,
           payments: result.data.payments,
