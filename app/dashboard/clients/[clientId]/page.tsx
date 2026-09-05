@@ -61,13 +61,13 @@ export default async function ClientProfilePage({
 
   if (canView) {
     const [invoiceResult, paymentResult] = await Promise.all([
-      getClientInvoices(clientId),
-      getClientPayments(clientId),
+      getClientInvoices({ clientId }),
+      getClientPayments({ clientId }),
     ])
-    if (invoiceResult.success) {
+    if (invoiceResult.data) {
       invoices = invoiceResult.data as Invoice[]
     }
-    if (paymentResult.success) {
+    if (paymentResult.data) {
       payments = paymentResult.data
     }
 

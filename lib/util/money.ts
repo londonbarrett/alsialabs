@@ -31,6 +31,12 @@ export function parseMoney(value: string): string {
   return value.replace(/[^0-9]/g, '')
 }
 
+export function formatQuantity(value: string): string {
+  const n = parseFloat(value)
+  if (Number.isNaN(n)) return value
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',

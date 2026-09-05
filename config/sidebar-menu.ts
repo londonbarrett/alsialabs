@@ -8,6 +8,7 @@ import {
   ListTodo,
   MessageSquare,
   Package,
+  Receipt,
   ShieldCheck,
   ShieldUser,
   UserCircle,
@@ -109,13 +110,14 @@ function navigationSection(permissions?: string[]): SidebarSection[] {
 
   const items: SidebarItem[] = [
     { label: "profile", icon: UserCircle, url: "/dashboard/profile" },
+    { label: "myInvoices", icon: Receipt, url: "/dashboard/my-invoices" },
+    { label: "myTasks", icon: ListTodo, url: "/dashboard/my-tasks" },
     {
       label: "projects",
       icon: FolderKanban,
       url: "/dashboard/projects",
       requiredPermission: "projects:view",
     },
-    { label: "myTasks", icon: ListTodo, url: "/dashboard/my-tasks" },
     {
       label: "calendar",
       icon: CalendarDays,

@@ -1,13 +1,22 @@
-import { getTranslations } from "next-intl/server"
-import { auth, getUserPermissions } from "@/lib/auth"
-import { redirect } from "next/navigation"
+import { ActivityTimeline } from "@/components/clients/activity-timeline"
 import { getClientByUserId } from "@/lib/actions/clients"
 import {
   getClientInvoices,
   getClientPayments,
+  getMyInvoices,
+  getMyPayments,
 } from "@/lib/actions/invoices"
-import type { Invoice, InvoicePayment } from "@/lib/drizzle/schema"
-import { ActivityTimeline } from "@/components/clients/activity-timeline"
+import { auth, getUserPermissions } from "@/lib/auth"
+import { db } from "@/lib/drizzle/client"
+import type {
+  Client,
+  Invoice,
+  InvoicePayment,
+} from "@/lib/drizzle/schema"
+import { clientsTable } from "@/lib/drizzle/schema"
+import { eq } from "drizzle-orm"
+import { getTranslations } from "next-intl/server"
+import { redirect } from "next/navigation"
 
 export default async function ProfilePage() {
   const session = await auth()
@@ -17,24 +26,46 @@ export default async function ProfilePage() {
     redirect("/login")
   }
 
-  const clientResult = await getClientByUserId({ userId: session.user.id })
-  const client = clientResult.data
-
+  const isUser = session.user.role === "user"
   const permissions = await getUserPermissions(session.user.id)
   const canView = permissions.includes("client-activity:view")
 
+  let client: Client | null = null
   let invoices: Invoice[] = []
   let payments: Array<InvoicePayment & { invoiceNumber: string }> = []
-  if (client && canView) {
-    const [invoiceResult, paymentResult] = await Promise.all([
-      getClientInvoices(client.id),
-      getClientPayments(client.id),
-    ])
-    if (invoiceResult.success) {
-      invoices = invoiceResult.data as Invoice[]
+
+  if (isUser) {
+    const [myInvoicesResult, myPaymentsResult] = await Promise.all([getMyInvoices(), getMyPayments()])
+    const myData = myInvoicesResult.data
+    if (myData?.clientId) {
+      const rows = await db
+        .select()
+        .from(clientsTable)
+        .where(eq(clientsTable.id, myData.clientId))
+      client = (rows[0] as Client | undefined) ?? null
+      invoices = (myData.invoices as Invoice[]) ?? []
+      payments =
+        (myPaymentsResult.data as Array<
+          InvoicePayment & { invoiceNumber: string }
+        >) ?? []
     }
-    if (paymentResult.success) {
-      payments = paymentResult.data
+  } else {
+    const clientResult = await getClientByUserId({
+      userId: session.user.id,
+    })
+    client = (clientResult.data as Client | null) ?? null
+
+    if (client && canView) {
+      const [invoiceResult, paymentResult] = await Promise.all([
+        getClientInvoices({ clientId: client.id }),
+        getClientPayments({ clientId: client.id }),
+      ])
+      if (invoiceResult.data) {
+        invoices = invoiceResult.data as Invoice[]
+      }
+      if (paymentResult.data) {
+        payments = paymentResult.data
+      }
     }
   }
 
@@ -68,7 +99,7 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      {client && canView && (
+      {client && (canView || isUser) && (
         <ActivityTimeline
           clientId={client.id}
           activities={[]}
