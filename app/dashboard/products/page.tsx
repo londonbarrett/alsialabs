@@ -21,7 +21,7 @@ export default async function ProductsPage() {
     getUserPermissions(session.user.id),
   ])
 
-  const products = unwrapResponse(productsResult, [])
+  const products = unwrapResponse(productsResult)
 
   return (
     <ProductListView

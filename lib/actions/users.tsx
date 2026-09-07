@@ -1,35 +1,26 @@
 "use server"
 
-import { revalidatePath, updateTag } from "next/cache"
+import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
-  usersTable,
-  userRolesTable,
+  clientActivitiesTable,
+  clientRemindersTable,
+  projectsTable,
   rolesTable,
   storesTable,
+  userRolesTable,
+  usersTable,
 } from "@/lib/drizzle/schema"
-import { eq, ilike, or, and } from "drizzle-orm"
-import { auth, isSuperUser, requirePermission } from "@/lib/auth"
-import { z } from "zod"
-import { getActionT } from "@/lib/util/i18n-actions"
-
-const createUserSchema = z.object({
-  email: z
-    .string()
-    .email("Invalid email")
-    .transform((v) => v.trim().toLowerCase()),
-  roleId: z.string().min(1, "Role is required"),
-})
-
-const updateUserSchema = z.object({
-  email: z
-    .string()
-    .email("Invalid email")
-    .transform((v) => v.trim().toLowerCase()),
-  roleId: z.string().min(1, "Role is required"),
-})
-
-const userIdSchema = z.string().uuid("Invalid user ID")
+import { returnActionError, sessionAction } from "@/lib/safe-action"
+import {
+  createUserSchema,
+  deleteUserSchema,
+  getUserByIdSchema,
+  searchUsersSchema,
+  updateUserSchema,
+} from "@/lib/schemas/user"
+import { eq, ilike, or } from "drizzle-orm"
+import { revalidatePath, updateTag } from "next/cache"
 
 export type UserWithRole = {
   id: string
@@ -39,24 +30,6 @@ export type UserWithRole = {
   roleName: string
 }
 
-export async function getAssignableUsers() {
-  const session = await auth()
-  if (!session?.user) {
-    return { success: false as const, error: "unauthorized" }
-  }
-
-  const users = await db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name,
-      email: usersTable.email,
-      image: usersTable.image,
-    })
-    .from(usersTable)
-
-  return { success: true as const, users }
-}
-
 export type UserOption = {
   id: string
   name: string | null
@@ -64,303 +37,330 @@ export type UserOption = {
   image: string | null
 }
 
-export async function searchUsers(
-  query: string
-): Promise<UserOption[]> {
-  const t = await getActionT("actions.users")
-  try {
-    await requirePermission("projects", "view")
-  } catch {
-    throw new Error(t("forbidden"))
-  }
+// ---------- Query actions ----------
 
-  if (!query.trim()) return []
+export const getAssignableUsers = sessionAction
+  .metadata({})
+  .action(async () => {
+    const users = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        image: usersTable.image,
+      })
+      .from(usersTable)
 
-  const userRole = await db
-    .select({ id: rolesTable.id })
-    .from(rolesTable)
-    .where(eq(rolesTable.name, "user"))
-    .then((rows) => rows[0])
+    return users
+  })
 
-  if (!userRole) return []
+export const searchUsers = sessionAction
+  .metadata({ permission: { module: "projects", action: "view" } })
+  .inputSchema(searchUsersSchema)
+  .action(async ({ parsedInput }) => {
+    const { query } = parsedInput
 
-  return db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name,
-      email: usersTable.email,
-      image: usersTable.image,
-    })
-    .from(usersTable)
-    .innerJoin(userRolesTable, eq(usersTable.id, userRolesTable.userId))
-    .where(
-      and(
-        eq(userRolesTable.roleId, userRole.id),
+    if (!query.trim()) return [] as UserOption[]
+
+    // excludedIds filtering is handled client-side in UserInviteInput
+    // to avoid NOT IN edge cases; kept in schema for backward compat
+    // Search across all users (any role) so super/admin can be invited to projects
+    return db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        image: usersTable.image,
+      })
+      .from(usersTable)
+      .where(
         or(
           ilike(usersTable.name, `%${query}%`),
           ilike(usersTable.email, `%${query}%`)
         )
       )
-    )
-    .limit(20)
-}
-
-export async function getUserById(
-  userId: string
-): Promise<UserOption | null> {
-  const user = await db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name,
-      email: usersTable.email,
-      image: usersTable.image,
-    })
-    .from(usersTable)
-    .where(eq(usersTable.id, userId))
-    .then((rows) => rows[0])
-
-  return user ?? null
-}
-
-export async function getUsers() {
-  const t = await getActionT("actions.users")
-  const session = await auth()
-  if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: t("forbidden") }
-  }
-
-  const users = await db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name,
-      email: usersTable.email,
-      image: usersTable.image,
-      roleId: userRolesTable.roleId,
-      roleName: rolesTable.name,
-    })
-    .from(usersTable)
-    .innerJoin(userRolesTable, eq(usersTable.id, userRolesTable.userId))
-    .innerJoin(rolesTable, eq(userRolesTable.roleId, rolesTable.id))
-
-  return { success: true as const, users }
-}
-
-export async function createUser(
-  data: z.infer<typeof createUserSchema>
-) {
-  const t = await getActionT("actions.users")
-  const session = await auth()
-  if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: t("forbidden") }
-  }
-
-  const parsed = createUserSchema.safeParse(data)
-  if (!parsed.success) {
-    return {
-      success: false as const,
-      error: t("validationFailed"),
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    }
-  }
-
-  const { email, roleId } = parsed.data
-
-  const existingUser = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(eq(usersTable.email, email))
-    .then((rows) => rows[0])
-
-  if (existingUser) {
-    return { success: false as const, error: t("emailAlreadyExists") }
-  }
-
-  const userId = crypto.randomUUID()
-
-  await db.insert(usersTable).values({
-    id: userId,
-    email,
+      .limit(20)
   })
 
-  await db.insert(userRolesTable).values({
-    userId,
-    roleId,
+export const getUserById = sessionAction
+  .metadata({})
+  .inputSchema(getUserByIdSchema)
+  .action(async ({ parsedInput }) => {
+    const user = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        image: usersTable.image,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, parsedInput.userId))
+      .then((rows) => rows[0] ?? null)
+
+    return user as UserOption | null
   })
 
-  const createdRole = await db
-    .select({ name: rolesTable.name })
-    .from(rolesTable)
-    .where(eq(rolesTable.id, roleId))
-    .then((rows) => rows[0])
-
-  if (createdRole?.name === "retailer") {
-    await db.insert(storesTable).values({
-      name: `${email.split("@")[0]}'s Store`,
-      owner_id: userId,
-    })
-  }
-
-  const apiKey = process.env.RESEND_API_KEY
-  if (apiKey) {
-    const { Resend } = await import("resend")
-    const resend = new Resend(apiKey)
-    const { InvitationEmail } = await import("@/emails/invitation")
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
-
-    await resend.emails.send({
-      from: "Alsia <onboarding@resend.dev>",
-      to: email,
-      subject: "You've been invited to Alsia",
-      react: <InvitationEmail loginUrl={`${appUrl}/login`} />,
-    })
-  }
-
-  revalidatePath("/dashboard/users")
-  updateTag("permissions")
-  return { success: true as const }
-}
-
-export async function updateUser(
-  userId: string,
-  data: z.infer<typeof updateUserSchema>
-) {
-  const t = await getActionT("actions.users")
-  const session = await auth()
-  if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: t("forbidden") }
-  }
-
-  const userIdResult = userIdSchema.safeParse(userId)
-  if (!userIdResult.success) {
-    return { success: false as const, error: t("invalidUserId") }
-  }
-
-  const parsed = updateUserSchema.safeParse(data)
-  if (!parsed.success) {
-    return {
-      success: false as const,
-      error: t("validationFailed"),
-      fieldErrors: parsed.error.flatten().fieldErrors,
+export const getUsers = sessionAction
+  .metadata({ permission: { module: "users", action: "manage" } })
+  .action(async ({ ctx }) => {
+    if (!isSuperUser(ctx.session)) {
+      returnActionError("FORBIDDEN")
     }
-  }
+    const users = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        image: usersTable.image,
+        roleId: userRolesTable.roleId,
+        roleName: rolesTable.name,
+      })
+      .from(usersTable)
+      .innerJoin(
+        userRolesTable,
+        eq(usersTable.id, userRolesTable.userId)
+      )
+      .innerJoin(rolesTable, eq(userRolesTable.roleId, rolesTable.id))
 
-  const { email, roleId } = parsed.data
+    return users as UserWithRole[]
+  })
 
-  const currentUserRole = await db
-    .select({ roleName: rolesTable.name })
-    .from(userRolesTable)
-    .where(eq(userRolesTable.userId, userId))
-    .innerJoin(rolesTable, eq(userRolesTable.roleId, rolesTable.id))
-    .then((rows) => rows[0])
+// ---------- Mutation actions ----------
 
-  if (!currentUserRole) {
-    return { success: false as const, error: t("userNotFound") }
-  }
+export const createUser = sessionAction
+  .metadata({ permission: { module: "users", action: "manage" } })
+  .inputSchema(createUserSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    if (!isSuperUser(ctx.session)) {
+      returnActionError("FORBIDDEN")
+    }
+    const { email, roleId } = parsedInput
 
-  const isChangingSelf = session.user.id === userId
-  if (isChangingSelf && currentUserRole.roleName === "super") {
-    const newRole = await db
+    const existingUser = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, email))
+      .then((rows) => rows[0])
+
+    if (existingUser) {
+      returnActionError("EMAIL_ALREADY_EXISTS")
+    }
+
+    const userId = crypto.randomUUID()
+
+    await db.insert(usersTable).values({
+      id: userId,
+      email,
+    })
+
+    await db.insert(userRolesTable).values({
+      userId,
+      roleId,
+    })
+
+    const createdRole = await db
       .select({ name: rolesTable.name })
       .from(rolesTable)
       .where(eq(rolesTable.id, roleId))
       .then((rows) => rows[0])
 
-    if (newRole?.name !== "super") {
-      return { success: false as const, error: t("cannotDemoteSelf") }
-    }
-  }
-
-  await db
-    .update(usersTable)
-    .set({ email })
-    .where(eq(usersTable.id, userId))
-  await db
-    .update(userRolesTable)
-    .set({ roleId })
-    .where(eq(userRolesTable.userId, userId))
-
-  const updatedRole = await db
-    .select({ name: rolesTable.name })
-    .from(rolesTable)
-    .where(eq(rolesTable.id, roleId))
-    .then((rows) => rows[0])
-
-  if (updatedRole?.name === "retailer") {
-    const existingStore = await db
-      .select({ id: storesTable.id })
-      .from(storesTable)
-      .where(eq(storesTable.owner_id, userId))
-      .limit(1)
-      .then((rows) => rows[0])
-
-    if (!existingStore) {
-      const userEmail = email
+    if (createdRole?.name === "retailer") {
       await db.insert(storesTable).values({
-        name: `${userEmail.split("@")[0]}'s Store`,
+        name: `${email.split("@")[0]}'s Store`,
         owner_id: userId,
       })
     }
-  }
 
-  revalidatePath("/dashboard/users")
-  updateTag("permissions")
-  return { success: true as const }
-}
+    const apiKey = process.env.RESEND_API_KEY
+    if (apiKey) {
+      const { Resend } = await import("resend")
+      const resend = new Resend(apiKey)
+      const { InvitationEmail } = await import("@/emails/invitation")
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
 
-export async function deleteUser(userId: string) {
-  const t = await getActionT("actions.users")
-  const session = await auth()
-  if (!session?.user || !isSuperUser(session)) {
-    return { success: false as const, error: t("forbidden") }
-  }
+      await resend.emails.send({
+        from: "Alsia <onboarding@resend.dev>",
+        to: email,
+        subject: "You've been invited to Alsia",
+        react: <InvitationEmail loginUrl={`${appUrl}/login`} />,
+      })
+    }
 
-  const userIdResult = userIdSchema.safeParse(userId)
-  if (!userIdResult.success) {
-    return { success: false as const, error: t("invalidUserId") }
-  }
+    revalidatePath("/dashboard/users")
+    updateTag("permissions")
+    return { id: userId }
+  })
 
-  if (session.user.id === userId) {
-    return { success: false as const, error: t("cannotDeleteSelf") }
-  }
+export const updateUser = sessionAction
+  .metadata({ permission: { module: "users", action: "manage" } })
+  .inputSchema(updateUserSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    if (!isSuperUser(ctx.session)) {
+      returnActionError("FORBIDDEN")
+    }
+    const { userId, email, roleId } = parsedInput
 
-  const superRole = await db
-    .select({ id: rolesTable.id })
-    .from(rolesTable)
-    .where(eq(rolesTable.name, "super"))
-    .then((rows) => rows[0])
-
-  if (!superRole) {
-    return { success: false as const, error: t("superRoleNotFound") }
-  }
-
-  const targetRole = await db
-    .select({ roleId: userRolesTable.roleId })
-    .from(userRolesTable)
-    .where(eq(userRolesTable.userId, userId))
-    .then((rows) => rows[0])
-
-  if (targetRole?.roleId === superRole.id) {
-    const superCount = await db
-      .select({ count: userRolesTable.userId })
+    const currentUserRole = await db
+      .select({ roleName: rolesTable.name, roleId: rolesTable.id })
       .from(userRolesTable)
-      .where(eq(userRolesTable.roleId, superRole.id))
-      .then((rows) => rows.length)
+      .where(eq(userRolesTable.userId, userId))
+      .innerJoin(rolesTable, eq(userRolesTable.roleId, rolesTable.id))
+      .then((rows) => rows[0])
 
-    if (superCount <= 1) {
-      return {
-        success: false as const,
-        error: t("cannotDeleteLastSuper"),
+    if (!currentUserRole) {
+      returnActionError("USER_NOT_FOUND")
+    }
+
+    const session = ctx.session
+    const isChangingSelf = session.user.id === userId
+    if (isChangingSelf && currentUserRole.roleName === "super") {
+      const newRole = await db
+        .select({ name: rolesTable.name })
+        .from(rolesTable)
+        .where(eq(rolesTable.id, roleId))
+        .then((rows) => rows[0])
+
+      if (newRole?.name !== "super") {
+        returnActionError("CANNOT_DEMOTE_SELF")
       }
     }
-  }
 
-  await db
-    .delete(userRolesTable)
-    .where(eq(userRolesTable.userId, userId))
-  await db.delete(usersTable).where(eq(usersTable.id, userId))
+    await db
+      .update(usersTable)
+      .set({ email })
+      .where(eq(usersTable.id, userId))
+    await db
+      .update(userRolesTable)
+      .set({ roleId })
+      .where(eq(userRolesTable.userId, userId))
 
-  revalidatePath("/dashboard/users")
-  updateTag("permissions")
-  return { success: true as const }
-}
+    const updatedRole = await db
+      .select({ name: rolesTable.name })
+      .from(rolesTable)
+      .where(eq(rolesTable.id, roleId))
+      .then((rows) => rows[0])
+
+    if (updatedRole?.name === "retailer") {
+      const existingStore = await db
+        .select({ id: storesTable.id })
+        .from(storesTable)
+        .where(eq(storesTable.owner_id, userId))
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (!existingStore) {
+        await db.insert(storesTable).values({
+          name: `${email.split("@")[0]}'s Store`,
+          owner_id: userId,
+        })
+      }
+    }
+
+    revalidatePath("/dashboard/users")
+    updateTag("permissions")
+    return { id: userId }
+  })
+
+export const deleteUser = sessionAction
+  .metadata({ permission: { module: "users", action: "manage" } })
+  .inputSchema(deleteUserSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    if (!isSuperUser(ctx.session)) {
+      returnActionError("FORBIDDEN")
+    }
+    const { userId } = parsedInput
+
+    const session = ctx.session
+    if (session.user.id === userId) {
+      returnActionError("CANNOT_DELETE_SELF")
+    }
+
+    const superRole = await db
+      .select({ id: rolesTable.id })
+      .from(rolesTable)
+      .where(eq(rolesTable.name, "super"))
+      .then((rows) => rows[0])
+
+    if (!superRole) {
+      returnActionError("SUPER_ROLE_NOT_FOUND")
+    }
+
+    const targetUser = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .then((rows) => rows[0])
+
+    if (!targetUser) {
+      returnActionError("USER_NOT_FOUND")
+    }
+
+    const targetRole = await db
+      .select({ roleId: userRolesTable.roleId })
+      .from(userRolesTable)
+      .where(eq(userRolesTable.userId, userId))
+      .then((rows) => rows[0])
+
+    if (targetRole?.roleId === superRole.id) {
+      const superCount = await db
+        .select({ count: userRolesTable.userId })
+        .from(userRolesTable)
+        .where(eq(userRolesTable.roleId, superRole.id))
+        .then((rows) => rows.length)
+
+      if (superCount <= 1) {
+        returnActionError("CANNOT_DELETE_LAST_SUPER")
+      }
+    }
+
+    // Prevent FK violation: check if user owns projects, stores, or has activities/reminders
+    const [ownedProjects, ownedStores, hasActivity, hasReminder] =
+      await Promise.all([
+        db
+          .select({ id: projectsTable.id })
+          .from(projectsTable)
+          .where(eq(projectsTable.primaryOwnerId, userId))
+          .limit(1),
+        db
+          .select({ id: storesTable.id })
+          .from(storesTable)
+          .where(eq(storesTable.owner_id, userId))
+          .limit(1),
+        db
+          .select({ id: clientActivitiesTable.id })
+          .from(clientActivitiesTable)
+          .where(eq(clientActivitiesTable.performedBy, userId))
+          .limit(1),
+        db
+          .select({ id: clientRemindersTable.id })
+          .from(clientRemindersTable)
+          .where(eq(clientRemindersTable.createdBy, userId))
+          .limit(1),
+      ])
+
+    if (
+      ownedProjects.length > 0 ||
+      ownedStores.length > 0 ||
+      hasActivity.length > 0 ||
+      hasReminder.length > 0
+    ) {
+      returnActionError("REFERENCE_EXISTS")
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(userRolesTable)
+          .where(eq(userRolesTable.userId, userId))
+        await tx.delete(usersTable).where(eq(usersTable.id, userId))
+      })
+    } catch (e) {
+      console.error("[deleteUser] FK violation", e)
+      returnActionError("REFERENCE_EXISTS")
+    }
+
+    revalidatePath("/dashboard/users")
+    updateTag("permissions")
+    return { id: userId }
+  })

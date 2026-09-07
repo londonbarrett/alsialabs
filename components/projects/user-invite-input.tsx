@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useTransition } from "react"
+import { useState, useRef, useTransition } from "react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,17 +20,20 @@ import {
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
 import { UserPlus } from "lucide-react"
+import { useDebounced } from "@/hooks/use-debounced"
 import { searchUsers } from "@/lib/actions/users"
 import type { UserOption } from "@/lib/actions/users"
 
 interface UserInviteInputProps {
   onSelect: (userId: string) => Promise<void> | void
   placeholder?: string
+  excludedIds?: string[]
 }
 
 export function UserInviteInput({
   onSelect,
   placeholder,
+  excludedIds,
 }: UserInviteInputProps) {
   const t = useTranslations("projects")
   const [searchResults, setSearchResults] = useState<UserOption[]>([])
@@ -39,29 +42,28 @@ export function UserInviteInput({
   )
   const [isSearching, startSearchTransition] = useTransition()
   const abortRef = useRef<AbortController | null>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleSearch = useCallback((query: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+  const handleSearch = useDebounced((query: string) => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
-    debounceRef.current = setTimeout(() => {
-      abortRef.current?.abort()
-      const controller = new AbortController()
-      abortRef.current = controller
+    if (!query.trim()) {
+      setSearchResults([])
+      return
+    }
 
-      if (!query.trim()) {
-        setSearchResults([])
-        return
+    startSearchTransition(async () => {
+      const result = await searchUsers({ query, excludedIds })
+      const results = (result.data ?? []) as UserOption[]
+      const filtered = excludedIds?.length
+        ? results.filter((u) => !excludedIds.includes(u.id))
+        : results
+      if (!controller.signal.aborted) {
+        setSearchResults(filtered)
       }
-
-      startSearchTransition(async () => {
-        const results = await searchUsers(query)
-        if (!controller.signal.aborted) {
-          setSearchResults(results)
-        }
-      })
-    }, 300)
-  }, [])
+    })
+  }, 300)
 
   const items =
     selectedValue &&

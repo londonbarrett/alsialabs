@@ -13,6 +13,7 @@ import {
 import { UserDialog } from "@/components/users/user-dialog"
 import type { UserWithRole } from "@/lib/actions/users"
 import { deleteUser } from "@/lib/actions/users"
+import { useActionError } from "@/lib/util/action-errors"
 import { Pen, Plus, Trash2 } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
@@ -30,6 +31,7 @@ type Props = {
 export function UsersTable({ users, roles }: Props) {
   const router = useRouter()
   const t = useTranslations()
+  const translateError = useActionError()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<UserWithRole | null>(
     null
@@ -50,12 +52,17 @@ export function UsersTable({ users, roles }: Props) {
   const handleDelete = async () => {
     if (!deletingUser) return
     setDeleting(true)
-    const result = await deleteUser(deletingUser.id)
-    if (!result.success) {
-      toast.error(result.error || t("users.failedToDelete"))
+    const result = await deleteUser({ userId: deletingUser.id })
+    if (result.serverError) {
+      toast.error(translateError(result.serverError.code))
+      console.error("[deleteUser]", result.serverError)
+    } else if (result.validationErrors) {
+      console.error("[deleteUser] validation", result.validationErrors)
+      toast.error(t("users.failedToDelete"))
     } else {
       toast.success(t("users.userDeleted"))
       setDeletingUser(null)
+      router.refresh()
     }
     setDeleting(false)
   }

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { createUser, updateUser } from "@/lib/actions/users"
+import { useActionError } from "@/lib/util/action-errors"
 import { useTranslations } from "next-intl"
 import { useFormStatus } from "react-dom"
 import { toast } from "sonner"
@@ -50,16 +51,22 @@ export function UserDialog({
   onSuccess,
 }: UserDialogProps) {
   const t = useTranslations()
+  const translateError = useActionError()
   const isEdit = !!user
 
   async function handleSubmit(formData: FormData) {
     if (isEdit && user) {
-      const result = await updateUser(user.id, {
+      const result = await updateUser({
+        userId: user.id,
         email: formData.get("email") as string,
         roleId: formData.get("roleId") as string,
       })
-      if (!result.success) {
-        toast.error(result.error || t("users.failedToUpdate"))
+      if (result.serverError) {
+        toast.error(translateError(result.serverError.code))
+        return
+      }
+      if (result.validationErrors) {
+        toast.error(t("users.failedToUpdate"))
         return
       }
       toast.success(t("users.userUpdated"))
@@ -68,8 +75,12 @@ export function UserDialog({
         email: formData.get("email") as string,
         roleId: formData.get("roleId") as string,
       })
-      if (!result.success) {
-        toast.error(result.error || t("users.failedToCreate"))
+      if (result.serverError) {
+        toast.error(translateError(result.serverError.code))
+        return
+      }
+      if (result.validationErrors) {
+        toast.error(t("users.failedToCreate"))
         return
       }
       toast.success(t("users.userCreated"))

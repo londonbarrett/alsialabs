@@ -118,6 +118,21 @@ export async function addProjectOwner(
     return { success: false as const, error: t("alreadyOwner") }
   }
 
+  const existingCollaborator = await db
+    .select()
+    .from(projectCollaboratorsTable)
+    .where(
+      and(
+        eq(projectCollaboratorsTable.projectId, projectId),
+        eq(projectCollaboratorsTable.userId, userId)
+      )
+    )
+    .then((rows) => rows[0])
+
+  if (existingCollaborator) {
+    return { success: false as const, error: t("alreadyCollaborator") }
+  }
+
   await db.insert(projectOwnersTable).values({ projectId, userId })
 
   revalidatePath(`/dashboard/projects/${projectId}`)
@@ -218,6 +233,21 @@ export async function addProjectCollaborator(
 
   if (existing) {
     return { success: false as const, error: t("alreadyCollaborator") }
+  }
+
+  const existingOwner = await db
+    .select()
+    .from(projectOwnersTable)
+    .where(
+      and(
+        eq(projectOwnersTable.projectId, projectId),
+        eq(projectOwnersTable.userId, userId)
+      )
+    )
+    .then((rows) => rows[0])
+
+  if (existingOwner) {
+    return { success: false as const, error: t("alreadyOwner") }
   }
 
   await db
