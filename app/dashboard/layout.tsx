@@ -6,7 +6,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { getScopedStoreId } from "@/lib/actions/stores"
-import { getCachedUserPermissions, requireAuth } from "@/lib/auth"
+import { getUserPermissions, requireAuth } from "@/lib/auth"
 
 export default async function DashboardLayout({
   children,
@@ -15,7 +15,7 @@ export default async function DashboardLayout({
 }) {
   const session = await requireAuth()
   const permissions = session.user?.id
-    ? await getCachedUserPermissions(session.user.id)
+    ? await getUserPermissions(session.user.id)
     : []
   const selectedStoreId = await getScopedStoreId()
 

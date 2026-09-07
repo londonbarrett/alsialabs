@@ -2,7 +2,7 @@
 
 ### Requirement: Project subpage navigation
 
-The project detail area SHALL be split into four subpages under `/dashboard/projects/[id]`: tasks (default), details, people, and expenses. Accessing any subpage SHALL require the `projects:view` permission. All subpages SHALL share a persistent header (back button, project name, location, status badge) and a tab navigation that highlights the active subpage.
+The project detail area SHALL be split into four subpages under `/dashboard/projects/[id]`: tasks (default), details, people, and expenses. Accessing any subpage SHALL require the `projects:view` permission via `getProjectContext` (`sessionAction` `permission: projects:view`, `projectScopedAction` `verifyProjectAccess` for `project_owners`/`project_collaborators`/`super`). All subpages SHALL share a persistent header (back button, project name, location, status badge) and a tab navigation that highlights the active subpage. `app/dashboard/projects/[id]/layout.tsx:16` SHALL call `getProjectContext` and `if (!result.data) notFound()` / `serverError FORBIDDEN` → `forbidden()` before `unwrapResponse`, and `components/projects/project-view.tsx:43` SHALL use `project.id` for `base` tabs. `lib/util/unwrap.ts:16` SHALL return `[]` by default for array results.
 
 - `/dashboard/projects/[id]` — tasks (default)
 - `/dashboard/projects/[id]/details`
@@ -55,11 +55,12 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 
 #### Scenario: View project list
 
-- **GIVEN** a user with `projects:view` permission
+- **GIVEN** a user with `projects:view` permission (checked via `hasPermission` in `app/dashboard/projects/page.tsx:12` and `sessionAction` `permission: projects:view` in `getProjectsWithDetails`/`getProjects`)
 - **WHEN** the user navigates to `/dashboard/projects`
-- **THEN** projects are displayed as a card grid with name, category, status badge, dates, budget bar, task progress, and primary owner shown with a crown icon
+- **THEN** projects are displayed as a card grid with name, category, status badge, dates, budget bar, task progress, and primary owner shown with a crown icon (via `getProjectsWithDetails` filtered by `projectOwners` `exists` for non-super, `unwrapResponse` with `[]` fallback)
 - **AND** each card shows the project's color as a dot next to the project name
 - **AND** the header shows "Portfolio" label, "Projects" title, and a subtitle description
+- **AND** users without `projects:view` receive `403` via `forbidden()`
 
 #### Scenario: Project card links to detail
 
@@ -111,14 +112,14 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 - **THEN** the project is not visible (only owners can access project details)
 ### Requirement: Project ownership model
 
-Projects SHALL support multiple owners and collaborators. The primary owner has full control. Owners can manage collaborators and tasks. Collaborators can view and comment on tasks.
+Projects SHALL support multiple owners and collaborators. The primary owner has full control. Owners can manage collaborators and tasks. Collaborators can view and comment on tasks. The people UI SHALL use `components/projects/project-people.tsx` composed with `components/projects/member-pill.tsx:1` (`MemberPill` with `Avatar` + `initials` + `X` remove) and `components/projects/user-invite-input.tsx:46` debounced via `hooks/use-debounced.ts:3` `useDebounced`.
 
 #### Scenario: Primary owner manages co-owners
 
 - **GIVEN** a user who is the primary owner of a project
 - **WHEN** the user views the people subpage
-- **THEN** a "Co-owners" section is visible with a combobox to search for users to add
-- **AND** a remove button appears next to each non-primary owner
+- **THEN** a "Co-owners" section is visible with a combobox (debounced 300ms via `useDebounced`) to search for users to add
+- **AND** a remove button appears next to each non-primary owner via `MemberPill`
 
 #### Scenario: Non-primary owner cannot manage owners
 
@@ -147,20 +148,20 @@ Projects SHALL support multiple owners and collaborators. The primary owner has 
 
 ### Requirement: User search and invite
 
-The system SHALL provide a combobox input for searching existing users and inviting new ones. The input shows search results as users type and includes an invite button.
+The system SHALL provide a combobox input (`components/projects/user-invite-input.tsx`) for searching existing users and inviting new ones via safe action `searchUsers` (`sessionAction` `permission: projects:view`, schema `searchUsersSchema: {query, excludedIds?}`, searches `usersTable` by `ilike` on `name`/`email` across **all** roles and `limit 20`, client-side `excludedIds` filter for `allMemberIds`). The input shows search results as users type (debounced 300ms via `useDebounced`) and includes an invite button. `addProjectOwner` SHALL block if user is already collaborator (`alreadyCollaborator`), `addProjectCollaborator` SHALL block if already owner (`alreadyOwner`) (`lib/actions/project-users.ts:121`/`238`).
 
 #### Scenario: Search for existing user
 
 - **GIVEN** an owner managing co-owners or collaborators
 - **WHEN** the user types in the combobox search field
-- **THEN** matching users appear in a dropdown list
-- **AND** users already associated with the project are excluded from results
+- **THEN** matching users appear in a dropdown list (debounced, `UserOption` from `searchUsers` `data`)
+- **AND** users already associated with the project are excluded from results via `excludedIds` (`project-people.tsx:47` `allMemberIds`) and cross-role `alreadyOwner`/`alreadyCollaborator` guards
 
 #### Scenario: Invite new user
 
 - **GIVEN** an owner managing co-owners or collaborators
 - **WHEN** the user selects "Invite" option in the combobox
-- **THEN** the invite action is triggered without a loading spinner
+- **THEN** the invite action is triggered without a loading spinner and shows `alreadyOwner`/`alreadyCollaborator` toast if cross-role duplicate
 
 ### Requirement: Task management
 

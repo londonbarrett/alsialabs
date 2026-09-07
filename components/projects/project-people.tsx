@@ -1,11 +1,6 @@
 "use client"
 
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
-import {
   Card,
   CardContent,
   CardHeader,
@@ -18,10 +13,12 @@ import {
   removeProjectOwner,
 } from "@/lib/actions/project-users"
 import type { ProjectMember } from "@/lib/types"
-import { Crown, Users, X } from "lucide-react"
+import { Crown, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
+import { useMemo } from "react"
 import { toast } from "sonner"
+import { MemberPill } from "./member-pill"
 import { UserInviteInput } from "./user-invite-input"
 
 interface ProjectPeopleProps {
@@ -31,45 +28,6 @@ interface ProjectPeopleProps {
   primaryOwnerId: string
   canManageUsers: boolean
   isOwner: boolean
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase()
-}
-
-function MemberPill({
-  member,
-  onRemove,
-}: {
-  member: ProjectMember
-  onRemove?: () => void
-}) {
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-      <Avatar className="size-6">
-        <AvatarImage src={member.userImage ?? undefined} />
-        <AvatarFallback className="text-[10px]">
-          {initials(member.userName ?? "")}
-        </AvatarFallback>
-      </Avatar>
-      <span className="text-sm">
-        {member.userName || member.userEmail}
-      </span>
-      {onRemove && (
-        <button
-          onClick={onRemove}
-          className="ml-1 text-muted-foreground hover:text-destructive"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      )}
-    </div>
-  )
 }
 
 export function ProjectPeople({
@@ -85,6 +43,13 @@ export function ProjectPeople({
   const primaryOwner = owners.find((o) => o.userId === primaryOwnerId)
   const additionalOwners = owners.filter(
     (o) => o.userId !== primaryOwnerId
+  )
+  const allMemberIds = useMemo(
+    () => [
+      ...owners.map((o) => o.userId),
+      ...collaborators.map((c) => c.userId),
+    ],
+    [owners, collaborators]
   )
 
   async function handleAddOwner(userId: string) {
@@ -168,6 +133,7 @@ export function ProjectPeople({
               <UserInviteInput
                 onSelect={handleAddOwner}
                 placeholder={t("projects.addOwner")}
+                excludedIds={allMemberIds}
               />
             </div>
           )}
@@ -201,6 +167,7 @@ export function ProjectPeople({
               <UserInviteInput
                 onSelect={handleAddCollaborator}
                 placeholder={t("projects.addCollaborator")}
+                excludedIds={allMemberIds}
               />
             </div>
           )}
