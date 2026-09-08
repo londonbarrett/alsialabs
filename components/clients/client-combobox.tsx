@@ -1,8 +1,5 @@
 "use client"
 
-import { useState, useRef, useTransition } from "react"
-import { useDebounced } from "@/hooks/use-debounced"
-import { useTranslations } from "next-intl"
 import {
   Combobox,
   ComboboxContent,
@@ -19,15 +16,15 @@ import {
   ItemTitle,
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
-import {
-  getClientByClientId,
-  searchClients,
-} from "@/lib/actions/clients"
+import { useDebounced } from "@/hooks/use-debounced"
 import type { ClientOption } from "@/lib/actions/clients"
+import { searchClients } from "@/lib/actions/clients"
+import { useTranslations } from "next-intl"
+import { useRef, useState, useTransition } from "react"
 
 interface ClientComboboxProps {
-  value?: string
-  onValueChange: (clientId: string | null) => void
+  value?: ClientOption | null
+  onValueChange: (client: ClientOption | null) => void
   error?: string
   disabled?: boolean
   placeholder?: string
@@ -42,8 +39,6 @@ export function ClientCombobox({
 }: ClientComboboxProps) {
   const t = useTranslations("clients")
   const [searchResults, setSearchResults] = useState<ClientOption[]>([])
-  const [selectedValue, setSelectedValue] =
-    useState<ClientOption | null>(null)
   const [isPending, startTransition] = useTransition()
   const abortRef = useRef<AbortController | null>(null)
 
@@ -65,34 +60,17 @@ export function ClientCombobox({
     })
   }, 300)
 
-  const handleOpenChange = async (open: boolean) => {
-    if (open && value && !selectedValue) {
-      const result = await getClientByClientId({ id: value })
-      if (result.data) {
-        setSelectedValue({
-          id: result.data.id,
-          name: result.data.name,
-          phone: result.data.phone,
-        })
-      }
-    }
-  }
-
   const items =
-    selectedValue &&
-    !searchResults.some((c) => c.id === selectedValue.id)
-      ? [selectedValue, ...searchResults]
+    value && !searchResults.some((c) => c.id === value.id)
+      ? [value, ...searchResults]
       : searchResults
 
   return (
     <div>
       <Combobox
         items={items}
-        value={selectedValue}
-        onValueChange={(client) => {
-          setSelectedValue(client ?? null)
-          onValueChange(client?.id ?? null)
-        }}
+        value={value ?? null}
+        onValueChange={onValueChange}
         itemToStringValue={(client) => client?.name ?? ""}
         itemToStringLabel={(client) => client?.name ?? ""}
         onInputValueChange={(inputValue, { reason }) => {
@@ -100,8 +78,7 @@ export function ClientCombobox({
           handleSearch(inputValue)
         }}
         onOpenChange={(open) => {
-          handleOpenChange(open)
-          if (!open && selectedValue) {
+          if (!open) {
             setSearchResults([])
           }
         }}
@@ -112,6 +89,7 @@ export function ClientCombobox({
           placeholder={placeholder ?? t("selectClient")}
           aria-invalid={!!error || undefined}
           showClear
+          disabled={disabled}
         />
         <ComboboxContent>
           {isPending && (
