@@ -29,6 +29,7 @@ import {
   getInvoiceProducts,
   type InvoiceFormData,
 } from "@/lib/actions/sales"
+import { formatCurrency } from "@/lib/util/money"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -561,7 +562,7 @@ export function InvoiceForm({
             {t("sales.subtotal")}
           </span>
           <span className="font-mono">
-            ${totals.subtotal.toFixed(2)}
+            {formatCurrency(totals.subtotal)}
           </span>
         </div>
         {totals.discountTotal > 0 && (
@@ -570,7 +571,7 @@ export function InvoiceForm({
               {t("sales.discount")}
             </span>
             <span className="font-mono text-destructive">
-              -${totals.discountTotal.toFixed(2)}
+              -{formatCurrency(totals.discountTotal)}
             </span>
           </div>
         )}
@@ -580,14 +581,14 @@ export function InvoiceForm({
               {t("sales.tax")}
             </span>
             <span className="font-mono">
-              ${totals.taxTotal.toFixed(2)}
+              {formatCurrency(totals.taxTotal)}
             </span>
           </div>
         )}
         <div className="flex justify-between border-t pt-1 font-semibold">
           <span>Total</span>
           <span className="font-mono">
-            ${totals.grandTotal.toFixed(2)}
+            {formatCurrency(totals.grandTotal)}
           </span>
         </div>
       </div>
