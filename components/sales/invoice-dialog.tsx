@@ -37,7 +37,7 @@ export function InvoiceDialog({
       }
       open={open}
       onOpenChange={onOpenChange}
-      className="sm:max-w-2xl"
+      className="sm:max-w-4xl"
     >
       <InvoiceForm
         key={invoice?.id ?? "new"}

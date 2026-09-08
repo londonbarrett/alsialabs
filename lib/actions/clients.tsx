@@ -17,6 +17,7 @@ import { getRoleIdByName } from "@/lib/util/query-helpers"
 import crypto from "crypto"
 import { and, eq, ilike, or } from "drizzle-orm"
 import { z } from "zod"
+
 export type ClientOption = {
   id: string
   name: string

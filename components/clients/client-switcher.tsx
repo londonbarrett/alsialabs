@@ -14,10 +14,10 @@ export function ClientSwitcher() {
     <div className="w-full max-w-sm">
       <ClientCombobox
         disabled={isPending}
-        onValueChange={(id) => {
-          if (id) {
+        onValueChange={(client) => {
+          if (client?.id) {
             startTransition(() => {
-              router.push(`/dashboard/clients/${id}`)
+              router.push(`/dashboard/clients/${client.id}`)
             })
           }
         }}
