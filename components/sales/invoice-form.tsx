@@ -27,10 +27,10 @@ import type { ClientOption } from "@/lib/actions/clients"
 import {
   getInvoiceItems,
   getInvoiceProducts,
-  type InvoiceFormData,
-} from "@/lib/actions/sales"
-import { formatCurrency } from "@/lib/util/money"
+} from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
+import type { InvoiceFormData } from "@/lib/schemas/invoice"
+import { formatCurrency } from "@/lib/util/money"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useEffect, useMemo, useState } from "react"
@@ -113,14 +113,15 @@ export function InvoiceForm({
 
   useEffect(() => {
     getInvoiceProducts()
-      .catch(() => [])
-      .then(setProducts)
+      .then((res) => setProducts(res?.data ?? []))
+      .catch(() => setProducts([]))
   }, [])
 
   useEffect(() => {
     if (!invoice?.id) return
-    getInvoiceItems(invoice.id)
-      .then((data) => {
+    getInvoiceItems({ invoiceId: invoice.id })
+      .then((res) => {
+        const data = res?.data ?? []
         setItems(
           data.map((item) => ({
             key: nextKey(),

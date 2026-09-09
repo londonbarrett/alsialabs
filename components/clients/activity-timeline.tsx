@@ -32,12 +32,12 @@ import {
   upsertReminder,
 } from "@/lib/actions/reminders"
 import {
+  createInvoice,
   deleteInvoice,
-  deletePayment,
-  updatePayment,
-  upsertInvoice,
-  type InvoiceFormData,
-} from "@/lib/actions/sales"
+  updateInvoice,
+} from "@/lib/actions/invoices"
+import { deletePayment, updatePayment } from "@/lib/actions/payments"
+import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type {
   ClientActivity,
   ClientReminder,
@@ -45,32 +45,23 @@ import type {
   InvoicePayment,
 } from "@/lib/drizzle/schema"
 import { computeInvoiceTotals } from "@/lib/util/invoices"
+import { useActionError } from "@/lib/util/action-errors"
 import {
   buildTempActivity,
   buildTempInvoice,
   buildTempReminder,
 } from "@/lib/util/temp-entries"
+import {
+  sortTimelineEntries,
+  timelineReducer,
+  type TimelineEntry,
+  type TimelineEntryAction,
+} from "@/reducers/timeline-reducer"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useOptimistic, useState, useTransition } from "react"
 import { toast } from "sonner"
-
-type TimelineEntry =
-  | ({ kind: "activity" } & ClientActivity)
-  | ({ kind: "reminder" } & ClientReminder)
-  | ({ kind: "invoice" } & Invoice)
-  | ({ kind: "payment" } & InvoicePayment & { invoiceNumber: string })
-
-type TimelineEntryAction =
-  | { type: "add"; entry: TimelineEntry }
-  | {
-      type: "patch"
-      kind: TimelineEntry["kind"]
-      id: string
-      patch: Partial<TimelineEntry>
-    }
-  | { type: "remove"; kind: TimelineEntry["kind"]; id: string }
 
 interface ActivityTimelineProps {
   clientId: string
@@ -79,54 +70,6 @@ interface ActivityTimelineProps {
   invoices: Invoice[]
   payments?: Array<InvoicePayment & { invoiceNumber: string }>
   permissions: string[]
-}
-
-function getEntryDate(entry: TimelineEntry): string {
-  switch (entry.kind) {
-    case "activity":
-      return (entry as ClientActivity).activityDate
-    case "reminder":
-      return (entry as ClientReminder).remindAt
-    case "invoice":
-      return (entry as Invoice).issueDate
-    case "payment":
-      return (entry as InvoicePayment & { invoiceNumber: string })
-        .paymentDate
-  }
-}
-
-function sortEntries(entries: TimelineEntry[]): TimelineEntry[] {
-  return [...entries].sort((a, b) => {
-    const dateA = new Date(getEntryDate(a)).getTime()
-    const dateB = new Date(getEntryDate(b)).getTime()
-    if (dateB !== dateA) return dateB - dateA
-    const createdA = new Date(a.createdAt).getTime()
-    const createdB = new Date(b.createdAt).getTime()
-    if (createdB !== createdA) return createdB - createdA
-    return String(a.id).localeCompare(String(b.id))
-  })
-}
-
-function reduceEntries(
-  state: TimelineEntry[],
-  action: TimelineEntryAction
-): TimelineEntry[] {
-  switch (action.type) {
-    case "add":
-      return sortEntries([action.entry, ...state])
-    case "patch":
-      return sortEntries(
-        state.map((entry) =>
-          entry.kind === action.kind && entry.id === action.id
-            ? ({ ...entry, ...action.patch } as TimelineEntry)
-            : entry
-        )
-      )
-    case "remove":
-      return state.filter(
-        (entry) => entry.kind !== action.kind || entry.id !== action.id
-      )
-  }
 }
 
 export function ActivityTimeline({
@@ -139,6 +82,7 @@ export function ActivityTimeline({
 }: ActivityTimelineProps) {
   const router = useRouter()
   const t = useTranslations()
+  const translateError = useActionError()
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   useRefreshOnFocus()
@@ -170,8 +114,8 @@ export function ActivityTimeline({
   ]
 
   const [optimisticEntries, addOptimistic] = useOptimistic(
-    sortEntries(entries),
-    reduceEntries
+    sortTimelineEntries(entries),
+    timelineReducer
   )
   const [, startTransition] = useTransition()
 
@@ -291,9 +235,34 @@ export function ActivityTimeline({
           }
         })()
       : { type: "add", entry: buildTempInvoice(data) }
-    const result = await runOptimistic(action, () =>
-      upsertInvoice(data, invoiceId)
+
+    const optimisticResult = await runOptimistic(action, () =>
+      invoiceId
+        ? updateInvoice({ ...data, invoiceId })
+        : createInvoice(data)
     )
+
+    const result: InvoiceSubmitResult = optimisticResult.data
+      ? { success: true as const }
+      : optimisticResult.serverError
+        ? {
+            success: false as const,
+            error: translateError(optimisticResult.serverError.code),
+          }
+        : optimisticResult.validationErrors
+          ? {
+              success: false as const,
+              error: t("common.somethingWentWrong"),
+              fieldErrors: optimisticResult.validationErrors as Record<
+                string,
+                string[] | undefined
+              >,
+            }
+          : {
+              success: false as const,
+              error: t("common.somethingWentWrong"),
+            }
+
     if (result.success) {
       toast.success(
         invoiceId
@@ -309,11 +278,15 @@ export function ActivityTimeline({
   async function handleUpdatePayment(
     values: PaymentFormValues
   ): Promise<PaymentSubmitResult> {
-    if (!editingPayment) return { success: false }
+    if (!editingPayment)
+      return {
+        success: false as const,
+        error: t("common.somethingWentWrong"),
+      }
     const payment = editingPayment
     setPaymentDialogOpen(false)
     setEditingPayment(undefined)
-    const result = await runOptimistic(
+    const optimisticResult = await runOptimistic(
       {
         type: "patch",
         kind: "payment",
@@ -326,8 +299,30 @@ export function ActivityTimeline({
           notes: values.notes || null,
         },
       },
-      () => updatePayment(payment.id, values)
+      () => updatePayment({ paymentId: payment.id, ...values })
     )
+
+    const result: PaymentSubmitResult = optimisticResult.data
+      ? { success: true as const }
+      : optimisticResult.serverError
+        ? {
+            success: false as const,
+            error: translateError(optimisticResult.serverError.code),
+          }
+        : optimisticResult.validationErrors
+          ? {
+              success: false as const,
+              error: t("common.somethingWentWrong"),
+              fieldErrors: optimisticResult.validationErrors as Record<
+                string,
+                string[] | undefined
+              >,
+            }
+          : {
+              success: false as const,
+              error: t("common.somethingWentWrong"),
+            }
+
     if (result.success) {
       toast.success(t("sales.paymentUpdated"))
     } else {
@@ -374,21 +369,23 @@ export function ActivityTimeline({
   async function handleDeleteInvoice(invoice: Invoice) {
     const result = await runOptimistic(
       { type: "remove", kind: "invoice", id: invoice.id },
-      () => deleteInvoice(invoice.id)
+      () => deleteInvoice({ invoiceId: invoice.id })
     )
-    if (!result.success)
-      toast.error(result.error || t("sales.failedToDelete"))
-    else toast.success(t("sales.invoiceDeleted"))
+    if (result.serverError)
+      toast.error(translateError(result.serverError.code))
+    else if (result.data) toast.success(t("sales.invoiceDeleted"))
+    else toast.error(t("sales.failedToDelete"))
   }
 
   async function handleDeletePayment(payment: InvoicePayment) {
     const result = await runOptimistic(
       { type: "remove", kind: "payment", id: payment.id },
-      () => deletePayment(payment.id)
+      () => deletePayment({ paymentId: payment.id })
     )
-    if (!result.success)
-      toast.error(result.error || t("common.somethingWentWrong"))
-    else toast.success(t("sales.paymentDeleted"))
+    if (result.serverError)
+      toast.error(translateError(result.serverError.code))
+    else if (result.data) toast.success(t("sales.paymentDeleted"))
+    else toast.error(t("common.somethingWentWrong"))
   }
 
   return (
@@ -499,10 +496,8 @@ export function ActivityTimeline({
                     setPaymentDialogOpen(true)
                   }}
                   onDelete={() => handleDeletePayment(entry)}
-                  canEdit={permissions.includes("sales:record-payment")}
-                  canDelete={permissions.includes(
-                    "sales:record-payment"
-                  )}
+                  canEdit={permissions.includes("sales:edit")}
+                  canDelete={permissions.includes("sales:delete")}
                 />
               )}
             </div>

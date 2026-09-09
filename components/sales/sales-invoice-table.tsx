@@ -33,6 +33,10 @@ interface SalesInvoiceTableProps {
   onEdit: (invoice: InvoiceWithClientName) => void
   onViewPayments: (invoice: InvoiceWithClientName) => void
   onRecordPayment: (invoice: InvoiceWithClientName) => void
+  onDelete?: (invoice: InvoiceWithClientName) => void
+  onCancel?: (invoice: InvoiceWithClientName) => void
+  onReopen?: (invoice: InvoiceWithClientName) => void
+  onMarkSent?: (invoice: InvoiceWithClientName) => void
 }
 
 export function SalesInvoiceTable({
@@ -41,14 +45,15 @@ export function SalesInvoiceTable({
   onEdit,
   onViewPayments,
   onRecordPayment,
+  onDelete,
+  onCancel,
+  onReopen,
+  onMarkSent,
 }: SalesInvoiceTableProps) {
   const t = useTranslations()
 
   return (
-    <div
-      role="region"
-      aria-label={t("sales.title")}
-    >
+    <div role="region" aria-label={t("sales.title")}>
       <Table className="overflow-x-clip">
         <TableHeader className="sticky top-12 z-10 [&_th]:bg-card [&_th]:shadow-[0_1px_0_var(--border)]">
           <TableRow>
@@ -121,6 +126,18 @@ export function SalesInvoiceTable({
                     onEdit={() => onEdit(inv)}
                     onViewPayments={() => onViewPayments(inv)}
                     onRecordPayment={() => onRecordPayment(inv)}
+                    onDelete={
+                      onDelete ? () => onDelete(inv) : undefined
+                    }
+                    onCancel={
+                      onCancel ? () => onCancel(inv) : undefined
+                    }
+                    onReopen={
+                      onReopen ? () => onReopen(inv) : undefined
+                    }
+                    onMarkSent={
+                      onMarkSent ? () => onMarkSent(inv) : undefined
+                    }
                   />
                 </TableCell>
               </TableRow>
