@@ -254,3 +254,60 @@ The sales page SHALL allow users with `sales:view` permission to search and filt
 - **WHEN** no invoices match the active filters
 - **THEN** a "no results" message is displayed in place of the table
 - **AND** the filter controls remain visible so the user can adjust or clear them
+
+### Requirement: Sales page uses Page composition
+The sales page SHALL be a server component that fetches data and composes Page layout, and delegates content to a client SalesView.
+
+#### Scenario: Sales page server fetches with unwrapResponse
+- **WHEN** `app/dashboard/sales/page.tsx` renders
+- **THEN** it calls `getInvoices()` `lib/actions/invoices.ts`, `getMonthlyRevenue` and `getTopClientsByRevenue` `lib/actions/sales.ts` and unwraps results via `unwrapResponse` `lib/util/unwrap.ts`
+- **AND** it renders `Page` `components/common/page.tsx` with `PageHeader` `components/common/page-header.tsx` (title `sales.title`, subtitle `sales.subtitle`, icon `ChartNoAxesCombined`) fetched via `getTranslations("sales")` on the server
+
+#### Scenario: SalesView is client and delegates
+- **WHEN** `components/sales/sales-view.tsx` renders
+- **THEN** it no longer contains `PageHeader` or outer `div flex-1`
+- **AND** it renders revenue charts (`MonthlyRevenueChart`/`TopClientsChart` in `Card`) and `InvoicesCard` `components/sales/invoices-card.tsx`
+
+### Requirement: InvoicesCard is fully optimistic with reducer
+The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be fully optimistic using React `useOptimistic` and `invoiceReducer` `reducers/invoice-reducer.ts`, following `tasks-card` pattern.
+
+#### Scenario: InvoicesCard uses useOptimistic and invoiceReducer
+- **WHEN** `InvoicesCard` mounts with `invoices: InvoiceWithClientName[]` `components/sales/sales-invoice-table.tsx:17`
+- **THEN** it initializes `const [optimisticInvoices, addOptimistic] = useOptimistic(initialInvoices, invoiceReducer)` aliased as `invoices`/`dispatch`
+- **AND** all 7 mutations (`createInvoice`/`updateInvoice`/`deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`markInvoiceAsSent` `lib/actions/invoices.ts:471` and `recordPayment` `lib/actions/payments.ts:10`) are dispatched optimistically via `startTransition(() => dispatch({type}))` before awaiting `useAction` `next-safe-action/hooks`
+- **AND** on success it dispatches `replaceTemp`/`update` with server `returning()` data, on error it dispatches `delete`/`update` rollback to `initialInvoices`
+
+#### Scenario: Invoice filters are extracted
+- **WHEN** `InvoicesCard` renders
+- **THEN** it uses `useInvoiceFilters` `hooks/use-invoice-filters.ts` (4 `useState` + `useMemo filteredInvoices`) and `InvoiceFilters` `components/sales/invoice-filters.tsx` (shadcn `InputGroup` `components/ui/input-group.tsx` with `Search` addon, `Select` for status, `Input type=date` for range, `gap-2` rounded units, `aria-live` resultCount) instead of inline filter bar
+
+#### Scenario: Invoice dialogs are extracted
+- **WHEN** `InvoicesCard` renders
+- **THEN** it delegates `InvoiceDialog`/`RecordPaymentDialog`/`PaymentHistoryDialog` to `InvoiceDialogs` `components/sales/invoice-dialogs.tsx`
+
+#### Scenario: Payment dialog closes optimistically
+- **WHEN** a user submits `RecordPaymentDialog`
+- **THEN** `handlePaymentSubmit` `components/sales/invoices-card.tsx:84` closes the dialog (`setPaymentInvoice(null)`) immediately before `await executeRecordPayment`, while `paymentReducer` `reducers/payment-reducer.ts:10` updates `paidAmount`/`status` optimistically; rollback on `serverError` does not reopen the dialog
+
+#### Scenario: Invoice table updates on payment delete
+- **WHEN** a payment is deleted via `PaymentHistory` `components/sales/payment-history.tsx:57` (`useOptimistic`+`paymentReducer` `reducers/payment-reducer.ts:7` with `setPayments` commit to base state)
+- **THEN** `InvoicesCard` also updates its `invoices` via `dispatch({type:"recordPayment"})` or `onPaymentDeleted` callback so the `outstandingBalance` column reflects the deletion without a full `router.refresh`
+
+### Requirement: Invoice domain is properly modularized
+The system SHALL keep invoice-related code separate from sales analytics.
+
+#### Scenario: Schemas are separated
+- **WHEN** inspecting `lib/schemas/invoice.ts` and `lib/schemas/payment.ts`
+- **THEN** `invoiceSchema`/`createInvoiceSchema`/`updateInvoiceSchema`/`lineItemSchema` live in `lib/schemas/invoice.ts:16`, and `paymentSchema` lives in `lib/schemas/payment.ts:3` (re-exported from `lib/schemas/sales.ts:1` for backward compat). No `upsertInvoiceSchema` exists
+
+#### Scenario: Actions are separated
+- **WHEN** inspecting `lib/actions/invoices.ts` and `lib/actions/payments.ts` and `lib/actions/sales.ts`
+- **THEN** `getInvoices`/`getInvoiceProducts`/`getInvoiceItems`/`getInvoicePayments`/`createInvoice`/`updateInvoice`/`cancelInvoice`/`reopenInvoice`/`markInvoiceAsSent`/`deleteInvoice` live in `lib/actions/invoices.ts:471` with `sessionAction` `next-safe-action` and `zod` schemas `createInvoiceSchema`/`updateInvoiceSchema`, `recordPayment`/`updatePayment`/`deletePayment` live in `lib/actions/payments.ts:10` with `sales:create`/`edit`/`delete` permissions (no `record-payment`), and `getMonthlyRevenue`/`getTopClientsByRevenue` remain in `lib/actions/sales.ts:16`
+
+#### Scenario: Permissions use existing sales actions
+- **WHEN** a user calls `recordPayment`
+- **THEN** it requires `sales:create` `lib/actions/payments.ts:12`, `updatePayment` requires `sales:edit` `lib/actions/payments.ts:125`, `deletePayment` requires `sales:delete` `lib/actions/payments.ts:201` (no `sales:record-payment` in `lib/drizzle/seed.ts:37`)
+
+#### Scenario: Tests are co-located
+- **WHEN** inspecting `lib/actions/invoices.test.ts` `lib/actions/payments.test.ts`, `reducers/invoice-reducer.test.ts`, `reducers/payment-reducer.test.ts`, `lib/util/invoices.test.ts`
+- **THEN** each file lives next to its target (`reducers/` or `lib/actions/` or `lib/util/`) and tests business logic (e.g. `computeInvoiceTotals` `lib/util/invoices.ts:26`, `overdue` derivation, `initialStatus` from `paidAmount`, `paymentReducer` `add`/`update`/`delete`, `canRecordPayment` validation) without mocking action logic, with `vitest-drizzle-mock` only for `db` where needed

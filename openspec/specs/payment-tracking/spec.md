@@ -1,19 +1,19 @@
 ## ADDED Requirements
 
 ### Requirement: User can record a payment against an invoice
-The system SHALL allow authenticated users with `sales:record-payment` permission to record a payment against any invoice. The payment amount SHALL update the invoice's paid amount, and the invoice status SHALL automatically update based on the outstanding balance.
+The system SHALL allow authenticated users with `sales:create` permission to record a payment against any invoice. The payment amount SHALL update the invoice's paid amount optimistically via `useOptimistic`/`invoiceReducer` and `paymentReducer`, and the invoice status SHALL automatically update based on the outstanding balance.
 
 #### Scenario: Record full payment
-- **WHEN** a user with `sales:record-payment` permission opens the record payment dialog for an invoice
+- **WHEN** a user with `sales:create` permission opens the record payment dialog for an invoice
 - **THEN** they see fields: amount (pre-filled with remaining balance), payment date, method (optional), reference (optional), notes (optional)
 - **WHEN** the user submits a valid payment with amount equal to the remaining balance
-- **THEN** the invoice status becomes "paid"
-- **AND** the invoice's paid amount equals the grand total
-- **AND** a success toast is shown
+- **THEN** the dialog closes immediately before server confirmation (`setPaymentInvoice(null)` `components/sales/invoices-card.tsx:84` inside `startTransition` dispatch `recordPayment` `reducers/invoice-reducer.ts:19`)
+- **AND** the invoices table updates optimistically to `paid`/`paidAmount` `hooks/use-invoice-actions.ts:118`, and `PaymentHistory` `components/sales/payment-history.tsx:31` updates via `paymentReducer`
+- **AND** on server success via `recordPayment` `lib/actions/payments.ts:10` (`sessionAction` `sales:create`, `paymentSchema` `lib/schemas/payment.ts:3`) the base state is committed via `setPayments`, otherwise rollback via `update`/`reset`
 
 #### Scenario: Record partial payment
 - **WHEN** a user records a payment with amount less than the remaining balance
-- **THEN** the invoice status becomes "partially_paid"
+- **THEN** the invoice status becomes "partially_paid" optimistically
 - **AND** the paid amount is updated to reflect the partial payment
 
 #### Scenario: Multiple payments
@@ -23,83 +23,78 @@ The system SHALL allow authenticated users with `sales:record-payment` permissio
 
 #### Scenario: Payment amount exceeds remaining balance
 - **WHEN** a user submits a payment with amount greater than the remaining balance
-- **THEN** the system rejects with a validation error
-- **AND** no payment is recorded
+- **THEN** the system rejects with a validation error `VALIDATION_FAILED` `lib/actions/payments.ts:10`
+- **AND** no payment is recorded and the optimistic update is reverted
 
 #### Scenario: Unauthenticated payment recording rejected
 - **WHEN** an unauthenticated user attempts to record a payment
-- **THEN** the action returns an unauthorized error
+- **THEN** the action returns an unauthorized error `UNAUTHORIZED` via `sessionAction`
 - **AND** no payment is recorded
 
 #### Scenario: Unauthorized payment recording rejected
-- **WHEN** a user without `sales:record-payment` permission calls the record payment action
-- **THEN** the action returns an error
+- **WHEN** a user without `sales:create` permission calls the record payment action
+- **THEN** the action returns `FORBIDDEN` `lib/actions/payments.ts:12`
 - **AND** no payment is recorded
 
 ### Requirement: User can view payment history for an invoice
-The system SHALL display a list of payments recorded against an invoice, accessible from the invoice row in the sales table.
+The system SHALL display a list of payments recorded against an invoice, accessible from the invoice row in the sales table, with optimistic updates via `paymentReducer`.
 
 #### Scenario: View payments from invoice row
 - **WHEN** a user with `sales:view` permission clicks "View Payments" on an invoice row
-- **THEN** a dialog or panel shows all payments for that invoice
-- **AND** each payment shows: amount, date, method, reference, and notes (when present)
+- **THEN** a dialog shows all payments for that invoice fetched via `getInvoicePayments` `lib/actions/invoices.ts:460` (`sessionAction` `sales:view`)
+- **AND** each payment shows: amount, date, method, reference, and notes
 
 #### Scenario: Empty payment history
 - **WHEN** an invoice has no payments recorded
 - **THEN** the payments view shows an empty state message
 
 #### Scenario: Payment action menu labels include the amount
-- **WHEN** a user with `sales:record-payment` permission opens the action menu on a payment row
-- **THEN** the menu shows "Edit {amount}" and "Delete {amount}" items (e.g., "Edit $50,000.00", "Delete $50,000.00")
+- **WHEN** a user with `sales:edit` or `sales:delete` permission opens the action menu on a payment row
+- **THEN** the menu shows "Edit {amount}" and "Delete {amount}" items
 
 #### Scenario: Payment actions hidden without permission
-- **WHEN** a user without `sales:record-payment` permission opens the payment history dialog
-- **THEN** no edit or delete actions are shown on payment rows
+- **WHEN** a user without `sales:edit`/`sales:delete` permission opens the payment history dialog
+- **THEN** no edit or delete actions are shown on payment rows (`canManage` checks `sales:edit`/`create`/`delete` `components/sales/invoices-card.tsx:408`)
 
 ### Requirement: User can edit a payment
-The system SHALL allow authenticated users with `sales:record-payment` permission to edit a payment's amount, payment date, method, reference, and notes from the payment history dialog.
+The system SHALL allow authenticated users with `sales:edit` permission to edit a payment's amount, payment date, method, reference, and notes from the payment history dialog, optimistically via `paymentReducer`.
 
 #### Scenario: Successful payment edit
-- **WHEN** a user with `sales:record-payment` permission clicks "Edit {amount}" on a payment row
-- **THEN** a pre-filled dialog form appears with the payment's current values
-- **WHEN** the user modifies fields and submits
-- **THEN** the payment is updated
-- **AND** the invoice's paid amount and status are recalculated
-- **AND** a success toast is shown
+- **WHEN** a user with `sales:edit` permission clicks "Edit {amount}" on a payment row
+- **THEN** a pre-filled dialog appears
+- **WHEN** the user submits
+- **THEN** `PaymentHistory` `components/sales/payment-history.tsx:31` dispatches `update` optimistically inside `startTransition` `components/sales/payment-history.tsx:100` before `updatePayment` `lib/actions/payments.ts:123` (`sales:edit`, `paymentSchema` `lib/schemas/payment.ts:3`), closes dialog immediately, and on success commits to base `setPayments` `components/sales/payment-history.tsx:113`, otherwise reverts to `original`
 
 #### Scenario: Edited payment would exceed the invoice total
 - **WHEN** a user edits a payment amount so that the sum of all payments exceeds the invoice grand total
-- **THEN** the edit is rejected
-- **AND** no payment is modified
+- **THEN** the edit is rejected with `VALIDATION_FAILED` and the optimistic update is reverted
 
 #### Scenario: Editing a payment re-syncs invoice status
 - **WHEN** the last payment of a fully paid invoice is reduced below the grand total
-- **THEN** the invoice status changes to "partially_paid" or "draft" accordingly
+- **THEN** `syncInvoicePaymentState` `lib/actions/payments.ts:76` recomputes `paidAmount`/`status` via `sum(amount)` and the `InvoicesCard` invoice row updates optimistically via `InvoicesCard` `recordPayment` handling or via `PaymentHistory` parent callback
 
 #### Scenario: Unauthorized payment edit rejected
-- **WHEN** a user without `sales:record-payment` permission calls the update payment action
-- **THEN** the action returns an error
+- **WHEN** a user without `sales:edit` permission calls the update payment action
+- **THEN** the action returns `FORBIDDEN` `lib/actions/payments.ts:125`
 - **AND** no payment is modified
 
 ### Requirement: User can delete a payment
-The system SHALL allow authenticated users with `sales:record-payment` permission to delete a payment after confirmation.
+The system SHALL allow authenticated users with `sales:delete` permission to delete a payment after confirmation, optimistically.
 
 #### Scenario: Successful payment deletion
-- **WHEN** a user with `sales:record-payment` permission clicks "Delete {amount}" on a payment row
+- **WHEN** a user with `sales:delete` permission clicks "Delete {amount}" on a payment row
 - **THEN** a confirmation dialog appears
 - **WHEN** the user confirms
-- **THEN** the payment is removed
-- **AND** the invoice's paid amount and status are recalculated
-- **AND** a success toast is shown
+- **THEN** `PaymentHistory` dispatches `delete` optimistically `components/sales/payment-history.tsx:57` before `deletePayment` `lib/actions/payments.ts:199` (`sales:delete`), and on success commits base `setPayments(filter)` `components/sales/payment-history.tsx:66` so the optimistic delete persists (fix for revert bug where base `payments` was stale)
+- **AND** `syncInvoicePaymentState` recomputes invoice `paidAmount`/`status`, and `InvoicesCard`'s invoice table updates optimistically via `onPaymentDeleted` callback if provided
 
 #### Scenario: Deleting a payment re-syncs invoice status
 - **WHEN** a payment is deleted from a partially paid invoice such that no payments remain
-- **THEN** the invoice status returns to "draft" (or "overdue" past the due date)
-- **AND** the paid amount becomes 0
+- **THEN** the invoice status returns to "draft" (or "overdue" past the due date) via `syncInvoicePaymentState`
 
 #### Scenario: Unauthorized payment deletion rejected
-- **WHEN** a user without `sales:record-payment` permission calls the delete payment action
-- **THEN** the action returns an error
+- **WHEN** a user without `sales:delete` permission calls the delete payment action
+- **THEN** the action returns `FORBIDDEN` `lib/actions/payments.ts:201`
 - **AND** no payment is deleted
 
 ### Requirement: Invoice status is automatically determined

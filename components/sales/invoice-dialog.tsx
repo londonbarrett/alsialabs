@@ -5,7 +5,7 @@ import {
   InvoiceForm,
   type InvoiceSubmitResult,
 } from "@/components/sales/invoice-form"
-import type { InvoiceFormData } from "@/lib/actions/sales"
+import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 

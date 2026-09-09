@@ -7,8 +7,9 @@ import {
   deleteInvoice,
   markInvoiceAsSent,
   reopenInvoice,
-} from "@/lib/actions/sales"
+} from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
+import { useActionError } from "@/lib/util/action-errors"
 import { Banknote, HandCoins, Send, Undo2, X } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
@@ -20,6 +21,10 @@ interface SalesActionMenuProps {
   onEdit: () => void
   onViewPayments: () => void
   onRecordPayment: () => void
+  onDelete?: () => void | Promise<void>
+  onCancel?: () => void | Promise<void>
+  onReopen?: () => void | Promise<void>
+  onMarkSent?: () => void | Promise<void>
 }
 
 export function SalesActionMenu({
@@ -28,20 +33,80 @@ export function SalesActionMenu({
   onEdit,
   onViewPayments,
   onRecordPayment,
+  onDelete,
+  onCancel,
+  onReopen,
+  onMarkSent,
 }: SalesActionMenuProps) {
   const t = useTranslations()
+  const translateError = useActionError()
   const router = useRouter()
+
+  const handleDelete = onDelete
+    ? async () => {
+        await onDelete()
+      }
+    : async () => {
+        const result = await deleteInvoice({ invoiceId: invoice.id })
+        if (result.serverError)
+          toast.error(translateError(result.serverError.code))
+        else if (result.data) toast.success(t("sales.invoiceDeleted"))
+        else toast.error(t("sales.failedToDelete"))
+      }
+
+  const handleMarkSent = onMarkSent
+    ? async () => {
+        await onMarkSent()
+      }
+    : async () => {
+        const result = await markInvoiceAsSent({
+          invoiceId: invoice.id,
+        })
+        if (result.serverError)
+          toast.error(translateError(result.serverError.code))
+        else if (result.data) {
+          toast.success(t("sales.invoiceSent"))
+          router.refresh()
+        } else toast.error(t("common.somethingWentWrong"))
+      }
+
+  const handleCancel = onCancel
+    ? async () => {
+        await onCancel()
+      }
+    : async () => {
+        const result = await cancelInvoice({
+          invoiceId: invoice.id,
+        })
+        if (result.serverError)
+          toast.error(translateError(result.serverError.code))
+        else if (result.data) {
+          toast.success(t("sales.invoiceCancelled"))
+          router.refresh()
+        } else toast.error(t("common.somethingWentWrong"))
+      }
+
+  const handleReopen = onReopen
+    ? async () => {
+        await onReopen()
+      }
+    : async () => {
+        const result = await reopenInvoice({
+          invoiceId: invoice.id,
+        })
+        if (result.serverError)
+          toast.error(translateError(result.serverError.code))
+        else if (result.data) {
+          toast.success(t("sales.invoiceReopened"))
+          router.refresh()
+        } else toast.error(t("common.somethingWentWrong"))
+      }
 
   return (
     <ActionMenu
       entityName={t("invoiceItem.invoice")}
       onEdit={permissions.includes("sales:edit") ? onEdit : undefined}
-      onDelete={async () => {
-        const result = await deleteInvoice(invoice.id)
-        if (!result.success)
-          toast.error(result.error || t("sales.failedToDelete"))
-        else toast.success(t("sales.invoiceDeleted"))
-      }}
+      onDelete={handleDelete}
       canDelete={permissions.includes("sales:delete")}
     >
       <DropdownMenuItem onClick={onViewPayments}>
@@ -49,24 +114,12 @@ export function SalesActionMenu({
         {t("sales.viewPayments")}
       </DropdownMenuItem>
       {invoice.status === "draft" && (
-        <DropdownMenuItem
-          onClick={async () => {
-            const result = await markInvoiceAsSent(invoice.id)
-            if (!result.success)
-              toast.error(
-                result.error || t("common.somethingWentWrong")
-              )
-            else {
-              toast.success(t("sales.invoiceSent"))
-              router.refresh()
-            }
-          }}
-        >
+        <DropdownMenuItem onClick={handleMarkSent}>
           <Send className="mr-2 h-4 w-4" />
           {t("sales.sendInvoice")}
         </DropdownMenuItem>
       )}
-      {permissions.includes("sales:record-payment") &&
+      {permissions.includes("sales:create") &&
         invoice.status !== "paid" &&
         invoice.status !== "cancelled" && (
           <DropdownMenuItem onClick={onRecordPayment}>
@@ -77,37 +130,13 @@ export function SalesActionMenu({
       {invoice.status !== "cancelled" &&
         invoice.status !== "paid" &&
         permissions.includes("sales:edit") && (
-          <DropdownMenuItem
-            onClick={async () => {
-              const result = await cancelInvoice(invoice.id)
-              if (!result.success)
-                toast.error(
-                  result.error || t("common.somethingWentWrong")
-                )
-              else {
-                toast.success(t("sales.invoiceCancelled"))
-                router.refresh()
-              }
-            }}
-          >
+          <DropdownMenuItem onClick={handleCancel}>
             <X className="mr-2 h-4 w-4" />
             {t("sales.cancelInvoice")}
           </DropdownMenuItem>
         )}
       {invoice.status === "cancelled" && (
-        <DropdownMenuItem
-          onClick={async () => {
-            const result = await reopenInvoice(invoice.id)
-            if (!result.success)
-              toast.error(
-                result.error || t("common.somethingWentWrong")
-              )
-            else {
-              toast.success(t("sales.invoiceReopened"))
-              router.refresh()
-            }
-          }}
-        >
+        <DropdownMenuItem onClick={handleReopen}>
           <Undo2 className="mr-2 h-4 w-4" />
           {t("sales.reopenInvoice")}
         </DropdownMenuItem>

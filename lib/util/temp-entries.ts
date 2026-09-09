@@ -1,5 +1,5 @@
 import type { ActivityFormData } from "@/lib/actions/activities"
-import type { InvoiceFormData } from "@/lib/actions/sales"
+import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type {
   ClientActivity,
   ClientReminder,
