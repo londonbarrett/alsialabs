@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
@@ -33,25 +33,18 @@ vi.mock("@/lib/drizzle/client", async () => {
   return { db }
 })
 
-import * as schema from "@/lib/drizzle/schema"
-import { auth, hasPermission } from "@/lib/auth"
 import { getEffectiveStoreId } from "@/lib/actions/stores"
+import { auth, hasPermission } from "@/lib/auth"
+import * as schema from "@/lib/drizzle/schema"
 import {
-  getClientInvoices,
-  getClientPayments,
-  getMyInvoices,
-  getMyPayments,
-  getMyInvoiceDetails,
-  getInvoices,
-  getInvoiceProducts,
-  getInvoiceItems,
-  getInvoicePayments,
-  createInvoice,
-  updateInvoice,
   cancelInvoice,
-  reopenInvoice,
-  markInvoiceAsSent,
+  createInvoice,
   deleteInvoice,
+  getClientInvoices,
+  getInvoices,
+  getMyInvoiceDetails,
+  getMyInvoices,
+  updateInvoice,
 } from "./invoices"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
@@ -88,7 +81,12 @@ describe("invoices actions", () => {
     vi.clearAllMocks()
     state.mock.resetMocks()
     mockAuth.mockResolvedValue({
-      user: { id: USER_ID, role: "admin", name: "Test", email: "test@test.com" },
+      user: {
+        id: USER_ID,
+        role: "admin",
+        name: "Test",
+        email: "test@test.com",
+      },
       expires: new Date(Date.now() + 86400000).toISOString(),
     })
     mockHasPermission.mockResolvedValue(true)
@@ -97,7 +95,9 @@ describe("invoices actions", () => {
 
   describe("getClientInvoices", () => {
     it("returns invoices for client", async () => {
-      state.mock.onSelect(schema.clientsTable).respond([{ id: CLIENT_ID }])
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
       state.mock.onSelect(schema.invoicesTable).respond([
         {
           id: INVOICE_ID,
@@ -125,7 +125,12 @@ describe("invoices actions", () => {
 
     it("returns FORBIDDEN when user does not own client", async () => {
       mockAuth.mockResolvedValue({
-        user: { id: USER_ID, role: "user", name: "Test", email: "test@test.com" },
+        user: {
+          id: USER_ID,
+          role: "user",
+          name: "Test",
+          email: "test@test.com",
+        },
         expires: new Date(Date.now() + 86400000).toISOString(),
       })
       state.mock.onSelect(schema.clientsTable).respond([])
@@ -138,7 +143,9 @@ describe("invoices actions", () => {
 
   describe("getMyInvoices", () => {
     it("returns invoices for current user", async () => {
-      state.mock.onSelect(schema.clientsTable).respond([{ id: CLIENT_ID }])
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
       state.mock.onSelect(schema.invoicesTable).respond([
         {
           id: INVOICE_ID,
@@ -180,7 +187,9 @@ describe("invoices actions", () => {
 
   describe("getMyInvoiceDetails", () => {
     it("returns invoice details", async () => {
-      state.mock.onSelect(schema.clientsTable).respond([{ id: CLIENT_ID }])
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
       state.mock.onSelect(schema.invoicesTable).respond([
         {
           id: INVOICE_ID,
@@ -207,7 +216,9 @@ describe("invoices actions", () => {
       state.mock.onSelect(schema.invoiceItemsTable).respond([])
       state.mock.onSelect(schema.invoicePaymentsTable).respond([])
 
-      const result = await getMyInvoiceDetails({ invoiceId: INVOICE_ID })
+      const result = await getMyInvoiceDetails({
+        invoiceId: INVOICE_ID,
+      })
 
       expect(result.data).toBeDefined()
     })
@@ -215,7 +226,9 @@ describe("invoices actions", () => {
     it("returns FORBIDDEN when no client", async () => {
       state.mock.onSelect(schema.clientsTable).respond([])
 
-      const result = await getMyInvoiceDetails({ invoiceId: INVOICE_ID })
+      const result = await getMyInvoiceDetails({
+        invoiceId: INVOICE_ID,
+      })
 
       expect(result.serverError).toEqual({ code: "FORBIDDEN" })
     })
@@ -277,7 +290,9 @@ describe("invoices actions", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       }
-      state.mock.onSelect(schema.invoicesTable).respond([overdueInvoice])
+      state.mock
+        .onSelect(schema.invoicesTable)
+        .respond([overdueInvoice])
 
       const result = await getInvoices()
 
@@ -308,7 +323,9 @@ describe("invoices actions", () => {
         updatedAt: new Date(),
       }
       state.mock.onInsert(schema.invoicesTable).respond([created])
-      state.mock.onInsert(schema.invoiceItemsTable).respond([{ id: "item-1" }])
+      state.mock
+        .onInsert(schema.invoiceItemsTable)
+        .respond([{ id: "item-1" }])
 
       const result = await createInvoice(validInvoiceData)
 
@@ -317,7 +334,10 @@ describe("invoices actions", () => {
     })
 
     it("creates invoice with initial payment", async () => {
-      const dataWithPayment = { ...validInvoiceData, paidAmount: "100.00" }
+      const dataWithPayment = {
+        ...validInvoiceData,
+        paidAmount: "100.00",
+      }
       const created = {
         id: INVOICE_ID,
         type: "product",
@@ -339,8 +359,12 @@ describe("invoices actions", () => {
         updatedAt: new Date(),
       }
       state.mock.onInsert(schema.invoicesTable).respond([created])
-      state.mock.onInsert(schema.invoicePaymentsTable).respond([{ id: "pay-1" }])
-      state.mock.onInsert(schema.invoiceItemsTable).respond([{ id: "item-1" }])
+      state.mock
+        .onInsert(schema.invoicePaymentsTable)
+        .respond([{ id: "pay-1" }])
+      state.mock
+        .onInsert(schema.invoiceItemsTable)
+        .respond([{ id: "item-1" }])
 
       const result = await createInvoice(dataWithPayment)
 
@@ -386,7 +410,9 @@ describe("invoices actions", () => {
       }
       state.mock.onUpdate(schema.invoicesTable).respond([updated])
       state.mock.onDelete(schema.invoiceItemsTable).respond([])
-      state.mock.onInsert(schema.invoiceItemsTable).respond([{ id: "item-1" }])
+      state.mock
+        .onInsert(schema.invoiceItemsTable)
+        .respond([{ id: "item-1" }])
 
       const result = await updateInvoice({
         invoiceId: INVOICE_ID,
@@ -411,7 +437,9 @@ describe("invoices actions", () => {
 
   describe("cancelInvoice", () => {
     it("cancels invoice", async () => {
-      state.mock.onUpdate(schema.invoicesTable).respond([{ id: INVOICE_ID }])
+      state.mock
+        .onUpdate(schema.invoicesTable)
+        .respond([{ id: INVOICE_ID }])
 
       const result = await cancelInvoice({ invoiceId: INVOICE_ID })
 
@@ -422,7 +450,9 @@ describe("invoices actions", () => {
 
   describe("deleteInvoice", () => {
     it("deletes invoice", async () => {
-      state.mock.onDelete(schema.invoicesTable).respond([{ id: INVOICE_ID }])
+      state.mock
+        .onDelete(schema.invoicesTable)
+        .respond([{ id: INVOICE_ID }])
 
       const result = await deleteInvoice({ invoiceId: INVOICE_ID })
 
@@ -438,7 +468,9 @@ describe("invoices actions", () => {
 
       const result = await deleteInvoice({ invoiceId: INVOICE_ID })
 
-      expect(result.serverError).toEqual({ code: "CANNOT_DELETE_INVOICE" })
+      expect(result.serverError).toEqual({
+        code: "CANNOT_DELETE_INVOICE",
+      })
     })
   })
 })
