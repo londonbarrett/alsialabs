@@ -51,6 +51,7 @@ export function MyTasksList({
 }: MyTasksListProps) {
   const t = useTranslations()
   const [commentsTask, setCommentsTask] = useState<MyTask | undefined>()
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false)
 
   return (
     <Card>
@@ -178,7 +179,10 @@ export function MyTasksList({
                     <TableCell>
                       <Button
                         variant="secondary"
-                        onClick={() => setCommentsTask(task)}
+                        onClick={() => {
+                          setCommentsTask(task)
+                          setIsCommentsOpen(true)
+                        }}
                         className="gap-1.5"
                       >
                         <MessageSquare className="h-4 w-4" />
@@ -195,20 +199,22 @@ export function MyTasksList({
         )}
       </CardContent>
 
-      {commentsTask && (
-        <TaskCommentsPanel
-          taskId={commentsTask.id}
-          taskName={commentsTask.name}
-          description={commentsTask.description}
-          open={!!commentsTask}
-          onOpenChange={(open) => {
-            if (!open) setCommentsTask(undefined)
-          }}
-          currentUserId={currentUserId}
-          isOwner={isSuperUser || commentsTask.isOwner}
-          onCommentCountChange={onCommentCountChange}
-        />
-      )}
+      <TaskCommentsPanel
+        key={commentsTask?.id ?? "empty"}
+        taskId={commentsTask?.id ?? ""}
+        taskName={commentsTask?.name ?? ""}
+        description={commentsTask?.description}
+        open={isCommentsOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCommentsOpen(false)
+            setTimeout(() => setCommentsTask(undefined), 300)
+          }
+        }}
+        currentUserId={currentUserId}
+        isOwner={isSuperUser || commentsTask?.isOwner || false}
+        onCommentCountChange={onCommentCountChange}
+      />
     </Card>
   )
 }
