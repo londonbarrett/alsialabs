@@ -94,7 +94,18 @@ export function ExpenseForm({
           <Label htmlFor="categoryId">
             {t("projects.expenses.category")}
           </Label>
-          <Select value={categoryId} onValueChange={(value) => setCategoryId(value)}>
+          <Select
+            value={categoryId}
+            onValueChange={(value) => {
+              if (value) setCategoryId(value as string)
+            }}
+            items={categories.map((cat) => ({
+              value: cat.id,
+              label: t.has(`categoryNames.${cat.slug}`)
+                ? t(`categoryNames.${cat.slug}`)
+                : cat.name,
+            }))}
+          >
             <SelectTrigger
               id="categoryId"
               aria-invalid={!!errors.categoryId}

@@ -5,6 +5,7 @@ import { ChevronsUpDown, Store } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -101,9 +102,11 @@ export function StoreSwitcher({
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
           >
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              {t("switchStore")}
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                {t("switchStore")}
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             {stores.map((store) => (
               <DropdownMenuItem
                 key={store.id}

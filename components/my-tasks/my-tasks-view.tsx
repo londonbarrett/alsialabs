@@ -74,12 +74,14 @@ export function MyTasksView({
     })
   }
 
-  function handleStatusFilterChange(value: string) {
+  function handleStatusFilterChange(value: string | null) {
+    if (!value) return
     setStatusFilter(value)
     applyFilters(value, projectFilter)
   }
 
-  function handleProjectFilterChange(value: string) {
+  function handleProjectFilterChange(value: string | null) {
+    if (!value) return
     setProjectFilter(value)
     applyFilters(statusFilter, value)
   }
@@ -170,6 +172,12 @@ export function MyTasksView({
         <Select
           value={statusFilter}
           onValueChange={handleStatusFilterChange}
+          items={{
+            all: t("myTasks.allStatuses"),
+            ...Object.fromEntries(
+              ALL_TASK_STATUSES.map((s) => [s, t(`projects.tasks.status.${s}`)])
+            ),
+          }}
         >
           <SelectTrigger className="w-44">
             <SelectValue placeholder={t("myTasks.allStatuses")} />
@@ -191,6 +199,10 @@ export function MyTasksView({
         <Select
           value={projectFilter}
           onValueChange={handleProjectFilterChange}
+          items={{
+            all: t("myTasks.allProjects"),
+            ...Object.fromEntries(projects),
+          }}
         >
           <SelectTrigger className="w-56">
             <SelectValue placeholder={t("myTasks.allProjects")} />

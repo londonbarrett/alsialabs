@@ -212,7 +212,19 @@ export function TaskForm({
           <FieldLabel htmlFor="assignee">
             {t("projects.tasks.assignee")}
           </FieldLabel>
-          <Select value={assigneeId} onValueChange={(value) => setAssigneeId(value)}>
+          <Select
+            value={assigneeId}
+            onValueChange={(value) => {
+              if (value !== null) setAssigneeId(value as string)
+            }}
+            items={[
+              { value: "", label: t("projects.tasks.unassigned") },
+              ...projectMembers.map((m) => ({
+                value: m.userId,
+                label: m.userName || m.userEmail || m.userId,
+              })),
+            ]}
+          >
             <SelectTrigger id="assignee" className="w-full">
               <SelectValue
                 placeholder={t("projects.tasks.unassigned")}

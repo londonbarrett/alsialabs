@@ -82,7 +82,6 @@ export function ReminderDialog({
       description={
         reminder ? t('reminders.updateDetails') : t('reminders.setFollowUp')
       }
-      onInteractOutside={(e) => e.preventDefault()}
     >
       <form onSubmit={handleSubmit}>
         <FieldGroup>

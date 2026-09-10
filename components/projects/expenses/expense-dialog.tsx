@@ -30,7 +30,6 @@ export function ExpenseDialog({
       onOpenChange={onOpenChange}
       title={expense ? t("editExpense") : t("addExpense")}
       description={expense ? t("updateDetails") : t("fillDetails")}
-      onInteractOutside={(e) => e.preventDefault()}
     >
       <ExpenseForm
         expense={expense}

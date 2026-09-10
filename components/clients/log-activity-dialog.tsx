@@ -92,7 +92,6 @@ export function LogActivityDialog({
           ? t("activities.updateDetails")
           : t("activities.recordInteraction")
       }
-      onInteractOutside={(e) => e.preventDefault()}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">

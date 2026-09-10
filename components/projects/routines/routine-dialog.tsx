@@ -43,7 +43,6 @@ export function RoutineDialog({
       onOpenChange={onOpenChange}
       title={routine ? t("editRoutine") : t("addRoutine")}
       description={routine ? t("updateDetails") : t("fillDetails")}
-      onInteractOutside={(e) => e.preventDefault()}
     >
       <RoutineForm
         routine={routine}

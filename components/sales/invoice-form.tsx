@@ -400,7 +400,13 @@ export function InvoiceForm({
             <FieldLabel htmlFor="type">{t("sales.type")}</FieldLabel>
             <Select
               value={type}
-              onValueChange={(v: "product" | "service") => setType(v)}
+              onValueChange={(value: unknown) => {
+                if (typeof value === 'string' && (value === 'product' || value === 'service')) setType(value)
+              }}
+              items={[
+                { value: "product", label: t("sales.product") },
+                { value: "service", label: t("sales.service") },
+              ]}
             >
               <SelectTrigger
                 id="type"

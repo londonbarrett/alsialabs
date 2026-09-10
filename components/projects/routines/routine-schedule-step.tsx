@@ -28,12 +28,12 @@ interface RoutineScheduleStepProps {
   time: string
   startDate: string
   endDate: string
-  onRecurrenceChange: (value: string) => void
-  onIntervalChange: (value: string) => void
+  onRecurrenceChange: (value: string | null) => void
+  onIntervalChange: (value: string | null) => void
   onDayToggle: (day: string) => void
-  onTimeChange: (value: string) => void
-  onStartDateChange: (value: string) => void
-  onEndDateChange: (value: string) => void
+  onTimeChange: (value: string | null) => void
+  onStartDateChange: (value: string | null) => void
+  onEndDateChange: (value: string | null) => void
   onSubmit: () => void
   onBack: () => void
 }
@@ -95,7 +95,14 @@ export function RoutineScheduleStep({
           <FieldLabel htmlFor="recurrence">
             {t("projects.routines.recurrenceLabel")}
           </FieldLabel>
-          <Select value={recurrence} onValueChange={onRecurrenceChange}>
+          <Select
+            value={recurrence}
+            onValueChange={onRecurrenceChange}
+            items={[
+              { value: "daily", label: t("projects.routines.recurrence.daily") },
+              { value: "weekly", label: t("projects.routines.recurrence.weekly") },
+            ]}
+          >
             <SelectTrigger id="recurrence" className="w-full">
               <SelectValue />
             </SelectTrigger>

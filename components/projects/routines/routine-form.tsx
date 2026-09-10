@@ -128,11 +128,11 @@ export function RoutineForm({
           description={description}
           cost={cost}
           assigneeId={assigneeId}
-          onNameChange={setName}
-          onDescriptionChange={setDescription}
-          onCostChange={setCost}
-          onAssigneeChange={setAssigneeId}
-          onApplyTemplate={applyTemplate}
+          onNameChange={(value) => { if (value !== null) setName(value) }}
+          onDescriptionChange={(value) => { if (value !== null) setDescription(value) }}
+          onCostChange={(value) => { if (value !== null) setCost(value) }}
+          onAssigneeChange={(value) => { if (value !== null) setAssigneeId(value) }}
+          onApplyTemplate={(value) => { if (value !== null) applyTemplate(value) }}
           onNext={goNext}
           onCancel={onCancel}
         />
@@ -146,12 +146,12 @@ export function RoutineForm({
           time={time}
           startDate={startDate}
           endDate={endDate}
-          onRecurrenceChange={handleRecurrenceChange}
-          onIntervalChange={setInterval}
+          onRecurrenceChange={(value) => { if (value !== null) handleRecurrenceChange(value) }}
+          onIntervalChange={(value) => { if (value !== null) setInterval(value) }}
           onDayToggle={toggleWeekday}
-          onTimeChange={setTime}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
+          onTimeChange={(value) => { if (value !== null) setTime(value) }}
+          onStartDateChange={(value) => { if (value !== null) setStartDate(value) }}
+          onEndDateChange={(value) => { if (value !== null) setEndDate(value) }}
           onSubmit={submitRoutine}
           onBack={() => setStep(1)}
         />

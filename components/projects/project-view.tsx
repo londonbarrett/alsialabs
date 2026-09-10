@@ -78,7 +78,12 @@ export function ProjectView({ project, children }: ProjectViewProps) {
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" render={<Link href="/dashboard/projects" />}>
+        <Button
+          variant="ghost"
+          size="icon"
+          nativeButton={false}
+          render={<Link href="/dashboard/projects" />}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
