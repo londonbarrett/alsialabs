@@ -161,7 +161,7 @@ export function ProductForm({
         data-invalid={!!errors.store_id || undefined}
       >
         <Label htmlFor="store_id">{t("products.store")}</Label>
-        <Select value={storeId} onValueChange={setStoreId}>
+        <Select value={storeId} onValueChange={(value) => setStoreId(value)}>
           <SelectTrigger id="store_id" aria-invalid={!!errors.store_id}>
             <SelectValue placeholder={t("products.selectStore")} />
           </SelectTrigger>

@@ -52,7 +52,7 @@ export default async function RootLayout({
           >
             <NextIntlClientProvider messages={messages}>
               <SessionProvider>
-                <TooltipProvider delayDuration={0}>
+                <TooltipProvider delay={0}>
                   {children}
                 </TooltipProvider>
                 <Toaster richColors />

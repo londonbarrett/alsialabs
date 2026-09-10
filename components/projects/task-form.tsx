@@ -212,7 +212,7 @@ export function TaskForm({
           <FieldLabel htmlFor="assignee">
             {t("projects.tasks.assignee")}
           </FieldLabel>
-          <Select value={assigneeId} onValueChange={setAssigneeId}>
+          <Select value={assigneeId} onValueChange={(value) => setAssigneeId(value)}>
             <SelectTrigger id="assignee" className="w-full">
               <SelectValue
                 placeholder={t("projects.tasks.unassigned")}

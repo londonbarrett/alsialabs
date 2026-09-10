@@ -42,8 +42,8 @@ export function DashboardBreadcrumb() {
               {isLast ? (
                 <BreadcrumbPage>{label}</BreadcrumbPage>
               ) : (
-                <BreadcrumbLink asChild>
-                  <Link href={href}>{label}</Link>
+                <BreadcrumbLink render={<Link href={href} />}>
+                  {label}
                 </BreadcrumbLink>
               )}
             </BreadcrumbItem>,

@@ -94,7 +94,7 @@ export function ExpenseForm({
           <Label htmlFor="categoryId">
             {t("projects.expenses.category")}
           </Label>
-          <Select value={categoryId} onValueChange={setCategoryId}>
+          <Select value={categoryId} onValueChange={(value) => setCategoryId(value)}>
             <SelectTrigger
               id="categoryId"
               aria-invalid={!!errors.categoryId}

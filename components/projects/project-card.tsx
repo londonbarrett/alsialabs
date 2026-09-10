@@ -287,11 +287,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5">
-          <Button size="sm" asChild>
-            <Link href={`/dashboard/projects/${project.id}`}>
-              {t("projects.card.view")}{" "}
-              <ArrowRight className="size-4" />
-            </Link>
+          <Button size="sm" render={<Link href={`/dashboard/projects/${project.id}`} />}>
+            {t("projects.card.view")}{" "}
+            <ArrowRight className="size-4" />
           </Button>
         </div>
       </CardFooter>

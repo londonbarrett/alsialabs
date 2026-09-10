@@ -136,7 +136,7 @@ export function ProjectForm({
         data-invalid={!!errors.categoryId || undefined}
       >
         <Label htmlFor="categoryId">{t("projects.category")}</Label>
-        <Select value={categoryId} onValueChange={setCategoryId}>
+        <Select value={categoryId} onValueChange={(value) => setCategoryId(value)}>
           <SelectTrigger
             id="categoryId"
             aria-invalid={!!errors.categoryId}
@@ -173,7 +173,7 @@ export function ProjectForm({
       {project && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="status">{t("projects.statusLabel")}</Label>
-          <Select value={status} onValueChange={setStatus}>
+          <Select value={status} onValueChange={(value) => setStatus(value)}>
             <SelectTrigger id="status">
               <SelectValue />
             </SelectTrigger>
