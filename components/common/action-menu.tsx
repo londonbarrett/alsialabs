@@ -45,17 +45,19 @@ export function ActionMenu({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t("actionMenu.actionsFor", {
-              name: entityName,
-            })}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("actionMenu.actionsFor", {
+                name: entityName,
+              })}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          }
+        />
         <DropdownMenuContent align="end" className="w-auto">
           {children}
           {onView && (

@@ -69,21 +69,21 @@ export function AppSidebar({
                   return (
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton
-                        asChild
+                        render={
+                          <Link
+                            href={item.url}
+                            onClick={() =>
+                              isMobile && setOpenMobile(false)
+                            }
+                          />
+                        }
                         isActive={
                           pathname === item.url ||
                           pathname.startsWith(`${item.url}/`)
                         }
                       >
-                        <Link
-                          href={item.url}
-                          onClick={() =>
-                            isMobile && setOpenMobile(false)
-                          }
-                        >
-                          <Icon />
-                          <span>{t(item.label)}</span>
-                        </Link>
+                        <Icon />
+                        <span>{t(item.label)}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )

@@ -161,8 +161,18 @@ export function ProductForm({
         data-invalid={!!errors.store_id || undefined}
       >
         <Label htmlFor="store_id">{t("products.store")}</Label>
-        <Select value={storeId} onValueChange={setStoreId}>
-          <SelectTrigger id="store_id" aria-invalid={!!errors.store_id}>
+        <Select
+          value={storeId}
+          onValueChange={(value) => {
+            if (value) setStoreId(value as string)
+          }}
+          items={stores.map((s) => ({ value: s.id, label: s.name }))}
+        >
+          <SelectTrigger
+            className="w-full"
+            id="store_id"
+            aria-invalid={!!errors.store_id}
+          >
             <SelectValue placeholder={t("products.selectStore")} />
           </SelectTrigger>
           <SelectContent>

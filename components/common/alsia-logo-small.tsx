@@ -1,4 +1,4 @@
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 
 export type LogoSmallProps = {
   className?: string

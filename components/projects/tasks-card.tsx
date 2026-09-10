@@ -74,6 +74,7 @@ export function TasksCard({
   const [commentsTask, setCommentsTask] = useState<
     TaskWithCommentCount | undefined
   >()
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false)
   const canMutate =
     isOwner && (canEdit || permissions.includes("projects:delete"))
   const translateError = useActionError()
@@ -317,7 +318,10 @@ export function TasksCard({
             onPriorityChange={handleTaskPriorityChange}
             onDelete={handleDeleteTask}
             onEdit={openEdit}
-            onComments={setCommentsTask}
+            onComments={(task) => {
+              setCommentsTask(task)
+              setIsCommentsOpen(true)
+            }}
           />
         )}
       </CardContent>
@@ -330,22 +334,24 @@ export function TasksCard({
         onSubmit={handleTaskSubmit}
       />
 
-      {commentsTask && (
-        <TaskCommentsPanel
-          taskId={commentsTask.id}
-          taskName={commentsTask.name}
-          description={commentsTask.description}
-          open={!!commentsTask}
-          onOpenChange={(open) => {
-            if (!open) setCommentsTask(undefined)
-          }}
-          currentUserId={currentUserId}
-          isOwner={isOwner}
-          onCommentCountChange={(taskId, delta) =>
-            dispatch({ type: "updateCommentCount", taskId, delta })
+      <TaskCommentsPanel
+        key={commentsTask?.id ?? "empty"}
+        taskId={commentsTask?.id ?? ""}
+        taskName={commentsTask?.name ?? ""}
+        description={commentsTask?.description}
+        open={isCommentsOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCommentsOpen(false)
+            setTimeout(() => setCommentsTask(undefined), 300)
           }
-        />
-      )}
+        }}
+        currentUserId={currentUserId}
+        isOwner={isOwner}
+        onCommentCountChange={(taskId, delta) =>
+          dispatch({ type: "updateCommentCount", taskId, delta })
+        }
+      />
     </Card>
   )
 }

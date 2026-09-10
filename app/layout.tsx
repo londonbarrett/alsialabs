@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Geist_Mono, Inter } from "next/font/google"
 import "./globals.css"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { Toaster } from "sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "next-themes"
@@ -52,7 +52,7 @@ export default async function RootLayout({
           >
             <NextIntlClientProvider messages={messages}>
               <SessionProvider>
-                <TooltipProvider delayDuration={0}>
+                <TooltipProvider delay={0}>
                   {children}
                 </TooltipProvider>
                 <Toaster richColors />

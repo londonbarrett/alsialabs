@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import {
   ArrowLeft,
   ClipboardList,
@@ -78,10 +78,13 @@ export function ProjectView({ project, children }: ProjectViewProps) {
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/projects">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          nativeButton={false}
+          render={<Link href="/dashboard/projects" />}
+        >
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

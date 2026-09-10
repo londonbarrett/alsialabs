@@ -42,7 +42,16 @@ export function TaskStatusSelect({
   const t = useTranslations()
 
   return (
-    <Select value={status} onValueChange={onStatusChange}>
+    <Select
+      value={status}
+      onValueChange={(value: unknown) => {
+        if (typeof value === 'string' && value) onStatusChange(value as TaskStatus)
+      }}
+      items={allowedStatuses.map((s) => ({
+        value: s,
+        label: t(`projects.tasks.status.${s}`),
+      }))}
+    >
       <SelectTrigger
         id={id}
         className={fullWidth ? "w-full" : "h-7 w-35"}

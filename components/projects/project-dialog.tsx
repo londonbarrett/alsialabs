@@ -29,7 +29,7 @@ export function ProjectDialog({
   const t = useTranslations("projects")
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {project ? t("editProject") : t("addProject")}

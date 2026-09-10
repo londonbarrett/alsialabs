@@ -152,13 +152,15 @@ export function InvoicesCard({
             <div className="flex flex-col gap-4">
               <InvoiceFilters
                 searchQuery={searchQuery}
-                onSearchQueryChange={setSearchQuery}
+                onSearchQueryChange={(value) => setSearchQuery(value ?? "")}
                 statusFilter={statusFilter}
-                onStatusFilterChange={setStatusFilter}
+                onStatusFilterChange={(value) => {
+                  if (value !== null) setStatusFilter(value)
+                }}
                 dateFrom={dateFrom}
-                onDateFromChange={setDateFrom}
+                onDateFromChange={(value) => setDateFrom(value ?? "")}
                 dateTo={dateTo}
-                onDateToChange={setDateTo}
+                onDateToChange={(value) => setDateTo(value ?? "")}
                 isFiltered={isFiltered}
                 onClearFilters={clearFilters}
                 resultCount={filteredInvoices.length}

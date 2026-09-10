@@ -96,12 +96,7 @@ export function PermissionMatrix({ matrix, roles }: Props) {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus />
-              {t('addModule')}
-            </Button>
-          </DialogTrigger>
+          <DialogTrigger render={<Button><Plus />{t('addModule')}</Button>} />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t('addModuleTitle')}</DialogTitle>

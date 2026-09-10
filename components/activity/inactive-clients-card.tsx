@@ -59,7 +59,8 @@ export function InactiveClientsCard({
   const [clients, setClients] = useState<InactiveClient[]>(initialData)
   const [loading, setLoading] = useState(false)
 
-  async function handlePeriodChange(value: string) {
+  async function handlePeriodChange(value: string | null) {
+    if (!value) return
     setPeriod(value)
     setLoading(true)
     try {
@@ -102,7 +103,14 @@ export function InactiveClientsCard({
               >
                 {t("activity.period")}
               </Label>
-              <Select value={period} onValueChange={handlePeriodChange}>
+              <Select
+                value={period}
+                onValueChange={handlePeriodChange}
+                items={PERIOD_OPTIONS.map((p) => ({
+                  value: p.value,
+                  label: t(`activity.${p.labelKey}`),
+                }))}
+              >
                 <SelectTrigger id="period-select" className="w-40">
                   <SelectValue />
                 </SelectTrigger>

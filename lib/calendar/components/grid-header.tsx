@@ -1,5 +1,5 @@
 import { memo } from "react"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { capitalize, isToday } from "../util/date"
 
 interface GridHeaderProps {

@@ -24,7 +24,7 @@ import type {
   TaskStatus,
 } from "@/lib/drizzle/schema"
 import type { ExpenseWithCategory, ProjectMember } from "@/lib/types"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"

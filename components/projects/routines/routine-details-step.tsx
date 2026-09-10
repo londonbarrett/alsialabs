@@ -35,10 +35,10 @@ interface RoutineDetailsStepProps {
   description: string
   cost: string
   assigneeId: string
-  onNameChange: (value: string) => void
-  onDescriptionChange: (value: string) => void
-  onCostChange: (value: string) => void
-  onAssigneeChange: (value: string) => void
+  onNameChange: (value: string | null) => void
+  onDescriptionChange: (value: string | null) => void
+  onCostChange: (value: string | null) => void
+  onAssigneeChange: (value: string | null) => void
   onApplyTemplate: (templateId: string) => void
   onNext: () => void
   onCancel: () => void
@@ -62,7 +62,7 @@ export function RoutineDetailsStep({
   const t = useTranslations()
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  function handleNameChange(value: string) {
+  function handleNameChange(value: string | null) {
     onNameChange(value)
     setErrors((prev) => {
       const next = { ...prev }
@@ -88,7 +88,15 @@ export function RoutineDetailsStep({
             <FieldLabel htmlFor="template">
               {t("projects.routines.template")}
             </FieldLabel>
-            <Select onValueChange={onApplyTemplate}>
+            <Select
+              onValueChange={(value: unknown) => {
+                if (typeof value === 'string' && value) onApplyTemplate(value)
+              }}
+              items={routineTemplates.map((tpl) => ({
+                value: tpl.id,
+                label: t(tpl.nameKey),
+              }))}
+            >
               <SelectTrigger id="template" className="w-full">
                 <SelectValue
                   placeholder={t("projects.routines.noTemplate")}
@@ -136,7 +144,17 @@ export function RoutineDetailsStep({
           <FieldLabel htmlFor="assignee">
             {t("projects.routines.assignee")}
           </FieldLabel>
-          <Select value={assigneeId} onValueChange={onAssigneeChange}>
+          <Select
+            value={assigneeId}
+            onValueChange={onAssigneeChange}
+            items={[
+              { value: "", label: t("projects.routines.unassigned") },
+              ...projectMembers.map((m) => ({
+                value: m.userId,
+                label: m.userName || m.userEmail || m.userId,
+              })),
+            ]}
+          >
             <SelectTrigger id="assignee" className="w-full">
               <SelectValue
                 placeholder={t("projects.routines.unassigned")}

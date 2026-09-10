@@ -15,7 +15,6 @@ interface DialogProps {
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
   className?: string
-  onInteractOutside?: (event: Event) => void
 }
 
 export function Dialog({
@@ -25,14 +24,10 @@ export function Dialog({
   onOpenChange,
   children,
   className,
-  onInteractOutside,
 }: DialogProps) {
   return (
     <UIDialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={className ?? "sm:max-w-md"}
-        onInteractOutside={onInteractOutside}
-      >
+      <DialogContent className={className ?? "sm:max-w-md"}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? (

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 
 export interface MoneyInputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,

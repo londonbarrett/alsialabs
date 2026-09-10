@@ -136,7 +136,18 @@ export function ProjectForm({
         data-invalid={!!errors.categoryId || undefined}
       >
         <Label htmlFor="categoryId">{t("projects.category")}</Label>
-        <Select value={categoryId} onValueChange={setCategoryId}>
+        <Select
+          value={categoryId}
+          onValueChange={(value) => {
+            if (value) setCategoryId(value as string)
+          }}
+          items={categories.map((c) => ({
+            value: c.id,
+            label: t.has(`categoryNames.${c.slug}`)
+              ? t(`categoryNames.${c.slug}`)
+              : c.name,
+          }))}
+        >
           <SelectTrigger
             id="categoryId"
             aria-invalid={!!errors.categoryId}
@@ -173,7 +184,18 @@ export function ProjectForm({
       {project && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="status">{t("projects.statusLabel")}</Label>
-          <Select value={status} onValueChange={setStatus}>
+          <Select
+            value={status}
+            onValueChange={(value) => {
+              if (value) setStatus(value as string)
+            }}
+            items={[
+              { value: "active", label: t("projects.status.active") },
+              { value: "completed", label: t("projects.status.completed") },
+              { value: "cancelled", label: t("projects.status.cancelled") },
+              { value: "archived", label: t("projects.status.archived") },
+            ]}
+          >
             <SelectTrigger id="status">
               <SelectValue />
             </SelectTrigger>

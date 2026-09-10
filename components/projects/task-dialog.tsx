@@ -42,7 +42,6 @@ export function TaskDialog({
       onOpenChange={onOpenChange}
       title={task ? t("editTask") : t("addTask")}
       description={task ? t("updateDetails") : t("fillDetails")}
-      onInteractOutside={(e) => e.preventDefault()}
     >
       <TaskForm
         task={task}

@@ -60,7 +60,10 @@ export function LineItemsRow({
           <div className="flex flex-col gap-1">
             <Select
               value={item.productId ?? ""}
-              onValueChange={(v) => onProductSelect(item.key, v)}
+              onValueChange={(value) => {
+                if (value) onProductSelect(item.key, value as string)
+              }}
+              items={products.map((p) => ({ value: p.id, label: p.name }))}
             >
               <SelectTrigger
                 className="h-8 w-full text-xs"

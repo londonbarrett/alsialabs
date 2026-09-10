@@ -30,13 +30,13 @@ const invoiceStatuses: InvoiceStatus[] = [
 
 interface InvoiceFiltersProps {
   searchQuery: string
-  onSearchQueryChange: (value: string) => void
+  onSearchQueryChange: (value: string | null) => void
   statusFilter: string
-  onStatusFilterChange: (value: string) => void
+  onStatusFilterChange: (value: string | null) => void
   dateFrom: string
-  onDateFromChange: (value: string) => void
+  onDateFromChange: (value: string | null) => void
   dateTo: string
-  onDateToChange: (value: string) => void
+  onDateToChange: (value: string | null) => void
   isFiltered: boolean
   onClearFilters: () => void
   resultCount: number
@@ -101,7 +101,16 @@ export function InvoiceFilters({
         >
           {t("sales.status")}
         </Label>
-        <Select value={statusFilter} onValueChange={onStatusFilterChange}>
+        <Select
+          value={statusFilter}
+          onValueChange={onStatusFilterChange}
+          items={{
+            all: t("sales.allStatuses"),
+            ...Object.fromEntries(
+              invoiceStatuses.map((s) => [s, t(`sales.statuses.${s}`)])
+            ),
+          }}
+        >
           <SelectTrigger
             id="status-filter"
             className="w-44"

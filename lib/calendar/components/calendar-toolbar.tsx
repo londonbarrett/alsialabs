@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { ChevronLeft, ChevronRight, Loader2Icon } from "lucide-react"
 import { memo } from "react"
 import type { CalendarView } from "../types"

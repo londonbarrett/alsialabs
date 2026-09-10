@@ -21,7 +21,7 @@ import {
   ALL_TASK_STATUSES,
   COLLABORATOR_TASK_STATUSES,
 } from "@/lib/schemas/task"
-import { isTaskOverdue } from "@/lib/util/utils"
+import { isTaskOverdue } from "@/lib/util/tasks"
 import type { TaskWithCommentCount } from "@/reducers/task-reducer"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"

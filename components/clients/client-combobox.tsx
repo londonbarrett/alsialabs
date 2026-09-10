@@ -7,7 +7,7 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  ComboboxStatus,
+
 } from "@/components/ui/combobox"
 import {
   Item,
@@ -93,12 +93,12 @@ export function ClientCombobox({
         />
         <ComboboxContent>
           {isPending && (
-            <ComboboxStatus>
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">
               <span className="flex items-center gap-2">
                 <Spinner className="size-3" />
                 {t("searching")}
               </span>
-            </ComboboxStatus>
+            </div>
           )}
           <ComboboxEmpty>{t("noClientsFound")}</ComboboxEmpty>
           <ComboboxList>

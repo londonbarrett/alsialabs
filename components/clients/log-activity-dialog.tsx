@@ -10,7 +10,7 @@ import type {
   UpsertActivityResult,
 } from "@/lib/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 
 const activityTypes = ["call", "email", "meeting", "note"] as const
 
@@ -92,7 +92,6 @@ export function LogActivityDialog({
           ? t("activities.updateDetails")
           : t("activities.recordInteraction")
       }
-      onInteractOutside={(e) => e.preventDefault()}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">

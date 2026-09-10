@@ -34,7 +34,7 @@ export function ProductDialog({
   const t = useTranslations("products")
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {product ? t("editProduct") : t("addProduct")}

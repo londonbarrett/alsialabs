@@ -29,7 +29,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { type Project } from "@/lib/types"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 
 const statusConfig: Record<
   string,
@@ -287,11 +287,13 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5">
-          <Button size="sm" asChild>
-            <Link href={`/dashboard/projects/${project.id}`}>
-              {t("projects.card.view")}{" "}
-              <ArrowRight className="size-4" />
-            </Link>
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={<Link href={`/dashboard/projects/${project.id}`} />}
+          >
+            {t("projects.card.view")}{" "}
+            <ArrowRight className="size-4" />
           </Button>
         </div>
       </CardFooter>
