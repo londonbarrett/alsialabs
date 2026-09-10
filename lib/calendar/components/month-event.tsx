@@ -1,7 +1,7 @@
 "use client"
 
 import { EventDetailDialog } from "@/components/calendar/event-detail-dialog"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { RefreshCw } from "lucide-react"
 import { memo, useState } from "react"
 import type { CalendarEvent } from "../types"

@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { CheckIcon } from "lucide-react"
 import { useTranslations } from "next-intl"
 

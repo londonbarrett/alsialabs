@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table"
 import type { MyTask } from "@/lib/actions/tasks"
 import type { TaskStatus } from "@/lib/drizzle/schema"
-import { isTaskOverdue } from "@/lib/util/utils"
+import { isTaskOverdue } from "@/lib/util/tasks"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"

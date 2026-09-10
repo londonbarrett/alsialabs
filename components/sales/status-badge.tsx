@@ -1,7 +1,7 @@
 "use client"
 
 import { useTranslations } from "next-intl"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 
 const statusStyles: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700",

@@ -5,7 +5,7 @@ import {
   PROJECT_COLORS,
   PROJECT_COLOR_NAME_KEYS,
 } from "@/components/projects/colors"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { useTranslations } from "next-intl"
 
 interface ProjectColorFieldProps {

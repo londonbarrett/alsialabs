@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { memo, useMemo } from "react"
 import type { CalendarEvent, CalendarLabels } from "../types"
 import {

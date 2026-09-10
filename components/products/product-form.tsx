@@ -168,7 +168,11 @@ export function ProductForm({
           }}
           items={stores.map((s) => ({ value: s.id, label: s.name }))}
         >
-          <SelectTrigger id="store_id" aria-invalid={!!errors.store_id}>
+          <SelectTrigger
+            className="w-full"
+            id="store_id"
+            aria-invalid={!!errors.store_id}
+          >
             <SelectValue placeholder={t("products.selectStore")} />
           </SelectTrigger>
           <SelectContent>

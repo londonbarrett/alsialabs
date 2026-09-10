@@ -7,7 +7,7 @@ import {
   Eye,
   ArrowRightToLine,
 } from "lucide-react"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import type { CalendarEvent } from "../types"
 
 const taskStatusTextColors: Record<string, string> = {

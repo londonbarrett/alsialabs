@@ -10,7 +10,7 @@ import type {
   UpsertActivityResult,
 } from "@/lib/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 
 const activityTypes = ["call", "email", "meeting", "note"] as const
 

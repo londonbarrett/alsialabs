@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 
 function LoadingBar({ className }: { className?: string }) {

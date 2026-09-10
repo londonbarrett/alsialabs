@@ -25,7 +25,7 @@ import {
   completeReminder,
   upsertReminder,
 } from "@/lib/actions/reminders"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import { Bell, BellOff, Check, Pencil } from "lucide-react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"

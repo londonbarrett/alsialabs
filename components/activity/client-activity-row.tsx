@@ -24,7 +24,7 @@ import {
   buildTempActivity,
   buildTempReminder,
 } from "@/lib/util/temp-entries"
-import { cn } from "@/lib/util/utils"
+import { cn } from "cn"
 import {
   Bell,
   ChevronDown,
