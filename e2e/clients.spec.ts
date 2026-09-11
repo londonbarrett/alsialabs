@@ -46,7 +46,7 @@ test.describe("Clients", () => {
   })
 
   test("redirects unauthenticated users to login", async ({ page }) => {
-    await page.goto("/dashboard/clients")
+    await page.goto("/app/clientes")
     await page.waitForURL("**/login")
     await expect(
       page.getByRole("heading", { name: /Sign in/i })
@@ -56,7 +56,7 @@ test.describe("Clients", () => {
   test.describe("authenticated as super", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "super")
-      await page.goto("/dashboard/clients", { timeout: 60000 })
+      await page.goto("/app/clientes", { timeout: 60000 })
     })
 
     test("shows the clients page with table", async ({ page }) => {
@@ -167,7 +167,7 @@ test.describe("Clients", () => {
   test.describe("authenticated as admin", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "admin")
-      await page.goto("/dashboard/clients", { timeout: 60000 })
+      await page.goto("/app/clientes", { timeout: 60000 })
     })
 
     test("shows the clients page with table", async ({ page }) => {
@@ -193,7 +193,7 @@ test.describe("Clients", () => {
   test.describe("authenticated as user", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "user")
-      await page.goto("/dashboard/clients", { timeout: 60000 })
+      await page.goto("/app/clientes", { timeout: 60000 })
     })
 
     test("shows forbidden page for user without clients:view", async ({
@@ -208,7 +208,7 @@ test.describe("Clients", () => {
     test("dashboard sidebar hides Clients link for user without clients:view", async ({
       page,
     }) => {
-      await page.goto("/dashboard", { timeout: 60000 })
+      await page.goto("/app", { timeout: 60000 })
       await expect(
         page.getByRole("link", { name: "Clients" })
       ).not.toBeVisible()

@@ -471,7 +471,7 @@ export const getInvoicePayments = sessionAction
 export const createInvoice = sessionAction
   .metadata({
     permission: { module: "sales", action: "create" },
-    revalidate: ["/dashboard/sales"],
+    revalidate: ["/app/ventas"],
   })
   .inputSchema(createInvoiceSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -547,7 +547,7 @@ export const createInvoice = sessionAction
 export const updateInvoice = sessionAction
   .metadata({
     permission: { module: "sales", action: "edit" },
-    revalidate: ["/dashboard/sales"],
+    revalidate: ["/app/ventas"],
   })
   .inputSchema(updateInvoiceSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -622,7 +622,7 @@ export const updateInvoice = sessionAction
 export const cancelInvoice = sessionAction
   .metadata({
     permission: { module: "sales", action: "edit" },
-    revalidate: ["/dashboard/sales"],
+    revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
   .action(async ({ parsedInput }) => {
@@ -643,7 +643,7 @@ export const cancelInvoice = sessionAction
 export const reopenInvoice = sessionAction
   .metadata({
     permission: { module: "sales", action: "edit" },
-    revalidate: ["/dashboard/sales"],
+    revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
   .action(async ({ parsedInput }) => {
@@ -664,7 +664,7 @@ export const reopenInvoice = sessionAction
 export const markInvoiceAsSent = sessionAction
   .metadata({
     permission: { module: "sales", action: "edit" },
-    revalidate: ["/dashboard/sales"],
+    revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
   .action(async ({ parsedInput }) => {
@@ -685,7 +685,7 @@ export const markInvoiceAsSent = sessionAction
 export const deleteInvoice = sessionAction
   .metadata({
     permission: { module: "sales", action: "delete" },
-    revalidate: ["/dashboard/sales"],
+    revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
   .action(async ({ parsedInput }) => {

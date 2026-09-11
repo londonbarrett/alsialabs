@@ -178,7 +178,7 @@ export function ClientListView({
               }
             }}
             onView={(client) =>
-              router.push("/dashboard/clients/" + client.id)
+              router.push("/app/clientes/" + client.id)
             }
           />
         </CardContent>

@@ -14,7 +14,7 @@ export default async function Home() {
           {t("subtitle")}
         </p>
         <Link
-          href="/dashboard"
+          href="/app"
           className="inline-flex items-center justify-center rounded-md bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90"
         >
           {t("openDashboard")}

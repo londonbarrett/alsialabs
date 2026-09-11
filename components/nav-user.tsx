@@ -80,7 +80,7 @@ export function NavUser({
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/dashboard/profile" />}>
+            <DropdownMenuItem render={<Link href="/app/perfil" />}>
               <User />
               {t('sidebar.profile')}
             </DropdownMenuItem>

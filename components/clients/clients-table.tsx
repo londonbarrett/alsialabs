@@ -61,7 +61,7 @@ export function ClientsTable({
             >
               <TableCell>
                 <Link
-                  href={`/dashboard/clients/${client.id}`}
+                  href={`/app/clientes/${client.id}`}
                   className="hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >

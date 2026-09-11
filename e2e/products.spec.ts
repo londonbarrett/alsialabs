@@ -63,7 +63,7 @@ test.describe("Products", () => {
   })
 
   test("redirects unauthenticated users to login", async ({ page }) => {
-    await page.goto("/dashboard/products")
+    await page.goto("/app/productos")
     await page.waitForURL("**/login")
     await expect(
       page.getByRole("heading", { name: /Sign in/i })
@@ -73,7 +73,7 @@ test.describe("Products", () => {
   test.describe("authenticated as super", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "super")
-      await page.goto("/dashboard/products", { timeout: 60000 })
+      await page.goto("/app/productos", { timeout: 60000 })
     })
 
     test("displays the sidebar with a Products link", async ({
@@ -189,7 +189,7 @@ test.describe("Products", () => {
   test.describe("authenticated as admin", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "admin")
-      await page.goto("/dashboard/products", { timeout: 60000 })
+      await page.goto("/app/productos", { timeout: 60000 })
     })
 
     test("admin cannot see delete button in actions menu", async ({
@@ -212,7 +212,7 @@ test.describe("Products", () => {
   test.describe("authenticated as user", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "user")
-      await page.goto("/dashboard/products", { timeout: 60000 })
+      await page.goto("/app/productos", { timeout: 60000 })
     })
 
     test("shows forbidden page for user without products:view", async ({
@@ -227,7 +227,7 @@ test.describe("Products", () => {
     test("dashboard sidebar hides Products link for user without products:view", async ({
       page,
     }) => {
-      await page.goto("/dashboard", { timeout: 60000 })
+      await page.goto("/app", { timeout: 60000 })
       await expect(
         page.getByRole("link", { name: "Products" })
       ).not.toBeVisible()

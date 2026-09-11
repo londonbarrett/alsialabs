@@ -40,7 +40,7 @@ interface ProjectViewProps {
 export function ProjectView({ project, children }: ProjectViewProps) {
   const t = useTranslations()
   const pathname = usePathname()
-  const base = `/dashboard/projects/${project.id}`
+  const base = `/app/proyectos/${project.id}`
 
   const tabs = [
     {
@@ -50,28 +50,28 @@ export function ProjectView({ project, children }: ProjectViewProps) {
       active: pathname === base,
     },
     {
-      href: `${base}/routines`,
+      href: `${base}/rutinas`,
       label: t("projects.routines.title"),
       icon: RefreshCw,
-      active: pathname === `${base}/routines`,
+      active: pathname === `${base}/rutinas`,
     },
     {
-      href: `${base}/details`,
+      href: `${base}/detalles`,
       label: t("projects.detail.tabs.details"),
       icon: ClipboardList,
-      active: pathname === `${base}/details`,
+      active: pathname === `${base}/detalles`,
     },
     {
-      href: `${base}/people`,
+      href: `${base}/personas`,
       label: t("projects.detail.tabs.people"),
       icon: Users,
-      active: pathname === `${base}/people`,
+      active: pathname === `${base}/personas`,
     },
     {
-      href: `${base}/expenses`,
+      href: `${base}/gastos`,
       label: t("projects.detail.tabs.expenses"),
       icon: Receipt,
-      active: pathname === `${base}/expenses`,
+      active: pathname === `${base}/gastos`,
     },
   ]
 
@@ -82,7 +82,7 @@ export function ProjectView({ project, children }: ProjectViewProps) {
           variant="ghost"
           size="icon"
           nativeButton={false}
-          render={<Link href="/dashboard/projects" />}
+          render={<Link href="/app/proyectos" />}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>

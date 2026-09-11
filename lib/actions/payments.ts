@@ -10,7 +10,7 @@ import { z } from "zod"
 export const recordPayment = sessionAction
   .metadata({
     permission: { module: "sales", action: "create" },
-    revalidate: ["/dashboard/sales"],
+    revalidate: ["/app/ventas"],
   })
   .inputSchema(paymentSchema.extend({ invoiceId: z.uuid() }))
   .action(async ({ parsedInput, ctx }) => {
@@ -128,7 +128,7 @@ async function syncInvoicePaymentState(
 export const updatePayment = sessionAction
   .metadata({
     permission: { module: "sales", action: "edit" },
-    revalidate: ["/dashboard/sales"],
+    revalidate: ["/app/ventas"],
   })
   .inputSchema(paymentSchema.extend({ paymentId: z.uuid() }))
   .action(async ({ parsedInput }) => {
@@ -204,7 +204,7 @@ export const updatePayment = sessionAction
 export const deletePayment = sessionAction
   .metadata({
     permission: { module: "sales", action: "delete" },
-    revalidate: ["/dashboard/sales"],
+    revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ paymentId: z.uuid() }))
   .action(async ({ parsedInput }) => {

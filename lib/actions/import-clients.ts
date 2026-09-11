@@ -132,6 +132,6 @@ export async function importClients(formData: FormData) {
 
   await db.insert(clientsTable).values(toInsert)
 
-  revalidatePath("/dashboard/clients")
+  revalidatePath("/app/clientes")
   return { success: true, importedCount: toInsert.length }
 }

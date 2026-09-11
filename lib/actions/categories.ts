@@ -2,9 +2,8 @@
 
 import { db } from "@/lib/drizzle/client"
 import { categoryTable, taxonomyTable } from "@/lib/drizzle/schema"
-import { basicAction, sessionAction } from "@/lib/safe-action"
+import { returnActionError, sessionAction } from "@/lib/safe-action"
 import { categorySchema } from "@/lib/schemas/category"
-import { returnActionError } from "@/lib/safe-action"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 
@@ -12,7 +11,7 @@ const slugSchema = z.string().transform((v) => v.trim().toLowerCase())
 
 // ---------- Query actions ----------
 
-export const getTaxonomies = basicAction
+export const getTaxonomies = sessionAction
   .metadata({
     permission: { module: "categories", action: "view" },
   })
@@ -20,7 +19,7 @@ export const getTaxonomies = basicAction
     return db.select().from(taxonomyTable).orderBy(taxonomyTable.slug)
   })
 
-export const getCategoriesByTaxonomy = basicAction
+export const getCategoriesByTaxonomy = sessionAction
   .metadata({
     permission: { module: "categories", action: "view" },
   })
@@ -45,7 +44,7 @@ export const getCategoriesByTaxonomy = basicAction
       .orderBy(categoryTable.name)
   })
 
-export const getCategoriesByTaxonomyList = basicAction
+export const getCategoriesByTaxonomyList = sessionAction
   .metadata({
     permission: { module: "categories", action: "view" },
   })
@@ -86,7 +85,7 @@ export const getProjectCategories = sessionAction
       .orderBy(categoryTable.name)
   })
 
-export const checkSlugExists = basicAction
+export const checkSlugExists = sessionAction
   .metadata({
     permission: { module: "categories", action: "view" },
   })
@@ -120,10 +119,10 @@ export const checkSlugExists = basicAction
 
 // ---------- Mutation actions ----------
 
-export const createCategory = basicAction
+export const createCategory = sessionAction
   .metadata({
     permission: { module: "categories", action: "create" },
-    revalidate: ["/dashboard/categories"],
+    revalidate: ["/app/categorias"],
   })
   .inputSchema(
     categorySchema.extend({
@@ -147,10 +146,10 @@ export const createCategory = basicAction
     return created
   })
 
-export const updateCategory = basicAction
+export const updateCategory = sessionAction
   .metadata({
     permission: { module: "categories", action: "edit" },
-    revalidate: ["/dashboard/categories"],
+    revalidate: ["/app/categorias"],
   })
   .inputSchema(
     categorySchema.extend({
@@ -179,10 +178,10 @@ export const updateCategory = basicAction
     return updated
   })
 
-export const deleteCategory = basicAction
+export const deleteCategory = sessionAction
   .metadata({
     permission: { module: "categories", action: "delete" },
-    revalidate: ["/dashboard/categories"],
+    revalidate: ["/app/categorias"],
   })
   .inputSchema(z.object({ id: z.uuid() }))
   .action(async ({ parsedInput }) => {

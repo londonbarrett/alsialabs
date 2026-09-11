@@ -32,7 +32,6 @@ import { auth, isSuperUser, hasPermission } from "@/lib/auth"
 import { getEffectiveStoreId } from "@/lib/actions/stores"
 import { revalidatePath, updateTag } from "next/cache"
 import {
-  basicAction,
   storeAction,
   sessionAction,
   adminAction,
@@ -58,21 +57,21 @@ function buildSession(user: {
   }
 }
 
-const testAction = basicAction
+const testAction = sessionAction
   .metadata({ permission: { module: "categories", action: "view" } })
   .inputSchema(z.object({ name: z.string().min(1) }))
   .action(async ({ parsedInput }) => {
     return { greeting: `Hello, ${parsedInput.name}` }
   })
 
-const actionWithoutPermission = basicAction
+const actionWithoutPermission = sessionAction
   .metadata({})
   .inputSchema(z.object({ value: z.number() }))
   .action(async ({ parsedInput }) => {
     return { doubled: parsedInput.value * 2 }
   })
 
-describe("basicAction", () => {
+describe("sessionAction", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue(
@@ -107,15 +106,15 @@ describe("basicAction", () => {
   })
 
   it("calls revalidatePath on success", async () => {
-    const revalAction = basicAction
-      .metadata({ revalidate: ["/dashboard/test"] })
+    const revalAction = sessionAction
+      .metadata({ revalidate: ["/app/test"] })
       .action(async () => "ok")
     await revalAction()
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard/test")
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/app/test")
   })
 
   it("calls updateTag on success", async () => {
-    const tagAction = basicAction
+    const tagAction = sessionAction
       .metadata({ tag: "permissions" })
       .action(async () => "ok")
     await tagAction()
@@ -123,8 +122,8 @@ describe("basicAction", () => {
   })
 
   it("does not revalidate on error", async () => {
-    const failingAction = basicAction
-      .metadata({ revalidate: ["/dashboard/fail"] })
+    const failingAction = sessionAction
+      .metadata({ revalidate: ["/app/fail"] })
       .action(async () => {
         throw new Error("boom")
       })

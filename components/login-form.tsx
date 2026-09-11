@@ -14,7 +14,7 @@ export function LoginForm() {
 
   const handleSignIn = async (provider: string) => {
     setLoading(provider)
-    await signIn(provider, { redirectTo: '/dashboard' })
+    await signIn(provider, { redirectTo: '/app' })
   }
 
   return (

@@ -133,7 +133,7 @@ export function ActiveRemindersCard({
                   <ItemContent>
                     <ItemTitle>
                       <Link
-                        href={`/dashboard/clients/${reminder.clientId}`}
+                        href={`/app/clientes/${reminder.clientId}`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         {reminder.clientName}

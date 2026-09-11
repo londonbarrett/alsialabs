@@ -27,7 +27,6 @@ import {
   updateTaskSchema,
 } from "@/lib/schemas/task"
 import { and, desc, eq, sql } from "drizzle-orm"
-import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 // ---------- Queries ----------
@@ -186,7 +185,10 @@ export type MyTask = NonNullable<
 // ---------- Mutations ----------
 
 export const createTask = projectScopedAction(createTaskSchema)
-  .metadata({ permission: { module: "projects", action: "edit" } })
+  .metadata({
+    permission: { module: "projects", action: "edit" },
+    revalidate: ["/app/proyectos/:projectId"],
+  })
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
       returnActionError("FORBIDDEN")
@@ -217,8 +219,6 @@ export const createTask = projectScopedAction(createTaskSchema)
       })
       .returning()
 
-    revalidatePath(`/dashboard/projects/${projectId}`)
-
     return {
       ...taskRow,
       assigneeName: null as string | null,
@@ -227,7 +227,10 @@ export const createTask = projectScopedAction(createTaskSchema)
   })
 
 export const updateTask = projectScopedAction(updateTaskSchema)
-  .metadata({ permission: { module: "projects", action: "edit" } })
+  .metadata({
+    permission: { module: "projects", action: "edit" },
+    revalidate: ["/app/proyectos/:projectId"],
+  })
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
       returnActionError("FORBIDDEN")
@@ -266,8 +269,6 @@ export const updateTask = projectScopedAction(updateTaskSchema)
 
     if (!taskRow) returnActionError("NOT_FOUND")
 
-    revalidatePath(`/dashboard/projects/${projectId}`)
-
     return {
       ...taskRow,
       assigneeName: null as string | null,
@@ -283,7 +284,7 @@ export const updateTaskStatus = sessionAction
       status: z.string(),
     })
   )
-  .metadata({})
+  .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .action(async ({ parsedInput, ctx }) => {
     const { projectId, taskId, status } = parsedInput
     const session = ctx.session
@@ -370,7 +371,6 @@ export const updateTaskStatus = sessionAction
       if (spawned.success && spawned.spawned) nextTask = spawned.task
     }
 
-    revalidatePath(`/dashboard/projects/${projectId}`)
     return { nextTask }
   })
 
@@ -381,7 +381,10 @@ export const updateTaskPriority = projectScopedAction(
     priority: z.string().nullable(),
   })
 )
-  .metadata({ permission: { module: "projects", action: "edit" } })
+  .metadata({
+    permission: { module: "projects", action: "edit" },
+    revalidate: ["/app/proyectos/:projectId"],
+  })
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
       returnActionError("FORBIDDEN")
@@ -402,8 +405,6 @@ export const updateTaskPriority = projectScopedAction(
           eq(tasksTable.projectId, projectId)
         )
       )
-
-    revalidatePath(`/dashboard/projects/${projectId}`)
   })
 
 export const deleteTask = projectScopedAction(
@@ -412,7 +413,10 @@ export const deleteTask = projectScopedAction(
     taskId: z.uuid(),
   })
 )
-  .metadata({ permission: { module: "projects", action: "delete" } })
+  .metadata({
+    permission: { module: "projects", action: "delete" },
+    revalidate: ["/app/proyectos/:projectId"],
+  })
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
       returnActionError("FORBIDDEN")
@@ -428,6 +432,4 @@ export const deleteTask = projectScopedAction(
           eq(tasksTable.projectId, projectId)
         )
       )
-
-    revalidatePath(`/dashboard/projects/${projectId}`)
   })

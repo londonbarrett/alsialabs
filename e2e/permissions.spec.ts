@@ -46,7 +46,7 @@ test.describe("Permissions", () => {
   })
 
   test("redirects unauthenticated users to login", async ({ page }) => {
-    await page.goto("/dashboard/permissions")
+    await page.goto("/app/permisos")
     await page.waitForURL("**/login")
     await expect(
       page.getByRole("heading", { name: /Sign in/i })
@@ -56,7 +56,7 @@ test.describe("Permissions", () => {
   test.describe("authenticated as super", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "super")
-      await page.goto("/dashboard/permissions", { timeout: 60000 })
+      await page.goto("/app/permisos", { timeout: 60000 })
     })
 
     test("shows the permissions page with matrix", async ({ page }) => {
@@ -131,7 +131,7 @@ test.describe("Permissions", () => {
   test.describe("authenticated as admin", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "admin")
-      await page.goto("/dashboard/permissions")
+      await page.goto("/app/permisos")
       await page.waitForLoadState("networkidle")
     })
 
@@ -156,7 +156,7 @@ test.describe("Permissions", () => {
   test.describe("authenticated as user", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "user")
-      await page.goto("/dashboard/permissions")
+      await page.goto("/app/permisos")
       await page.waitForLoadState("networkidle")
     })
 

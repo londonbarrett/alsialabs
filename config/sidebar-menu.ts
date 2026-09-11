@@ -42,25 +42,25 @@ function storeSection(permissions?: string[]): SidebarSection[] {
     {
       label: "clients",
       icon: Users,
-      url: "/dashboard/clients",
+      url: "/app/clientes",
       requiredPermission: "clients:view",
     },
     {
       label: "products",
       icon: Package,
-      url: "/dashboard/products",
+      url: "/app/productos",
       requiredPermission: "products:view",
     },
     {
       label: "sales",
       icon: ChartNoAxesCombined,
-      url: "/dashboard/sales",
+      url: "/app/ventas",
       requiredPermission: "sales:view",
     },
     {
       label: "activity",
       icon: BellRing,
-      url: "/dashboard/activity",
+      url: "/app/actividad",
       requiredPermission: "activity:view",
     },
   ]
@@ -79,19 +79,19 @@ function adminSections(permissions?: string[]): SidebarSection[] {
     {
       label: "users",
       icon: ShieldUser,
-      url: "/dashboard/users",
+      url: "/app/usuarios",
       requiredPermission: "users:manage",
     },
     {
       label: "permissions",
       icon: ShieldCheck,
-      url: "/dashboard/permissions",
+      url: "/app/permisos",
       requiredPermission: "permissions:manage",
     },
     {
       label: "categories",
       icon: FolderTree,
-      url: "/dashboard/categories",
+      url: "/app/categorias",
       requiredPermission: "categories:view",
     },
   ]
@@ -109,19 +109,19 @@ function navigationSection(permissions?: string[]): SidebarSection[] {
   const sections: SidebarSection[] = []
 
   const items: SidebarItem[] = [
-    { label: "profile", icon: UserCircle, url: "/dashboard/profile" },
-    { label: "myInvoices", icon: Receipt, url: "/dashboard/my-invoices" },
-    { label: "myTasks", icon: ListTodo, url: "/dashboard/my-tasks" },
+    { label: "profile", icon: UserCircle, url: "/app/perfil" },
+    { label: "myInvoices", icon: Receipt, url: "/app/mis-facturas" },
+    { label: "myTasks", icon: ListTodo, url: "/app/mis-tareas" },
     {
       label: "projects",
       icon: FolderKanban,
-      url: "/dashboard/projects",
+      url: "/app/proyectos",
       requiredPermission: "projects:view",
     },
     {
       label: "calendar",
       icon: CalendarDays,
-      url: "/dashboard/calendar",
+      url: "/app/calendario",
       requiredPermission: "projects:view",
     },
   ]
@@ -142,11 +142,11 @@ function auxiliarySection(): SidebarSection[] {
     {
       label: "auxiliary",
       items: [
-        { label: "help", icon: LifeBuoy, url: "/dashboard#help" },
+        { label: "help", icon: LifeBuoy, url: "/app#help" },
         {
           label: "support",
           icon: MessageSquare,
-          url: "/dashboard#support",
+          url: "/app#support",
         },
       ],
     },

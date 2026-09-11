@@ -102,7 +102,7 @@ export async function manageModule(
       .where(eq(permissionsTable.module, name))
   }
 
-  revalidatePath("/dashboard/permissions")
+  revalidatePath("/app/permisos")
   updateTag("permissions")
   return { success: true as const }
 }
@@ -145,7 +145,7 @@ export async function togglePermission(
       )
   }
 
-  revalidatePath("/dashboard/permissions")
+  revalidatePath("/app/permisos")
   updateTag("permissions")
   return { success: true as const }
 }

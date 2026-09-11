@@ -44,14 +44,32 @@ export const actionClient = createSafeActionClient({
   return result
 })
 
-// ---------- basicAction ----------
+function resolveRevalidatePaths(
+  paths: string[],
+  input: unknown
+): string[] {
+  if (!input || typeof input !== "object") return paths
+  const record = input as Record<string, unknown>
+  return paths.map((p) =>
+    p.replace(/:([a-zA-Z0-9_]+)/g, (_, key) =>
+      record[key] != null ? String(record[key]) : `:${key}`
+    )
+  )
+}
 
-export const basicAction = actionClient.use(async ({ next, metadata }) => {
+// ---------- sessionAction ----------
+// Authenticates the session, optionally checks permission, and handles
+// revalidation (supports templates like "/app/proyectos/:projectId" interpolated
+// from input/data AFTER the action commits). Ownership is domain-specific
+// and enforced separately (e.g. projectAction via verifyProjectAccess,
+// storeAction via store scoping).
+
+export const sessionAction = actionClient.use(async ({ next, metadata }) => {
+  const session = await auth()
+  if (!session?.user) {
+    returnActionError("UNAUTHORIZED")
+  }
   if (metadata.permission) {
-    const session = await auth()
-    if (!session?.user) {
-      returnActionError("UNAUTHORIZED")
-    }
     const permitted = await hasPermission(
       session!.user.id,
       metadata.permission.module,
@@ -62,11 +80,18 @@ export const basicAction = actionClient.use(async ({ next, metadata }) => {
     }
   }
 
-  const result = await next()
+  const result = await next({ ctx: { session: session! } })
 
   if (!result.validationErrors && !result.serverError) {
     if (metadata.revalidate) {
-      for (const path of metadata.revalidate) {
+      let paths = metadata.revalidate
+      const input =
+        (result as { parsedInput?: unknown })?.parsedInput ??
+        (result as { clientInput?: unknown })?.clientInput
+      if (input) paths = resolveRevalidatePaths(paths, input)
+      const data = (result as { data?: unknown })?.data
+      if (data) paths = resolveRevalidatePaths(paths, data)
+      for (const path of paths) {
         revalidatePath(path)
       }
     }
@@ -80,25 +105,12 @@ export const basicAction = actionClient.use(async ({ next, metadata }) => {
 
 // ---------- storeAction ----------
 
-export const storeAction = basicAction.use(async ({ next }) => {
+export const storeAction = sessionAction.use(async ({ next }) => {
   const storeId = await getEffectiveStoreId()
   if (!storeId) {
     returnActionError("UNAUTHORIZED")
   }
   return next({ ctx: { storeId: storeId! } })
-})
-
-// ---------- sessionAction ----------
-// Authenticates the session and injects it into context. This does NOT check
-// resource ownership — ownership is domain-specific and enforced separately
-// (e.g. projectAction via verifyProjectAccess, storeAction via store scoping).
-
-export const sessionAction = basicAction.use(async ({ next }) => {
-  const session = await auth()
-  if (!session?.user) {
-    returnActionError("UNAUTHORIZED")
-  }
-  return next({ ctx: { session: session! } })
 })
 
 // ---------- projectAction ----------
