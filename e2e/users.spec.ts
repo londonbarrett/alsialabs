@@ -46,7 +46,7 @@ test.describe("Users", () => {
   })
 
   test("redirects unauthenticated users to login", async ({ page }) => {
-    await page.goto("/dashboard/users")
+    await page.goto("/app/usuarios")
     await page.waitForURL("**/login")
     await expect(
       page.getByRole("heading", { name: /Sign in/i })
@@ -56,7 +56,7 @@ test.describe("Users", () => {
   test.describe("authenticated as super", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "super")
-      await page.goto("/dashboard/users", { timeout: 60000 })
+      await page.goto("/app/usuarios", { timeout: 60000 })
     })
 
     test("shows the users page with table", async ({ page }) => {
@@ -103,7 +103,7 @@ test.describe("Users", () => {
   test.describe("authenticated as admin", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "admin")
-      await page.goto("/dashboard/users", { timeout: 60000 })
+      await page.goto("/app/usuarios", { timeout: 60000 })
     })
 
     test("shows forbidden page for non-super users", async ({
@@ -127,7 +127,7 @@ test.describe("Users", () => {
   test.describe("authenticated as user", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "user")
-      await page.goto("/dashboard/users", { timeout: 60000 })
+      await page.goto("/app/usuarios", { timeout: 60000 })
     })
 
     test("shows forbidden page for user users", async ({ page }) => {
@@ -149,7 +149,7 @@ test.describe("Profile", () => {
   test.describe("authenticated", () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, "super")
-      await page.goto("/dashboard/profile", { timeout: 60000 })
+      await page.goto("/app/perfil", { timeout: 60000 })
     })
 
     test("shows profile page with user details", async ({ page }) => {

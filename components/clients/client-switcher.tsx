@@ -17,7 +17,7 @@ export function ClientSwitcher() {
         onValueChange={(client) => {
           if (client?.id) {
             startTransition(() => {
-              router.push(`/dashboard/clients/${client.id}`)
+              router.push(`/app/clientes/${client.id}`)
             })
           }
         }}

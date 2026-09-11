@@ -85,7 +85,7 @@ export function SalesInvoiceTable({
                 <TableCell>
                   {inv.clientName ? (
                     <Link
-                      href={`/dashboard/clients/${inv.clientId}`}
+                      href={`/app/clientes/${inv.clientId}`}
                       className="block max-w-52 truncate hover:underline"
                       title={inv.clientName}
                     >

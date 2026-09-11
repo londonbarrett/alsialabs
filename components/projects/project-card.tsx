@@ -124,7 +124,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </span>
           <CardTitle className="text-lg leading-tight text-balance">
             <Link
-              href={`/dashboard/projects/${project.id}`}
+              href={`/app/proyectos/${project.id}`}
               className="inline-flex items-center gap-2 hover:underline"
             >
               <span
@@ -290,7 +290,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <Button
             size="sm"
             nativeButton={false}
-            render={<Link href={`/dashboard/projects/${project.id}`} />}
+            render={<Link href={`/app/proyectos/${project.id}`} />}
           >
             {t("projects.card.view")}{" "}
             <ArrowRight className="size-4" />

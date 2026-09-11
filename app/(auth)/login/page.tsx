@@ -1,8 +1,15 @@
 import { Suspense } from 'react'
 import { LoginForm } from '@/components/login-form'
 import { getTranslations } from 'next-intl/server'
+import { auth } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 
 export default async function LoginPage() {
+  const session = await auth()
+  if (session?.user) {
+    redirect('/app')
+  }
+
   const t = await getTranslations('common')
 
   return (

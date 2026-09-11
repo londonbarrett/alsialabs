@@ -27,7 +27,6 @@ import {
 import type { ProjectMember } from "@/lib/types"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import type { Session } from "next-auth"
-import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 export const getProjects = sessionAction
@@ -375,7 +374,7 @@ export type ProjectDetail = NonNullable<
 export const createProject = sessionAction
   .metadata({
     permission: { module: "projects", action: "create" },
-    revalidate: ["/dashboard/projects"],
+    revalidate: ["/app/proyectos"],
   })
   .inputSchema(createProjectSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -409,14 +408,14 @@ export const createProject = sessionAction
     await db
       .insert(projectOwnersTable)
       .values({ projectId: created.id, userId: session.user.id })
-    revalidatePath(`/dashboard/projects/${created.id}`)
     return created
   })
 
 export const updateProject = projectScopedAction(updateProjectSchema)
   .metadata({
     permission: { module: "projects", action: "edit" },
-    revalidate: ["/dashboard/projects"],
+    // :projectId interpolated from input AFTER the action commits
+    revalidate: ["/app/proyectos", "/app/proyectos/:projectId"],
   })
   .action(async ({ parsedInput, ctx }) => {
     const {
@@ -448,7 +447,6 @@ export const updateProject = projectScopedAction(updateProjectSchema)
       .where(eq(projectsTable.id, projectId))
       .returning({ id: projectsTable.id })
     if (!updated) returnActionError("NOT_FOUND")
-    revalidatePath(`/dashboard/projects/${projectId}`)
     return updated
   })
 
@@ -486,7 +484,7 @@ export const deleteProject = projectScopedAction(
 )
   .metadata({
     permission: { module: "projects", action: "delete" },
-    revalidate: ["/dashboard/projects"],
+    revalidate: ["/app/proyectos"],
   })
   .action(async ({ parsedInput, ctx }) => {
     const { projectId } = parsedInput
@@ -505,7 +503,6 @@ export const deleteProject = projectScopedAction(
     await db
       .delete(projectsTable)
       .where(eq(projectsTable.id, projectId))
-    revalidatePath(`/dashboard/projects/${projectId}`)
     return { success: true as const }
   })
 

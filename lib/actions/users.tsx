@@ -20,7 +20,6 @@ import {
   updateUserSchema,
 } from "@/lib/schemas/user"
 import { eq, ilike, or } from "drizzle-orm"
-import { revalidatePath, updateTag } from "next/cache"
 
 export type UserWithRole = {
   id: string
@@ -128,7 +127,11 @@ export const getUsers = sessionAction
 // ---------- Mutation actions ----------
 
 export const createUser = sessionAction
-  .metadata({ permission: { module: "users", action: "manage" } })
+  .metadata({
+    permission: { module: "users", action: "manage" },
+    revalidate: ["/app/usuarios"],
+    tag: "permissions",
+  })
   .inputSchema(createUserSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!isSuperUser(ctx.session)) {
@@ -187,13 +190,15 @@ export const createUser = sessionAction
       })
     }
 
-    revalidatePath("/dashboard/users")
-    updateTag("permissions")
     return { id: userId }
   })
 
 export const updateUser = sessionAction
-  .metadata({ permission: { module: "users", action: "manage" } })
+  .metadata({
+    permission: { module: "users", action: "manage" },
+    revalidate: ["/app/usuarios"],
+    tag: "permissions",
+  })
   .inputSchema(updateUserSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!isSuperUser(ctx.session)) {
@@ -257,13 +262,15 @@ export const updateUser = sessionAction
       }
     }
 
-    revalidatePath("/dashboard/users")
-    updateTag("permissions")
     return { id: userId }
   })
 
 export const deleteUser = sessionAction
-  .metadata({ permission: { module: "users", action: "manage" } })
+  .metadata({
+    permission: { module: "users", action: "manage" },
+    revalidate: ["/app/usuarios"],
+    tag: "permissions",
+  })
   .inputSchema(deleteUserSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!isSuperUser(ctx.session)) {
@@ -360,7 +367,5 @@ export const deleteUser = sessionAction
       returnActionError("REFERENCE_EXISTS")
     }
 
-    revalidatePath("/dashboard/users")
-    updateTag("permissions")
     return { id: userId }
   })

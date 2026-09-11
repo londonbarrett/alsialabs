@@ -259,7 +259,7 @@ The sales page SHALL allow users with `sales:view` permission to search and filt
 The sales page SHALL be a server component that fetches data and composes Page layout, and delegates content to a client SalesView.
 
 #### Scenario: Sales page server fetches with unwrapResponse
-- **WHEN** `app/dashboard/sales/page.tsx` renders
+- **WHEN** `app/app/ventas/page.tsx` renders
 - **THEN** it calls `getInvoices()` `lib/actions/invoices.ts`, `getMonthlyRevenue` and `getTopClientsByRevenue` `lib/actions/sales.ts` and unwraps results via `unwrapResponse` `lib/util/unwrap.ts`
 - **AND** it renders `Page` `components/common/page.tsx` with `PageHeader` `components/common/page-header.tsx` (title `sales.title`, subtitle `sales.subtitle`, icon `ChartNoAxesCombined`) fetched via `getTranslations("sales")` on the server
 

@@ -3,8 +3,8 @@
 import { db } from "@/lib/drizzle/client"
 import { productsTable, storesTable } from "@/lib/drizzle/schema"
 import {
-  basicAction,
   returnActionError,
+  sessionAction,
   storeAction,
 } from "@/lib/safe-action"
 import {
@@ -36,7 +36,7 @@ export const getProducts = storeAction
       .where(eq(productsTable.store_id, ctx.storeId))
   })
 
-export const checkSkuExists = basicAction
+export const checkSkuExists = sessionAction
   .metadata({
     permission: { module: "products", action: "view" },
   })
@@ -65,7 +65,7 @@ export const checkSkuExists = basicAction
 export const createProduct = storeAction
   .metadata({
     permission: { module: "products", action: "create" },
-    revalidate: ["/dashboard/products"],
+    revalidate: ["/app/productos"],
   })
   .inputSchema(createProductSchema)
   .action(async ({ parsedInput }) => {
@@ -95,7 +95,7 @@ export const createProduct = storeAction
 export const updateProduct = storeAction
   .metadata({
     permission: { module: "products", action: "edit" },
-    revalidate: ["/dashboard/products"],
+    revalidate: ["/app/productos"],
   })
   .inputSchema(updateProductSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -135,7 +135,7 @@ export const updateProduct = storeAction
 export const deleteProduct = storeAction
   .metadata({
     permission: { module: "products", action: "delete" },
-    revalidate: ["/dashboard/products"],
+    revalidate: ["/app/productos"],
   })
   .inputSchema(z.object({ id: z.uuid() }))
   .action(async ({ parsedInput, ctx }) => {

@@ -1,7 +1,14 @@
 import Link from "next/link"
 import { getTranslations } from "next-intl/server"
+import { auth } from "@/lib/auth"
+import { redirect } from "next/navigation"
 
 export default async function Home() {
+  const session = await auth()
+  if (session?.user) {
+    redirect("/app")
+  }
+
   const t = await getTranslations("landing")
 
   return (
@@ -14,7 +21,7 @@ export default async function Home() {
           {t("subtitle")}
         </p>
         <Link
-          href="/dashboard"
+          href="/app"
           className="inline-flex items-center justify-center rounded-md bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90"
         >
           {t("openDashboard")}

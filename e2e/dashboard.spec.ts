@@ -42,7 +42,7 @@ test.describe('Dashboard sidebar', () => {
 
   test.beforeEach(async ({ page }) => {
     await mockAuth(page)
-    await page.goto('/dashboard', { timeout: 60000 })
+    await page.goto('/app', { timeout: 60000 })
   })
 
   test.afterEach(async () => {
@@ -119,7 +119,7 @@ test.describe('Dashboard sidebar', () => {
 
   test('opens mobile sidebar via trigger button on small viewport', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
-    await page.goto('/dashboard')
+    await page.goto('/app')
     await page.waitForLoadState('networkidle')
 
     const toggle = page.getByRole('button', { name: 'Toggle Sidebar' })

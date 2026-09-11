@@ -186,7 +186,7 @@ export async function createRoutine(
 
   const spawned = await createNextRoutineTask(routine.id)
 
-  revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/app/proyectos/${projectId}`)
   return {
     success: true as const,
     data: routine,
@@ -272,7 +272,7 @@ export async function updateRoutine(
     return { success: false as const, error: t("notFound") }
   }
 
-  revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/app/proyectos/${projectId}`)
   return { success: true as const, data: routine }
 }
 
@@ -313,7 +313,7 @@ export async function deleteRoutine(
       )
     )
 
-  revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/app/proyectos/${projectId}`)
   return { success: true as const }
 }
 
@@ -395,6 +395,6 @@ export async function createNextRoutineTask(
     .returning()
   const task = rows[0]
 
-  revalidatePath(`/dashboard/projects/${routine.projectId}`)
+  revalidatePath(`/app/proyectos/${routine.projectId}`)
   return { success: true as const, spawned: true, task }
 }

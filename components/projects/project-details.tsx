@@ -101,7 +101,7 @@ export function ProjectDetails({
       setDeleting(false)
     } else {
       toast.success(t("projects.projectDeleted"))
-      router.push("/dashboard/projects")
+      router.push("/app/proyectos")
     }
   }
 

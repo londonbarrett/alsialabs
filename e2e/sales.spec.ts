@@ -37,7 +37,7 @@ test.describe('Sales', () => {
   })
 
   test('redirects unauthenticated users to login', async ({ page }) => {
-    await page.goto('/dashboard/sales')
+    await page.goto('/app/ventas')
     await page.waitForURL('**/login')
     await expect(page.getByRole('heading', { name: /Sign in/i })).toBeVisible()
   })
@@ -45,7 +45,7 @@ test.describe('Sales', () => {
   test.describe('authenticated as super', () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, 'super')
-      await page.goto('/dashboard/sales', { timeout: 60000 })
+      await page.goto('/app/ventas', { timeout: 60000 })
     })
 
     test('shows the sales page', async ({ page }) => {
@@ -70,7 +70,7 @@ test.describe('Sales', () => {
   test.describe('authenticated as admin', () => {
     test.beforeEach(async ({ page }) => {
       await mockAuth(page, 'admin')
-      await page.goto('/dashboard/sales', { timeout: 60000 })
+      await page.goto('/app/ventas', { timeout: 60000 })
     })
 
     test('shows the sales page but no delete option', async ({ page }) => {

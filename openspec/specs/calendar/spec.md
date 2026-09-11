@@ -168,12 +168,12 @@ Clicking an event chip SHALL open a detail dialog showing the event's informatio
 
 ### Requirement: Calendar page
 
-The system SHALL provide a calendar page at `/dashboard/calendar` accessible to users with `projects:view` permission. It SHALL show a PageHeader with a CalendarDays icon and a title/subtitle from the `calendar` i18n namespace. The page SHALL stream: fast data (auth, translations) renders the shell immediately while task/routine promises are passed to the client view and resolved under a Suspense boundary with a pulse fallback.
+The system SHALL provide a calendar page at `/app/calendario` accessible to users with `projects:view` permission. It SHALL show a PageHeader with a CalendarDays icon and a title/subtitle from the `calendar` i18n namespace. The page SHALL stream: fast data (auth, translations) renders the shell immediately while task/routine promises are passed to the client view and resolved under a Suspense boundary with a pulse fallback.
 
 #### Scenario: Calendar page requires projects:view
 
 - **GIVEN** a user without `projects:view` permission
-- **WHEN** the user navigates to `/dashboard/calendar`
+- **WHEN** the user navigates to `/app/calendario`
 - **THEN** a forbidden error is returned
 
 #### Scenario: Calendar sidebar link
@@ -181,7 +181,7 @@ The system SHALL provide a calendar page at `/dashboard/calendar` accessible to 
 - **GIVEN** the sidebar renders with `projects:view` permission
 - **THEN** a "Calendar" nav item appears in the Navigation section after "My Tasks"
 - **AND** it uses a CalendarDays icon
-- **AND** clicking it navigates to `/dashboard/calendar`
+- **AND** clicking it navigates to `/app/calendario`
 
 #### Scenario: Shell streams before data resolves
 

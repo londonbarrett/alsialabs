@@ -61,14 +61,14 @@ export async function switchStore(storeId: string | null) {
   } else {
     const c = await cookies()
     c.set("store_id", storeId, {
-      path: "/dashboard",
+      path: "/app",
       httpOnly: true,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30,
     })
   }
 
-  revalidatePath("/dashboard", "layout")
+  revalidatePath("/app", "layout")
 }
 
 export async function getScopedStoreId(): Promise<string | null> {

@@ -4,7 +4,7 @@
 The system SHALL display a search input on the client list page that filters the displayed clients. The search input uses the `InputGroup` component with a `Search` icon prefix.
 
 #### Scenario: Search input is visible
-- **WHEN** the user visits `/dashboard/clients`
+- **WHEN** the user visits `/app/clientes`
 - **AND** there are clients in the database
 - **THEN** a search input field is displayed in the PageHeader actions area using `InputGroup` with a `Search` icon prefix
 - **AND** the input has placeholder text indicating it searches clients
@@ -13,7 +13,7 @@ The system SHALL display a search input on the client list page that filters the
 The system SHALL display the total number of clients as plain text in the PageHeader actions area, before the search input.
 
 #### Scenario: Client count is shown
-- **WHEN** the user visits `/dashboard/clients`
+- **WHEN** the user visits `/app/clientes`
 - **AND** there are 400 clients in the database
 - **THEN** the text "400 clients" is displayed before the search input
 

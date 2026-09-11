@@ -104,7 +104,7 @@ export async function upsertReminder(
     await db.insert(clientRemindersTable).values(sanitized)
   }
 
-  revalidatePath("/dashboard/clients")
+  revalidatePath("/app/clientes")
   return { success: true }
 }
 
@@ -129,7 +129,7 @@ export async function completeReminder(reminderId: string) {
     })
     .where(and(...conditions))
 
-  revalidatePath("/dashboard/clients")
+  revalidatePath("/app/clientes")
   return { success: true }
 }
 
@@ -148,7 +148,7 @@ export async function deleteReminder(reminderId: string) {
   }
   await db.delete(clientRemindersTable).where(and(...conditions))
 
-  revalidatePath("/dashboard/clients")
+  revalidatePath("/app/clientes")
   return { success: true as const }
 }
 

@@ -128,8 +128,8 @@ export async function upsertActivity(
     activity = inserted
   }
 
-  revalidatePath("/dashboard/clients")
-  revalidatePath("/dashboard/activity")
+  revalidatePath("/app/clientes")
+  revalidatePath("/app/actividad")
   return { success: true, activity }
 }
 
@@ -148,7 +148,7 @@ export async function deleteActivity(activityId: string) {
   }
   await db.delete(clientActivitiesTable).where(and(...conditions))
 
-  revalidatePath("/dashboard/clients")
-  revalidatePath("/dashboard/activity")
+  revalidatePath("/app/clientes")
+  revalidatePath("/app/actividad")
   return { success: true as const }
 }

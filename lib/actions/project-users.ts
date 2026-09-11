@@ -135,7 +135,7 @@ export async function addProjectOwner(
 
   await db.insert(projectOwnersTable).values({ projectId, userId })
 
-  revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/app/proyectos/${projectId}`)
   return { success: true as const }
 }
 
@@ -175,7 +175,7 @@ export async function removeProjectOwner(
       )
     )
 
-  revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/app/proyectos/${projectId}`)
   return { success: true as const }
 }
 
@@ -202,7 +202,7 @@ export async function transferPrimaryOwner(
     .set({ primaryOwnerId: newOwnerId })
     .where(eq(projectsTable.id, projectId))
 
-  revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/app/proyectos/${projectId}`)
   return { success: true as const }
 }
 
@@ -254,7 +254,7 @@ export async function addProjectCollaborator(
     .insert(projectCollaboratorsTable)
     .values({ projectId, userId })
 
-  revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/app/proyectos/${projectId}`)
   return { success: true as const }
 }
 
@@ -281,6 +281,6 @@ export async function removeProjectCollaborator(
       )
     )
 
-  revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/app/proyectos/${projectId}`)
   return { success: true as const }
 }

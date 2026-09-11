@@ -125,7 +125,7 @@ export const checkPhoneExists = storeAction
 export const createClient = storeAction
   .metadata({
     permission: { module: "clients", action: "create" },
-    revalidate: ["/dashboard/clients"],
+    revalidate: ["/app/clientes"],
   })
   .inputSchema(createClientSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -155,7 +155,7 @@ export const createClient = storeAction
 export const updateClient = storeAction
   .metadata({
     permission: { module: "clients", action: "edit" },
-    revalidate: ["/dashboard/clients"],
+    revalidate: ["/app/clientes"],
   })
   .inputSchema(updateClientSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -212,7 +212,7 @@ export const updateClient = storeAction
 export const deleteClient = storeAction
   .metadata({
     permission: { module: "clients", action: "delete" },
-    revalidate: ["/dashboard/clients"],
+    revalidate: ["/app/clientes"],
   })
   .inputSchema(z.object({ id: z.uuid() }))
   .action(async ({ parsedInput, ctx }) => {
@@ -230,7 +230,7 @@ export const deleteClient = storeAction
 export const inviteClient = storeAction
   .metadata({
     permission: { module: "clients", action: "invite" },
-    revalidate: ["/dashboard/clients"],
+    revalidate: ["/app/clientes"],
   })
   .inputSchema(inviteSchema)
   .action(async ({ parsedInput, ctx }) => {

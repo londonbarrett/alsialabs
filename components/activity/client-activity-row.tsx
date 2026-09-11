@@ -262,7 +262,7 @@ export function ClientActivityRow({
               />
             </Button>
             <Link
-              href={`/dashboard/clients/${client.clientId}`}
+              href={`/app/clientes/${client.clientId}`}
               className="hover:underline"
             >
               {client.clientName}
