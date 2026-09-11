@@ -4,21 +4,21 @@
 TBD - created by archiving change my-invoices. Update Purpose after archive.
 ## Requirements
 ### Requirement: My Invoices page
-The system SHALL provide a "My Invoices" page at `/dashboard/my-invoices` accessible to any authenticated user (no permission required). It SHALL resolve the client(s) linked to the current user via `clients.userId = session.user.id OR clients.email = session.user.email` (email fallback for legacy) and display that clients' invoices. The page SHALL remain visible even when no client is linked, showing an empty state instead of a forbidden error. The page SHALL use `Page` (`components/common/page.tsx`) as `@container` with `header` (`PageHeader` title/subtitle/Receipt) outside `Suspense` and content inside `Suspense` with a pulsing-rectangle fallback plus app `LoadingBar` via `LoadingDispatcher`.
+The system SHALL provide a "My Invoices" page at `/app/mis-facturas` accessible to any authenticated user (no permission required). It SHALL resolve the client(s) linked to the current user via `clients.userId = session.user.id OR clients.email = session.user.email` (email fallback for legacy) and display that clients' invoices. The page SHALL remain visible even when no client is linked, showing an empty state instead of a forbidden error. The page SHALL use `Page` (`components/common/page.tsx`) as `@container` with `header` (`PageHeader` title/subtitle/Receipt) outside `Suspense` and content inside `Suspense` with a pulsing-rectangle fallback plus app `LoadingBar` via `LoadingDispatcher`.
 
 #### Scenario: Authenticated user navigates to My Invoices
-- **WHEN** an authenticated user navigates to `/dashboard/my-invoices`
+- **WHEN** an authenticated user navigates to `/app/mis-facturas`
 - **THEN** the page renders with a header (title, subtitle, Receipt icon) and the user's own invoices
 - **AND** the header is visible immediately while the list suspends
 
 #### Scenario: Unauthenticated user redirected
 - **GIVEN** a user is not authenticated
-- **WHEN** they navigate to `/dashboard/my-invoices`
+- **WHEN** they navigate to `/app/mis-facturas`
 - **THEN** they are redirected to `/login`
 
 #### Scenario: No linked client shows empty state
 - **GIVEN** an authenticated user has no linked client record (by userId nor email)
-- **WHEN** they visit `/dashboard/my-invoices`
+- **WHEN** they visit `/app/mis-facturas`
 - **THEN** they see an empty state indicating no client is linked / no invoices
 
 #### Scenario: Page shows loading fallback and app indicator
@@ -30,12 +30,12 @@ The system SHALL list only invoices where `invoice.clientId` is in the set of cl
 
 #### Scenario: Client views own invoices sorted
 - **GIVEN** a linked client has multiple invoices
-- **WHEN** they view `/dashboard/my-invoices`
+- **WHEN** they view `/app/mis-facturas`
 - **THEN** they see their invoices sorted by issue date descending
 
 #### Scenario: Only own invoices are shown
 - **GIVEN** other clients have invoices in the same store
-- **WHEN** the linked client views `/dashboard/my-invoices`
+- **WHEN** the linked client views `/app/mis-facturas`
 - **THEN** only their own invoices are shown (by userId/email set)
 
 #### Scenario: Overdue status derived
@@ -79,16 +79,16 @@ The system SHALL allow the user to view invoice details, line items and payment 
 - **THEN** the items/payments section uses `flex flex-col @[900px]:flex-row` and the details card uses container queries (`@[600px]:grid-cols-3`) relative to `Page`, not viewport (`lg:`)
 
 ### Requirement: My Invoices keeps profile invoices
-The system SHALL continue to show invoices on the profile page (`/dashboard/profile`) via the existing timeline, independent of the My Invoices page. For `user` role, profile SHALL show own invoices/payments via `getMyInvoices`/`getMyPayments` without requiring `client-activity:view`, even when no client linked via `clients:view`.
+The system SHALL continue to show invoices on the profile page (`/app/perfil`) via the existing timeline, independent of the My Invoices page. For `user` role, profile SHALL show own invoices/payments via `getMyInvoices`/`getMyPayments` without requiring `client-activity:view`, even when no client linked via `clients:view`.
 
 #### Scenario: Profile still shows invoices for user
 - **GIVEN** a `user` with a linked client (by userId or email) but without `client-activity:view`
-- **WHEN** they view `/dashboard/profile`
+- **WHEN** they view `/app/perfil`
 - **THEN** the profile timeline still renders their invoices and payments via `getMyInvoices`/`getMyPayments`
 
 #### Scenario: Profile with no linked client shows none
 - **GIVEN** a `user` with no linked client
-- **WHEN** they view `/dashboard/profile`
+- **WHEN** they view `/app/perfil`
 - **THEN** no invoices are shown but no error is thrown
 
 ### Requirement: Server actions are safe actions

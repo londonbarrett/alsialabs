@@ -2,18 +2,18 @@
 
 ### Requirement: Project subpage navigation
 
-The project detail area SHALL be split into four subpages under `/dashboard/projects/[id]`: tasks (default), details, people, and expenses. Accessing any subpage SHALL require the `projects:view` permission via `getProjectContext` (`sessionAction` `permission: projects:view`, `projectScopedAction` `verifyProjectAccess` for `project_owners`/`project_collaborators`/`super`). All subpages SHALL share a persistent header (back button, project name, location, status badge) and a tab navigation that highlights the active subpage. `app/dashboard/projects/[id]/layout.tsx:16` SHALL call `getProjectContext` and `if (!result.data) notFound()` / `serverError FORBIDDEN` → `forbidden()` before `unwrapResponse`, and `components/projects/project-view.tsx:43` SHALL use `project.id` for `base` tabs. `lib/util/unwrap.ts:16` SHALL return `[]` by default for array results.
+The project detail area SHALL be split into four subpages under `/app/proyectos/[id]`: tasks (default), details, people, and expenses. Accessing any subpage SHALL require the `projects:view` permission via `getProjectContext` (`sessionAction` `permission: projects:view`, `projectScopedAction` `verifyProjectAccess` for `project_owners`/`project_collaborators`/`super`). All subpages SHALL share a persistent header (back button, project name, location, status badge) and a tab navigation that highlights the active subpage. `app/app/proyectos/[id]/layout.tsx:16` SHALL call `getProjectContext` and `if (!result.data) notFound()` / `serverError FORBIDDEN` → `forbidden()` before `unwrapResponse`, and `components/projects/project-view.tsx:43` SHALL use `project.id` for `base` tabs. `lib/util/unwrap.ts:16` SHALL return `[]` by default for array results.
 
-- `/dashboard/projects/[id]` — tasks (default)
-- `/dashboard/projects/[id]/details`
-- `/dashboard/projects/[id]/people`
-- `/dashboard/projects/[id]/expenses`
+- `/app/proyectos/[id]` — tasks (default)
+- `/app/proyectos/[id]/detalles`
+- `/app/proyectos/[id]/personas`
+- `/app/proyectos/[id]/gastos`
 
 #### Scenario: Tasks is the default subpage
 
 - **GIVEN** a user with `projects:view` permission
 - **WHEN** the user opens a project from the projects list
-- **THEN** the user is navigated to `/dashboard/projects/[id]`
+- **THEN** the user is navigated to `/app/proyectos/[id]`
 - **AND** the tasks table is shown
 - **AND** the "Tasks" tab is highlighted
 
@@ -55,8 +55,8 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 
 #### Scenario: View project list
 
-- **GIVEN** a user with `projects:view` permission (checked via `hasPermission` in `app/dashboard/projects/page.tsx:12` and `sessionAction` `permission: projects:view` in `getProjectsWithDetails`/`getProjects`)
-- **WHEN** the user navigates to `/dashboard/projects`
+- **GIVEN** a user with `projects:view` permission (checked via `hasPermission` in `app/app/proyectos/page.tsx:12` and `sessionAction` `permission: projects:view` in `getProjectsWithDetails`/`getProjects`)
+- **WHEN** the user navigates to `/app/proyectos`
 - **THEN** projects are displayed as a card grid with name, category, status badge, dates, budget bar, task progress, and primary owner shown with a crown icon (via `getProjectsWithDetails` filtered by `projectOwners` `exists` for non-super, `unwrapResponse` with `[]` fallback)
 - **AND** each card shows the project's color as a dot next to the project name
 - **AND** the header shows "Portfolio" label, "Projects" title, and a subtitle description
@@ -66,13 +66,13 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 
 - **GIVEN** a user viewing the projects list
 - **WHEN** the user clicks on a project card's title
-- **THEN** the user is navigated to `/dashboard/projects/[id]`
+- **THEN** the user is navigated to `/app/proyectos/[id]`
 - **AND** the tasks subpage is shown by default
 
 #### Scenario: View project details subpage
 
 - **GIVEN** a user who is an owner of the project
-- **WHEN** the user navigates to `/dashboard/projects/[id]/details`
+- **WHEN** the user navigates to `/app/proyectos/[id]/detalles`
 - **THEN** the details subpage shows the project info in a Card with entries ordered: primary owner, category, color, location, start date, end date, budget, and description
 - **AND** the color entry shows the project's color as a swatch with its localized color name
 - **AND** edit and delete buttons appear in the details card footer
@@ -165,7 +165,7 @@ The system SHALL provide a combobox input (`components/projects/user-invite-inpu
 
 ### Requirement: Task management
 
-The system SHALL allow owners to manage tasks on their projects. Tasks are managed on the tasks subpage (`/dashboard/projects/[id]`, the default project subpage). Tasks SHALL carry an optional priority of `urgent` or `high`; tasks with no priority are allowed. Tasks SHALL carry an optional due date (a datetime). Owners set or edit the due date from the task dialog using a date field and an optional time field; the due date is rendered in the Due Date column of the task table. Tasks SHALL support a `cancelled` status that owners apply from the inline status dropdown; cancelled tasks are read-only for non-owners, do not show the overdue indicator, and are excluded from project task progress. Owners can reopen a cancelled task by selecting an active status. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change, priority change) use optimistic updates with useReducer for instant UI feedback, global loading indicator during server requests, and success toasts on completion.
+The system SHALL allow owners to manage tasks on their projects. Tasks are managed on the tasks subpage (`/app/proyectos/[id]`, the default project subpage). Tasks SHALL carry an optional priority of `urgent` or `high`; tasks with no priority are allowed. Tasks SHALL carry an optional due date (a datetime). Owners set or edit the due date from the task dialog using a date field and an optional time field; the due date is rendered in the Due Date column of the task table. Tasks SHALL support a `cancelled` status that owners apply from the inline status dropdown; cancelled tasks are read-only for non-owners, do not show the overdue indicator, and are excluded from project task progress. Owners can reopen a cancelled task by selecting an active status. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change, priority change) use optimistic updates with useReducer for instant UI feedback, global loading indicator during server requests, and success toasts on completion.
 
 #### Scenario: Create task
 
@@ -323,12 +323,12 @@ The system SHALL allow owners to manage tasks on their projects. Tasks are manag
 
 ### Requirement: Routine management
 
-The system SHALL allow owners to manage recurring tasks (routines) on the routines subpage (`/dashboard/projects/[id]/routines`). A routine defines a name, description, cost, assignee, and a schedule; routines have no status and no priority. The schedule is captured in a two-step form (details, then scheduling) and supports two recurrences: `daily` (an "every N days" interval) and `weekly` (selected weekdays combined with an "every N weeks" interval). Each routine optionally stores a perform-at time (HH:MM) and an optional start/end date range that bounds the occurrences. Creating a routine immediately spawns its first task instance scheduled for the next occurrence (no earlier than the start date), and marking a routine-instance task as done or cancelled automatically spawns the next instance scheduled after the completed instance (status `todo`, no priority) unless an open instance already exists or the next occurrence falls after the end date. An instance is open when its status is not "done" and not "cancelled". Routine-instance tasks carry a due date (`due_date` column) and are identified by a `routineId`, shown with a "Routine" badge and their due date in the Due Date column of the Tasks and My Tasks tables. Common routines can be started from static templates (irrigation, fertilization, pest monitoring, weeding, harvest).
+The system SHALL allow owners to manage recurring tasks (routines) on the routines subpage (`/app/proyectos/[id]/rutinas`). A routine defines a name, description, cost, assignee, and a schedule; routines have no status and no priority. The schedule is captured in a two-step form (details, then scheduling) and supports two recurrences: `daily` (an "every N days" interval) and `weekly` (selected weekdays combined with an "every N weeks" interval). Each routine optionally stores a perform-at time (HH:MM) and an optional start/end date range that bounds the occurrences. Creating a routine immediately spawns its first task instance scheduled for the next occurrence (no earlier than the start date), and marking a routine-instance task as done or cancelled automatically spawns the next instance scheduled after the completed instance (status `todo`, no priority) unless an open instance already exists or the next occurrence falls after the end date. An instance is open when its status is not "done" and not "cancelled". Routine-instance tasks carry a due date (`due_date` column) and are identified by a `routineId`, shown with a "Routine" badge and their due date in the Due Date column of the Tasks and My Tasks tables. Common routines can be started from static templates (irrigation, fertilization, pest monitoring, weeding, harvest).
 
 #### Scenario: View routines subpage
 
 - **GIVEN** a user with `projects:view` permission
-- **WHEN** the user navigates to `/dashboard/projects/[id]/routines`
+- **WHEN** the user navigates to `/app/proyectos/[id]/rutinas`
 - **THEN** a Routines card is shown listing each routine with name, assignee, recurrence badge, schedule summary (cadence, selected days, time, date range), and cost
 
 #### Scenario: Create routine from template
@@ -454,12 +454,12 @@ The system SHALL allow owners to manage recurring tasks (routines) on the routin
 
 ### Requirement: Expense management
 
-The system SHALL allow owners to manage expenses on the expenses subpage (`/dashboard/projects/[id]/expenses`). The subpage shows a budget progress card (total spend = expense amounts + task costs compared against the project budget, with an over-budget indicator) and a table listing expense rows and task cost rows ordered by date (expense `expense_date` and task creation date). Owners can create, edit, and delete expenses, and can edit or delete task cost rows from the same table. Actions are granted via the `expenses:create`, `expenses:edit`, and `expenses:delete` permissions or project ownership rights.
+The system SHALL allow owners to manage expenses on the expenses subpage (`/app/proyectos/[id]/gastos`). The subpage shows a budget progress card (total spend = expense amounts + task costs compared against the project budget, with an over-budget indicator) and a table listing expense rows and task cost rows ordered by date (expense `expense_date` and task creation date). Owners can create, edit, and delete expenses, and can edit or delete task cost rows from the same table. Actions are granted via the `expenses:create`, `expenses:edit`, and `expenses:delete` permissions or project ownership rights.
 
 #### Scenario: View expenses subpage
 
 - **GIVEN** a user with `projects:view` permission
-- **WHEN** the user navigates to `/dashboard/projects/[id]/expenses`
+- **WHEN** the user navigates to `/app/proyectos/[id]/gastos`
 - **THEN** a Card is shown with a budget progress bar when the project has a budget
 - **AND** a table lists expense rows and task cost rows ordered by date ascending
 - **AND** each expense row shows description, a category badge translated via `categoryNames.*`, amount, and date
@@ -615,7 +615,7 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 
 - **GIVEN** a user logged into the dashboard
 - **WHEN** the user clicks "My Tasks" in the sidebar
-- **THEN** the user is navigated to `/dashboard/my-tasks`
+- **THEN** the user is navigated to `/app/mis-tareas`
 
 #### Scenario: View assigned tasks
 
@@ -671,7 +671,7 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 #### Scenario: Forbidden without projects view permission
 
 - **GIVEN** a user without `projects:view` permission
-- **WHEN** the user navigates to `/dashboard/my-tasks`
+- **WHEN** the user navigates to `/app/mis-tareas`
 - **THEN** a 403 forbidden screen is displayed
 - **AND** no server error is thrown
 

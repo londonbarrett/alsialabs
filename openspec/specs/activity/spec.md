@@ -4,11 +4,11 @@
 The activity page SHALL only be accessible to users with the `activity:view` permission.
 
 #### Scenario: User with permission can access activity
-- **WHEN** a user with `activity:view` permission visits `/dashboard/activity`
+- **WHEN** a user with `activity:view` permission visits `/app/actividad`
 - **THEN** the activity page SHALL render normally
 
 #### Scenario: Unauthorized user receives 403
-- **WHEN** a user without `activity:view` permission visits `/dashboard/activity`
+- **WHEN** a user without `activity:view` permission visits `/app/actividad`
 - **THEN** they SHALL receive a 403 Forbidden response
 
 ## ADDED Requirements

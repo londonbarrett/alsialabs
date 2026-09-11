@@ -2,7 +2,7 @@
 
 ### Requirement: Category management
 
-The system SHALL provide a unified category system organized by taxonomy. Each taxonomy (e.g., "project", "expense") groups related categories. Categories are managed via an admin UI at `/dashboard/categories` with tabbed navigation per taxonomy.
+The system SHALL provide a unified category system organized by taxonomy. Each taxonomy (e.g., "project", "expense") groups related categories. Categories are managed via an admin UI at `/app/categorias` with tabbed navigation per taxonomy.
 
 #### Schema
 
@@ -14,7 +14,7 @@ The system SHALL provide a unified category system organized by taxonomy. Each t
 #### Scenario: View categories admin page
 
 - **GIVEN** a user with `categories:view` permission
-- **WHEN** the user navigates to `/dashboard/categories`
+- **WHEN** the user navigates to `/app/categorias`
 - **THEN** a PageHeader with a FolderTree icon and the "Categories" title is displayed
 - **AND** a tabbed interface shows one tab per taxonomy (e.g., "Project Categories", "Expense Categories")
 - **AND** each tab displays a Card containing the taxonomy name as the CardHeader title, an "Add Category" button, and a table of categories with name, slug, and description columns
@@ -86,4 +86,4 @@ Non-admin users (e.g., project owners) SHALL be able to read categories for use 
 - **WHEN** the user opens the project create/edit dialog
 - **THEN** the category dropdown shows all available project categories
 - **AND** the user cannot see the "Categories" nav item in the sidebar
-- **AND** navigating directly to `/dashboard/categories` returns a forbidden error
+- **AND** navigating directly to `/app/categorias` returns a forbidden error

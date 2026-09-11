@@ -20,7 +20,7 @@ The sidebar SHALL organize nav items into three sections based on role and permi
 - **GIVEN** a user with `activity:view` permission
 - **WHEN** the sidebar renders
 - **THEN** the "Activity" link is visible in the Admin section with a BarChart3 icon
-- **AND** clicking it navigates to `/dashboard/activity`
+- **AND** clicking it navigates to `/app/actividad`
 
 ## ADDED Requirements
 
@@ -41,7 +41,7 @@ The system shall highlight menu items when clicked and stay on the home route.
 - **THEN** the user stays on the home route
 
 #### Scenario: Subpage keeps parent highlighted
-- **GIVEN** the user is on a subroute of a sidebar item (e.g., `/dashboard/projects/123`)
+- **GIVEN** the user is on a subroute of a sidebar item (e.g., `/app/proyectos/123`)
 - **WHEN** the sidebar renders
 - **THEN** the parent nav item (e.g., Projects) is highlighted as active
 
@@ -101,7 +101,7 @@ The sidebar menu config SHALL include permission requirements per item.
 - **THEN** each nav item optionally specifies a required permission (e.g., "clients:view")
 
 ### Requirement: Profile nav item
-The sidebar SHALL include a Profile item in the Navigation section that links to `/dashboard/profile`.
+The sidebar SHALL include a Profile item in the Navigation section that links to `/app/perfil`.
 
 #### Scenario: Profile link visible
 - **WHEN** the sidebar renders
@@ -113,11 +113,11 @@ The admin categories page SHALL require `categories:view` permission to access. 
 
 #### Scenario: Category page restricted to admins
 - **GIVEN** a user without `categories:view` permission
-- **WHEN** the user navigates to `/dashboard/categories`
+- **WHEN** the user navigates to `/app/categorias`
 - **THEN** a forbidden error is returned
 
 ### Requirement: My Tasks sidebar item
-The sidebar SHALL include a "My Tasks" item in the Navigation section that links to `/dashboard/my-tasks`. It requires `projects:view` permission.
+The sidebar SHALL include a "My Tasks" item in the Navigation section that links to `/app/mis-tareas`. It requires `projects:view` permission.
 
 #### Scenario: My Tasks link visible
 - **WHEN** the sidebar renders
@@ -126,7 +126,7 @@ The sidebar SHALL include a "My Tasks" item in the Navigation section that links
 - **AND** it requires `projects:view` permission to see
 
 ### Requirement: My Invoices sidebar item
-The sidebar SHALL include a "My Invoices" item in the Navigation section that links to `/dashboard/my-invoices`. It SHALL appear above My Tasks, use the Receipt icon, and require no permission to see. It SHALL be highlighted as active when the pathname is `/dashboard/my-invoices` or a subroute thereof.
+The sidebar SHALL include a "My Invoices" item in the Navigation section that links to `/app/mis-facturas`. It SHALL appear above My Tasks, use the Receipt icon, and require no permission to see. It SHALL be highlighted as active when the pathname is `/app/mis-facturas` or a subroute thereof.
 
 #### Scenario: My Invoices link visible
 - **WHEN** the sidebar renders for any authenticated user
@@ -136,13 +136,25 @@ The sidebar SHALL include a "My Invoices" item in the Navigation section that li
 
 #### Scenario: My Invoices navigates to my-invoices page
 - **WHEN** the user clicks "My Invoices" in the sidebar
-- **THEN** the user is navigated to `/dashboard/my-invoices`
+- **THEN** the user is navigated to `/app/mis-facturas`
 
 #### Scenario: My Invoices stays active on subroute
-- **GIVEN** the user is on `/dashboard/my-invoices/123`
+- **GIVEN** the user is on `/app/mis-facturas/123`
 - **WHEN** the sidebar renders
 - **THEN** the "My Invoices" nav item is highlighted as active
 
 #### Scenario: My Invoices visible in Navigation section ordering
 - **WHEN** the sidebar renders
 - **THEN** the Navigation section order is Profile, My Invoices, My Tasks, Projects, Calendar (with permission-gated items filtered), above Auxiliary
+
+### Requirement: Spanish app routing
+The app base route SHALL be `/app` with Spanish slugs. Old `/dashboard/*` routes SHALL return 404. The sidebar and all navigation SHALL use Spanish paths.
+
+#### Scenario: Sidebar uses Spanish paths
+- **WHEN** the sidebar renders
+- **THEN** links point to `/app/clientes`, `/app/productos`, `/app/ventas`, `/app/actividad`, `/app/categorias`, `/app/proyectos`, `/app/calendario`, `/app/perfil`, `/app/usuarios`, `/app/permisos`, `/app/mis-facturas`, `/app/mis-tareas`
+- **AND** project subpages use `/app/proyectos/[id]/detalles`, `/app/proyectos/[id]/personas`, `/app/proyectos/[id]/gastos`, `/app/proyectos/[id]/rutinas`
+
+#### Scenario: Old dashboard routes 404
+- **WHEN** an unauthenticated or authenticated user navigates to any `/dashboard/*` path
+- **THEN** a 404 is returned (no redirect)

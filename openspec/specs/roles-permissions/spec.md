@@ -101,10 +101,10 @@ The system SHALL hide sidebar navigation items for modules the user does not hav
 - **THEN** the Clients link is visible
 
 ### Requirement: Non-super cannot access permissions page
-The system SHALL restrict `/dashboard/permissions` to super users only.
+The system SHALL restrict `/app/permisos` to super users only.
 
 #### Scenario: Admin is forbidden from permissions page
-- **WHEN** an admin user navigates to `/dashboard/permissions`
+- **WHEN** an admin user navigates to `/app/permisos`
 - **THEN** they see a 403 forbidden page
 
 ### Requirement: sales:view-invoice-history is seeded for client and admin roles

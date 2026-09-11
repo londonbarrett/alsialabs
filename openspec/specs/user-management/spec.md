@@ -9,7 +9,7 @@ The system SHALL allow super users to view a table of all users with their roles
 - **AND** the page uses `unwrapResponse(result)` (returns `[]` by default for arrays, `lib/util/unwrap.ts:16`)
 
 ### Requirement: Super can create a user
-The system SHALL allow super users to create new users via safe action `createUser` (`sessionAction` `permission: users:manage`, schema `createUserSchema: {email, roleId}`, `isSuperUser` guard) by providing an email and selecting a role. The default role SHALL be "admin". An invitation email SHALL be sent to the new user via Resend and `revalidatePath("/dashboard/users")` + `updateTag("permissions")` SHALL be called.
+The system SHALL allow super users to create new users via safe action `createUser` (`sessionAction` `permission: users:manage`, schema `createUserSchema: {email, roleId}`, `isSuperUser` guard) by providing an email and selecting a role. The default role SHALL be "admin". An invitation email SHALL be sent to the new user via Resend and `revalidatePath("/app/usuarios")` + `updateTag("permissions")` SHALL be called.
 
 #### Scenario: Super creates a user
 - **WHEN** a super user fills in the create user form with an email and role
@@ -82,23 +82,32 @@ The system SHALL allow all authenticated users to view their own profile details
 - **THEN** they see their name, email, and role
 
 ### Requirement: Authenticated user sees dashboard
-The system SHALL redirect all authenticated users to an empty dashboard placeholder upon sign-in.
+The system SHALL redirect all authenticated users to `/app` upon sign-in. `app/app/page.tsx` SHALL then redirect by role: `user` → `/app/perfil`, others → `/app/actividad`. `app/(auth)/login/page.tsx` and `app/page.tsx` SHALL redirect authenticated users to `/app` via `auth()` + `redirect('/app')`.
 
 #### Scenario: User signs in
-- **WHEN** a user signs in successfully
-- **THEN** they are redirected to the dashboard
-- **AND** they see an empty dashboard placeholder
+- **WHEN** a user signs in successfully via Google/Facebook
+- **THEN** they are redirected to `/app` (via `signIn(..., {redirectTo:'/app'})`)
+- **AND** `app/app/page.tsx` redirects to `/app/actividad` (or `/app/perfil` for `user` role)
 
-### Requirement: Auth proxy guards dashboard routes
-The system SHALL use a `proxy.ts` file to protect all `/dashboard/*` routes from unauthenticated access.
+#### Scenario: Authenticated user visits login or landing
+- **GIVEN** an authenticated user
+- **WHEN** they navigate to `/` or `/login`
+- **THEN** they are redirected to `/app` (via `proxy.ts` and server `redirect`)
+
+### Requirement: Auth proxy guards app routes
+The system SHALL use a `proxy.ts` file with `proxy = auth((request) => ...)` and `proxyConfig: ['/', '/login', '/app/:path*']` to protect all `/app/*` routes from unauthenticated access and to redirect authenticated users away from `/` and `/login`.
 
 #### Scenario: Unauthenticated visitor is redirected
-- **WHEN** an unauthenticated visitor tries to access any `/dashboard/*` page
-- **THEN** they are redirected to the login page
+- **WHEN** an unauthenticated visitor tries to access any `/app/*` page
+- **THEN** they are redirected to `/login`
+
+#### Scenario: Authenticated visitor is redirected from login
+- **WHEN** an authenticated user tries to access `/login` or `/`
+- **THEN** they are redirected to `/app`
 
 ### Requirement: Non-super users cannot access user management
-The system SHALL restrict the `/dashboard/users` page to super users only. Non-super users SHALL receive a forbidden response.
+The system SHALL restrict the `/app/usuarios` page to super users only. Non-super users SHALL receive a forbidden response.
 
 #### Scenario: Client user tries to access user management
-- **WHEN** a client user navigates to `/dashboard/users`
+- **WHEN** a client user navigates to `/app/usuarios`
 - **THEN** they see a forbidden error page
