@@ -23,13 +23,11 @@ type CategoryItem = {
 interface TaxonomyTabsProps {
   taxonomies: Taxonomy[]
   categoriesByTaxonomy: Record<string, CategoryItem[]>
-  permissions?: string[]
 }
 
 export function TaxonomyTabs({
   taxonomies,
   categoriesByTaxonomy,
-  permissions = [],
 }: TaxonomyTabsProps) {
   const t = useTranslations()
   const defaultSlug = taxonomies[0]?.slug ?? ""
@@ -59,7 +57,6 @@ export function TaxonomyTabs({
                   ? t(`taxonomyNames.${taxonomy.slug}`)
                   : taxonomy.name
               }
-              permissions={permissions}
             />
           </TabsContent>
         ))}

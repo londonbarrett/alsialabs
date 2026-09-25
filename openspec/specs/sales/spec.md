@@ -268,26 +268,25 @@ The sales page SHALL be a server component that fetches data and composes Page l
 - **THEN** it no longer contains `PageHeader` or outer `div flex-1`
 - **AND** it renders revenue charts (`MonthlyRevenueChart`/`TopClientsChart` in `Card`) and `InvoicesCard` `components/sales/invoices-card.tsx`
 
-### Requirement: InvoicesCard is fully optimistic with reducer
-The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be fully optimistic using React `useOptimistic` and `invoiceReducer` `reducers/invoice-reducer.ts`, following `tasks-card` pattern.
+### Requirement: InvoicesCard is fully optimistic with an invoice store
+The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be fully optimistic using the global pending-actions store pattern (`useOptimisticDerived`/`useOptimisticAction` `hooks/use-optimistic-store.ts` with `invoiceReducer`/`applyInvoiceAction` `stores/invoice-store.ts`).
 
-#### Scenario: InvoicesCard uses useOptimistic and invoiceReducer
+#### Scenario: InvoicesCard uses useInvoiceActions and the invoice store
 - **WHEN** `InvoicesCard` mounts with `invoices: InvoiceWithClientName[]` `components/sales/sales-invoice-table.tsx:17`
-- **THEN** it initializes `const [optimisticInvoices, addOptimistic] = useOptimistic(initialInvoices, invoiceReducer)` aliased as `invoices`/`dispatch`
-- **AND** all 7 mutations (`createInvoice`/`updateInvoice`/`deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`markInvoiceAsSent` `lib/actions/invoices.ts:471` and `recordPayment` `lib/actions/payments.ts:10`) are dispatched optimistically via `startTransition(() => dispatch({type}))` before awaiting `useAction` `next-safe-action/hooks`
-- **AND** on success it dispatches `replaceTemp`/`update` with server `returning()` data, on error it dispatches `delete`/`update` rollback to `initialInvoices`
+- **THEN** it obtains `invoices` plus the optimistic mutation handlers `deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`sendInvoice` from `useInvoiceActions` `hooks/use-invoice-actions.ts` (backed by `useInvoiceStore` `stores/invoice-store.ts` and the pending-actions store `stores/pending-actions-store.ts`)
+- **AND** on success each handler commits the server `returning()` data via the store, on error it commits the rollback and toasts `useActionError` `lib/util/action-errors.ts`
 
 #### Scenario: Invoice filters are extracted
 - **WHEN** `InvoicesCard` renders
-- **THEN** it uses `useInvoiceFilters` `hooks/use-invoice-filters.ts` (4 `useState` + `useMemo filteredInvoices`) and `InvoiceFilters` `components/sales/invoice-filters.tsx` (shadcn `InputGroup` `components/ui/input-group.tsx` with `Search` addon, `Select` for status, `Input type=date` for range, `gap-2` rounded units, `aria-live` resultCount) instead of inline filter bar
+- **THEN** `InvoiceFilters` `components/sales/invoice-filters.tsx` owns the filters (4 `useState` + `useMemo filteredInvoices`) and exposes the filtered list via a render-prop `children`, using shadcn `InputGroup` `components/ui/input-group.tsx` with `Search` addon, `Select` for status, `Input type=date` for range, `gap-2` rounded units, `aria-live` resultCount instead of inline filter bar
 
-#### Scenario: Invoice dialogs are extracted
+#### Scenario: Invoice dialogs are rendered by InvoicesCard
 - **WHEN** `InvoicesCard` renders
-- **THEN** it delegates `InvoiceDialog`/`RecordPaymentDialog`/`PaymentHistoryDialog` to `InvoiceDialogs` `components/sales/invoice-dialogs.tsx`
+- **THEN** it renders `SalesInvoiceDialog` `components/sales/sales-invoice-dialog.tsx`, `PaymentDialog` `components/sales/payment-dialog.tsx` (record variant), and `PaymentHistoryDialog` `components/sales/payment-history-dialog.tsx` directly
 
 #### Scenario: Payment dialog closes optimistically
-- **WHEN** a user submits `RecordPaymentDialog`
-- **THEN** `handlePaymentSubmit` `components/sales/invoices-card.tsx:84` closes the dialog (`setPaymentInvoice(null)`) immediately before `await executeRecordPayment`, while `paymentReducer` `reducers/payment-reducer.ts:10` updates `paidAmount`/`status` optimistically; rollback on `serverError` does not reopen the dialog
+- **WHEN** a user submits the record `PaymentDialog`
+- **THEN** `handleRecordPaymentSubmit` `components/sales/invoices-card.tsx:69` closes the dialog (`setPaymentDialog((s) => ({ ...s, open: false }))`) immediately before `await recordPayment` `lib/actions/payments.ts:10`, while the invoice store updates `paidAmount`/`status` optimistically; rollback on `serverError` does not reopen the dialog
 
 #### Scenario: Invoice table updates on payment delete
 - **WHEN** a payment is deleted via `PaymentHistory` `components/sales/payment-history.tsx:57` (`useOptimistic`+`paymentReducer` `reducers/payment-reducer.ts:7` with `setPayments` commit to base state)
@@ -309,5 +308,5 @@ The system SHALL keep invoice-related code separate from sales analytics.
 - **THEN** it requires `sales:create` `lib/actions/payments.ts:12`, `updatePayment` requires `sales:edit` `lib/actions/payments.ts:125`, `deletePayment` requires `sales:delete` `lib/actions/payments.ts:201` (no `sales:record-payment` in `lib/drizzle/seed.ts:37`)
 
 #### Scenario: Tests are co-located
-- **WHEN** inspecting `lib/actions/invoices.test.ts` `lib/actions/payments.test.ts`, `reducers/invoice-reducer.test.ts`, `reducers/payment-reducer.test.ts`, `lib/util/invoices.test.ts`
-- **THEN** each file lives next to its target (`reducers/` or `lib/actions/` or `lib/util/`) and tests business logic (e.g. `computeInvoiceTotals` `lib/util/invoices.ts:26`, `overdue` derivation, `initialStatus` from `paidAmount`, `paymentReducer` `add`/`update`/`delete`, `canRecordPayment` validation) without mocking action logic, with `vitest-drizzle-mock` only for `db` where needed
+- **WHEN** inspecting `lib/actions/invoices.test.ts` `lib/actions/payments.test.ts`, `stores/invoice-store.test.ts`, `reducers/payment-reducer.test.ts`, `lib/util/invoices.test.ts`
+- **THEN** each file lives next to its target (`stores/`, `reducers/`, `lib/actions/`, or `lib/util/`) and tests business logic (e.g. `computeInvoiceTotals` `lib/util/invoices.ts:26`, `overdue` derivation, `initialStatus` from `paidAmount`, `applyInvoiceAction`/`invoiceReducer` `stores/invoice-store.ts`, `paymentReducer` `add`/`update`/`delete`, `canRecordPayment` validation) without mocking action logic, with `vitest-drizzle-mock` only for `db` where needed

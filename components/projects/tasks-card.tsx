@@ -30,6 +30,7 @@ import { useTranslations } from "next-intl"
 import { useReducer, useState, useTransition } from "react"
 import { useAction } from "next-safe-action/hooks"
 import { toast } from "sonner"
+import { useHasPermission } from "@/stores/permissions-store"
 import { TaskCommentsPanel } from "./task-comments-panel"
 import { TaskDialog } from "./task-dialog"
 import { TasksTable } from "./tasks-table"
@@ -48,7 +49,6 @@ interface TasksCardProps {
   isOwner: boolean
   isCollaborator: boolean
   currentUserId: string
-  permissions: string[]
   projectMembers: ProjectMember[]
 }
 
@@ -59,10 +59,10 @@ export function TasksCard({
   isOwner,
   isCollaborator,
   currentUserId,
-  permissions,
   projectMembers,
 }: TasksCardProps) {
   const t = useTranslations()
+  const canDeleteProject = useHasPermission("projects:delete")
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const [tasks, dispatch] = useReducer(taskReducer, initialTasks)
@@ -76,7 +76,7 @@ export function TasksCard({
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
   const canMutate =
-    isOwner && (canEdit || permissions.includes("projects:delete"))
+    isOwner && (canEdit || canDeleteProject)
   const translateError = useActionError()
   const { executeAsync: executeCreate } = useAction(createTask)
   const { executeAsync: executeUpdate } = useAction(updateTask)
@@ -313,7 +313,6 @@ export function TasksCard({
             isCollaborator={isCollaborator}
             currentUserId={currentUserId}
             projectMembers={projectMembers}
-            permissions={permissions}
             onStatusChange={handleTaskStatusChange}
             onPriorityChange={handleTaskPriorityChange}
             onDelete={handleDeleteTask}

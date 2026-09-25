@@ -34,7 +34,6 @@ export default async function RoutinesPage({ params }: Props) {
       projectId={project.id}
       canEdit={canEdit}
       isOwner={isOwner}
-      permissions={permissions}
       projectMembers={[...owners, ...collaborators]}
     />
   )

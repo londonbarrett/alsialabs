@@ -19,17 +19,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { getSidebarMenu, type SidebarItem } from "@/config/sidebar-menu"
+import { usePermissions } from "@/stores/permissions-store"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 export function AppSidebar({
-  permissions = [],
   role,
   user,
   selectedStoreId,
 }: {
-  permissions?: string[]
   role?: string | null
   user: {
     name: string | null
@@ -41,6 +40,7 @@ export function AppSidebar({
   const t = useTranslations("sidebar")
   const pathname = usePathname()
   const { isMobile, setOpenMobile } = useSidebar()
+  const permissions = usePermissions()
 
   const sidebarMenu = getSidebarMenu(role, permissions)
 

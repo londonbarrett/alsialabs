@@ -3,6 +3,7 @@
 import { PageHeader } from "@/components/common/page-header"
 import { Button } from "@/components/ui/button"
 import type { Project } from "@/lib/types"
+import { useHasPermission } from "@/stores/permissions-store"
 import { FolderKanban, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
@@ -13,16 +14,15 @@ import { ProjectDialog } from "./project-dialog"
 interface ProjectListViewProps {
   projects: Project[]
   categories: { id: string; slug: string; name: string }[]
-  permissions?: string[]
 }
 
 export function ProjectListView({
   projects,
   categories,
-  permissions = [],
 }: ProjectListViewProps) {
   const t = useTranslations()
   const router = useRouter()
+  const canCreate = useHasPermission("projects:create")
   const [dialogOpen, setDialogOpen] = useState(false)
 
   function handleSuccess() {
@@ -44,7 +44,7 @@ export function ProjectListView({
           <p className="text-muted-foreground">
             {t("projects.noProjects")}
           </p>
-          {permissions.includes("projects:create") && (
+          {canCreate && (
             <Button
               onClick={openNew}
               aria-label={t("projects.addProject")}
@@ -61,7 +61,7 @@ export function ProjectListView({
             subtitle={t("projects.subtitle")}
             icon={FolderKanban}
           >
-            {permissions.includes("projects:create") && (
+            {canCreate && (
               <Button
                 onClick={openNew}
                 aria-label={t("projects.addProject")}

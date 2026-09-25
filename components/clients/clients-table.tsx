@@ -8,12 +8,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { Client } from "@/lib/drizzle/schema"
+import { useHasPermission } from "@/stores/permissions-store"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 
 interface ClientsTableProps {
   clients: Client[]
-  permissions: string[]
   onEdit: (client: Client) => void
   onInvite: (client: Client) => Promise<void>
   onDelete: (client: Client) => Promise<void>
@@ -22,13 +22,14 @@ interface ClientsTableProps {
 
 export function ClientsTable({
   clients,
-  permissions,
   onEdit,
   onInvite,
   onDelete,
   onView,
 }: ClientsTableProps) {
   const t = useTranslations()
+  const canDelete = useHasPermission("clients:delete")
+  const canInvite = useHasPermission("clients:invite")
 
   return (
     <Table>
@@ -77,10 +78,10 @@ export function ClientsTable({
                   entityName={client.name}
                   onEdit={() => onEdit(client)}
                   onDelete={() => onDelete(client)}
-                  canDelete={permissions.includes("clients:delete")}
+                  canDelete={canDelete}
                   onView={() => onView(client)}
                   onInvite={() => onInvite(client)}
-                  canInvite={permissions.includes("clients:invite")}
+                  canInvite={canInvite}
                 />
               </TableCell>
             </TableRow>

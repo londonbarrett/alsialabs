@@ -45,7 +45,6 @@ export default async function CategoriesPage() {
     <TaxonomyTabs
       taxonomies={taxonomies}
       categoriesByTaxonomy={categoriesByTaxonomy}
-      permissions={permissions}
     />
   )
 }

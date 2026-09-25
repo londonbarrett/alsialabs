@@ -1,7 +1,13 @@
 "use client"
 
-import { InvoiceDialogs } from "@/components/sales/invoice-dialogs"
 import { InvoiceFilters } from "@/components/sales/invoice-filters"
+import { PaymentHistoryDialog } from "@/components/sales/payment-history-dialog"
+import { PaymentDialog } from "@/components/sales/payment-dialog"
+import type {
+  PaymentFormValues,
+  PaymentSubmitResult,
+} from "@/components/sales/payment-form"
+import { SalesInvoiceDialog } from "@/components/sales/sales-invoice-dialog"
 import {
   SalesInvoiceTable,
   type InvoiceWithClientName,
@@ -14,108 +20,109 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useInvoiceActions } from "@/hooks/use-invoice-actions"
-import { useInvoiceFilters } from "@/hooks/use-invoice-filters"
-import type { Invoice } from "@/lib/drizzle/schema"
+import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { recordPayment } from "@/lib/actions/payments"
+import type { Invoice, InvoiceStatus } from "@/lib/drizzle/schema"
+import { useActionError } from "@/lib/util/action-errors"
+import { useHasPermission } from "@/stores/permissions-store"
+import { useInvoiceStore } from "@/stores/invoice-store"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
+import { toast } from "sonner"
 
 interface InvoicesCardProps {
   invoices: InvoiceWithClientName[]
-  permissions?: string[]
 }
 
 export function InvoicesCard({
   invoices: initialInvoices,
-  permissions = [],
 }: InvoicesCardProps) {
   const t = useTranslations()
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingInvoice, setEditingInvoice] = useState<
-    Invoice | undefined
-  >()
-  const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(
-    null
-  )
-  const [historyInvoice, setHistoryInvoice] = useState<Invoice | null>(
-    null
-  )
+  const translateError = useActionError()
+  const { run: runInvoice } = useOptimisticAction(useInvoiceStore)
 
   const {
     invoices,
-    handleInvoiceSubmit: handleInvoiceSubmitBase,
-    handlePaymentSubmit: handlePaymentSubmitBase,
-    handleDeleteInvoice,
-    handleCancelInvoice,
-    handleReopenInvoice,
-    handleMarkSent,
+    deleteInvoice,
+    cancelInvoice,
+    reopenInvoice,
+    sendInvoice,
   } = useInvoiceActions(initialInvoices)
 
-  const {
-    searchQuery,
-    setSearchQuery,
-    statusFilter,
-    setStatusFilter,
-    dateFrom,
-    setDateFrom,
-    dateTo,
-    setDateTo,
-    filteredInvoices,
-    isFiltered,
-    clearFilters,
-  } = useInvoiceFilters(invoices)
+  // Dialog state — owned by this parent
+  const [invoiceDialog, setInvoiceDialog] = useState<{
+    open: boolean
+    editing?: Invoice
+  }>({ open: false })
+  const [paymentDialog, setPaymentDialog] = useState<{
+    open: boolean
+    invoice?: Invoice
+  }>({ open: false })
+  const [historyDialog, setHistoryDialog] = useState<{
+    open: boolean
+    invoice?: Invoice
+  }>({ open: false })
 
-  async function handleInvoiceSubmit(
-    data: import("@/lib/schemas/invoice").InvoiceFormData,
-    invoiceId?: string
-  ) {
-    const editing = editingInvoice
-    // Close optimistically – matches tasks-card pattern and keeps UI snappy
-    setEditingInvoice(undefined)
-    setDialogOpen(false)
-    const result = await handleInvoiceSubmitBase(data, invoiceId, editing)
-    if (!result.success && result.fieldErrors) {
-      // Re-open on validation error so fieldErrors can be shown (form stays mounted via InvoiceDialogs)
-      setEditingInvoice(editing)
-      setDialogOpen(true)
+  const canCreate = useHasPermission("sales:create")
+
+  async function handleRecordPaymentSubmit(
+    values: PaymentFormValues
+  ): Promise<PaymentSubmitResult> {
+    const invoice = paymentDialog.invoice
+    if (!invoice) {
+      return {
+        success: false as const,
+        error: t("common.somethingWentWrong"),
+      }
     }
-    return result
-  }
 
-  async function handlePaymentSubmit(
-    values: import("@/components/sales/payment-form").PaymentFormValues
-  ) {
-    const current = paymentInvoice
-    // Close immediately – optimistic update already applied in hook
-    setPaymentInvoice(null)
-    const result = await handlePaymentSubmitBase(values, current)
-    if (!result.success) {
-      // Keep dialog closed, surface error via toast; user can re-open to retry
-      // No re-open to avoid jarring flash – validation errors for payments are rare
+    const currentPaid = parseFloat(invoice.paidAmount) || 0
+    const added = parseFloat(values.amount) || 0
+    const newPaid = currentPaid + added
+    const grandTotal = parseFloat(invoice.grandTotal) || 0
+    const newStatus: InvoiceStatus =
+      newPaid >= grandTotal ? "paid" : "partially_paid"
+
+    setPaymentDialog((s) => ({ ...s, open: false }))
+    const result = await runInvoice(
+      {
+        type: "recordPayment",
+        invoiceId: invoice.id,
+        paidAmount: newPaid.toFixed(2),
+        status: newStatus,
+      },
+      () => recordPayment({ invoiceId: invoice.id, ...values })
+    )
+
+    if (result?.data) {
+      toast.success(t("sales.paymentRecorded"))
+      return { success: true as const }
     }
-    return result
-  }
 
-  function openNew() {
-    setEditingInvoice(undefined)
-    setDialogOpen(true)
+    if (result?.serverError) {
+      toast.error(translateError(result.serverError.code))
+      return {
+        success: false as const,
+        error: translateError(result.serverError.code),
+      }
+    }
+    if (result?.validationErrors) {
+      return {
+        success: false as const,
+        error: t("common.somethingWentWrong"),
+        fieldErrors: result.validationErrors as Record<
+          string,
+          string[] | undefined
+        >,
+      }
+    }
+    toast.error(t("common.somethingWentWrong"))
+    return {
+      success: false as const,
+      error: t("common.somethingWentWrong"),
+    }
   }
-
-  function openEdit(invoice: InvoiceWithClientName) {
-    setEditingInvoice(invoice as Invoice)
-    setDialogOpen(true)
-  }
-
-  function handleOpenChange(open: boolean) {
-    setDialogOpen(open)
-    if (!open) setEditingInvoice(undefined)
-  }
-
-  const canCreate = permissions.includes("sales:create")
-  const canManagePayments =
-    permissions.includes("sales:edit") ||
-    permissions.includes("sales:create") ||
-    permissions.includes("sales:delete")
 
   return (
     <>
@@ -124,7 +131,7 @@ export function InvoicesCard({
           <CardTitle>{t("sales.invoices")}</CardTitle>
           {canCreate && (
             <Button
-              onClick={openNew}
+              onClick={() => setInvoiceDialog({ open: true })}
               aria-label={t("sales.newInvoice")}
             >
               <Plus />
@@ -140,7 +147,7 @@ export function InvoicesCard({
               </p>
               {canCreate && (
                 <Button
-                  onClick={openNew}
+                  onClick={() => setInvoiceDialog({ open: true })}
                   aria-label={t("sales.newInvoice")}
                 >
                   <Plus />
@@ -149,59 +156,77 @@ export function InvoicesCard({
               )}
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
-              <InvoiceFilters
-                searchQuery={searchQuery}
-                onSearchQueryChange={(value) => setSearchQuery(value ?? "")}
-                statusFilter={statusFilter}
-                onStatusFilterChange={(value) => {
-                  if (value !== null) setStatusFilter(value)
-                }}
-                dateFrom={dateFrom}
-                onDateFromChange={(value) => setDateFrom(value ?? "")}
-                dateTo={dateTo}
-                onDateToChange={(value) => setDateTo(value ?? "")}
-                isFiltered={isFiltered}
-                onClearFilters={clearFilters}
-                resultCount={filteredInvoices.length}
-              />
-              {filteredInvoices.length === 0 ? (
-                <p className="py-12 text-center text-sm text-muted-foreground">
-                  {t("common.noResults")}
-                </p>
-              ) : (
-                <SalesInvoiceTable
-                  invoices={filteredInvoices}
-                  permissions={permissions}
-                  onEdit={openEdit}
-                  onViewPayments={(inv) =>
-                    setHistoryInvoice(inv as Invoice)
-                  }
-                  onRecordPayment={(inv) =>
-                    setPaymentInvoice(inv as Invoice)
-                  }
-                  onDelete={(inv) => handleDeleteInvoice(inv.id)}
-                  onCancel={(inv) => handleCancelInvoice(inv.id)}
-                  onReopen={(inv) => handleReopenInvoice(inv.id)}
-                  onMarkSent={(inv) => handleMarkSent(inv.id)}
-                />
-              )}
-            </div>
+            <InvoiceFilters invoices={invoices}>
+              {(filteredInvoices) =>
+                filteredInvoices.length === 0 ? (
+                  <p className="py-12 text-center text-sm text-muted-foreground">
+                    {t("common.noResults")}
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    <SalesInvoiceTable
+                      invoices={filteredInvoices}
+                      onEdit={(invoice) =>
+                        setInvoiceDialog({
+                          open: true,
+                          editing: invoice,
+                        })
+                      }
+                      onViewPayments={(invoice) =>
+                        setHistoryDialog({
+                          open: true,
+                          invoice,
+                        })
+                      }
+                      onRecordPayment={(invoice) =>
+                        setPaymentDialog({
+                          open: true,
+                          invoice,
+                        })
+                      }
+                      onDelete={(invoice) => deleteInvoice(invoice.id)}
+                      onCancel={(invoice) => cancelInvoice(invoice.id)}
+                      onReopen={(invoice) => reopenInvoice(invoice.id)}
+                      onSend={(invoice) => sendInvoice(invoice.id)}
+                    />
+                  </div>
+                )
+              }
+            </InvoiceFilters>
           )}
         </CardContent>
       </Card>
 
-      <InvoiceDialogs
-        editingInvoice={editingInvoice}
-        dialogOpen={dialogOpen}
-        onDialogOpenChange={handleOpenChange}
-        onInvoiceSubmit={handleInvoiceSubmit}
-        paymentInvoice={paymentInvoice}
-        onPaymentInvoiceChange={setPaymentInvoice}
-        onPaymentSubmit={handlePaymentSubmit}
-        historyInvoice={historyInvoice}
-        onHistoryInvoiceChange={setHistoryInvoice}
-        canManagePayments={canManagePayments}
+      <SalesInvoiceDialog
+        open={invoiceDialog.open}
+        onOpenChange={(o) =>
+          setInvoiceDialog((s) => ({
+            open: o,
+            editing: o ? s.editing : undefined,
+          }))
+        }
+        editingInvoice={invoiceDialog.editing}
+      />
+      <PaymentDialog
+        open={paymentDialog.open}
+        onOpenChange={(o) =>
+          setPaymentDialog((s) => ({
+            open: o,
+            invoice: o ? s.invoice : undefined,
+          }))
+        }
+        invoice={paymentDialog.invoice}
+        onSubmit={handleRecordPaymentSubmit}
+      />
+      <PaymentHistoryDialog
+        open={historyDialog.open}
+        onOpenChange={(o) =>
+          setHistoryDialog((s) => ({
+            open: o,
+            invoice: o ? s.invoice : undefined,
+          }))
+        }
+        invoice={historyDialog.invoice}
       />
     </>
   )

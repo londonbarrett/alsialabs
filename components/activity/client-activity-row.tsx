@@ -9,21 +9,11 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type {
-  ActivityFormData,
-  UpsertActivityResult,
-} from "@/lib/actions/activities"
-import { upsertActivity } from "@/lib/actions/activities"
 import {
   getClientTimelinePage,
   type ClientTimelineEntry,
 } from "@/lib/actions/client-timeline"
-import { upsertReminder } from "@/lib/actions/reminders"
 import type { Client } from "@/lib/drizzle/schema"
-import {
-  buildTempActivity,
-  buildTempReminder,
-} from "@/lib/util/temp-entries"
 import { cn } from "cn"
 import {
   Bell,
@@ -36,7 +26,6 @@ import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { toast } from "sonner"
 
 export interface InactiveClient {
   clientId: string
@@ -138,74 +127,6 @@ export function ClientActivityRow({
     setDialog("reminder")
   }
 
-  async function handleActivitySubmit(
-    data: ActivityFormData
-  ): Promise<UpsertActivityResult> {
-    setDialog(null)
-    const optimisticActivity: ClientTimelineEntry =
-      buildTempActivity(data)
-
-    if (expanded && loaded) {
-      setEntries((prev) => [optimisticActivity, ...prev])
-    }
-    onClientChange(client.clientId, {
-      activityCount: client.activityCount + 1,
-    })
-
-    startLoading()
-    const result = await upsertActivity(data)
-    stopLoading()
-
-    if (result.success) {
-      setEntries((prev) =>
-        prev.map((a) =>
-          a.id === optimisticActivity.id
-            ? { ...result.activity, kind: "activity" as const }
-            : a
-        )
-      )
-      toast.success(t("activities.activityLogged"))
-    } else {
-      setEntries((prev) =>
-        prev.filter((a) => a.id !== optimisticActivity.id)
-      )
-      onClientChange(client.clientId, {
-        activityCount: client.activityCount,
-      })
-      toast.error(result.error || t("common.somethingWentWrong"))
-    }
-
-    return result
-  }
-
-  async function handleReminderSubmit(data: {
-    clientId: string
-    description: string
-    remindAt: string
-  }) {
-    setDialog(null)
-    const optimisticReminder: ClientTimelineEntry =
-      buildTempReminder(data)
-
-    if (expanded && loaded) {
-      setEntries((prev) => [optimisticReminder, ...prev])
-    }
-
-    startLoading()
-    const result = await upsertReminder(data)
-    stopLoading()
-    if (result.success) {
-      toast.success(t("reminders.reminderCreated"))
-    } else {
-      setEntries((prev) =>
-        prev.filter((r) => r.id !== optimisticReminder.id)
-      )
-      toast.error(result.error || t("common.somethingWentWrong"))
-    }
-    router.refresh()
-    return result
-  }
-
   function handleEditSuccess(
     data: Omit<Client, "id" | "userId" | "store_id">
   ) {
@@ -232,10 +153,6 @@ export function ClientActivityRow({
       store_id: null,
     }
   }
-
-  function handleNoop() {}
-
-  async function handleNoopAsync() {}
 
   return (
     <>
@@ -325,18 +242,15 @@ export function ClientActivityRow({
                     <ActivityItem
                       key={entry.id}
                       activity={entry}
-                      onEdit={handleNoop}
-                      onDelete={handleNoopAsync}
-                      canEdit={false}
-                      canDelete={false}
+                      clientId={client.clientId}
+                      readOnly
                     />
                   ) : (
                     <ReminderItem
                       key={entry.id}
                       reminder={entry}
-                      onEdit={handleNoop}
-                      onDelete={handleNoopAsync}
-                      onComplete={handleNoopAsync}
+                      clientId={client.clientId}
+                      readOnly
                     />
                   )
                 )}
@@ -372,26 +286,20 @@ export function ClientActivityRow({
           onSuccess={handleEditSuccess}
         />
       )}
-      {dialog === "activity" && (
-        <LogActivityDialog
-          clientId={client.clientId}
-          open
-          onOpenChange={(open) => {
-            if (!open) setDialog(null)
-          }}
-          onSubmit={handleActivitySubmit}
-        />
-      )}
-      {dialog === "reminder" && (
-        <ReminderDialog
-          clientId={client.clientId}
-          open
-          onOpenChange={(open) => {
-            if (!open) setDialog(null)
-          }}
-          onSubmit={handleReminderSubmit}
-        />
-      )}
+      <LogActivityDialog
+        clientId={client.clientId}
+        open={dialog === "activity"}
+        onOpenChange={(open) => {
+          if (!open) setDialog(null)
+        }}
+      />
+      <ReminderDialog
+        clientId={client.clientId}
+        open={dialog === "reminder"}
+        onOpenChange={(open) => {
+          if (!open) setDialog(null)
+        }}
+      />
     </>
   )
 }

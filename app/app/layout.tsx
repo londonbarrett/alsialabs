@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/common/app-sidebar"
+import { StoreSync } from "@/components/common/store-sync"
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import {
   SidebarInset,
@@ -21,8 +22,8 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
+      <StoreSync permissions={permissions} />
       <AppSidebar
-        permissions={permissions}
         role={session.user?.role}
         selectedStoreId={selectedStoreId}
         user={{

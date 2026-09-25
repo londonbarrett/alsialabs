@@ -20,14 +20,12 @@ import { useTranslations } from "next-intl"
 
 interface SalesViewProps {
   invoices: InvoiceWithClientName[]
-  permissions?: string[]
   monthlyRevenue?: MonthlyRevenue[]
   topClients?: TopClient[]
 }
 
 export function SalesView({
   invoices,
-  permissions = [],
   monthlyRevenue = [],
   topClients = [],
 }: SalesViewProps) {
@@ -56,7 +54,7 @@ export function SalesView({
         </div>
       )}
 
-      <InvoicesCard invoices={invoices} permissions={permissions} />
+      <InvoicesCard invoices={invoices} />
     </>
   )
 }

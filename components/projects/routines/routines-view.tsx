@@ -25,6 +25,7 @@ import {
   updateRoutine,
 } from "@/lib/actions/routines"
 import type { Routine } from "@/lib/drizzle/schema"
+import { useHasPermission } from "@/stores/permissions-store"
 import { Plus, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import {
@@ -88,7 +89,6 @@ interface RoutinesViewProps {
   projectId: string
   canEdit: boolean
   isOwner: boolean
-  permissions: string[]
   projectMembers: ProjectMember[]
 }
 
@@ -97,10 +97,10 @@ export const RoutinesView = memo(function RoutinesView({
   projectId,
   canEdit,
   isOwner,
-  permissions,
   projectMembers,
 }: RoutinesViewProps) {
   const t = useTranslations()
+  const canDeleteProject = useHasPermission("projects:delete")
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const [routines, dispatch] = useReducer(
@@ -115,8 +115,8 @@ export const RoutinesView = memo(function RoutinesView({
 
   const canMutate = useMemo(
     () =>
-      isOwner && (canEdit || permissions.includes("projects:delete")),
-    [isOwner, canEdit, permissions]
+      isOwner && (canEdit || canDeleteProject),
+    [isOwner, canEdit, canDeleteProject]
   )
 
   const handleRoutineSubmit = useCallback(
@@ -365,9 +365,7 @@ export const RoutinesView = memo(function RoutinesView({
                             handleDeleteRoutine(routine.id)
                           }
                           canEdit={canEdit}
-                          canDelete={permissions.includes(
-                            "projects:delete"
-                          )}
+                          canDelete={canDeleteProject}
                         />
                       </TableCell>
                     )}

@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
+import { useHasPermission } from "@/stores/permissions-store"
 import { Banknote, HandCoins, Send, Undo2, X } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
@@ -17,30 +18,31 @@ import { toast } from "sonner"
 
 interface SalesActionMenuProps {
   invoice: Invoice
-  permissions: string[]
   onEdit: () => void
   onViewPayments: () => void
   onRecordPayment: () => void
   onDelete?: () => void | Promise<void>
   onCancel?: () => void | Promise<void>
   onReopen?: () => void | Promise<void>
-  onMarkSent?: () => void | Promise<void>
+  onSend?: () => void | Promise<void>
 }
 
 export function SalesActionMenu({
   invoice,
-  permissions,
   onEdit,
   onViewPayments,
   onRecordPayment,
   onDelete,
   onCancel,
   onReopen,
-  onMarkSent,
+  onSend,
 }: SalesActionMenuProps) {
   const t = useTranslations()
   const translateError = useActionError()
   const router = useRouter()
+  const canCreate = useHasPermission("sales:create")
+  const canEdit = useHasPermission("sales:edit")
+  const canDelete = useHasPermission("sales:delete")
 
   const handleDelete = onDelete
     ? async () => {
@@ -54,9 +56,9 @@ export function SalesActionMenu({
         else toast.error(t("sales.failedToDelete"))
       }
 
-  const handleMarkSent = onMarkSent
+  const handleSend = onSend
     ? async () => {
-        await onMarkSent()
+        await onSend()
       }
     : async () => {
         const result = await markInvoiceAsSent({
@@ -105,21 +107,21 @@ export function SalesActionMenu({
   return (
     <ActionMenu
       entityName={t("invoiceItem.invoice")}
-      onEdit={permissions.includes("sales:edit") ? onEdit : undefined}
+      onEdit={canEdit ? onEdit : undefined}
       onDelete={handleDelete}
-      canDelete={permissions.includes("sales:delete")}
+      canDelete={canDelete}
     >
       <DropdownMenuItem onClick={onViewPayments}>
         <Banknote className="mr-2 h-4 w-4" />
         {t("sales.viewPayments")}
       </DropdownMenuItem>
       {invoice.status === "draft" && (
-        <DropdownMenuItem onClick={handleMarkSent}>
+        <DropdownMenuItem onClick={handleSend}>
           <Send className="mr-2 h-4 w-4" />
           {t("sales.sendInvoice")}
         </DropdownMenuItem>
       )}
-      {permissions.includes("sales:create") &&
+      {canCreate &&
         invoice.status !== "paid" &&
         invoice.status !== "cancelled" && (
           <DropdownMenuItem onClick={onRecordPayment}>
@@ -129,7 +131,7 @@ export function SalesActionMenu({
         )}
       {invoice.status !== "cancelled" &&
         invoice.status !== "paid" &&
-        permissions.includes("sales:edit") && (
+        canEdit && (
           <DropdownMenuItem onClick={handleCancel}>
             <X className="mr-2 h-4 w-4" />
             {t("sales.cancelInvoice")}

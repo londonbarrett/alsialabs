@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { Invoice } from "@/lib/drizzle/schema"
+import { useHasPermission } from "@/stores/permissions-store"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 
@@ -29,28 +30,27 @@ export function getOutstanding(invoice: {
 
 interface SalesInvoiceTableProps {
   invoices: InvoiceWithClientName[]
-  permissions?: string[]
   onEdit: (invoice: InvoiceWithClientName) => void
   onViewPayments: (invoice: InvoiceWithClientName) => void
   onRecordPayment: (invoice: InvoiceWithClientName) => void
   onDelete?: (invoice: InvoiceWithClientName) => void
   onCancel?: (invoice: InvoiceWithClientName) => void
   onReopen?: (invoice: InvoiceWithClientName) => void
-  onMarkSent?: (invoice: InvoiceWithClientName) => void
+  onSend?: (invoice: InvoiceWithClientName) => void
 }
 
 export function SalesInvoiceTable({
   invoices,
-  permissions = [],
   onEdit,
   onViewPayments,
   onRecordPayment,
   onDelete,
   onCancel,
   onReopen,
-  onMarkSent,
+  onSend,
 }: SalesInvoiceTableProps) {
   const t = useTranslations()
+  const canEdit = useHasPermission("sales:edit")
 
   return (
     <div role="region" aria-label={t("sales.title")}>
@@ -75,9 +75,7 @@ export function SalesInvoiceTable({
               <TableRow
                 key={inv.id}
                 className="select-none"
-                onDoubleClick={() =>
-                  permissions.includes("sales:edit") && onEdit(inv)
-                }
+                onDoubleClick={() => canEdit && onEdit(inv)}
               >
                 <TableCell className="font-mono text-xs">
                   {inv.invoiceNumber}
@@ -122,7 +120,6 @@ export function SalesInvoiceTable({
                 <TableCell>
                   <SalesActionMenu
                     invoice={inv}
-                    permissions={permissions}
                     onEdit={() => onEdit(inv)}
                     onViewPayments={() => onViewPayments(inv)}
                     onRecordPayment={() => onRecordPayment(inv)}
@@ -135,9 +132,7 @@ export function SalesInvoiceTable({
                     onReopen={
                       onReopen ? () => onReopen(inv) : undefined
                     }
-                    onMarkSent={
-                      onMarkSent ? () => onMarkSent(inv) : undefined
-                    }
+                    onSend={onSend ? () => onSend(inv) : undefined}
                   />
                 </TableCell>
               </TableRow>

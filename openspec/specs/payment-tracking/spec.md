@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: User can record a payment against an invoice
-The system SHALL allow authenticated users with `sales:create` permission to record a payment against any invoice. The payment amount SHALL update the invoice's paid amount optimistically via `useOptimistic`/`invoiceReducer` and `paymentReducer`, and the invoice status SHALL automatically update based on the outstanding balance.
+The system SHALL allow authenticated users with `sales:create` permission to record a payment against any invoice. The payment SHALL update the invoice's paid amount optimistically via the `recordPayment` case of the invoice store `stores/invoice-store.ts` (dispatched by `handleRecordPaymentSubmit` `components/sales/invoices-card.tsx:69`), and the invoice status SHALL automatically update based on the outstanding balance.
 
 #### Scenario: Record full payment
 - **WHEN** a user with `sales:create` permission opens the record payment dialog for an invoice
 - **THEN** they see fields: amount (pre-filled with remaining balance), payment date, method (optional), reference (optional), notes (optional)
 - **WHEN** the user submits a valid payment with amount equal to the remaining balance
-- **THEN** the dialog closes immediately before server confirmation (`setPaymentInvoice(null)` `components/sales/invoices-card.tsx:84` inside `startTransition` dispatch `recordPayment` `reducers/invoice-reducer.ts:19`)
-- **AND** the invoices table updates optimistically to `paid`/`paidAmount` `hooks/use-invoice-actions.ts:118`, and `PaymentHistory` `components/sales/payment-history.tsx:31` updates via `paymentReducer`
+- **THEN** the dialog closes immediately before server confirmation (`setPaymentDialog((s) => ({ ...s, open: false }))` `components/sales/invoices-card.tsx:87` inside `handleRecordPaymentSubmit`, which optimistically dispatches `{type:"recordPayment", paidAmount, status}`)
+- **AND** the invoices table updates optimistically to `paid`/`paidAmount` via the invoice store, and `PaymentHistory` `components/sales/payment-history.tsx:31` updates via `paymentReducer`
 - **AND** on server success via `recordPayment` `lib/actions/payments.ts:10` (`sessionAction` `sales:create`, `paymentSchema` `lib/schemas/payment.ts:3`) the base state is committed via `setPayments`, otherwise rollback via `update`/`reset`
 
 #### Scenario: Record partial payment

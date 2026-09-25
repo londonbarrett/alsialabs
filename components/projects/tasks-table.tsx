@@ -23,6 +23,7 @@ import {
 } from "@/lib/schemas/task"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import type { TaskWithCommentCount } from "@/reducers/task-reducer"
+import { useHasPermission } from "@/stores/permissions-store"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { DueDate } from "./due-date"
@@ -47,7 +48,6 @@ interface TasksTableProps {
   isCollaborator: boolean
   currentUserId: string
   projectMembers: ProjectMember[]
-  permissions: string[]
   onStatusChange: (taskId: string, status: TaskStatus) => void
   onPriorityChange: (taskId: string, priority: TaskPriority) => void
   onDelete: (taskId: string) => Promise<void>
@@ -63,7 +63,6 @@ export function TasksTable({
   isCollaborator,
   currentUserId,
   projectMembers,
-  permissions,
   onStatusChange,
   onPriorityChange,
   onDelete,
@@ -71,6 +70,7 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
+  const canDeleteProject = useHasPermission("projects:delete")
 
   function getTaskAllowedStatuses(task: Task) {
     if (isOwner) return ALL_TASK_STATUSES
@@ -218,9 +218,7 @@ export function TasksTable({
                       onEdit={() => onEdit(task)}
                       onDelete={() => onDelete(task.id)}
                       canEdit={canEdit}
-                      canDelete={permissions.includes(
-                        "projects:delete"
-                      )}
+                      canDelete={canDeleteProject}
                     />
                   </TableCell>
                 )}

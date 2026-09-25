@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: Admin can view activity timeline
-The system SHALL display a combined activity timeline on the client profile page, showing past activities, pending/completed reminders, invoices, and payments sorted by date descending. Entries with the same date SHALL be ordered deterministically (created-at descending, then id).
+The system SHALL display a combined activity timeline on the client profile page, showing past activities, pending/completed reminders, invoices, and payments sorted by date descending. Entries with the same date SHALL be ordered deterministically (created-at descending, then id). The timeline (`ActivityTimeline` `components/clients/activity-timeline.tsx`) SHALL hydrate entries into the global per-client `useTimelineStore` `stores/timeline-store.ts` from data fetched server-side via `getClientActivities` `lib/actions/activities.ts` and `getClientReminders` `lib/actions/reminders.ts` — both SHALL return `[]` for `user`-role sessions — and SHALL render each entry via a self-contained item (`ActivityItem`/`ReminderItem`/`InvoiceItem`/`PaymentItem`) that owns its permission checks, optimistic handlers, and edit dialogs.
 
 #### Scenario: Timeline shows on client profile when permitted
-- **WHEN** a user with `activities:view` permission navigates to a client profile
+- **WHEN** a user with `client-activity:view` permission navigates to a client profile
 - **THEN** they see an "Activity" section with a chronological timeline
 - **AND** the timeline shows activities (past interactions), reminders (follow-ups), invoices, and payments
 
@@ -14,19 +14,36 @@ The system SHALL display a combined activity timeline on the client profile page
 - **AND** the order SHALL NOT change between renders or reloads
 
 #### Scenario: Timeline hidden without permission
-- **WHEN** a user without `activities:view` permission navigates to a client profile
+- **WHEN** a user without `client-activity:view` permission navigates to a client profile
 - **THEN** the Activity section is not shown
+- **AND** `getClientActivities`/`getClientReminders` SHALL return `[]` for requests from `user`-role sessions
+
+#### Scenario: Timeline entries are self-contained
+- **WHEN** a timeline entry renders
+- **THEN** the item SHALL check its permissions via `useHasPermission` `stores/permissions-store.ts`
+- **AND** it SHALL run its mutation via `useOptimisticAction` on `useTimelineStore`
+- **AND** it SHALL render its own edit dialog (`LogActivityDialog`/`ReminderDialog`/`TimelineInvoiceDialog`/`PaymentDialog`)
+
+#### Scenario: Read-only preview hides actions
+- **WHEN** `ActivityItem`/`ReminderItem` render with `readOnly`
+- **THEN** they SHALL show no action buttons and SHALL NOT open edit dialogs (used for the read-only expanded-panel preview on the activity page)
+
+#### Scenario: Build actions are self-contained buttons
+- **WHEN** the timeline header renders
+- **THEN** it shows `LogActivityButton` and `AddReminderButton` (gated on `client-activity:create`) and `CreateInvoiceButton` (gated on `sales:create`)
+- **AND** each button SHALL open its own creation dialog (`LogActivityDialog`/`ReminderDialog`/`TimelineInvoiceDialog` `components/clients/timeline-invoice-dialog.tsx`)
+- **AND** when the permission is missing the corresponding button SHALL NOT be shown
 
 #### Scenario: Payment entries show invoice and amount
 - **WHEN** a payment has been recorded against one of the client's invoices
 - **THEN** the timeline shows a payment entry with the invoice number, formatted amount, payment date, and method (when present)
 
 ### Requirement: Admin can log an activity
-The system SHALL allow users with `activities:create` permission to log a new activity via a dialog form.
+The system SHALL allow users with `client-activity:create` permission to log a new activity via a dialog form opened from `LogActivityButton` `components/clients/log-activity-button.tsx`.
 
 #### Scenario: Successful activity creation
 - **WHEN** an admin clicks "Log Activity" on the client profile page
-- **THEN** a dialog form appears with fields: type (call/email/meeting/note), subject, description, date (defaulting to today)
+- **THEN** a dialog form (`LogActivityDialog` `components/clients/log-activity-dialog.tsx`) appears with fields: type (call/email/meeting/note), subject, description, date (defaulting to today)
 - **WHEN** the admin fills in valid data and submits
 - **THEN** the activity appears in the timeline
 - **AND** a success toast is shown
@@ -43,34 +60,34 @@ The system SHALL allow users with `activities:create` permission to log a new ac
 - **AND** submission is blocked
 
 ### Requirement: Admin can edit an activity
-The system SHALL allow users with `activities:edit` permission to modify an existing activity.
+The system SHALL allow users with `client-activity:edit` permission to modify an existing activity.
 
 #### Scenario: Successful activity edit
-- **WHEN** an admin clicks Edit on an activity in the timeline
+- **WHEN** an admin with `client-activity:edit` clicks Edit on an activity in the timeline
 - **THEN** a pre-filled dialog form appears with the current values
 - **WHEN** the admin modifies fields and submits
-- **THEN** the timeline updates with the changes
+- **THEN** the timeline updates with the changes (optimistically via the timeline store)
 - **AND** a success toast is shown
 
-### Requirement: Super user can delete an activity
-The system SHALL allow super users to delete activities from the timeline.
+### Requirement: Admin can delete an activity
+The system SHALL allow users with `client-activity:delete` permission to delete activities from the timeline after confirmation.
 
-#### Scenario: Super deletes with confirmation
-- **WHEN** a super user clicks Delete on an activity
+#### Scenario: Deletion with confirmation
+- **WHEN** a user with `client-activity:delete` permission clicks Delete on an activity
 - **THEN** a confirmation dialog appears asking to confirm
-- **WHEN** the super user confirms
+- **WHEN** the user confirms
 - **THEN** the activity is removed from the timeline
 
-#### Scenario: Non-super cannot delete
-- **WHEN** a non-super admin opens the activity's action menu
+#### Scenario: Delete hidden without permission
+- **WHEN** a user without `client-activity:delete` permission opens the activity's action menu
 - **THEN** no Delete option is shown
 
 ### Requirement: Admin can create a reminder
-The system SHALL allow users with `reminders:create` permission to create a follow-up reminder.
+The system SHALL allow users with `client-activity:create` permission to create a follow-up reminder from `AddReminderButton` `components/clients/add-reminder-button.tsx`.
 
 #### Scenario: Successful reminder creation
 - **WHEN** an admin clicks "Add Reminder" on the client profile page
-- **THEN** a dialog form appears with fields: description and due date (defaulting to tomorrow)
+- **THEN** a dialog form (`ReminderDialog` `components/clients/reminder-dialog.tsx`) appears with fields: description and due date (defaulting to tomorrow)
 - **WHEN** the admin fills in valid data and submits
 - **THEN** the reminder appears in the timeline as pending
 - **AND** a success toast is shown
@@ -81,62 +98,60 @@ The system SHALL allow users with `reminders:create` permission to create a foll
 - **AND** submission is blocked
 
 ### Requirement: Admin can edit a reminder
-The system SHALL allow users with `reminders:edit` permission to modify an existing reminder.
+The system SHALL allow users with `client-activity:edit` permission to modify an existing reminder.
 
 #### Scenario: Successful reminder edit
-- **WHEN** an admin clicks Edit on a reminder in the timeline
-- **THEN** a pre-filled dialog form appears
+- **WHEN** an admin with `client-activity:edit` clicks Edit on a reminder in the timeline
+- **THEN** a pre-filled dialog form (`ReminderDialog`) appears
 - **WHEN** the admin modifies fields and submits
-- **THEN** the timeline updates with the changes
+- **THEN** the timeline updates with the changes (optimistically)
 
 ### Requirement: Admin can complete a reminder
-The system SHALL allow users with `reminders:complete` permission to mark a reminder as completed.
+The system SHALL allow users with `client-activity:edit` permission to mark a reminder as completed.
 
 #### Scenario: Successful reminder completion
 - **WHEN** an admin clicks the complete action on a pending reminder
-- **THEN** the reminder is marked as completed in the timeline
+- **THEN** the reminder is marked as completed in the timeline (optimistically, patches `{ completed: true }`)
 - **AND** it remains visible with a visual distinction (e.g., strikethrough or muted style)
 
 ### Requirement: Admin can delete a reminder
-The system SHALL allow users with `reminders:delete` permission to delete a reminder with confirmation.
+The system SHALL allow users with `client-activity:delete` permission to delete a reminder with confirmation.
 
 #### Scenario: Deletion with confirmation
-- **WHEN** an admin clicks Delete on a reminder
+- **WHEN** an admin with `client-activity:delete` clicks Delete on a reminder
 - **THEN** a confirmation dialog appears
 - **WHEN** they confirm
 - **THEN** the reminder is removed from the timeline
 
 ### Requirement: Admin can edit a payment from the timeline
-The system SHALL allow users with `sales:record-payment` permission to edit a payment directly from the client activity timeline.
+The system SHALL allow users with `sales:edit` permission to edit a payment directly from the client activity timeline, and users with `sales:delete` permission to delete one. Payment entries are rendered by `PaymentItem` `components/clients/payment-item.tsx`, which owns the optimistic submit (timeline store patch + `updatePayment` `lib/actions/payments.ts`) and renders `PaymentDialog` `components/sales/payment-dialog.tsx` — a presentational shell with a required `onSubmit` prop and no store logic.
 
 #### Scenario: Edit payment from timeline
-- **WHEN** a user with `sales:record-payment` permission opens the action menu on a payment entry in the timeline
+- **WHEN** a user with `sales:edit` permission opens the action menu on a payment entry in the timeline
 - **THEN** they see "Edit {amount}" and "Delete {amount}" items
 - **WHEN** they click "Edit {amount}"
-- **THEN** a pre-filled payment dialog appears
+- **THEN** a pre-filled `PaymentDialog` appears
 - **WHEN** they modify fields and submit
-- **THEN** the payment is updated
-- **AND** the timeline refreshes
+- **THEN** the payment is updated optimistically via the timeline store, no refresh required
 
 #### Scenario: Payment actions hidden without permission
-- **WHEN** a user without `sales:record-payment` permission views the timeline
+- **WHEN** a user lacking both `sales:edit` and `sales:delete` permission views the timeline
 - **THEN** payment entries show no edit or delete actions
 
 ### Requirement: Admin can delete a payment from the timeline
-The system SHALL allow users with `sales:record-payment` permission to delete a payment from the timeline after confirmation.
+The system SHALL allow users with `sales:delete` permission to delete a payment from the timeline after confirmation.
 
 #### Scenario: Delete payment from timeline
-- **WHEN** a user with `sales:record-payment` permission clicks "Delete {amount}" on a payment entry in the timeline
+- **WHEN** a user with `sales:delete` permission clicks "Delete {amount}" on a payment entry in the timeline
 - **THEN** a confirmation dialog appears
 - **WHEN** they confirm
-- **THEN** the payment is removed
-- **AND** the timeline refreshes
+- **THEN** the payment is removed optimistically
 
 ### Requirement: Timeline mutations are optimistic
-The system SHALL update the timeline optimistically when logging an activity, adding/editing a reminder, creating an invoice, or recording a payment, while showing the global loading bar during the server request.
+The system SHALL update the timeline optimistically when logging an activity, adding/editing/completing a reminder, or creating an invoice, while showing the global loading bar during the server request. Each mutation SHALL run through `useOptimisticAction`/`applyTimelineAction` `stores/timeline-store.ts`, with the pending entry removed or replaced when the server action settles.
 
 #### Scenario: New entry appears immediately
-- **WHEN** a user submits a new activity, reminder, invoice, or payment from the timeline
+- **WHEN** a user submits a new activity, reminder, or invoice from the timeline
 - **THEN** a temporary entry SHALL appear in the timeline immediately
 - **AND** the global loading bar SHALL be visible during the server request
 - **AND** on success the temporary entry SHALL be replaced with the persisted record

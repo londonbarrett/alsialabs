@@ -22,13 +22,9 @@ import { ClientsTable } from "./clients-table"
 
 interface ClientListViewProps {
   clients: Client[]
-  permissions?: string[]
 }
 
-export function ClientListView({
-  clients,
-  permissions = [],
-}: ClientListViewProps) {
+export function ClientListView({ clients }: ClientListViewProps) {
   const router = useRouter()
   const t = useTranslations()
   const translateError = useActionError()
@@ -165,7 +161,6 @@ export function ClientListView({
         <CardContent>
           <ClientsTable
             clients={filteredClients}
-            permissions={permissions}
             onEdit={openEdit}
             onInvite={handleInvite}
             onDelete={async (client) => {

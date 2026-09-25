@@ -6,7 +6,7 @@ import {
   getMonthlyRevenue,
   getTopClientsByRevenue,
 } from "@/lib/actions/sales"
-import { auth, getUserPermissions, hasPermission } from "@/lib/auth"
+import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { ChartNoAxesCombined } from "lucide-react"
 import { getTranslations } from "next-intl/server"
@@ -22,17 +22,12 @@ export default async function SalesPage() {
     forbidden()
   }
 
-  const [
-    invoicesResult,
-    permissions,
-    monthlyRevenueResult,
-    topClientsResult,
-  ] = await Promise.all([
-    getInvoices(),
-    getUserPermissions(session.user.id),
-    getMonthlyRevenue(),
-    getTopClientsByRevenue({ limit: 10 }),
-  ])
+  const [invoicesResult, monthlyRevenueResult, topClientsResult] =
+    await Promise.all([
+      getInvoices(),
+      getMonthlyRevenue(),
+      getTopClientsByRevenue({ limit: 10 }),
+    ])
 
   const invoices = unwrapResponse(invoicesResult)
   const monthlyRevenue = unwrapResponse(monthlyRevenueResult)
@@ -51,7 +46,6 @@ export default async function SalesPage() {
     >
       <SalesView
         invoices={invoices}
-        permissions={permissions}
         monthlyRevenue={monthlyRevenue}
         topClients={topClients}
       />
