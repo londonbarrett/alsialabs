@@ -106,7 +106,6 @@ export default async function ProfilePage() {
           reminders={[]}
           invoices={invoices}
           payments={payments}
-          permissions={permissions}
         />
       )}
     </div>

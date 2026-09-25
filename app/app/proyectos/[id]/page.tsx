@@ -37,7 +37,6 @@ export default async function TasksPage({ params }: Props) {
       isOwner={isOwner}
       isCollaborator={isCollaborator}
       currentUserId={session.user.id}
-      permissions={permissions}
       projectMembers={[...owners, ...collaborators]}
     />
   )

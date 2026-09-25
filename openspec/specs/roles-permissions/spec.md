@@ -39,6 +39,17 @@ The system SHALL include activity module permissions that can be toggled for eac
 - **THEN** the activity module appears in the permission matrix with view action
 - **AND** each action is toggleable per role
 
+### Requirement: Client activity permissions are seeded and manageable
+The system SHALL include a `client-activity` module that can be toggled for each role in the permission matrix, used to gate the client profile activity timeline and its items (which own their permission checks via `useHasPermission` `stores/permissions-store.ts`).
+
+#### Scenario: Client activity permissions exist after seeding
+- **WHEN** the database seed script runs
+- **THEN** `client-activity:view`, `client-activity:create`, `client-activity:edit`, `client-activity:delete` permissions are created
+- **AND** the super role has all client-activity permissions enabled
+- **AND** the admin role has `client-activity:view`, `client-activity:create`, `client-activity:edit` enabled (no delete)
+- **AND** the retailer role has all client-activity permissions enabled
+- **AND** the user role has `client-activity:view` enabled only
+
 ### Requirement: Super manages permission modules
 The system SHALL allow super users to manage modules (add/edit/delete) with associated actions on the permissions page.
 

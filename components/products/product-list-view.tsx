@@ -15,6 +15,7 @@ import { deleteProduct } from "@/lib/actions/products"
 import { useActionError } from "@/lib/util/action-errors"
 import type { ProductWithStore } from "@/lib/types"
 import type { StoreOption } from "@/lib/actions/stores"
+import { useHasPermission } from "@/stores/permissions-store"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useOptimisticAction } from "next-safe-action/hooks"
@@ -25,21 +26,20 @@ import { toast } from "sonner"
 interface ProductListViewProps {
   products: ProductWithStore[]
   stores: StoreOption[]
-  permissions?: string[]
 }
 
 export function ProductListView({
   products,
   stores,
-  permissions = [],
 }: ProductListViewProps) {
   const router = useRouter()
   const t = useTranslations()
   const translateError = useActionError()
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<
-    ProductWithStore | undefined
-  >()
+  const canDelete = useHasPermission("products:delete")
+  const [dialog, setDialog] = useState<{
+    open: boolean
+    product?: ProductWithStore
+  }>({ open: false })
 
   const { executeAsync, optimisticState } = useOptimisticAction(
     deleteProduct,
@@ -62,22 +62,19 @@ export function ProductListView({
 
   function handleSuccess() {
     router.refresh()
-    setEditingProduct(undefined)
+    setDialog({ open: false })
   }
 
   function openNew() {
-    setEditingProduct(undefined)
-    setDialogOpen(true)
+    setDialog({ open: true })
   }
 
   function openEdit(product: ProductWithStore) {
-    setEditingProduct(product)
-    setDialogOpen(true)
+    setDialog({ open: true, product })
   }
 
   function handleOpenChange(open: boolean) {
-    setDialogOpen(open)
-    if (!open) setEditingProduct(undefined)
+    setDialog((s) => (open ? s : { open: false }))
   }
 
   return (
@@ -151,9 +148,7 @@ export function ProductListView({
                         onDelete={async () => {
                           await executeAsync({ id: product.id })
                         }}
-                        canDelete={permissions.includes(
-                          "products:delete"
-                        )}
+                        canDelete={canDelete}
                       />
                     </TableCell>
                   </TableRow>
@@ -164,9 +159,9 @@ export function ProductListView({
         </div>
       )}
       <ProductDialog
-        product={editingProduct}
+        product={dialog.product}
         stores={stores}
-        open={dialogOpen}
+        open={dialog.open}
         onOpenChange={handleOpenChange}
         onSuccess={handleSuccess}
       />

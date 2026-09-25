@@ -41,8 +41,8 @@ The system SHALL display a table of clients who have not made a purchase within 
 - **WHEN** all clients have made a purchase within the selected period
 - **THEN** the table SHALL display "All clients are active" message
 
-### Requirement: User can view active future reminders
-The system SHALL display a card listing all non-completed reminders, ordered with expired reminders first, then by nearest date.
+### Requirement: User can view reminders
+The system SHALL display a card (`RemindersCard` `components/activity/reminders-card.tsx`) listing all reminders (active and completed), with completed reminders listed last and active reminders ordered with expired dates first, then by nearest date. The card SHALL read reminders from the global `useRemindersStore` `stores/reminders-store.ts`, hydrated from `getReminders` `lib/actions/reminders.ts` which returns all reminders as `Reminder[]` sorted completed-last. Completing a reminder is optimistic (`applyRemindersAction` `complete` patches `{ completed: true }`) and SHALL keep the reminder in the list.
 
 #### Scenario: Reminders show client name, description, and date
 - **WHEN** an authorized user visits the activity page
@@ -54,9 +54,13 @@ The system SHALL display a card listing all non-completed reminders, ordered wit
 - **THEN** they SHALL appear at the top of the list
 - **AND** non-expired reminders SHALL appear after, ordered by remind-at date ascending
 
+#### Scenario: Completed reminders appear last
+- **WHEN** a reminder has been marked as completed
+- **THEN** it SHALL be listed after all active reminders with done styling (muted row, check icon, struck-through description)
+
 #### Scenario: Overdue reminders are visually distinguished
 - **WHEN** a reminder's date is before today
-- **THEN** it SHALL be visually highlighted as overdue
+- **THEN** it SHALL be visually highlighted as overdue (destructive bell icon and date)
 
 #### Scenario: Client name links to client profile
 - **WHEN** a user clicks a client name in the reminders list
@@ -67,14 +71,15 @@ The system SHALL display a card listing all non-completed reminders, ordered wit
 - **THEN** the edit reminder dialog SHALL open pre-filled with that reminder's data
 
 #### Scenario: User can mark a reminder as done
-- **WHEN** a user clicks the check button on a reminder row
-- **THEN** the reminder SHALL be marked as completed
-- **AND** the reminder SHALL be removed from the active reminders list
+- **WHEN** a user clicks the check button on an active reminder row
+- **THEN** the reminder SHALL be marked as completed optimistically
+- **AND** the reminder SHALL remain in the list, moved below the active reminders with done styling
+- **AND** completed reminders SHALL NOT show a check button
 - **AND** a success toast SHALL be displayed
 
 #### Scenario: Empty state shows no reminders message
-- **WHEN** there are no active reminders
-- **THEN** the card SHALL display "No active reminders" message
+- **WHEN** there are no reminders
+- **THEN** the card SHALL display a "no reminders" message
 
 ### Requirement: User can edit clients from inactive clients card
 The system SHALL allow users to edit client details directly from the inactive clients table.

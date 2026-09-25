@@ -1,7 +1,7 @@
 "use client"
 
 import { ActionMenu } from "@/components/common/action-menu"
-import { EditPaymentDialog } from "@/components/sales/edit-payment-dialog"
+import { PaymentDialog } from "@/components/sales/payment-dialog"
 import type { PaymentFormValues } from "@/components/sales/payment-form"
 import { Spinner } from "@/components/ui/spinner"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
@@ -223,7 +223,7 @@ export function PaymentHistory({
       ))}
 
       {editingPayment && (
-        <EditPaymentDialog
+        <PaymentDialog
           payment={editingPayment}
           open={!!editingPayment}
           onOpenChange={() => setEditingPayment(null)}

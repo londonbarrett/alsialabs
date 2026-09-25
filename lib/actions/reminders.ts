@@ -8,7 +8,7 @@ import {
   clientsTable,
 } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/util/i18n-actions"
-import { and, asc, desc, eq, sql } from "drizzle-orm"
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -28,12 +28,15 @@ const reminderSchema = z.object({
 
 export type ReminderFormData = z.infer<typeof reminderSchema>
 
-export async function getReminders(clientId: string) {
+export async function getClientReminders(clientId: string) {
   try {
     await requirePermission("client-activity", "view")
   } catch {
     return []
   }
+
+  const session = await auth()
+  if (session?.user?.role === "user") return []
 
   return db
     .select()
@@ -152,15 +155,16 @@ export async function deleteReminder(reminderId: string) {
   return { success: true as const }
 }
 
-export interface ActiveReminder {
+export interface Reminder {
   id: string
   clientId: string
   clientName: string
   description: string
   remindAt: string
+  completed: boolean
 }
 
-export async function getActiveReminders(): Promise<ActiveReminder[]> {
+export async function getReminders(): Promise<Reminder[]> {
   try {
     await requirePermission("client-activity", "view")
   } catch {
@@ -170,7 +174,7 @@ export async function getActiveReminders(): Promise<ActiveReminder[]> {
   const today = new Date().toISOString().split("T")[0]
 
   const storeId = await getEffectiveStoreId()
-  const conditions = [eq(clientRemindersTable.completed, false)]
+  const conditions: SQL[] = []
   if (storeId) {
     conditions.push(eq(clientsTable.store_id, storeId))
   }
@@ -191,6 +195,7 @@ export async function getActiveReminders(): Promise<ActiveReminder[]> {
     )
     .where(and(...conditions))
     .orderBy(
+      sql`CASE WHEN ${clientRemindersTable.completed} THEN 1 ELSE 0 END`,
       sql`CASE WHEN ${clientRemindersTable.remindAt} < ${today} THEN 0 ELSE 1 END`,
       asc(clientRemindersTable.remindAt)
     )

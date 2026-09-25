@@ -1,10 +1,10 @@
 import { Suspense } from "react"
-import { ActiveRemindersCard } from "@/components/activity/active-reminders-card"
+import { RemindersCard } from "@/components/activity/reminders-card"
 import { InactiveClientsCard } from "@/components/activity/inactive-clients-card"
 import { InactiveClientsCardFallback } from "@/components/activity/inactive-clients-card-fallback"
 import { PageHeader } from "@/components/common/page-header"
 import { getInactiveClients } from "@/lib/actions/activity"
-import { getActiveReminders } from "@/lib/actions/reminders"
+import { getReminders } from "@/lib/actions/reminders"
 import { auth, hasPermission } from "@/lib/auth"
 import { getTranslations } from "next-intl/server"
 import { BellRing } from "lucide-react"
@@ -23,7 +23,7 @@ export default async function ActivityPage() {
   }
 
   const t = await getTranslations("activity")
-  const activeReminders = await getActiveReminders()
+  const reminders = await getReminders()
   const inactiveClientsPromise = getInactiveClients(
     Number(DEFAULT_INACTIVE_PERIOD)
   )
@@ -35,7 +35,7 @@ export default async function ActivityPage() {
         subtitle={t("subtitle")}
         icon={BellRing}
       />
-      <ActiveRemindersCard reminders={activeReminders} />
+      <RemindersCard initialReminders={reminders} />
       <Suspense
         fallback={
           <InactiveClientsCardFallback title={t("inactiveClients")} />

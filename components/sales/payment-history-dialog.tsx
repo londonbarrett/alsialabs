@@ -3,22 +3,28 @@
 import { Dialog } from "@/components/common/dialog"
 import { PaymentHistory } from "@/components/sales/payment-history"
 import type { Invoice } from "@/lib/drizzle/schema"
+import { useHasPermission } from "@/stores/permissions-store"
 import { useTranslations } from "next-intl"
 
 interface PaymentHistoryDialogProps {
-  invoice: Invoice
   open: boolean
   onOpenChange: (open: boolean) => void
-  canManage: boolean
+  invoice?: Invoice
 }
 
 export function PaymentHistoryDialog({
-  invoice,
   open,
   onOpenChange,
-  canManage,
+  invoice,
 }: PaymentHistoryDialogProps) {
   const t = useTranslations()
+
+  const canEditSales = useHasPermission("sales:edit")
+  const canCreateSales = useHasPermission("sales:create")
+  const canDeleteSales = useHasPermission("sales:delete")
+  const canManage = canEditSales || canCreateSales || canDeleteSales
+
+  if (!invoice) return null
 
   return (
     <Dialog

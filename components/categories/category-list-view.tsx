@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table"
 import { deleteCategory } from "@/lib/actions/categories"
 import { useActionError } from "@/lib/util/action-errors"
+import { useHasPermission } from "@/stores/permissions-store"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useOptimisticAction } from "next-safe-action/hooks"
@@ -38,18 +39,19 @@ interface CategoryListViewProps {
   categories: CategoryItem[]
   taxonomyId: string
   taxonomyName: string
-  permissions?: string[]
 }
 
 export function CategoryListView({
   categories,
   taxonomyId,
   taxonomyName,
-  permissions = [],
 }: CategoryListViewProps) {
   const router = useRouter()
   const t = useTranslations()
   const translateError = useActionError()
+  const canCreate = useHasPermission("categories:create")
+  const canEdit = useHasPermission("categories:edit")
+  const canDelete = useHasPermission("categories:delete")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<
     CategoryItem | undefined
@@ -102,7 +104,7 @@ export function CategoryListView({
             <p className="text-muted-foreground">
               {t("categories.noCategories")}
             </p>
-            {permissions.includes("categories:create") && (
+            {canCreate && (
               <Button
                 onClick={openNew}
                 aria-label={t("categories.addCategory")}
@@ -118,7 +120,7 @@ export function CategoryListView({
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               {taxonomyName}
-              {permissions.includes("categories:create") && (
+              {canCreate && (
                 <Button
                   onClick={openNew}
                   size="sm"
@@ -176,12 +178,8 @@ export function CategoryListView({
                           onDelete={async () => {
                             await executeAsync({ id: cat.id })
                           }}
-                          canEdit={permissions.includes(
-                            "categories:edit"
-                          )}
-                          canDelete={permissions.includes(
-                            "categories:delete"
-                          )}
+                          canEdit={canEdit}
+                          canDelete={canDelete}
                         />
                       </TableCell>
                     </TableRow>

@@ -1,7 +1,7 @@
 import { ProjectListView } from "@/components/projects/project-list-view"
 import { getProjectCategories } from "@/lib/actions/categories"
 import { getProjectsWithDetails } from "@/lib/actions/projects"
-import { auth, getUserPermissions, hasPermission } from "@/lib/auth"
+import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { forbidden } from "next/navigation"
 import { Suspense } from "react"
@@ -16,12 +16,10 @@ export default async function ProjectsPage() {
     forbidden()
   }
 
-  const [projectsResult, categoriesResult, permissions] =
-    await Promise.all([
-      getProjectsWithDetails(),
-      getProjectCategories(),
-      getUserPermissions(session?.user?.id ?? ""),
-    ])
+  const [projectsResult, categoriesResult] = await Promise.all([
+    getProjectsWithDetails(),
+    getProjectCategories(),
+  ])
 
   return (
     <Suspense
@@ -44,7 +42,6 @@ export default async function ProjectsPage() {
       <ProjectListView
         projects={unwrapResponse(projectsResult)}
         categories={unwrapResponse(categoriesResult)}
-        permissions={permissions}
       />
     </Suspense>
   )

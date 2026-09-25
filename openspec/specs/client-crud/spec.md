@@ -14,7 +14,7 @@ The system SHALL display an invoice history section on the client profile page, 
 **ADDED**: The system SHALL display an Activity section on the client profile page showing the activity timeline.
 
 #### Scenario: Activity section is visible
-- **GIVEN** a user with `activities:view` permission is viewing a client's profile
+- **GIVEN** a user with `client-activity:view` permission is viewing a client's profile
 - **THEN** an Activity section appears below the client's profile information
 - **AND** the section header reads "Activity"
 - **AND** the timeline shows both activities and reminders sorted by date descending

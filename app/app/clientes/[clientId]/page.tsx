@@ -8,8 +8,8 @@ import {
   getClientInvoices,
   getClientPayments,
 } from "@/lib/actions/invoices"
-import { getReminders } from "@/lib/actions/reminders"
-import { auth, getUserPermissions } from "@/lib/auth"
+import { getClientReminders } from "@/lib/actions/reminders"
+import { auth, hasPermission } from "@/lib/auth"
 import type {
   ClientActivity,
   ClientReminder,
@@ -49,10 +49,11 @@ export default async function ClientProfilePage({
     )
   }
 
-  const permissions = await getUserPermissions(session.user.id)
-
-  const canView = permissions.includes("client-activity:view")
-  const isUser = session.user.role === "user"
+  const canView = await hasPermission(
+    session.user.id,
+    "client-activity",
+    "view"
+  )
 
   let invoices: Invoice[] = []
   let activities: ClientActivity[] = []
@@ -60,9 +61,16 @@ export default async function ClientProfilePage({
   let payments: Array<InvoicePayment & { invoiceNumber: string }> = []
 
   if (canView) {
-    const [invoiceResult, paymentResult] = await Promise.all([
+    const [
+      invoiceResult,
+      paymentResult,
+      clientActivities,
+      clientReminders,
+    ] = await Promise.all([
       getClientInvoices({ clientId }),
       getClientPayments({ clientId }),
+      getClientActivities(clientId),
+      getClientReminders(clientId),
     ])
     if (invoiceResult.data) {
       invoices = invoiceResult.data as Invoice[]
@@ -70,13 +78,8 @@ export default async function ClientProfilePage({
     if (paymentResult.data) {
       payments = paymentResult.data
     }
-
-    if (!isUser) {
-      ;[activities, reminders] = await Promise.all([
-        getClientActivities(clientId),
-        getReminders(clientId),
-      ])
-    }
+    activities = clientActivities
+    reminders = clientReminders
   }
 
   return (
@@ -93,7 +96,6 @@ export default async function ClientProfilePage({
           reminders={reminders}
           invoices={invoices}
           payments={payments}
-          permissions={permissions}
         />
       )}
     </div>
