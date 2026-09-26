@@ -4,14 +4,12 @@ import type { Routine } from "@/lib/drizzle/schema"
 import { routineTemplates } from "@/lib/routines/templates"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
-import type { ProjectMember } from "./routine-details-step"
 import { RoutineDetailsStep } from "./routine-details-step"
 import { RoutineScheduleStep } from "./routine-schedule-step"
 import { StepIndicator } from "./routine-step-indicator"
 
 interface RoutineFormProps {
   routine?: Routine
-  projectMembers: ProjectMember[]
   onSubmit: (data: {
     name: string
     description: string
@@ -33,7 +31,6 @@ interface RoutineFormProps {
 
 export function RoutineForm({
   routine,
-  projectMembers,
   onSubmit,
   onCancel,
 }: RoutineFormProps) {
@@ -122,17 +119,26 @@ export function RoutineForm({
       />
       {step === 1 ? (
         <RoutineDetailsStep
-          projectMembers={projectMembers}
           showTemplate={!routine}
           name={name}
           description={description}
           cost={cost}
           assigneeId={assigneeId}
-          onNameChange={(value) => { if (value !== null) setName(value) }}
-          onDescriptionChange={(value) => { if (value !== null) setDescription(value) }}
-          onCostChange={(value) => { if (value !== null) setCost(value) }}
-          onAssigneeChange={(value) => { if (value !== null) setAssigneeId(value) }}
-          onApplyTemplate={(value) => { if (value !== null) applyTemplate(value) }}
+          onNameChange={(value) => {
+            if (value !== null) setName(value)
+          }}
+          onDescriptionChange={(value) => {
+            if (value !== null) setDescription(value)
+          }}
+          onCostChange={(value) => {
+            if (value !== null) setCost(value)
+          }}
+          onAssigneeChange={(value) => {
+            if (value !== null) setAssigneeId(value)
+          }}
+          onApplyTemplate={(value) => {
+            if (value !== null) applyTemplate(value)
+          }}
           onNext={goNext}
           onCancel={onCancel}
         />
@@ -146,12 +152,22 @@ export function RoutineForm({
           time={time}
           startDate={startDate}
           endDate={endDate}
-          onRecurrenceChange={(value) => { if (value !== null) handleRecurrenceChange(value) }}
-          onIntervalChange={(value) => { if (value !== null) setInterval(value) }}
+          onRecurrenceChange={(value) => {
+            if (value !== null) handleRecurrenceChange(value)
+          }}
+          onIntervalChange={(value) => {
+            if (value !== null) setInterval(value)
+          }}
           onDayToggle={toggleWeekday}
-          onTimeChange={(value) => { if (value !== null) setTime(value) }}
-          onStartDateChange={(value) => { if (value !== null) setStartDate(value) }}
-          onEndDateChange={(value) => { if (value !== null) setEndDate(value) }}
+          onTimeChange={(value) => {
+            if (value !== null) setTime(value)
+          }}
+          onStartDateChange={(value) => {
+            if (value !== null) setStartDate(value)
+          }}
+          onEndDateChange={(value) => {
+            if (value !== null) setEndDate(value)
+          }}
           onSubmit={submitRoutine}
           onBack={() => setStep(1)}
         />

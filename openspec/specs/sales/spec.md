@@ -297,7 +297,7 @@ The system SHALL keep invoice-related code separate from sales analytics.
 
 #### Scenario: Schemas are separated
 - **WHEN** inspecting `lib/schemas/invoice.ts` and `lib/schemas/payment.ts`
-- **THEN** `invoiceSchema`/`createInvoiceSchema`/`updateInvoiceSchema`/`lineItemSchema` live in `lib/schemas/invoice.ts:16`, and `paymentSchema` lives in `lib/schemas/payment.ts:3` (re-exported from `lib/schemas/sales.ts:1` for backward compat). No `upsertInvoiceSchema` exists
+- **THEN** `invoiceSchema`/`createInvoiceSchema`/`updateInvoiceSchema`/`lineItemSchema` live in `lib/schemas/invoice.ts:16`, and `paymentSchema` lives in `lib/schemas/payment.ts:3`. No `upsertInvoiceSchema` exists, and no `lib/schemas/sales.ts` re-export barrel exists
 
 #### Scenario: Actions are separated
 - **WHEN** inspecting `lib/actions/invoices.ts` and `lib/actions/payments.ts` and `lib/actions/sales.ts`

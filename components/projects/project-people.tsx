@@ -6,40 +6,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  addProjectCollaborator,
-  addProjectOwner,
-  removeProjectCollaborator,
-  removeProjectOwner,
-} from "@/lib/actions/project-users"
-import type { ProjectMember } from "@/lib/types"
+import { useProjectContext } from "@/stores/use-project-context"
+import { useProjectMemberActions } from "@/stores/use-project-member-actions"
 import { Crown, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useRouter } from "next/navigation"
 import { useMemo } from "react"
-import { toast } from "sonner"
 import { MemberPill } from "./member-pill"
 import { UserInviteInput } from "./user-invite-input"
 
-interface ProjectPeopleProps {
-  projectId: string
-  owners: ProjectMember[]
-  collaborators: ProjectMember[]
-  primaryOwnerId: string
-  canManageUsers: boolean
-  isOwner: boolean
-}
-
-export function ProjectPeople({
-  projectId,
-  owners,
-  collaborators,
-  primaryOwnerId,
-  canManageUsers,
-  isOwner,
-}: ProjectPeopleProps) {
-  const router = useRouter()
+export function ProjectPeople() {
   const t = useTranslations()
+  const { addOwner, removeOwner, addCollaborator, removeCollaborator } =
+    useProjectMemberActions()
+  const { project, owners, collaborators, canManageUsers, isOwner } =
+    useProjectContext()
+  const primaryOwnerId = project.primaryOwnerId
   const primaryOwner = owners.find((o) => o.userId === primaryOwnerId)
   const additionalOwners = owners.filter(
     (o) => o.userId !== primaryOwnerId
@@ -51,42 +32,6 @@ export function ProjectPeople({
     ],
     [owners, collaborators]
   )
-
-  async function handleAddOwner(userId: string) {
-    const result = await addProjectOwner(projectId, userId)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    } else {
-      router.refresh()
-    }
-  }
-
-  async function handleRemoveOwner(userId: string) {
-    const result = await removeProjectOwner(projectId, userId)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    } else {
-      router.refresh()
-    }
-  }
-
-  async function handleAddCollaborator(userId: string) {
-    const result = await addProjectCollaborator(projectId, userId)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    } else {
-      router.refresh()
-    }
-  }
-
-  async function handleRemoveCollaborator(userId: string) {
-    const result = await removeProjectCollaborator(projectId, userId)
-    if (!result.success) {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    } else {
-      router.refresh()
-    }
-  }
 
   return (
     <Card>
@@ -122,7 +67,7 @@ export function ProjectPeople({
                 member={o}
                 onRemove={
                   canManageUsers
-                    ? () => handleRemoveOwner(o.userId)
+                    ? () => removeOwner(o.userId)
                     : undefined
                 }
               />
@@ -131,7 +76,7 @@ export function ProjectPeople({
           {canManageUsers && (
             <div className="mt-3">
               <UserInviteInput
-                onSelect={handleAddOwner}
+                onSelect={addOwner}
                 placeholder={t("projects.addOwner")}
                 excludedIds={allMemberIds}
               />
@@ -156,7 +101,7 @@ export function ProjectPeople({
                 member={c}
                 onRemove={
                   isOwner
-                    ? () => handleRemoveCollaborator(c.userId)
+                    ? () => removeCollaborator(c.userId)
                     : undefined
                 }
               />
@@ -165,7 +110,7 @@ export function ProjectPeople({
           {isOwner && (
             <div className="mt-3">
               <UserInviteInput
-                onSelect={handleAddCollaborator}
+                onSelect={addCollaborator}
                 placeholder={t("projects.addCollaborator")}
                 excludedIds={allMemberIds}
               />

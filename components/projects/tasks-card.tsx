@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
+import { useProjectContext } from "@/stores/use-project-context"
 import {
   createTask,
   deleteTask,
@@ -20,49 +21,28 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "@/lib/drizzle/schema"
+import { useActionError } from "@/lib/util/action-errors"
 import {
   taskReducer,
   type TaskWithCommentCount,
 } from "@/reducers/task-reducer"
-import { useActionError } from "@/lib/util/action-errors"
 import { ListTodo, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useReducer, useState, useTransition } from "react"
 import { useAction } from "next-safe-action/hooks"
+import { useReducer, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { useHasPermission } from "@/stores/permissions-store"
 import { TaskCommentsPanel } from "./task-comments-panel"
 import { TaskDialog } from "./task-dialog"
 import { TasksTable } from "./tasks-table"
 
-interface ProjectMember {
-  userId: string
-  userName: string | null
-  userEmail: string | null
-  userImage: string | null
-}
-
 interface TasksCardProps {
   initialTasks: TaskWithCommentCount[]
-  projectId: string
-  canEdit: boolean
-  isOwner: boolean
-  isCollaborator: boolean
-  currentUserId: string
-  projectMembers: ProjectMember[]
 }
 
-export function TasksCard({
-  initialTasks,
-  projectId,
-  canEdit,
-  isOwner,
-  isCollaborator,
-  currentUserId,
-  projectMembers,
-}: TasksCardProps) {
+export function TasksCard({ initialTasks }: TasksCardProps) {
   const t = useTranslations()
-  const canDeleteProject = useHasPermission("projects:delete")
+  const { projectId, members, currentUserId, isOwner, canEdit } =
+    useProjectContext()
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const [tasks, dispatch] = useReducer(taskReducer, initialTasks)
@@ -75,8 +55,6 @@ export function TasksCard({
     TaskWithCommentCount | undefined
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
-  const canMutate =
-    isOwner && (canEdit || canDeleteProject)
   const translateError = useActionError()
   const { executeAsync: executeCreate } = useAction(createTask)
   const { executeAsync: executeUpdate } = useAction(updateTask)
@@ -112,8 +90,7 @@ export function TasksCard({
       routineId: editingTask?.routineId ?? null,
       assigneeId: data.assigneeId,
       assigneeName:
-        projectMembers.find((m) => m.userId === data.assigneeId)
-          ?.userName ??
+        members.find((m) => m.userId === data.assigneeId)?.userName ??
         editingTask?.assigneeName ??
         null,
       commentCount: editingTask
@@ -152,7 +129,7 @@ export function TasksCard({
     stopLoading()
 
     if (result?.data) {
-      const assignee = projectMembers.find(
+      const assignee = members.find(
         (m) => m.userId === result.data!.assigneeId
       )
       const realTask: TaskWithCommentCount = {
@@ -240,7 +217,7 @@ export function TasksCard({
       const nextTask = (result?.data as unknown as { nextTask?: Task })
         ?.nextTask
       if (nextTask) {
-        const assignee = projectMembers.find(
+        const assignee = members.find(
           (m) => m.userId === nextTask!.assigneeId
         )
         const mapped: TaskWithCommentCount = {
@@ -307,12 +284,6 @@ export function TasksCard({
         ) : (
           <TasksTable
             tasks={tasks}
-            canEdit={canEdit}
-            canMutate={canMutate}
-            isOwner={isOwner}
-            isCollaborator={isCollaborator}
-            currentUserId={currentUserId}
-            projectMembers={projectMembers}
             onStatusChange={handleTaskStatusChange}
             onPriorityChange={handleTaskPriorityChange}
             onDelete={handleDeleteTask}
@@ -327,7 +298,6 @@ export function TasksCard({
 
       <TaskDialog
         task={editingTask}
-        projectMembers={projectMembers}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
         onSubmit={handleTaskSubmit}

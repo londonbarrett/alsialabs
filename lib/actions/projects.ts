@@ -1,5 +1,6 @@
 "use server"
 
+import { getProjectCategories } from "@/lib/actions/categories"
 import {
   getProjectCollaborators,
   getProjectOwners,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/schemas/project"
 import type { ProjectMember } from "@/lib/types"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
+import { unwrapResponse } from "@/lib/util/unwrap"
 import type { Session } from "next-auth"
 import { z } from "zod"
 
@@ -404,7 +406,7 @@ export const createProject = sessionAction
         budget: budget ? budget : null,
         color,
       })
-      .returning({ id: projectsTable.id })
+      .returning()
     await db
       .insert(projectOwnersTable)
       .values({ projectId: created.id, userId: session.user.id })
@@ -445,7 +447,7 @@ export const updateProject = projectScopedAction(updateProjectSchema)
         color,
       })
       .where(eq(projectsTable.id, projectId))
-      .returning({ id: projectsTable.id })
+      .returning()
     if (!updated) returnActionError("NOT_FOUND")
     return updated
   })
@@ -506,19 +508,40 @@ export const deleteProject = projectScopedAction(
     return { success: true as const }
   })
 
-export interface ProjectPageContext {
+/** A project owner as returned by `getProjectOwners`, which also selects the
+ * project's `primaryOwnerId` so the client can resolve the primary owner
+ * without a second lookup. */
+export type ProjectOwner = ProjectMember & {
+  primaryOwnerId: string
+}
+
+/** A project category, as returned by `getProjectCategories`. */
+export type ProjectCategoryOption = {
+  id: string
+  slug: string
+  name: string
+}
+
+export interface ProjectContext {
   project: ProjectDetail
-  owners: ProjectMember[]
+  owners: ProjectOwner[]
   collaborators: ProjectMember[]
   permissions: string[]
   session: Session
   isCurrentUserAdmin: boolean
+  /**
+   * The global project taxonomy, used to populate the category select in the
+   * project form. Note this is not project-scoped data — it is identical for
+   * every project — but it is carried here so the detail page does not need a
+   * second query. See `stores/project-context-store.ts`.
+   */
+  categories: ProjectCategoryOption[]
 }
 
 export const getProjectContext = sessionAction
   .metadata({ permission: { module: "projects", action: "view" } })
   .inputSchema(z.object({ projectId: z.uuid() }))
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }): Promise<ProjectContext> => {
     const { projectId } = parsedInput
     const session = ctx.session
     const projectResult = await getProjectById({ projectId })
@@ -529,11 +552,13 @@ export const getProjectContext = sessionAction
       returnActionError("NOT_FOUND")
     }
     const project = projectResult.data!
-    const [owners, collaborators, permissions] = await Promise.all([
-      getProjectOwners(projectId),
-      getProjectCollaborators(projectId),
-      getUserPermissions(session.user.id),
-    ])
+    const [owners, collaborators, permissions, categoriesResult] =
+      await Promise.all([
+        getProjectOwners(projectId),
+        getProjectCollaborators(projectId),
+        getUserPermissions(session.user.id),
+        getProjectCategories(),
+      ])
     return {
       project,
       owners,
@@ -543,5 +568,6 @@ export const getProjectContext = sessionAction
       isCurrentUserAdmin: isSuperUser(
         session as { user: { role: string | null } }
       ),
+      categories: unwrapResponse(categoriesResult),
     }
   })

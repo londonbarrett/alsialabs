@@ -2,6 +2,11 @@
 
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { Money } from "@/components/common/money"
+import {
+  PROJECT_COLORS,
+  PROJECT_COLOR_NAME_KEYS,
+  type ProjectColor,
+} from "@/components/projects/colors"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -10,18 +15,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  deleteProject,
-  getProjectForEdit,
-  type ProjectDetail,
-} from "@/lib/actions/projects"
+import { Spinner } from "@/components/ui/spinner"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
+import { getProjectForEdit } from "@/lib/actions/projects"
 import type { Project as DbProject } from "@/lib/drizzle/schema"
-import {
-  PROJECT_COLORS,
-  PROJECT_COLOR_NAME_KEYS,
-  type ProjectColor,
-} from "@/components/projects/colors"
-import type { ProjectMember } from "@/lib/types"
+import { useProjectActions } from "@/stores/use-project-actions"
+import { useProjectContext } from "@/stores/use-project-context"
 import {
   Calendar,
   ClipboardList,
@@ -33,33 +32,20 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react"
-import { Spinner } from "@/components/ui/spinner"
 import { useTranslations } from "next-intl"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
-import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import { useActionError } from "@/lib/util/action-errors"
 import { ProjectDialog } from "./project-dialog"
 
-interface ProjectDetailsProps {
-  project: ProjectDetail
-  categories: { id: string; slug: string; name: string }[]
-  primaryOwner: ProjectMember | undefined
-  canEdit: boolean
-  canDelete: boolean
-}
-
-export function ProjectDetails({
-  project,
-  categories,
-  primaryOwner,
-  canEdit,
-  canDelete,
-}: ProjectDetailsProps) {
-  const router = useRouter()
+export function ProjectDetails() {
   const t = useTranslations()
-  const translateError = useActionError()
+  const { project, owners, categories, canEdit, canDelete } =
+    useProjectContext()
+  const { deleteProject: deleteProjectAction, updateProject } =
+    useProjectActions()
+  const primaryOwner = owners.find(
+    (o) => o.userId === project.primaryOwnerId
+  )
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
@@ -75,7 +61,7 @@ export function ProjectDetails({
   const colorNameKey =
     colorIndex >= 0 ? PROJECT_COLOR_NAME_KEYS[colorIndex] : undefined
 
-  async function handleEdit() {
+  const handleEdit = async () => {
     setLoadingEdit(true)
     startLoading()
     const result = await getProjectForEdit({ projectId: project.id })
@@ -90,19 +76,13 @@ export function ProjectDetails({
     setProjectDialogOpen(true)
   }
 
-  async function handleDelete() {
+  const handleDelete = async () => {
     setDeleteDialogOpen(false)
     setDeleting(true)
     startLoading()
-    const result = await deleteProject({ projectId: project.id })
+    await deleteProjectAction()
     stopLoading()
-    if (result.serverError) {
-      toast.error(translateError(result.serverError.code))
-      setDeleting(false)
-    } else {
-      toast.success(t("projects.projectDeleted"))
-      router.push("/app/proyectos")
-    }
+    setDeleting(false)
   }
 
   return (
@@ -246,15 +226,12 @@ export function ProjectDetails({
 
       <ProjectDialog
         project={editingProject}
+        onSubmit={updateProject}
         categories={categories}
         open={projectDialogOpen}
         onOpenChange={(open) => {
           setProjectDialogOpen(open)
           if (!open) setEditingProject(undefined)
-        }}
-        onSuccess={() => {
-          router.refresh()
-          setEditingProject(undefined)
         }}
       />
 

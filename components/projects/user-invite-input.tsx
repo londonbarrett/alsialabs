@@ -1,7 +1,5 @@
 "use client"
 
-import { useState, useRef, useTransition } from "react"
-import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import {
   Combobox,
@@ -10,7 +8,6 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-
 } from "@/components/ui/combobox"
 import {
   Item,
@@ -19,13 +16,15 @@ import {
   ItemTitle,
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
-import { UserPlus } from "lucide-react"
 import { useDebounced } from "@/hooks/use-debounced"
-import { searchUsers } from "@/lib/actions/users"
 import type { UserOption } from "@/lib/actions/users"
+import { searchUsers } from "@/lib/actions/users"
+import { UserPlus } from "lucide-react"
+import { useTranslations } from "next-intl"
+import { useRef, useState, useTransition } from "react"
 
 interface UserInviteInputProps {
-  onSelect: (userId: string) => Promise<void> | void
+  onSelect: (user: UserOption) => void
   placeholder?: string
   excludedIds?: string[]
 }
@@ -73,7 +72,7 @@ export function UserInviteInput({
 
   const handleInvite = () => {
     if (selectedValue) {
-      onSelect(selectedValue.id)
+      onSelect(selectedValue)
       setSelectedValue(null)
       setSearchResults([])
     }

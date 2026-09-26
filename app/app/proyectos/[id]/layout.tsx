@@ -1,3 +1,4 @@
+import { ProjectContextProvider } from "@/components/projects/project-context-provider"
 import { ProjectView } from "@/components/projects/project-view"
 import { getProjectContext } from "@/lib/actions/projects"
 import { unwrapResponse } from "@/lib/util/unwrap"
@@ -17,7 +18,13 @@ export default async function ProjectDetailLayout({
   if (result.serverError?.code === "NOT_FOUND") notFound()
   if (result.serverError?.code === "FORBIDDEN") forbidden()
   if (!result.data) notFound()
-  const { project } = unwrapResponse(result)
+  const context = unwrapResponse(result)
 
-  return <ProjectView project={project}>{children}</ProjectView>
+  return (
+    <ProjectContextProvider context={context}>
+      <ProjectView>
+        {children}
+      </ProjectView>
+    </ProjectContextProvider>
+  )
 }

@@ -3,12 +3,10 @@
 import { Dialog } from "@/components/common/dialog"
 import type { Routine } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
-import type { ProjectMember } from "./routine-details-step"
 import { RoutineForm } from "./routine-form"
 
 interface RoutineDialogProps {
   routine?: Routine
-  projectMembers: ProjectMember[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: {
@@ -31,7 +29,6 @@ interface RoutineDialogProps {
 
 export function RoutineDialog({
   routine,
-  projectMembers,
   open,
   onOpenChange,
   onSubmit,
@@ -46,7 +43,6 @@ export function RoutineDialog({
     >
       <RoutineForm
         routine={routine}
-        projectMembers={projectMembers}
         onSubmit={onSubmit}
         onCancel={() => onOpenChange(false)}
       />

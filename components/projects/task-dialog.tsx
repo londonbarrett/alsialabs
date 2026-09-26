@@ -5,16 +5,8 @@ import type { Task } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 import { TaskForm } from "./task-form"
 
-interface ProjectMember {
-  userId: string
-  userName: string | null
-  userEmail: string | null
-  userImage: string | null
-}
-
 interface TaskDialogProps {
   task?: Task
-  projectMembers: ProjectMember[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: {
@@ -30,7 +22,6 @@ interface TaskDialogProps {
 
 export function TaskDialog({
   task,
-  projectMembers,
   open,
   onOpenChange,
   onSubmit,
@@ -45,7 +36,6 @@ export function TaskDialog({
     >
       <TaskForm
         task={task}
-        projectMembers={projectMembers}
         onSubmit={onSubmit}
         onCancel={() => onOpenChange(false)}
       />
