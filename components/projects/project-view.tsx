@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useProjectContext } from "@/stores/use-project-context"
 import { cn } from "cn"
 import {
   ArrowLeft,
@@ -28,50 +29,45 @@ const statusColors: Record<string, string> = {
 }
 
 interface ProjectViewProps {
-  project: {
-    id: string
-    name: string
-    location: string | null
-    status: string
-  }
   children: React.ReactNode
 }
 
-export function ProjectView({ project, children }: ProjectViewProps) {
+export function ProjectView({ children }: ProjectViewProps) {
   const t = useTranslations()
   const pathname = usePathname()
-  const base = `/app/proyectos/${project.id}`
+  const { project, projectId } = useProjectContext()
+  const basePath = `/app/proyectos/${projectId}`
 
   const tabs = [
     {
-      href: base,
+      href: basePath,
       label: t("projects.tasks.title"),
       icon: ListTodo,
-      active: pathname === base,
+      active: pathname === basePath,
     },
     {
-      href: `${base}/rutinas`,
+      href: `${basePath}/rutinas`,
       label: t("projects.routines.title"),
       icon: RefreshCw,
-      active: pathname === `${base}/rutinas`,
+      active: pathname === `${basePath}/rutinas`,
     },
     {
-      href: `${base}/detalles`,
+      href: `${basePath}/detalles`,
       label: t("projects.detail.tabs.details"),
       icon: ClipboardList,
-      active: pathname === `${base}/detalles`,
+      active: pathname === `${basePath}/detalles`,
     },
     {
-      href: `${base}/personas`,
+      href: `${basePath}/personas`,
       label: t("projects.detail.tabs.people"),
       icon: Users,
-      active: pathname === `${base}/personas`,
+      active: pathname === `${basePath}/personas`,
     },
     {
-      href: `${base}/gastos`,
+      href: `${basePath}/gastos`,
       label: t("projects.detail.tabs.expenses"),
       icon: Receipt,
-      active: pathname === `${base}/gastos`,
+      active: pathname === `${basePath}/gastos`,
     },
   ]
 

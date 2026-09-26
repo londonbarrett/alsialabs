@@ -16,26 +16,27 @@ import {
   updateExpense,
 } from "@/lib/actions/expenses"
 import { createTask, deleteTask, updateTask } from "@/lib/actions/tasks"
-import { useActionError } from "@/lib/util/action-errors"
 import type {
   Expense,
   Task,
   TaskPriority,
   TaskStatus,
 } from "@/lib/drizzle/schema"
-import type { ExpenseWithCategory, ProjectMember } from "@/lib/types"
+import type { ExpenseWithCategory } from "@/lib/types"
+import { useActionError } from "@/lib/util/action-errors"
+import { expenseReducer } from "@/reducers/expense-reducer"
+import { taskReducer } from "@/reducers/task-reducer"
+import { useProjectContext } from "@/stores/use-project-context"
 import { cn } from "cn"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useRouter } from "next/navigation"
 import { useAction } from "next-safe-action/hooks"
+import { useRouter } from "next/navigation"
 import { useReducer, useState, useTransition } from "react"
 import { toast } from "sonner"
 import { TaskDialog } from "../task-dialog"
 import { ExpenseDialog } from "./expense-dialog"
 import { ExpensesTable } from "./expenses-table"
-import { expenseReducer } from "@/reducers/expense-reducer"
-import { taskReducer } from "@/reducers/task-reducer"
 
 function formatDate(date: Date): string {
   const year = date.getFullYear()
@@ -47,26 +48,28 @@ function formatDate(date: Date): string {
 interface ProjectExpensesProps {
   expenses: ExpenseWithCategory[]
   tasks: Task[]
-  projectId: string
-  budget: string | null
   categories: { id: string; slug: string; name: string }[]
-  canEdit: boolean
-  canDelete: boolean
-  projectMembers: ProjectMember[]
 }
 
 export function ProjectExpenses({
   expenses,
   tasks,
-  projectId,
-  budget,
   categories,
-  canEdit,
-  canDelete,
-  projectMembers,
 }: ProjectExpensesProps) {
   const router = useRouter()
   const t = useTranslations()
+  const {
+    project,
+    projectId,
+    permissions,
+    canEdit: canEditProject,
+    canDelete: canDeleteProject,
+  } = useProjectContext()
+  const budget = project.budget ?? null
+  const canEdit =
+    permissions.includes("expenses:create") || canEditProject
+  const canDelete =
+    permissions.includes("expenses:delete") || canDeleteProject
   const translateError = useActionError()
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
@@ -93,6 +96,7 @@ export function ProjectExpenses({
   const { executeAsync: executeUpdateTask } = useAction(updateTask)
   const { executeAsync: executeDeleteTask } = useAction(deleteTask)
 
+  // TODO: move handler to dialog
   async function handleTaskSubmit(data: {
     name: string
     description: string
@@ -425,8 +429,8 @@ export function ProjectExpenses({
       </CardContent>
 
       <ExpenseDialog
-        expense={editingExpense}
         projectId={projectId}
+        expense={editingExpense}
         categories={categories}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
@@ -439,7 +443,6 @@ export function ProjectExpenses({
 
       <TaskDialog
         task={editingTask}
-        projectMembers={projectMembers}
         open={taskDialogOpen}
         onOpenChange={handleTaskDialogOpenChange}
         onSubmit={handleTaskSubmit}

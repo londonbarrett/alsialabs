@@ -2,9 +2,10 @@
 
 ### Requirement: Project subpage navigation
 
-The project detail area SHALL be split into four subpages under `/app/proyectos/[id]`: tasks (default), details, people, and expenses. Accessing any subpage SHALL require the `projects:view` permission via `getProjectContext` (`sessionAction` `permission: projects:view`, `projectScopedAction` `verifyProjectAccess` for `project_owners`/`project_collaborators`/`super`). All subpages SHALL share a persistent header (back button, project name, location, status badge) and a tab navigation that highlights the active subpage. `app/app/proyectos/[id]/layout.tsx:16` SHALL call `getProjectContext` and `if (!result.data) notFound()` / `serverError FORBIDDEN` → `forbidden()` before `unwrapResponse`, and `components/projects/project-view.tsx:43` SHALL use `project.id` for `base` tabs. `lib/util/unwrap.ts:16` SHALL return `[]` by default for array results.
+The project detail area SHALL be split into five subpages under `/app/proyectos/[id]`: tasks (default), routines, details, people, and expenses. Accessing any subpage SHALL require the `projects:view` permission via `getProjectContext` (`sessionAction` `permission: projects:view`, `projectScopedAction` `verifyProjectAccess` for `project_owners`/`project_collaborators`/`super`). All subpages SHALL share a persistent header (back button, project name, location, status badge) and a tab navigation that highlights the active subpage. `app/app/proyectos/[id]/layout.tsx:17` SHALL call `getProjectContext` and `if (!result.data) notFound()` / `serverError FORBIDDEN` → `forbidden()` before `unwrapResponse`, and SHALL pass the resulting `ProjectContext` to `ProjectContextProvider`. The header and tab links SHALL both read from the project context store via `useProjectContext` — `components/projects/project-view.tsx:38` reads `project` and `projectId` from the hook and derives `basePath` from `projectId` at `:39`, so the displayed title and the tab hrefs are always derived from the same read and cannot disagree. `ProjectView` SHALL NOT accept `projectId` or `context` props. `lib/util/unwrap.ts:22` SHALL return `[]` by default for array results.
 
 - `/app/proyectos/[id]` — tasks (default)
+- `/app/proyectos/[id]/rutinas`
 - `/app/proyectos/[id]/detalles`
 - `/app/proyectos/[id]/personas`
 - `/app/proyectos/[id]/gastos`
@@ -83,7 +84,26 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 - **WHEN** the user clicks the secondary "Edit" button in the project details footer
 - **THEN** a dialog opens with the project's current values pre-filled, including its current color selected among the 6 swatches
 - **WHEN** the user modifies fields (optionally picking a different color) and submits
-- **THEN** the project is updated and the page refreshes
+- **THEN** the project is patched optimistically in the project context store
+- **AND** the authoritative row returned by the server is committed on top of the optimistic patch, so server-side normalization wins
+- **AND** if the server rejects the change, the optimistic patch is discarded and the error toast is shown
+
+#### Scenario: The form owns no mutation
+
+- **GIVEN** `ProjectForm`, which is rendered by both the projects list page and the project detail subpage
+- **WHEN** the user submits
+- **THEN** the form calls its required `onSubmit` prop (`components/projects/project-form.tsx:56`) and maps server field errors onto the inputs
+- **AND** the form SHALL NOT import or call `createProject` or `updateProject` itself, so it cannot create a project where an update was intended
+- **AND** the form SHALL NOT take a separate `onSuccess` prop: `onSubmit` returns the action result, and closing the dialog on success belongs to `ProjectDialog`
+- **AND** the caller that owns the mutation also owns its toasts, matching `useProjectActions` and the list page's create handler
+
+#### Scenario: Edit is only reachable where a project context exists
+
+- **GIVEN** the projects list page, which is outside the project context provider
+- **WHEN** the user opens the project dialog there
+- **THEN** it passes a create handler as `onSubmit` and no `project`, so the dialog creates
+- **AND** editing a project is only reachable from the details subpage, which passes `onSubmit={updateProject}` to mutate the project context store
+- **AND** `project` on the form SHALL only pre-fill fields and SHALL NOT select the mutation
 
 #### Scenario: Colors may repeat across projects
 
@@ -110,9 +130,61 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 - **GIVEN** a user who is a collaborator (not an owner) of a project
 - **WHEN** the user navigates to a project subpage
 - **THEN** the project is not visible (only owners can access project details)
+### Requirement: Project context state
+
+The open project's context SHALL be held in a client store created per project detail page, not in a module-level singleton and not threaded through props. `app/app/proyectos/[id]/layout.tsx` SHALL render `components/projects/project-context-provider.tsx`, which builds the store exactly once per mount with `useRef` + `if (storeRef.current == null)` and publishes it through `ProjectContextStoreContext` (`stores/project-context-store.ts:81,89`). Because the store is seeded at construction it SHALL have no "not yet hydrated" state, so no consumer needs a null guard and the seeding SHALL NOT be performed during render or from an effect (a render-phase write would notify the very subscribers reading it, and a `router.refresh()` would not rewrite a store seeded once). The store SHALL hold exactly one project, keyed by nothing — the route supplies the identity — so `projectContextReducer` SHALL take no key and SHALL ignore the generic store's key argument.
+
+Every mutation to the open project's context SHALL be expressed as a `ProjectContextAction` (`stores/project-context-store.ts:22`) applied through `createOptimisticStore`, so that client state is never re-read from the server. Actions SHALL be `patchProject`, `addOwner`, `addCollaborator`, and `removeMember`; the membership actions SHALL be no-ops (returning the identical state reference) when the user is already present or absent, to keep referential stability for memoized consumers.
+
+Consumers SHALL read context through the `useProjectContext()` hook (`stores/use-project-context.ts:38`), which SHALL return a `ProjectContextValue` with `project`, `projectId`, `owners`, `collaborators`, `members`, `permissions`, `categories`, `currentUserId`, and the derived `isOwner`/`isPrimaryOwner`/`isCollaborator`/`canEdit`/`canDelete`/`canManageUsers` flags. The hook SHALL NOT accept an `initialContext` argument and SHALL NOT return the raw context object. Hooks that mutate the context (`useProjectActions`, `useProjectMemberActions`) SHALL read `projectId` from the same hook and SHALL throw if called outside a `ProjectContextProvider`.
+
+#### Scenario: Context store is created once per project page
+
+- **GIVEN** a user who opened `/app/proyectos/[id]`
+- **WHEN** the detail layout renders
+- **THEN** a project context store is built from the layout's `getProjectContext` result and provided to the project subtree
+- **AND** re-rendering the layout does not rebuild or re-seed the store
+
+#### Scenario: Navigating to another project yields a fresh store
+
+- **GIVEN** a user viewing project A
+- **WHEN** the user navigates to project B's detail route
+- **THEN** the provider remounts and a store seeded with project B's context is used
+- **AND** no state from project A is observable in project B
+
+#### Scenario: Context is read from the store, not from props
+
+- **GIVEN** a component rendered inside the project detail area
+- **WHEN** it needs the project, its id, its members, or the permission flags
+- **THEN** it calls `useProjectContext()`
+- **AND** no `projectId` or `context` prop is passed to it for that purpose
+
+#### Scenario: Project is never null inside the project area
+
+- **GIVEN** any component inside the project detail area
+- **WHEN** it reads `project` from `useProjectContext()`
+- **THEN** a project is always present
+- **AND** no null guard or loading placeholder is required
+
+#### Scenario: Store hook outside a provider fails loudly
+
+- **GIVEN** a component rendered outside the project detail area
+- **WHEN** it calls `useProjectContext()` or `useProjectActions()`
+- **THEN** it throws an error naming `ProjectContextProvider`
+- **AND** the projects list page is unaffected because it performs only creates
+
 ### Requirement: Project ownership model
 
-Projects SHALL support multiple owners and collaborators. The primary owner has full control. Owners can manage collaborators and tasks. Collaborators can view and comment on tasks. The people UI SHALL use `components/projects/project-people.tsx` composed with `components/projects/member-pill.tsx:1` (`MemberPill` with `Avatar` + `initials` + `X` remove) and `components/projects/user-invite-input.tsx:46` debounced via `hooks/use-debounced.ts:3` `useDebounced`.
+Projects SHALL support multiple owners and collaborators. The primary owner has full control. Owners can manage collaborators and tasks. Collaborators can view and comment on tasks. The people UI SHALL use `components/projects/project-people.tsx` composed with `components/projects/member-pill.tsx:1` (`MemberPill` with `Avatar` + `initials` + `X` remove) and `components/projects/user-invite-input.tsx:45` debounced via `hooks/use-debounced.ts:3` `useDebounced`.
+
+Membership changes SHALL be applied optimistically to the project context store via `useProjectMemberActions` (`stores/use-project-member-actions.ts:48`) and SHALL NOT depend on `router.refresh()` to reach the client, because the context store is seeded once per page mount. Adding or removing a member SHALL pend the corresponding action, render the result immediately, and SHALL discard the pending action and show the server's error toast if the server rejects the change. A removal SHALL be expressed as a single `removeMember` action that drops the user from both the owners and collaborators lists. `UserInviteInput`'s `onSelect` SHALL receive the whole `UserOption` (`components/projects/user-invite-input.tsx:27`), not just a user id, so the reducer can render the new member's name, email, and image before the server responds.
+
+#### Scenario: Remove a collaborator updates the store immediately
+
+- **GIVEN** an owner viewing the people subpage of a project with a collaborator
+- **WHEN** the user clicks the remove button on that collaborator's `MemberPill`
+- **THEN** the collaborator is removed from the list without waiting for a refetch
+- **AND** a success toast confirms the removal
 
 #### Scenario: Primary owner manages co-owners
 
@@ -140,6 +212,20 @@ Projects SHALL support multiple owners and collaborators. The primary owner has 
 - **THEN** a "Collaborators" section is visible with a combobox to search for users to add
 - **AND** a remove button appears next to each collaborator
 
+#### Scenario: Add a member renders before the server responds
+
+- **GIVEN** an owner who has selected a user in the invite combobox
+- **WHEN** the user confirms the invite
+- **THEN** the new member's pill is rendered from the selected user's details
+- **AND** if the server rejects the invite (for example `alreadyOwner` or `alreadyCollaborator`), the pill is removed again and the server's error is shown
+
+#### Scenario: Rejected membership change reverts
+
+- **GIVEN** an owner who removes a member
+- **WHEN** the server rejects the removal
+- **THEN** the member pill reappears
+- **AND** the server's error message is shown
+
 #### Scenario: Collaborator cannot manage collaborators
 
 - **GIVEN** a user who is a collaborator (not an owner) of a project
@@ -155,7 +241,7 @@ The system SHALL provide a combobox input (`components/projects/user-invite-inpu
 - **GIVEN** an owner managing co-owners or collaborators
 - **WHEN** the user types in the combobox search field
 - **THEN** matching users appear in a dropdown list (debounced, `UserOption` from `searchUsers` `data`)
-- **AND** users already associated with the project are excluded from results via `excludedIds` (`project-people.tsx:47` `allMemberIds`) and cross-role `alreadyOwner`/`alreadyCollaborator` guards
+- **AND** users already associated with the project are excluded from results via `excludedIds` (`project-people.tsx:28` `allMemberIds`) and cross-role `alreadyOwner`/`alreadyCollaborator` guards
 
 #### Scenario: Invite new user
 

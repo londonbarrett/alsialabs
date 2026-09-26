@@ -26,6 +26,7 @@ import {
 } from "@/lib/actions/routines"
 import type { Routine } from "@/lib/drizzle/schema"
 import { useHasPermission } from "@/stores/permissions-store"
+import { useProjectContext } from "@/stores/use-project-context"
 import { Plus, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import {
@@ -77,29 +78,15 @@ function routineReducer(
   }
 }
 
-interface ProjectMember {
-  userId: string
-  userName: string | null
-  userEmail: string | null
-  userImage: string | null
-}
-
 interface RoutinesViewProps {
   initialRoutines: RoutineWithAssignee[]
-  projectId: string
-  canEdit: boolean
-  isOwner: boolean
-  projectMembers: ProjectMember[]
 }
 
 export const RoutinesView = memo(function RoutinesView({
   initialRoutines,
-  projectId,
-  canEdit,
-  isOwner,
-  projectMembers,
 }: RoutinesViewProps) {
   const t = useTranslations()
+  const { projectId, members, isOwner, canEdit } = useProjectContext()
   const canDeleteProject = useHasPermission("projects:delete")
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
@@ -114,8 +101,7 @@ export const RoutinesView = memo(function RoutinesView({
   >()
 
   const canMutate = useMemo(
-    () =>
-      isOwner && (canEdit || canDeleteProject),
+    () => isOwner && (canEdit || canDeleteProject),
     [isOwner, canEdit, canDeleteProject]
   )
 
@@ -152,8 +138,7 @@ export const RoutinesView = memo(function RoutinesView({
         endDate: data.endDate || null,
         assigneeId: data.assigneeId,
         assigneeName:
-          projectMembers.find((m) => m.userId === data.assigneeId)
-            ?.userName ??
+          members.find((m) => m.userId === data.assigneeId)?.userName ??
           editingRoutine?.assigneeName ??
           null,
         createdAt: editingRoutine?.createdAt ?? new Date(),
@@ -204,7 +189,7 @@ export const RoutinesView = memo(function RoutinesView({
       t,
       projectId,
       editingRoutine,
-      projectMembers,
+      members,
       dispatch,
       startLoading,
       stopLoading,
@@ -260,12 +245,12 @@ export const RoutinesView = memo(function RoutinesView({
   const getAssigneeName = useCallback(
     function getAssigneeName(routine: RoutineWithAssignee) {
       if (routine.assigneeName) return routine.assigneeName
-      const member = projectMembers.find(
+      const member = members.find(
         (m) => m.userId === routine.assigneeId
       )
       return member?.userEmail ?? routine.assigneeId
     },
-    [projectMembers]
+    [members]
   )
 
   return (
@@ -379,7 +364,6 @@ export const RoutinesView = memo(function RoutinesView({
 
       <RoutineDialog
         routine={editingRoutine}
-        projectMembers={projectMembers}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
         onSubmit={handleRoutineSubmit}

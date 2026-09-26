@@ -2,14 +2,22 @@
 
 import { PageHeader } from "@/components/common/page-header"
 import { Button } from "@/components/ui/button"
+import { createProject } from "@/lib/actions/projects"
 import type { Project } from "@/lib/types"
+import { useActionError } from "@/lib/util/action-errors"
 import { useHasPermission } from "@/stores/permissions-store"
 import { FolderKanban, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { useAction } from "next-safe-action/hooks"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { toast } from "sonner"
 import { ProjectCard } from "./project-card"
 import { ProjectDialog } from "./project-dialog"
+import type {
+  ProjectFormResult,
+  ProjectFormValues,
+} from "./project-form"
 
 interface ProjectListViewProps {
   projects: Project[]
@@ -25,8 +33,24 @@ export function ProjectListView({
   const canCreate = useHasPermission("projects:create")
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  const translateError = useActionError()
+  const { executeAsync: executeCreate } = useAction(createProject)
+
   function handleSuccess() {
     router.refresh()
+  }
+
+  /** This page creates; editing lives in the project detail subpage. */
+  async function handleCreate(
+    values: ProjectFormValues
+  ): Promise<ProjectFormResult> {
+    const result = await executeCreate(values)
+    if (result?.serverError) {
+      toast.error(translateError(result.serverError.code))
+    } else if (result?.data) {
+      toast.success(t("projects.projectCreated"))
+    }
+    return result
   }
 
   function openNew() {
@@ -81,6 +105,7 @@ export function ProjectListView({
       )}
       <ProjectDialog
         categories={categories}
+        onSubmit={handleCreate}
         open={dialogOpen}
         onOpenChange={handleOpenChange}
         onSuccess={handleSuccess}

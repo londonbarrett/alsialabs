@@ -17,19 +17,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useProjectContext } from "@/stores/use-project-context"
 import { routineTemplates } from "@/lib/routines/templates"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 
-export interface ProjectMember {
-  userId: string
-  userName: string | null
-  userEmail: string | null
-  userImage: string | null
-}
-
 interface RoutineDetailsStepProps {
-  projectMembers: ProjectMember[]
   showTemplate: boolean
   name: string
   description: string
@@ -45,7 +38,6 @@ interface RoutineDetailsStepProps {
 }
 
 export function RoutineDetailsStep({
-  projectMembers,
   showTemplate,
   name,
   description,
@@ -60,6 +52,7 @@ export function RoutineDetailsStep({
   onCancel,
 }: RoutineDetailsStepProps) {
   const t = useTranslations()
+  const { members } = useProjectContext()
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   function handleNameChange(value: string | null) {
@@ -90,7 +83,8 @@ export function RoutineDetailsStep({
             </FieldLabel>
             <Select
               onValueChange={(value: unknown) => {
-                if (typeof value === 'string' && value) onApplyTemplate(value)
+                if (typeof value === "string" && value)
+                  onApplyTemplate(value)
               }}
               items={routineTemplates.map((tpl) => ({
                 value: tpl.id,
@@ -149,7 +143,7 @@ export function RoutineDetailsStep({
             onValueChange={onAssigneeChange}
             items={[
               { value: "", label: t("projects.routines.unassigned") },
-              ...projectMembers.map((m) => ({
+              ...members.map((m) => ({
                 value: m.userId,
                 label: m.userName || m.userEmail || m.userId,
               })),
@@ -164,7 +158,7 @@ export function RoutineDetailsStep({
               <SelectItem value="">
                 {t("projects.routines.unassigned")}
               </SelectItem>
-              {projectMembers.map((m) => (
+              {members.map((m) => (
                 <SelectItem key={m.userId} value={m.userId}>
                   {m.userName || m.userEmail || m.userId}
                 </SelectItem>

@@ -3,7 +3,6 @@ import {
   getExpenseCategories,
   getExpensesByProjectId,
 } from "@/lib/actions/expenses"
-import { getProjectContext } from "@/lib/actions/projects"
 import { getTasks } from "@/lib/actions/tasks"
 import { unwrapResponse } from "@/lib/util/unwrap"
 
@@ -13,41 +12,17 @@ type Props = {
 
 export default async function ProjectExpensesPage({ params }: Props) {
   const { id } = await params
-  const {
-    session,
-    project,
-    owners,
-    collaborators,
-    permissions,
-    isCurrentUserAdmin,
-  } = unwrapResponse(await getProjectContext({ projectId: id }))
-
   const [expenses, tasksResult, expenseCategories] = await Promise.all([
     getExpensesByProjectId({ projectId: id }),
     getTasks({ projectId: id }),
     getExpenseCategories(),
   ])
-  const tasks = unwrapResponse(tasksResult)
-
-  const isOwner =
-    owners.some((o) => o.userId === session.user.id) ||
-    isCurrentUserAdmin
-  const canEdit =
-    (isOwner || isCurrentUserAdmin) &&
-    permissions.includes("projects:edit")
-  const canDelete =
-    project.primaryOwnerId === session.user.id || isCurrentUserAdmin
 
   return (
     <ProjectExpenses
       expenses={unwrapResponse(expenses)}
-      tasks={tasks}
-      projectId={project.id}
-      budget={project.budget}
+      tasks={unwrapResponse(tasksResult)}
       categories={unwrapResponse(expenseCategories)}
-      canEdit={!!permissions.includes("expenses:create") || canEdit}
-      canDelete={!!permissions.includes("expenses:delete") || canDelete}
-      projectMembers={[...owners, ...collaborators]}
     />
   )
 }

@@ -8,20 +8,24 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { ProjectForm } from "./project-form"
+import { ProjectForm, type ProjectFormSubmit } from "./project-form"
 import type { Project } from "@/lib/drizzle/schema"
 
-interface ProjectDialogProps {
-  project?: Project
+export type ProjectDialogProps = {
   categories: { id: string; slug: string; name: string }[]
+  /** Pre-fills the form for an edit; omit to create. */
+  project?: Project
+  onSubmit: ProjectFormSubmit
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
+  /** Reported after a successful submit, e.g. to refresh a list. */
+  onSuccess?: () => void
 }
 
 export function ProjectDialog({
-  project,
   categories,
+  project,
+  onSubmit,
   open,
   onOpenChange,
   onSuccess,
@@ -41,11 +45,15 @@ export function ProjectDialog({
         <ProjectForm
           project={project}
           categories={categories}
-          onSuccess={() => {
-            onSuccess()
-            onOpenChange(false)
-          }}
           onCancel={() => onOpenChange(false)}
+          onSubmit={async (values) => {
+            const result = await onSubmit(values)
+            if (result?.data) {
+              onSuccess?.()
+              onOpenChange(false)
+            }
+            return result
+          }}
         />
       </DialogContent>
     </Dialog>

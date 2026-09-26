@@ -11,27 +11,56 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import { createProject, updateProject } from "@/lib/actions/projects"
 import type { Project } from "@/lib/drizzle/schema"
-import { useActionError } from "@/lib/util/action-errors"
 import { useTranslations } from "next-intl"
-import { useAction } from "next-safe-action/hooks"
 import { useState } from "react"
-import { toast } from "sonner"
 import { type ProjectColor } from "./colors"
 import { ProjectColorField } from "./project-color-field"
 
-interface ProjectFormProps {
-  project?: Project
+export type ProjectFormValues = {
+  name: string
+  categoryId: string
+  status: "active" | "completed" | "cancelled" | "archived"
+  description: string
+  startDate: string
+  endDate: string
+  location: string
+  budget: string
+  color: ProjectColor
+}
+
+export type ProjectFormResult = {
+  data?: unknown
+  serverError?: { code: string }
+  /** Shape is owned by next-safe-action; `showFieldErrors` narrows it. */
+  validationErrors?: unknown
+}
+
+export type ProjectFormSubmit = (
+  values: ProjectFormValues
+) => Promise<ProjectFormResult>
+
+type ProjectFormProps = {
   categories: { id: string; slug: string; name: string }[]
-  onSuccess: () => void
+  /**
+   * Pre-fills the fields. Present only when the caller is editing an existing
+   * project; the projects list page creates without it.
+   */
+  project?: Project
+  /**
+   * Owns the mutation. The list page passes a create handler, the project
+   * detail page passes `useProjectActions().updateProject`, which patches the
+   * project context store. The form never mutates on its own, so it cannot
+   * create a project in place of updating one.
+   */
+  onSubmit: ProjectFormSubmit
   onCancel: () => void
 }
 
 export function ProjectForm({
   project,
   categories,
-  onSuccess,
+  onSubmit,
   onCancel,
 }: ProjectFormProps) {
   const t = useTranslations()
@@ -52,9 +81,6 @@ export function ProjectForm({
   const [color, setColor] = useState<string | undefined>(project?.color)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
-  const translateError = useActionError()
-  const { executeAsync: executeCreate } = useAction(createProject)
-  const { executeAsync: executeUpdate } = useAction(updateProject)
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
@@ -75,14 +101,10 @@ export function ProjectForm({
     if (!validate()) return
 
     setSaving(true)
-    const data = {
+    const data: ProjectFormValues = {
       name: name.trim(),
       categoryId,
-      status: status as
-        | "active"
-        | "completed"
-        | "cancelled"
-        | "archived",
+      status: status as ProjectFormValues["status"],
       description: description.trim(),
       startDate,
       endDate: endDate.trim(),
@@ -91,34 +113,23 @@ export function ProjectForm({
       color: color as ProjectColor,
     }
 
-    const result = project
-      ? await executeUpdate({ ...data, projectId: project.id })
-      : await executeCreate(data)
-
-    if (result?.data) {
-      toast.success(
-        project
-          ? t("projects.projectUpdated")
-          : t("projects.projectCreated")
-      )
-      onSuccess()
-    } else {
-      if (result?.validationErrors) {
-        const mapped: Record<string, string> = {}
-        for (const [key, msgs] of Object.entries(
-          result.validationErrors as Record<string, string[]>
-        )) {
-          if (msgs && msgs.length > 0) mapped[key] = msgs[0]
-        }
-        setErrors(mapped)
-      }
-      if (result?.serverError) {
-        toast.error(translateError(result.serverError.code))
-      } else {
-        toast.error(t("common.somethingWentWrong"))
-      }
-    }
+    const result = await onSubmit(data)
+    if (!result?.data) showFieldErrors(result)
     setSaving(false)
+  }
+
+  function showFieldErrors(result: unknown) {
+    const validationErrors = (
+      result as
+        | { validationErrors?: Record<string, string[]> }
+        | undefined
+    )?.validationErrors
+    if (!validationErrors) return
+    const mapped: Record<string, string> = {}
+    for (const [key, msgs] of Object.entries(validationErrors)) {
+      if (msgs && msgs.length > 0) mapped[key] = msgs[0]
+    }
+    setErrors(mapped)
   }
 
   return (
@@ -191,9 +202,18 @@ export function ProjectForm({
             }}
             items={[
               { value: "active", label: t("projects.status.active") },
-              { value: "completed", label: t("projects.status.completed") },
-              { value: "cancelled", label: t("projects.status.cancelled") },
-              { value: "archived", label: t("projects.status.archived") },
+              {
+                value: "completed",
+                label: t("projects.status.completed"),
+              },
+              {
+                value: "cancelled",
+                label: t("projects.status.cancelled"),
+              },
+              {
+                value: "archived",
+                label: t("projects.status.archived"),
+              },
             ]}
           >
             <SelectTrigger id="status">

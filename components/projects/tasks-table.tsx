@@ -24,6 +24,7 @@ import {
 import { isTaskOverdue } from "@/lib/util/tasks"
 import type { TaskWithCommentCount } from "@/reducers/task-reducer"
 import { useHasPermission } from "@/stores/permissions-store"
+import { useProjectContext } from "@/stores/use-project-context"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { DueDate } from "./due-date"
@@ -33,21 +34,8 @@ import {
   taskStatusColors,
 } from "./task-status-select"
 
-interface ProjectMember {
-  userId: string
-  userName: string | null
-  userEmail: string | null
-  userImage: string | null
-}
-
 interface TasksTableProps {
   tasks: TaskWithCommentCount[]
-  canEdit: boolean
-  canMutate: boolean
-  isOwner: boolean
-  isCollaborator: boolean
-  currentUserId: string
-  projectMembers: ProjectMember[]
   onStatusChange: (taskId: string, status: TaskStatus) => void
   onPriorityChange: (taskId: string, priority: TaskPriority) => void
   onDelete: (taskId: string) => Promise<void>
@@ -57,12 +45,6 @@ interface TasksTableProps {
 
 export function TasksTable({
   tasks,
-  canEdit,
-  canMutate,
-  isOwner,
-  isCollaborator,
-  currentUserId,
-  projectMembers,
   onStatusChange,
   onPriorityChange,
   onDelete,
@@ -70,7 +52,10 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
+  const { members, currentUserId, isOwner, isCollaborator, canEdit } =
+    useProjectContext()
   const canDeleteProject = useHasPermission("projects:delete")
+  const canMutate = isOwner && (canEdit || canDeleteProject)
 
   function getTaskAllowedStatuses(task: Task) {
     if (isOwner) return ALL_TASK_STATUSES
@@ -83,9 +68,7 @@ export function TasksTable({
 
   function getAssigneeName(task: TaskWithCommentCount) {
     if (task.assigneeName) return task.assigneeName
-    const member = projectMembers.find(
-      (m) => m.userId === task.assigneeId
-    )
+    const member = members.find((m) => m.userId === task.assigneeId)
     return member?.userEmail ?? task.assigneeId
   }
 
