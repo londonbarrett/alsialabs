@@ -48,6 +48,12 @@ All UI components SHALL display text in the resolved locale for all supported na
 - **WHEN** a server action fails with a validation error
 - **THEN** the error message is displayed in Spanish
 
+#### Scenario: Safe action error codes are translated
+- **GIVEN** a safe action returned `serverError` with code `ALREADY_OWNER`
+- **WHEN** the client renders it through `useActionError`
+- **THEN** the message is read from `errors.ALREADY_OWNER`
+- **AND** every code in `ActionError` (`lib/actions/error-codes.ts`) has a message in each supported locale
+
 ### Requirement: Server action translation
 Server actions SHALL use a shared helper to resolve the locale and provide translated error messages.
 

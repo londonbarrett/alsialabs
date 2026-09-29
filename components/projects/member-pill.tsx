@@ -24,19 +24,26 @@ export function MemberPill({
 }) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-      <Avatar className="size-6">
+      <Avatar className="size-8">
         <AvatarImage src={member.userImage ?? undefined} />
         <AvatarFallback className="text-[10px]">
           {initials(member.userName ?? "")}
         </AvatarFallback>
       </Avatar>
-      <span className="text-sm">
-        {member.userName || member.userEmail}
+      <span className="mr-2 flex flex-col">
+        <span className="text-sm">
+          {member.userName || member.userEmail}
+        </span>
+        {member.userName && member.userEmail && (
+          <span className="text-xs text-muted-foreground">
+            {member.userEmail}
+          </span>
+        )}
       </span>
       {onRemove && (
         <button
           onClick={onRemove}
-          className="ml-1 text-muted-foreground hover:text-destructive"
+          className="mr-2 text-muted-foreground hover:text-destructive"
         >
           <X className="h-3 w-3" />
         </button>

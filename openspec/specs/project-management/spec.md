@@ -130,6 +130,7 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 - **GIVEN** a user who is a collaborator (not an owner) of a project
 - **WHEN** the user navigates to a project subpage
 - **THEN** the project is not visible (only owners can access project details)
+
 ### Requirement: Project context state
 
 The open project's context SHALL be held in a client store created per project detail page, not in a module-level singleton and not threaded through props. `app/app/proyectos/[id]/layout.tsx` SHALL render `components/projects/project-context-provider.tsx`, which builds the store exactly once per mount with `useRef` + `if (storeRef.current == null)` and publishes it through `ProjectContextStoreContext` (`stores/project-context-store.ts:81,89`). Because the store is seeded at construction it SHALL have no "not yet hydrated" state, so no consumer needs a null guard and the seeding SHALL NOT be performed during render or from an effect (a render-phase write would notify the very subscribers reading it, and a `router.refresh()` would not rewrite a store seeded once). The store SHALL hold exactly one project, keyed by nothing — the route supplies the identity — so `projectContextReducer` SHALL take no key and SHALL ignore the generic store's key argument.
@@ -175,9 +176,9 @@ Consumers SHALL read context through the `useProjectContext()` hook (`stores/use
 
 ### Requirement: Project ownership model
 
-Projects SHALL support multiple owners and collaborators. The primary owner has full control. Owners can manage collaborators and tasks. Collaborators can view and comment on tasks. The people UI SHALL use `components/projects/project-people.tsx` composed with `components/projects/member-pill.tsx:1` (`MemberPill` with `Avatar` + `initials` + `X` remove) and `components/projects/user-invite-input.tsx:45` debounced via `hooks/use-debounced.ts:3` `useDebounced`.
+Projects SHALL support multiple owners and collaborators. The primary owner has full control. Owners can manage collaborators and tasks. Collaborators can view and comment on tasks. The people UI SHALL use `components/projects/project-people.tsx` composed with `components/projects/member-pill.tsx:1` (`MemberPill` with a `size-8` `Avatar` + `initials`, the member's name over their email at `text-xs text-muted-foreground`, and an `X` remove button) and `components/projects/user-invite-input.tsx:45` debounced via `hooks/use-debounced.ts:3` `useDebounced`. The email SHALL only render as a second line when the member has both a name and an email, so a member without a name still shows their email exactly once.
 
-Membership changes SHALL be applied optimistically to the project context store via `useProjectMemberActions` (`stores/use-project-member-actions.ts:48`) and SHALL NOT depend on `router.refresh()` to reach the client, because the context store is seeded once per page mount. Adding or removing a member SHALL pend the corresponding action, render the result immediately, and SHALL discard the pending action and show the server's error toast if the server rejects the change. A removal SHALL be expressed as a single `removeMember` action that drops the user from both the owners and collaborators lists. `UserInviteInput`'s `onSelect` SHALL receive the whole `UserOption` (`components/projects/user-invite-input.tsx:27`), not just a user id, so the reducer can render the new member's name, email, and image before the server responds.
+Membership changes SHALL be applied optimistically to the project context store via `useProjectMemberActions` (`stores/use-project-member-actions.ts:48`) and SHALL NOT depend on `router.refresh()` to reach the client, because the context store is seeded once per page mount. Adding or removing a member SHALL pend the corresponding action, render the result immediately, and SHALL discard the pending action and show the server's error toast if the server rejects the change. Each mutation SHALL report exactly one toast: a translated error (`useActionError` over the `errors` namespace) when the action returns a `serverError`, or a success toast (`projects.ownerAdded`/`ownerRemoved`/`collaboratorAdded`/`collaboratorRemoved`) when it returns `data`. A removal SHALL be expressed as a single `removeMember` action that drops the user from both the owners and collaborators lists. `UserInviteInput`'s `onSelect` SHALL receive the whole `UserOption` (`components/projects/user-invite-input.tsx:27`), not just a user id, so the reducer can render the new member's name, email, and image before the server responds.
 
 #### Scenario: Remove a collaborator updates the store immediately
 
@@ -185,6 +186,13 @@ Membership changes SHALL be applied optimistically to the project context store 
 - **WHEN** the user clicks the remove button on that collaborator's `MemberPill`
 - **THEN** the collaborator is removed from the list without waiting for a refetch
 - **AND** a success toast confirms the removal
+
+#### Scenario: Member pill shows name and email
+
+- **GIVEN** a project member with both a name and an email
+- **WHEN** the people subpage renders their pill
+- **THEN** the pill shows the name with the email directly beneath it in muted text
+- **AND** a member with no name shows their email once, as the primary label
 
 #### Scenario: Primary owner manages co-owners
 
@@ -217,7 +225,7 @@ Membership changes SHALL be applied optimistically to the project context store 
 - **GIVEN** an owner who has selected a user in the invite combobox
 - **WHEN** the user confirms the invite
 - **THEN** the new member's pill is rendered from the selected user's details
-- **AND** if the server rejects the invite (for example `alreadyOwner` or `alreadyCollaborator`), the pill is removed again and the server's error is shown
+- **AND** if the server rejects the invite (for example `ALREADY_OWNER` or `ALREADY_COLLABORATOR`), the pill is removed again and the server's error is shown
 
 #### Scenario: Rejected membership change reverts
 
@@ -232,22 +240,68 @@ Membership changes SHALL be applied optimistically to the project context store 
 - **WHEN** the user views the people subpage
 - **THEN** the add/remove collaborator controls are not visible
 
+### Requirement: Membership actions and authorization
+
+Membership mutations SHALL live in `lib/actions/project-people.ts` as safe actions built with `projectScopedAction` (`lib/safe-action.ts:141`), taking `{ projectId, userId }` and declaring `revalidate: ["/app/proyectos/:projectId"]`. They SHALL NOT declare `metadata.permission`: authorization is the ownership check itself, so a project owner without a global `projects:edit` permission can still manage members. Failures SHALL be returned as codes via `returnActionError` — `FORBIDDEN`, `NOT_FOUND`, `ALREADY_OWNER`, `ALREADY_COLLABORATOR`, `CANNOT_REMOVE_PRIMARY_OWNER`, `MUST_BE_OWNER` — declared in `lib/actions/error-codes.ts` and translated from the `errors` namespace, never as interpolated server strings.
+
+`addProjectOwner`, `removeProjectOwner` and `transferPrimaryOwner` SHALL require the caller to be the project's primary owner, compared against `projectsTable.primaryOwnerId`. `addProjectCollaborator` and `removeProjectCollaborator` SHALL require the caller to appear in `projectOwnersTable`. Both checks are deliberately stricter than `ctx.isProjectOwner`, which `verifyProjectAccess` also grants to super users: a super user who is not recorded on the project SHALL be rejected with `FORBIDDEN`.
+
+The reads `getProjectOwners` and `getProjectCollaborators` SHALL be `sessionAction` with `permission: projects:view` and input `{ projectId }`. `getProjectContext` (`lib/actions/projects.ts:541`) SHALL call them with an input object and unwrap the results through `unwrapResponse`.
+
+#### Scenario: Primary owner guard on owner mutations
+
+- **GIVEN** a user who is an owner but not the primary owner
+- **WHEN** they call `addProjectOwner`, `removeProjectOwner` or `transferPrimaryOwner`
+- **THEN** the action returns `FORBIDDEN`
+- **AND** the owner's list is unchanged
+
+#### Scenario: Super user outside the project is rejected
+
+- **GIVEN** a super user who is neither the primary owner nor in `projectOwnersTable`
+- **WHEN** they call any membership mutation
+- **THEN** the action returns `FORBIDDEN`
+
+#### Scenario: Cannot remove the primary owner
+
+- **GIVEN** the primary owner viewing the people subpage
+- **WHEN** `removeProjectOwner` is called with the primary owner's own id
+- **THEN** the action returns `CANNOT_REMOVE_PRIMARY_OWNER`
+
+#### Scenario: Ownership transfer requires an owner
+
+- **GIVEN** the primary owner
+- **WHEN** `transferPrimaryOwner` targets a user who is not already an owner
+- **THEN** the action returns `MUST_BE_OWNER`
+
+#### Scenario: Cross-role duplicates are rejected
+
+- **GIVEN** a user who is already a collaborator
+- **WHEN** `addProjectOwner` is called for them
+- **THEN** the action returns `ALREADY_COLLABORATOR`
+- **AND** conversely `addProjectCollaborator` for an existing owner returns `ALREADY_OWNER`
+
+#### Scenario: Revalidation targets the open project
+
+- **GIVEN** a membership mutation on project `abc`
+- **WHEN** the action commits
+- **THEN** `revalidatePath("/app/proyectos/abc")` is called from the `:projectId` template in `metadata.revalidate`
+
 ### Requirement: User search and invite
 
-The system SHALL provide a combobox input (`components/projects/user-invite-input.tsx`) for searching existing users and inviting new ones via safe action `searchUsers` (`sessionAction` `permission: projects:view`, schema `searchUsersSchema: {query, excludedIds?}`, searches `usersTable` by `ilike` on `name`/`email` across **all** roles and `limit 20`, client-side `excludedIds` filter for `allMemberIds`). The input shows search results as users type (debounced 300ms via `useDebounced`) and includes an invite button. `addProjectOwner` SHALL block if user is already collaborator (`alreadyCollaborator`), `addProjectCollaborator` SHALL block if already owner (`alreadyOwner`) (`lib/actions/project-users.ts:121`/`238`).
+The system SHALL provide a combobox input (`components/projects/user-invite-input.tsx`) for searching existing users and inviting new ones via safe action `searchUsers` (`sessionAction` `permission: projects:view`, schema `searchUsersSchema: {query, excludedIds?}`, searches `usersTable` by `ilike` on `name`/`email` across **all** roles and `limit 20`, client-side `excludedIds` filter for `allMemberIds`). The input shows search results as users type (debounced 300ms via `useDebounced`) and includes an invite button. `addProjectOwner` SHALL block if the user is already a collaborator (`ALREADY_COLLABORATOR`), `addProjectCollaborator` SHALL block if already an owner (`ALREADY_OWNER`) (`lib/actions/project-people.ts:141`/`215`).
 
 #### Scenario: Search for existing user
 
 - **GIVEN** an owner managing co-owners or collaborators
 - **WHEN** the user types in the combobox search field
 - **THEN** matching users appear in a dropdown list (debounced, `UserOption` from `searchUsers` `data`)
-- **AND** users already associated with the project are excluded from results via `excludedIds` (`project-people.tsx:28` `allMemberIds`) and cross-role `alreadyOwner`/`alreadyCollaborator` guards
+- **AND** users already associated with the project are excluded from results via `excludedIds` (`project-people.tsx:28` `allMemberIds`) and cross-role `ALREADY_OWNER`/`ALREADY_COLLABORATOR` guards
 
 #### Scenario: Invite new user
 
 - **GIVEN** an owner managing co-owners or collaborators
 - **WHEN** the user selects "Invite" option in the combobox
-- **THEN** the invite action is triggered without a loading spinner and shows `alreadyOwner`/`alreadyCollaborator` toast if cross-role duplicate
+- **THEN** the invite action is triggered without a loading spinner and shows the `ALREADY_OWNER`/`ALREADY_COLLABORATOR` toast if cross-role duplicate
 
 ### Requirement: Task management
 

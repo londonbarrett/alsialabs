@@ -50,3 +50,8 @@ The system SHALL provide a single `sessionAction` safe-action client that authen
 #### Scenario: Project scoped action
 - **WHEN** `projectScopedAction` with `projectId` is called
 - **THEN** `verifyProjectAccess` checks membership and injects `isProjectOwner`
+
+#### Scenario: Project scoped action without permission metadata
+- **WHEN** `projectScopedAction` is used without `metadata.permission`
+- **THEN** project access is still verified but `hasPermission` is not called
+- **AND** the action enforces its own domain rules (e.g. ownership) instead of a global permission

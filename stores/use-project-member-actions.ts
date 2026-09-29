@@ -1,18 +1,20 @@
 "use client"
 
 import { useOptimisticAction } from "@/hooks/use-optimistic-store"
-import type { ProjectOwner } from "@/lib/actions/projects"
 import {
   addProjectCollaborator,
   addProjectOwner,
   removeProjectCollaborator,
   removeProjectOwner,
-} from "@/lib/actions/project-users"
+} from "@/lib/actions/project-people"
+import type { ProjectOwner } from "@/lib/actions/projects"
 import type { UserOption } from "@/lib/actions/users"
 import type { ProjectMember } from "@/lib/types"
+import { useActionError } from "@/lib/util/action-errors"
 import { useProjectContextStore } from "@/stores/project-context-store"
 import { useProjectContext } from "@/stores/use-project-context"
 import { useTranslations } from "next-intl"
+import { useAction } from "next-safe-action/hooks"
 import { toast } from "sonner"
 
 function toMember(user: UserOption): ProjectMember {
@@ -33,8 +35,6 @@ function toOwner(
   return { ...toMember(user), primaryOwnerId }
 }
 
-type MembershipResult = { success: boolean; error?: string }
-
 // TODO: this should be stored on the members store, removed when complete
 /**
  * Membership mutations for the open project.
@@ -46,50 +46,63 @@ type MembershipResult = { success: boolean; error?: string }
  * change, the pending action is discarded and the pill reverts.
  */
 export function useProjectMemberActions() {
-  const t = useTranslations()
+  const t = useTranslations("projects")
+  const translateError = useActionError()
   const { project, projectId } = useProjectContext()
   const { run } = useOptimisticAction(useProjectContextStore())
 
-  function reportError(result: MembershipResult) {
-    toast.error(result.error || t("common.somethingWentWrong"))
+  const { executeAsync: executeAddOwner } = useAction(addProjectOwner)
+  const { executeAsync: executeRemoveOwner } =
+    useAction(removeProjectOwner)
+  const { executeAsync: executeAddCollaborator } = useAction(
+    addProjectCollaborator
+  )
+  const { executeAsync: executeRemoveCollaborator } = useAction(
+    removeProjectCollaborator
+  )
+
+  function reportError(result: { serverError: { code: string } }) {
+    toast.error(translateError(result.serverError.code))
   }
 
   async function addOwner(user: UserOption) {
-    const result = await run<MembershipResult>(
+    const result = await run(
       {
         type: "addOwner",
         member: toOwner(user, project.primaryOwnerId),
       },
-      () => addProjectOwner(projectId, user.id)
+      () => executeAddOwner({ projectId, userId: user.id })
     )
-    if (!result?.success) reportError(result ?? { success: false })
+    if (result?.serverError) reportError(result)
+    else if (result?.data) toast.success(t("ownerAdded"))
     return result
   }
 
   async function removeOwner(userId: string) {
-    const result = await run<MembershipResult>(
-      { type: "removeMember", userId },
-      () => removeProjectOwner(projectId, userId)
+    const result = await run({ type: "removeMember", userId }, () =>
+      executeRemoveOwner({ projectId, userId })
     )
-    if (!result?.success) reportError(result ?? { success: false })
+    if (result?.serverError) reportError(result)
+    else if (result?.data) toast.success(t("ownerRemoved"))
     return result
   }
 
   async function addCollaborator(user: UserOption) {
-    const result = await run<MembershipResult>(
+    const result = await run(
       { type: "addCollaborator", member: toMember(user) },
-      () => addProjectCollaborator(projectId, user.id)
+      () => executeAddCollaborator({ projectId, userId: user.id })
     )
-    if (!result?.success) reportError(result ?? { success: false })
+    if (result?.serverError) reportError(result)
+    else if (result?.data) toast.success(t("collaboratorAdded"))
     return result
   }
 
   async function removeCollaborator(userId: string) {
-    const result = await run<MembershipResult>(
-      { type: "removeMember", userId },
-      () => removeProjectCollaborator(projectId, userId)
+    const result = await run({ type: "removeMember", userId }, () =>
+      executeRemoveCollaborator({ projectId, userId })
     )
-    if (!result?.success) reportError(result ?? { success: false })
+    if (result?.serverError) reportError(result)
+    else if (result?.data) toast.success(t("collaboratorRemoved"))
     return result
   }
 
