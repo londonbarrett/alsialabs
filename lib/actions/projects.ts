@@ -4,7 +4,7 @@ import { getProjectCategories } from "@/lib/actions/categories"
 import {
   getProjectCollaborators,
   getProjectOwners,
-} from "@/lib/actions/project-users"
+} from "@/lib/actions/project-people"
 import { getUserPermissions, isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
@@ -26,8 +26,8 @@ import {
   updateProjectSchema,
 } from "@/lib/schemas/project"
 import type { ProjectMember } from "@/lib/types"
-import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { unwrapResponse } from "@/lib/util/unwrap"
+import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import type { Session } from "next-auth"
 import { z } from "zod"
 
@@ -554,15 +554,15 @@ export const getProjectContext = sessionAction
     const project = projectResult.data!
     const [owners, collaborators, permissions, categoriesResult] =
       await Promise.all([
-        getProjectOwners(projectId),
-        getProjectCollaborators(projectId),
+        getProjectOwners({ projectId }),
+        getProjectCollaborators({ projectId }),
         getUserPermissions(session.user.id),
         getProjectCategories(),
       ])
     return {
       project,
-      owners,
-      collaborators,
+      owners: unwrapResponse(owners),
+      collaborators: unwrapResponse(collaborators),
       permissions,
       session,
       isCurrentUserAdmin: isSuperUser(
