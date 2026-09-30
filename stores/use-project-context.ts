@@ -1,18 +1,13 @@
 "use client"
 
-import { useOptimisticDerived } from "@/hooks/use-optimistic-store"
 import type {
   ProjectCategoryOption,
   ProjectDetail,
 } from "@/lib/actions/projects"
 import type { ProjectMember } from "@/lib/types"
-import {
-  applyProjectContextAction,
-  useProjectContextStore,
-} from "@/stores/project-context-store"
-import { useMemo } from "react"
+import { useProjectContextStore } from "@/stores/project-context-store"
 
-export interface ProjectContextValue {
+interface ProjectContextValue {
   project: ProjectDetail
   /** The open project's id, exposed so leaves can target the project without a
    * `projectId` prop that could drift from the row on screen. */
@@ -36,10 +31,7 @@ export interface ProjectContextValue {
  * `ProjectContextProvider`, which owns the store instance.
  */
 export function useProjectContext(): ProjectContextValue {
-  const context = useOptimisticDerived(
-    useProjectContextStore(),
-    applyProjectContextAction
-  )
+  const context = useProjectContextStore()((s) => s.optimistic)
 
   const project = context.project
   const owners = context.owners
@@ -49,10 +41,7 @@ export function useProjectContext(): ProjectContextValue {
   const isCurrentUserAdmin = context.isCurrentUserAdmin
   const currentUserId = context.session?.user?.id ?? ""
 
-  const members = useMemo(
-    () => [...owners, ...collaborators],
-    [owners, collaborators]
-  )
+  const members = [...owners, ...collaborators]
 
   // `isOwner` already folds in `isCurrentUserAdmin`, so the subpages' original
   // `(isOwner || isCurrentUserAdmin) && permissions.includes(...)` reduces here.

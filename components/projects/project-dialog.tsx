@@ -11,15 +11,13 @@ import {
 import { ProjectForm, type ProjectFormSubmit } from "./project-form"
 import type { Project } from "@/lib/drizzle/schema"
 
-export type ProjectDialogProps = {
+type ProjectDialogProps = {
   categories: { id: string; slug: string; name: string }[]
   /** Pre-fills the form for an edit; omit to create. */
   project?: Project
   onSubmit: ProjectFormSubmit
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Reported after a successful submit, e.g. to refresh a list. */
-  onSuccess?: () => void
 }
 
 export function ProjectDialog({
@@ -28,7 +26,6 @@ export function ProjectDialog({
   onSubmit,
   open,
   onOpenChange,
-  onSuccess,
 }: ProjectDialogProps) {
   const t = useTranslations("projects")
   return (
@@ -46,13 +43,9 @@ export function ProjectDialog({
           project={project}
           categories={categories}
           onCancel={() => onOpenChange(false)}
-          onSubmit={async (values) => {
-            const result = await onSubmit(values)
-            if (result?.data) {
-              onSuccess?.()
-              onOpenChange(false)
-            }
-            return result
+          onSubmit={(values) => {
+            onOpenChange(false)
+            return onSubmit(values)
           }}
         />
       </DialogContent>

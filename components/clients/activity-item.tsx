@@ -2,7 +2,7 @@
 
 import { ActionMenu } from "@/components/common/action-menu"
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
-import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import { deleteActivity } from "@/lib/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
 import { useHasPermission } from "@/stores/permissions-store"
@@ -40,7 +40,7 @@ export function ActivityItem({
   const t = useTranslations("activities")
   const canEdit = useHasPermission("client-activity:edit")
   const canDelete = useHasPermission("client-activity:delete")
-  const { run } = useOptimisticAction(useTimelineStore)
+  const { run } = useOptimisticAction(useTimelineStore())
   const [dialog, setDialog] = useState<{
     open: boolean
     editing?: ClientActivity
@@ -52,10 +52,8 @@ export function ActivityItem({
   const date = `${m}/${d}/${y}`
 
   async function handleDelete() {
-    const result = await run(
-      { type: "remove", kind: "activity", id: activity.id },
-      () => deleteActivity(activity.id),
-      { key: clientId }
+    const result = await run({ type: "delete", id: activity.id }, () =>
+      deleteActivity(activity.id)
     )
     if (!result.success) {
       toast.error(result.error || t("failedToDelete"))

@@ -3,7 +3,7 @@
 import { Dialog } from "@/components/common/dialog"
 import { Field } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
-import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import { upsertActivity } from "@/lib/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
 import { buildTempActivity } from "@/lib/util/temp-entries"
@@ -64,7 +64,7 @@ function LogActivityForm({
   activity?: ClientActivity
   onOpenChange: (open: boolean) => void
 }) {
-  const { run } = useOptimisticAction(useTimelineStore)
+  const { run } = useOptimisticAction(useTimelineStore())
   const t = useTranslations()
 
   const [type, setType] = useState<(typeof activityTypes)[number]>(
@@ -126,10 +126,9 @@ function LogActivityForm({
         }
       : { type: "add" as const, entry: buildTempActivity(data) }
 
-    const result = await run(
-      action,
-      () => upsertActivity(data, activity?.id),
-      { key: clientId }
+    const result = await run(action, () =>
+      // TODO: migrate to safe actions
+      upsertActivity(data, activity?.id)
     )
 
     if (result.success) {

@@ -94,7 +94,8 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 - **WHEN** the user submits
 - **THEN** the form calls its required `onSubmit` prop (`components/projects/project-form.tsx:56`) and maps server field errors onto the inputs
 - **AND** the form SHALL NOT import or call `createProject` or `updateProject` itself, so it cannot create a project where an update was intended
-- **AND** the form SHALL NOT take a separate `onSuccess` prop: `onSubmit` returns the action result, and closing the dialog on success belongs to `ProjectDialog`
+- **AND** the form SHALL NOT take a separate `onSuccess` prop, and SHALL NOT await `onSubmit`: `ProjectFormSubmit` is typed `(values: ProjectFormValues) => void`, and closing the dialog belongs to `ProjectDialog`
+- **AND** the form SHALL NOT declare a result type for `onSubmit`, because nothing inspects a server result on this path
 - **AND** the caller that owns the mutation also owns its toasts, matching `useProjectActions` and the list page's create handler
 
 #### Scenario: Edit is only reachable where a project context exists
@@ -131,9 +132,31 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 - **WHEN** the user navigates to a project subpage
 - **THEN** the project is not visible (only owners can access project details)
 
+### Requirement: Project list state
+
+The projects list page SHALL hold its rows in a client store created per page visit, not in a module-level singleton. `app/app/proyectos/page.tsx` SHALL render `ProjectsProvider` `components/projects/projects-provider.tsx` (named for what it provides, not for the page it serves), which builds the store once per mount with `useState(() => createProjectsStore(projects))` and publishes it through `ProjectsStoreContext` `stores/projects-store.ts`. The provider SHALL NOT hydrate itself from changing props, because the store is seeded once and mutations reach the client through optimistic actions.
+
+Consumers SHALL read the list through `useProjectsList` `hooks/use-projects-list.ts`, which SHALL return `projects` and `pendingIds` and SHALL NOT expose raw store state. `getProjects`/`getPending` SHALL be read methods attached to the store, so no component or hook SHALL select `s.optimistic` or `s.pending` directly.
+
+Creating a project SHALL be optimistic via `useOptimisticAction` `hooks/use-optimistic-action.ts` on `useProjectsStore`, applying `add` followed by a `commitAction` that issues `replaceTemp` so the temporary row is swapped for the authoritative server row. Rows that are still pending SHALL render as pending rather than as a confirmed project.
+
+`ProjectDialog` `components/projects/project-dialog.tsx` SHALL be a single component that contains no store logic and takes a required `onSubmit`; the caller owning the mutation owns the optimistic write. `ProjectForm` SHALL be rendered by both the list page and the project detail subpage and SHALL NOT import a store.
+
+#### Scenario: Creating a project shows a pending row
+
+- **WHEN** a user creates a project from the list page
+- **THEN** the row SHALL appear immediately in a pending state
+- **AND** on success the temporary row SHALL be replaced by the authoritative server row
+- **AND** on failure the pending action SHALL be discarded and an error toast SHALL be shown
+
+#### Scenario: List store is scoped to the list page
+
+- **WHEN** the user navigates away from the projects list and returns
+- **THEN** the provider SHALL remount and build a store seeded with the freshly fetched projects
+
 ### Requirement: Project context state
 
-The open project's context SHALL be held in a client store created per project detail page, not in a module-level singleton and not threaded through props. `app/app/proyectos/[id]/layout.tsx` SHALL render `components/projects/project-context-provider.tsx`, which builds the store exactly once per mount with `useRef` + `if (storeRef.current == null)` and publishes it through `ProjectContextStoreContext` (`stores/project-context-store.ts:81,89`). Because the store is seeded at construction it SHALL have no "not yet hydrated" state, so no consumer needs a null guard and the seeding SHALL NOT be performed during render or from an effect (a render-phase write would notify the very subscribers reading it, and a `router.refresh()` would not rewrite a store seeded once). The store SHALL hold exactly one project, keyed by nothing — the route supplies the identity — so `projectContextReducer` SHALL take no key and SHALL ignore the generic store's key argument.
+The open project's context SHALL be held in a client store created per project detail page, not in a module-level singleton and not threaded through props. `app/app/proyectos/[id]/layout.tsx` SHALL render `components/projects/project-context-provider.tsx`, which builds the store exactly once per mount with a lazy `useState` initializer — `const [store] = useState(() => createProjectContextStore(context))` — and publishes it through `ProjectContextStoreContext` (`stores/project-context-store.ts`). Reading `ref.current` during render is forbidden by `react-hooks/refs`, so the store SHALL be created via `useState` and NOT via `useRef` + `if (storeRef.current == null)`; no `eslint-disable` comment SHALL be used to work around it. This is the SAME construction pattern used by every other store provider (`ProjectsProvider`, `InvoiceProvider`, `TimelineProvider`, `RemindersProvider`). Because the store is seeded at construction it SHALL have no "not yet seeded" state, so no consumer needs a null guard, and the seeding SHALL NOT be repeated from an effect. The store SHALL hold exactly one project, keyed by nothing — the route supplies the identity — so `projectContextReducer` SHALL take no key.
 
 Every mutation to the open project's context SHALL be expressed as a `ProjectContextAction` (`stores/project-context-store.ts:22`) applied through `createOptimisticStore`, so that client state is never re-read from the server. Actions SHALL be `patchProject`, `addOwner`, `addCollaborator`, and `removeMember`; the membership actions SHALL be no-ops (returning the identical state reference) when the user is already present or absent, to keep referential stability for memoized consumers.
 

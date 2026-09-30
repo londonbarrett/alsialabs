@@ -17,32 +17,20 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
-import {
-  useOptimisticAction,
-  useOptimisticDerived,
-} from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
+import { useRemindersSubmit } from "@/hooks/use-reminder-submit"
 import type { Reminder } from "@/lib/actions/reminders"
 import { completeReminder } from "@/lib/actions/reminders"
-import {
-  applyRemindersAction,
-  hydrateReminders,
-  useRemindersStore,
-} from "@/stores/reminders-store"
+import { useRemindersStore } from "@/stores/reminders-store"
 import { cn } from "cn"
 import { Bell, BellOff, Check, Pencil } from "lucide-react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { toast } from "sonner"
 
-interface RemindersCardProps {
-  initialReminders: Reminder[]
-}
-
-export function RemindersCard({
-  initialReminders,
-}: RemindersCardProps) {
+export function RemindersCard() {
   const t = useTranslations()
   useRefreshOnFocus()
   const [reminderDialog, setReminderDialog] = useState<{
@@ -50,15 +38,15 @@ export function RemindersCard({
     editing?: Reminder
   }>({ open: false })
 
-  const optimisticReminders = useOptimisticDerived(
-    useRemindersStore,
-    applyRemindersAction
-  )
-  const { run } = useOptimisticAction(useRemindersStore)
+  const store = useRemindersStore()
+  const optimisticReminders = store.getReminders()
+  const { run } = useOptimisticAction(store)
 
-  useEffect(() => {
-    hydrateReminders(initialReminders)
-  }, [initialReminders])
+  const firstReminder = optimisticReminders[0]
+  const dialogClient = reminderDialog.editing ?? firstReminder
+  const submitReminder = useRemindersSubmit(
+    dialogClient?.clientName ?? ""
+  )
 
   async function completeReminderClickHandler(reminder: Reminder) {
     const result = await run(
@@ -206,12 +194,9 @@ export function RemindersCard({
         )}
       </CardContent>
       <ReminderDialog
-        clientId={
-          reminderDialog.editing?.clientId ??
-          initialReminders[0]?.clientId ??
-          ""
-        }
+        clientId={dialogClient?.clientId ?? ""}
         open={reminderDialog.open}
+        onSubmit={submitReminder}
         onOpenChange={(o) =>
           setReminderDialog((s) => ({
             open: o,

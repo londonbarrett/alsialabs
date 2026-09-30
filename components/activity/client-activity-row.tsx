@@ -1,5 +1,6 @@
 "use client"
 
+import { useRemindersSubmit } from "@/hooks/use-reminder-submit"
 import { ActivityItem } from "@/components/clients/activity-item"
 import { ClientDialog } from "@/components/clients/client-dialog"
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
@@ -55,6 +56,7 @@ export function ClientActivityRow({
   client,
   onClientChange,
 }: ClientActivityRowProps) {
+  const submitReminder = useRemindersSubmit(client.clientName)
   const t = useTranslations()
   const router = useRouter()
   const { start: startLoading, stop: stopLoading } =
@@ -296,6 +298,7 @@ export function ClientActivityRow({
       <ReminderDialog
         clientId={client.clientId}
         open={dialog === "reminder"}
+        onSubmit={submitReminder}
         onOpenChange={(open) => {
           if (!open) setDialog(null)
         }}

@@ -1,5 +1,6 @@
 import { Page } from "@/components/common/page"
 import { PageHeader } from "@/components/common/page-header"
+import { InvoiceProvider } from "@/components/sales/invoice-provider"
 import { SalesView } from "@/components/sales/sales-view"
 import { getInvoices } from "@/lib/actions/invoices"
 import {
@@ -44,11 +45,12 @@ export default async function SalesPage() {
         />
       }
     >
-      <SalesView
-        invoices={invoices}
-        monthlyRevenue={monthlyRevenue}
-        topClients={topClients}
-      />
+      <InvoiceProvider invoices={invoices}>
+        <SalesView
+          monthlyRevenue={monthlyRevenue}
+          topClients={topClients}
+        />
+      </InvoiceProvider>
     </Page>
   )
 }

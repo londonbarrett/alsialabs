@@ -6,7 +6,7 @@ import type {
   PaymentFormValues,
   PaymentSubmitResult,
 } from "@/components/sales/payment-form"
-import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import { deletePayment, updatePayment } from "@/lib/actions/payments"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
@@ -21,19 +21,17 @@ import { toast } from "sonner"
 interface PaymentItemProps {
   payment: InvoicePayment
   invoiceNumber: string
-  clientId: string
 }
 
 export function PaymentItem({
   payment,
   invoiceNumber,
-  clientId,
 }: PaymentItemProps) {
   const t = useTranslations()
   const translateError = useActionError()
   const canEdit = useHasPermission("sales:edit")
   const canDelete = useHasPermission("sales:delete")
-  const { run } = useOptimisticAction(useTimelineStore)
+  const { run } = useOptimisticAction(useTimelineStore())
   const [dialog, setDialog] = useState<{
     open: boolean
     editing?: InvoicePayment
@@ -43,10 +41,8 @@ export function PaymentItem({
   const date = `${m}/${d}/${y}`
 
   async function handleDelete() {
-    const result = await run(
-      { type: "remove", kind: "payment", id: payment.id },
-      () => deletePayment({ paymentId: payment.id }),
-      { key: clientId }
+    const result = await run({ type: "delete", id: payment.id }, () =>
+      deletePayment({ paymentId: payment.id })
     )
     if (result.serverError) {
       toast.error(translateError(result.serverError.code))
@@ -71,8 +67,7 @@ export function PaymentItem({
     setDialog({ open: false })
     const result = await run(
       { type: "patch", kind: "payment", id: payment.id, patch },
-      () => updatePayment({ paymentId: payment.id, ...values }),
-      { key: clientId }
+      () => updatePayment({ paymentId: payment.id, ...values })
     )
 
     if (result.data) {

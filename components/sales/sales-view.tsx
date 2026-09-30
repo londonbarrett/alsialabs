@@ -5,7 +5,6 @@ import {
   MonthlyRevenueChart,
   type MonthlyRevenue,
 } from "@/components/sales/monthly-revenue-chart"
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
 import {
   TopClientsChart,
   type TopClient,
@@ -19,13 +18,11 @@ import {
 import { useTranslations } from "next-intl"
 
 interface SalesViewProps {
-  invoices: InvoiceWithClientName[]
   monthlyRevenue?: MonthlyRevenue[]
   topClients?: TopClient[]
 }
 
 export function SalesView({
-  invoices,
   monthlyRevenue = [],
   topClients = [],
 }: SalesViewProps) {
@@ -54,7 +51,7 @@ export function SalesView({
         </div>
       )}
 
-      <InvoicesCard invoices={invoices} />
+      <InvoicesCard />
     </>
   )
 }

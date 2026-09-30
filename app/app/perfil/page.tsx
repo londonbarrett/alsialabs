@@ -1,4 +1,5 @@
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
+import { TimelineProvider } from "@/components/clients/timeline-provider"
 import { getClientByUserId } from "@/lib/actions/clients"
 import {
   getClientInvoices,
@@ -35,7 +36,10 @@ export default async function ProfilePage() {
   let payments: Array<InvoicePayment & { invoiceNumber: string }> = []
 
   if (isUser) {
-    const [myInvoicesResult, myPaymentsResult] = await Promise.all([getMyInvoices(), getMyPayments()])
+    const [myInvoicesResult, myPaymentsResult] = await Promise.all([
+      getMyInvoices(),
+      getMyPayments(),
+    ])
     const myData = myInvoicesResult.data
     if (myData?.clientId) {
       const rows = await db
@@ -100,13 +104,14 @@ export default async function ProfilePage() {
       </div>
 
       {client && (canView || isUser) && (
-        <ActivityTimeline
-          clientId={client.id}
+        <TimelineProvider
           activities={[]}
           reminders={[]}
           invoices={invoices}
           payments={payments}
-        />
+        >
+          <ActivityTimeline clientId={client.id} />
+        </TimelineProvider>
       )}
     </div>
   )

@@ -4,7 +4,6 @@ import type {
 } from "@/lib/actions/projects"
 import type { ProjectMember } from "@/lib/types"
 import {
-  applyProjectContextAction,
   createProjectContextStore,
   projectContextReducer,
 } from "./project-context-store"
@@ -124,7 +123,9 @@ describe("projectContextReducer (via stores/project-context-store)", () => {
       type: "addCollaborator",
       member: makeMember(),
     })
-    expect(result.collaborators.map((c) => c.userId)).toEqual(["user-2"])
+    expect(result.collaborators.map((c) => c.userId)).toEqual([
+      "user-2",
+    ])
     expect(result.owners).toHaveLength(1)
   })
 
@@ -147,7 +148,10 @@ describe("projectContextReducer (via stores/project-context-store)", () => {
       userId: "user-2",
     })
     expect(result.collaborators).toHaveLength(0)
-    expect(result.owners.map((o) => o.userId)).toEqual(["user-1", "user-3"])
+    expect(result.owners.map((o) => o.userId)).toEqual([
+      "user-1",
+      "user-3",
+    ])
   })
 
   it("removeMember is a no-op for a user who is not on the project", () => {
@@ -160,21 +164,11 @@ describe("projectContextReducer (via stores/project-context-store)", () => {
   })
 })
 
-describe("applyProjectContextAction (via stores/project-context-store)", () => {
-  it("applies the action and ignores the key, since there is only one project", () => {
-    const result = applyProjectContextAction(makeContext(), OTHER_ID, {
-      type: "patchProject",
-      patch: { name: "Bathroom Remodel" },
-    })
-    expect(result.project.name).toBe("Bathroom Remodel")
-  })
-})
-
 describe("createProjectContextStore (via stores/project-context-store)", () => {
   function derive(store: ReturnType<typeof createProjectContextStore>) {
     const state = store.getState()
     return state.pending.reduce(
-      (acc, item) => applyProjectContextAction(acc, item.key, item.action),
+      (acc, item) => projectContextReducer(acc, item.action),
       state.committed
     )
   }
@@ -246,7 +240,9 @@ describe("createProjectContextStore (via stores/project-context-store)", () => {
   it("commits a membership addition, so the new pill renders without a refetch", () => {
     const store = createProjectContextStore(makeContext())
     const member = makeMember({ userId: "user-7", userName: "Sara" })
-    const id = store.getState().pend({ type: "addCollaborator", member })
+    const id = store
+      .getState()
+      .pend({ type: "addCollaborator", member })
     expect(derive(store).collaborators).toHaveLength(1)
 
     store.getState().commit(id)
@@ -257,14 +253,18 @@ describe("createProjectContextStore (via stores/project-context-store)", () => {
     const first = createProjectContextStore(makeContext())
     const second = createProjectContextStore(
       makeContext({
-        project: { ...makeContext().project, id: OTHER_ID, name: "Other" },
+        project: {
+          ...makeContext().project,
+          id: OTHER_ID,
+          name: "Other",
+        },
       })
     )
 
-    first.getState().pend({ type: "patchProject", patch: { name: "Renamed" } })
-    first.getState().commit(
-      first.getState().pending[0].id
-    )
+    first
+      .getState()
+      .pend({ type: "patchProject", patch: { name: "Renamed" } })
+    first.getState().commit(first.getState().pending[0].id)
 
     expect(first.getState().committed.project.name).toBe("Renamed")
     expect(second.getState().committed.project.name).toBe("Other")

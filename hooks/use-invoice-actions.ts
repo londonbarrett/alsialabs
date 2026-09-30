@@ -1,10 +1,6 @@
 "use client"
 
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
-import {
-  useOptimisticAction,
-  useOptimisticDerived,
-} from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import {
   cancelInvoice as cancelInvoiceAction,
   deleteInvoice as deleteInvoiceAction,
@@ -12,38 +8,18 @@ import {
   reopenInvoice as reopenInvoiceAction,
 } from "@/lib/actions/invoices"
 import { useActionError } from "@/lib/util/action-errors"
-import {
-  applyInvoiceAction,
-  hydrateInvoices,
-  useInvoiceStore,
-} from "@/stores/invoice-store"
+import { useInvoiceStore } from "@/stores/invoice-store"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
-import { useEffect } from "react"
 import { toast } from "sonner"
 
-export function useInvoiceActions(
-  initialInvoices: InvoiceWithClientName[]
-) {
+export function useInvoiceActions() {
   const t = useTranslations()
   const translateError = useActionError()
 
-  // Globally shared optimistic invoice list. Store guards hydration while
-  // any action is pending, so the derive stays truthful across consumers.
-  const derivedInvoices = useOptimisticDerived(
-    useInvoiceStore,
-    applyInvoiceAction
-  )
-  const { run } = useOptimisticAction(useInvoiceStore)
-
-  useEffect(() => {
-    hydrateInvoices(initialInvoices)
-  }, [initialInvoices])
-
-  const invoices =
-    derivedInvoices.length > 0 || initialInvoices.length === 0
-      ? derivedInvoices
-      : initialInvoices
+  const store = useInvoiceStore()
+  const invoices = store.getInvoices()
+  const { run } = useOptimisticAction(store)
 
   const { executeAsync: executeDelete } = useAction(deleteInvoiceAction)
   const { executeAsync: executeCancel } = useAction(cancelInvoiceAction)

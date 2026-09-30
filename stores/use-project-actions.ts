@@ -1,6 +1,6 @@
 "use client"
 
-import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import type { ProjectDetail } from "@/lib/actions/projects"
 import {
   deleteProject as deleteProjectAction,
@@ -38,23 +38,22 @@ function toOptimisticPatch(
   }
 }
 
-// TODO: Context should be read only, refactor when stores are done
 /**
  * Mutations on the open project. Takes no projectId — it reads the id from the
  * project context, so it can never disagree with the row on screen. Must be
- * used under a `ProjectContextProvider`; the projects list page has no context
- * and calls `createProject` directly instead.
+ * used under a `ProjectContextProvider`. For creating, see
+ * `useProjectsActions`, which writes to the projects list store instead.
  */
 export function useProjectActions() {
   const t = useTranslations()
   const translateError = useActionError()
   const router = useRouter()
-  const { projectId } = useProjectContext()
   const { run, isPending } = useOptimisticAction(
     useProjectContextStore()
   )
   const { executeAsync: executeUpdate } = useAction(updateProjectAction)
   const { executeAsync: executeDelete } = useAction(deleteProjectAction)
+  const { projectId } = useProjectContext()
 
   async function updateProject(values: ProjectUpdateValues) {
     const result = await run(

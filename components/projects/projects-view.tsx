@@ -2,64 +2,26 @@
 
 import { PageHeader } from "@/components/common/page-header"
 import { Button } from "@/components/ui/button"
-import { createProject } from "@/lib/actions/projects"
-import type { Project } from "@/lib/types"
-import { useActionError } from "@/lib/util/action-errors"
+import { useProjectsList } from "@/hooks/use-projects-list"
 import { useHasPermission } from "@/stores/permissions-store"
+import { useProjectsActions } from "@/stores/use-projects-actions"
 import { FolderKanban, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useAction } from "next-safe-action/hooks"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { toast } from "sonner"
 import { ProjectCard } from "./project-card"
 import { ProjectDialog } from "./project-dialog"
-import type {
-  ProjectFormResult,
-  ProjectFormValues,
-} from "./project-form"
 
-interface ProjectListViewProps {
-  projects: Project[]
+interface ProjectsViewProps {
   categories: { id: string; slug: string; name: string }[]
 }
 
-export function ProjectListView({
-  projects,
-  categories,
-}: ProjectListViewProps) {
+export function ProjectsView({ categories }: ProjectsViewProps) {
   const t = useTranslations()
-  const router = useRouter()
   const canCreate = useHasPermission("projects:create")
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const translateError = useActionError()
-  const { executeAsync: executeCreate } = useAction(createProject)
-
-  function handleSuccess() {
-    router.refresh()
-  }
-
-  /** This page creates; editing lives in the project detail subpage. */
-  async function handleCreate(
-    values: ProjectFormValues
-  ): Promise<ProjectFormResult> {
-    const result = await executeCreate(values)
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-    } else if (result?.data) {
-      toast.success(t("projects.projectCreated"))
-    }
-    return result
-  }
-
-  function openNew() {
-    setDialogOpen(true)
-  }
-
-  function handleOpenChange(open: boolean) {
-    setDialogOpen(open)
-  }
+  const { projects, pendingIds } = useProjectsList()
+  const { createProject } = useProjectsActions(categories)
 
   return (
     <>
@@ -70,7 +32,7 @@ export function ProjectListView({
           </p>
           {canCreate && (
             <Button
-              onClick={openNew}
+              onClick={() => setDialogOpen(true)}
               aria-label={t("projects.addProject")}
             >
               <Plus />
@@ -87,7 +49,7 @@ export function ProjectListView({
           >
             {canCreate && (
               <Button
-                onClick={openNew}
+                onClick={() => setDialogOpen(true)}
                 aria-label={t("projects.addProject")}
               >
                 <Plus />
@@ -98,17 +60,20 @@ export function ProjectListView({
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard
+                key={project.id}
+                project={project}
+                isPending={pendingIds.has(project.id)}
+              />
             ))}
           </div>
         </div>
       )}
       <ProjectDialog
         categories={categories}
-        onSubmit={handleCreate}
+        onSubmit={createProject}
         open={dialogOpen}
-        onOpenChange={handleOpenChange}
-        onSuccess={handleSuccess}
+        onOpenChange={setDialogOpen}
       />
     </>
   )

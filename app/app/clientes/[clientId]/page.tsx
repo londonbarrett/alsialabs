@@ -1,4 +1,5 @@
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
+import { TimelineProvider } from "@/components/clients/timeline-provider"
 import { ClientInfoCard } from "@/components/clients/client-info-card"
 import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { PageHeader } from "@/components/common/page-header"
@@ -90,13 +91,14 @@ export default async function ClientProfilePage({
       <ClientInfoCard client={client} />
 
       {canView && (
-        <ActivityTimeline
-          clientId={clientId}
+        <TimelineProvider
           activities={activities}
           reminders={reminders}
           invoices={invoices}
           payments={payments}
-        />
+        >
+          <ActivityTimeline clientId={clientId} />
+        </TimelineProvider>
       )}
     </div>
   )

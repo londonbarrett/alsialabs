@@ -229,10 +229,7 @@ export function ProjectDetails() {
         onSubmit={updateProject}
         categories={categories}
         open={projectDialogOpen}
-        onOpenChange={(open) => {
-          setProjectDialogOpen(open)
-          if (!open) setEditingProject(undefined)
-        }}
+        onOpenChange={setProjectDialogOpen}
       />
 
       <DestructiveDialog
