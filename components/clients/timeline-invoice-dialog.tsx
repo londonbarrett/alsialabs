@@ -2,7 +2,7 @@
 
 import { Dialog } from "@/components/common/dialog"
 import { InvoiceForm } from "@/components/sales/invoice-form"
-import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import { createInvoice, updateInvoice } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
@@ -27,7 +27,7 @@ export function TimelineInvoiceDialog({
   editingInvoice,
 }: TimelineInvoiceDialogProps) {
   const t = useTranslations()
-  const { run } = useOptimisticAction(useTimelineStore)
+  const { run } = useOptimisticAction(useTimelineStore())
 
   async function handleSubmit(
     data: InvoiceFormData,
@@ -56,13 +56,10 @@ export function TimelineInvoiceDialog({
         }
       : { type: "add", entry: buildTempInvoice(data) }
 
-    const result = await run(
-      action,
-      () =>
-        isEdit
-          ? updateInvoice({ ...data, invoiceId: invoiceId! })
-          : createInvoice(data),
-      { key: clientId }
+    const result = await run(action, () =>
+      isEdit
+        ? updateInvoice({ ...data, invoiceId: invoiceId! })
+        : createInvoice(data)
     )
 
     const success =

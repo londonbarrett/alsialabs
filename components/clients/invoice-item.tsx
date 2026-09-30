@@ -3,7 +3,7 @@
 import { ActionMenu } from "@/components/common/action-menu"
 import { TimelineInvoiceDialog } from "@/components/clients/timeline-invoice-dialog"
 import { StatusBadge } from "@/components/sales/status-badge"
-import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import { deleteInvoice } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
@@ -24,7 +24,7 @@ export function InvoiceItem({ invoice, clientId }: InvoiceItemProps) {
   const translateError = useActionError()
   const canEdit = useHasPermission("sales:edit")
   const canDelete = useHasPermission("sales:delete")
-  const { run } = useOptimisticAction(useTimelineStore)
+  const { run } = useOptimisticAction(useTimelineStore())
   const [dialog, setDialog] = useState<{
     open: boolean
     editing?: Invoice
@@ -38,10 +38,8 @@ export function InvoiceItem({ invoice, clientId }: InvoiceItemProps) {
   })
 
   async function handleDelete() {
-    const result = await run(
-      { type: "remove", kind: "invoice", id: invoice.id },
-      () => deleteInvoice({ invoiceId: invoice.id }),
-      { key: clientId }
+    const result = await run({ type: "delete", id: invoice.id }, () =>
+      deleteInvoice({ invoiceId: invoice.id })
     )
     if (result.serverError) {
       toast.error(translateError(result.serverError.code))

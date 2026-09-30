@@ -1,4 +1,5 @@
-import { ProjectListView } from "@/components/projects/project-list-view"
+import { ProjectsProvider } from "@/components/projects/projects-provider"
+import { ProjectsView } from "@/components/projects/projects-view"
 import { getProjectCategories } from "@/lib/actions/categories"
 import { getProjectsWithDetails } from "@/lib/actions/projects"
 import { auth, hasPermission } from "@/lib/auth"
@@ -39,10 +40,9 @@ export default async function ProjectsPage() {
         </div>
       }
     >
-      <ProjectListView
-        projects={unwrapResponse(projectsResult)}
-        categories={unwrapResponse(categoriesResult)}
-      />
+      <ProjectsProvider projects={unwrapResponse(projectsResult)}>
+        <ProjectsView categories={unwrapResponse(categoriesResult)} />
+      </ProjectsProvider>
     </Suspense>
   )
 }

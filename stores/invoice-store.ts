@@ -1,13 +1,17 @@
 import type { Invoice } from "@/lib/drizzle/schema"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
+import { createContext, useContext } from "react"
 
 export type InvoiceAction =
   | { type: "add"; invoice: InvoiceWithClientName }
   | { type: "update"; invoice: InvoiceWithClientName }
-  | { type: "replaceTemp"; tempId: string; invoice: InvoiceWithClientName }
+  | {
+      type: "replaceTemp"
+      tempId: string
+      invoice: InvoiceWithClientName
+    }
   | { type: "delete"; invoiceId: string }
-  | { type: "reset"; invoices: InvoiceWithClientName[] }
   | {
       type: "updateStatus"
       invoiceId: string
@@ -21,8 +25,7 @@ export type InvoiceAction =
     }
 
 /**
- * Pure reducer — module-stable so consumers can use it with
- * useOptimisticDerived.
+ * Pure reducer — the store applies it to derive optimistic state.
  */
 export function invoiceReducer(
   state: InvoiceWithClientName[],
@@ -41,8 +44,6 @@ export function invoiceReducer(
       )
     case "delete":
       return state.filter((inv) => inv.id !== action.invoiceId)
-    case "reset":
-      return action.invoices
     case "updateStatus":
       return state.map((inv) =>
         inv.id === action.invoiceId
@@ -62,35 +63,25 @@ export function invoiceReducer(
   }
 }
 
-/** Unkeyed apply function for the optimistic store. */
-export function applyInvoiceAction(
-  state: InvoiceWithClientName[],
-  _key: string | undefined,
-  action: InvoiceAction
-): InvoiceWithClientName[] {
-  return invoiceReducer(state, action)
+export function createInvoiceStore(invoices: InvoiceWithClientName[]) {
+  const store = createOptimisticStore(invoices, invoiceReducer)
+  return Object.assign(store, {
+    getInvoices: () => store((s) => s.optimistic),
+  })
 }
 
-const initialState: InvoiceWithClientName[] = []
+type InvoiceStore = ReturnType<typeof createInvoiceStore>
 
-export const useInvoiceStore = createOptimisticStore(
-  initialState,
-  applyInvoiceAction
+export const InvoiceStoreContext = createContext<InvoiceStore | null>(
+  null
 )
 
-/**
- * Hydrate from server props, guarded against referential churn (skips when
- * id lists already match and no optimistic action is in-flight).
- */
-export function hydrateInvoices(
-  invoices: InvoiceWithClientName[]
-): void {
-  const state = useInvoiceStore.getState()
-  if (
-    state.committed.length === invoices.length &&
-    state.committed.every((v, i) => v.id === invoices[i]?.id)
-  ) {
-    return
+export function useInvoiceStore(): InvoiceStore {
+  const store = useContext(InvoiceStoreContext)
+  if (!store) {
+    throw new Error(
+      "useInvoiceStore must be used within an InvoiceProvider"
+    )
   }
-  state.hydrate(invoices)
+  return store
 }

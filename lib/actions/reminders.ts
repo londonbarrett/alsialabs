@@ -26,7 +26,7 @@ const reminderSchema = z.object({
   }, "Date must be today or in the future"),
 })
 
-export type ReminderFormData = z.infer<typeof reminderSchema>
+type ReminderFormData = z.infer<typeof reminderSchema>
 
 export async function getClientReminders(clientId: string) {
   try {
@@ -91,24 +91,31 @@ export async function upsertReminder(
     store_id: storeId,
   }
 
-  if (reminderId) {
-    const conditions = [eq(clientRemindersTable.id, reminderId)]
-    if (storeId) {
-      conditions.push(eq(clientRemindersTable.store_id, storeId))
-    }
-    await db
-      .update(clientRemindersTable)
-      .set({
-        description: sanitized.description,
-        remindAt: sanitized.remindAt,
-      })
-      .where(and(...conditions))
-  } else {
-    await db.insert(clientRemindersTable).values(sanitized)
+  const conditions = reminderId
+    ? [eq(clientRemindersTable.id, reminderId)]
+    : []
+  if (reminderId && storeId) {
+    conditions.push(eq(clientRemindersTable.store_id, storeId))
   }
 
+  const [saved] = reminderId
+    ? await db
+        .update(clientRemindersTable)
+        .set({
+          description: sanitized.description,
+          remindAt: sanitized.remindAt,
+        })
+        .where(and(...conditions))
+        .returning()
+    : await db
+        .insert(clientRemindersTable)
+        .values(sanitized)
+        .returning()
+
   revalidatePath("/app/clientes")
-  return { success: true }
+  // Returned so optimistic callers can swap their temp row for the real one and
+  // stop acting on a temp id.
+  return { success: true as const, reminder: saved }
 }
 
 export async function completeReminder(reminderId: string) {

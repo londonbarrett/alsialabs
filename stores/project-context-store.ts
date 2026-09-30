@@ -12,20 +12,19 @@ import { createContext, useContext } from "react"
 /**
  * The project currently open. Always present: the store is created by
  * `ProjectContextProvider` with the layout's context as its initial state, so
- * there is no "not hydrated yet" phase and no way to read a stale project left
- * over from a previous route.
+ * there is no empty first render and no way to read a stale project left over
+ * from a previous route.
  *
  * Every mutation goes through an action here rather than relying on
  * `router.refresh()` to re-read the context — the store is seeded once per
  * provider mount, so a refresh does not rewrite it.
  */
-export type ProjectContextAction =
+type ProjectContextAction =
   | { type: "patchProject"; patch: Partial<ProjectDetail> }
   | { type: "addOwner"; member: ProjectOwner }
   | { type: "addCollaborator"; member: ProjectMember }
   | { type: "removeMember"; userId: string }
 
-// TODO: Project Context should be read only, refactor when all other stores are done
 export function projectContextReducer(
   state: ProjectContext,
   action: ProjectContextAction
@@ -68,23 +67,11 @@ export function projectContextReducer(
   }
 }
 
-/** Adapts the reducer to the generic store's `(state, key, action)` signature,
- * which it ignores — there is only ever one project. */
-export function applyProjectContextAction(
-  state: ProjectContext,
-  _key: string | undefined,
-  action: ProjectContextAction
-): ProjectContext {
-  return projectContextReducer(state, action)
-}
-
 export function createProjectContextStore(context: ProjectContext) {
-  return createOptimisticStore(context, applyProjectContextAction)
+  return createOptimisticStore(context, projectContextReducer)
 }
 
-export type ProjectContextStore = ReturnType<
-  typeof createProjectContextStore
->
+type ProjectContextStore = ReturnType<typeof createProjectContextStore>
 
 export const ProjectContextStoreContext =
   createContext<ProjectContextStore | null>(null)

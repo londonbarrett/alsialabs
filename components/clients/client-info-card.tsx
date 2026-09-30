@@ -41,14 +41,20 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">{t("common.name")}</p>
-            <p className="text-base font-medium">{displayClient.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("common.name")}
+            </p>
+            <p className="text-base font-medium">
+              {displayClient.name}
+            </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
               {t("clients.phone")}
             </p>
-            <p className="text-base font-medium">{displayClient.phone}</p>
+            <p className="text-base font-medium">
+              {displayClient.phone}
+            </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">

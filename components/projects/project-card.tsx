@@ -84,9 +84,10 @@ function initials(name: string) {
 
 type ProjectCardProps = {
   project: Project
+  isPending?: boolean
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, isPending }: ProjectCardProps) {
   const t = useTranslations()
   const status = statusConfig[project.status]
   const primaryOwner = project.owners.find(
@@ -123,17 +124,28 @@ export function ProjectCard({ project }: ProjectCardProps) {
               : (project.categorySlug ?? "—")}
           </span>
           <CardTitle className="text-lg leading-tight text-balance">
-            <Link
-              href={`/app/proyectos/${project.id}`}
-              className="inline-flex items-center gap-2 hover:underline"
-            >
-              <span
-                className="size-3 shrink-0 rounded-full"
-                style={{ backgroundColor: project.color }}
-                aria-hidden
-              />
-              {project.name}
-            </Link>
+            {isPending ? (
+              <span className="inline-flex items-center gap-2">
+                <span
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: project.color }}
+                  aria-hidden
+                />
+                {project.name}
+              </span>
+            ) : (
+              <Link
+                href={`/app/proyectos/${project.id}`}
+                className="inline-flex items-center gap-2 hover:underline"
+              >
+                <span
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: project.color }}
+                  aria-hidden
+                />
+                {project.name}
+              </Link>
+            )}
           </CardTitle>
           {primaryOwner && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -287,14 +299,21 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5">
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href={`/app/proyectos/${project.id}`} />}
-          >
-            {t("projects.card.view")}{" "}
-            <ArrowRight className="size-4" />
-          </Button>
+          {isPending ? (
+            <Button size="sm" disabled>
+              {t("projects.card.view")}{" "}
+              <ArrowRight className="size-4" />
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/app/proyectos/${project.id}`} />}
+            >
+              {t("projects.card.view")}{" "}
+              <ArrowRight className="size-4" />
+            </Button>
+          )}
         </div>
       </CardFooter>
     </Card>

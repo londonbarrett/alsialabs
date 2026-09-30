@@ -10,11 +10,13 @@ interface PermissionsState {
  * Globally available permission codes for the current user.
  * Seeded once per request by <PermissionsSync> in the dashboard layout.
  */
-export const usePermissionsStore = create<PermissionsState>()((set) => ({
-  permissions: [],
-  setPermissions: (permissions) => set({ permissions }),
-  resetPermissions: () => set({ permissions: [] }),
-}))
+export const usePermissionsStore = create<PermissionsState>()(
+  (set) => ({
+    permissions: [],
+    setPermissions: (permissions) => set({ permissions }),
+    resetPermissions: () => set({ permissions: [] }),
+  })
+)
 
 export function usePermissions(): string[] {
   return usePermissionsStore((s) => s.permissions)

@@ -5,7 +5,7 @@ import type {
   InvoicePayment,
 } from "@/lib/drizzle/schema"
 import { createOptimisticStore } from "@/lib/optimistic-store"
-import type { Reminder } from "@/lib/actions/reminders"
+import { createContext, useContext } from "react"
 
 export type TimelineEntry =
   | ({ kind: "activity" } & ClientActivity)
@@ -13,9 +13,7 @@ export type TimelineEntry =
   | ({ kind: "invoice" } & Invoice)
   | ({ kind: "payment" } & InvoicePayment & { invoiceNumber: string })
 
-export type ReminderDialogTarget = ClientReminder | Reminder
-
-export type TimelineEntryPatch =
+type TimelineEntryPatch =
   | { kind: "activity"; id: string; patch: Partial<ClientActivity> }
   | { kind: "reminder"; id: string; patch: Partial<ClientReminder> }
   | { kind: "invoice"; id: string; patch: Partial<Invoice> }
@@ -28,7 +26,7 @@ export type TimelineEntryPatch =
 export type TimelineEntryAction =
   | { type: "add"; entry: TimelineEntry }
   | ({ type: "patch" } & TimelineEntryPatch)
-  | { type: "remove"; kind: TimelineEntry["kind"]; id: string }
+  | { type: "delete"; id: string }
 
 function getEntryDate(entry: TimelineEntry): string {
   switch (entry.kind) {
@@ -58,11 +56,9 @@ export function sortTimelineEntries(
 }
 
 /**
- * Pure reducer — applied to a single client's timeline entries.
- * Exported and module-stable so consumers can use it with
- * useOptimisticDerived.
+ * Pure reducer — the store applies it to derive optimistic state.
  */
-export function timelineReducer(
+function timelineReducer(
   state: TimelineEntry[],
   action: TimelineEntryAction
 ): TimelineEntry[] {
@@ -77,52 +73,34 @@ export function timelineReducer(
             : entry
         )
       )
-    case "remove":
-      return state.filter(
-        (entry) => entry.kind !== action.kind || entry.id !== action.id
-      )
+    case "delete":
+      return state.filter((entry) => entry.id !== action.id)
   }
 }
 
-/**
- * Keyed apply function for the optimistic store — `key` is the clientId.
- */
-export function applyTimelineAction(
-  byClient: Record<string, TimelineEntry[]>,
-  key: string | undefined,
-  action: TimelineEntryAction
-): Record<string, TimelineEntry[]> {
-  if (!key) return byClient
-  const current = byClient[key] ?? []
-  return { ...byClient, [key]: timelineReducer(current, action) }
+export function createTimelineStore(entries: TimelineEntry[]) {
+  const store = createOptimisticStore(
+    sortTimelineEntries(entries),
+    timelineReducer
+  )
+  return Object.assign(store, {
+    getEntries: () => store((s) => s.optimistic),
+  })
 }
 
-const initialState: Record<string, TimelineEntry[]> = {}
 
-export const useTimelineStore = createOptimisticStore(
-  initialState,
-  applyTimelineAction
+type TimelineStore = ReturnType<typeof createTimelineStore>
+
+export const TimelineStoreContext = createContext<TimelineStore | null>(
+  null
 )
 
-/**
- * Merge server-side entries for a client into the committed store.
- * Guarded against churn: skips when ids + kinds already match.
- */
-export function hydrateTimelineEntries(
-  clientId: string,
-  entries: TimelineEntry[]
-): void {
-  const sorted = sortTimelineEntries(entries)
-  const state = useTimelineStore.getState()
-  const current = state.committed[clientId]
-  if (
-    current &&
-    current.length === sorted.length &&
-    current.every(
-      (v, i) => v.id === sorted[i]?.id && v.kind === sorted[i]?.kind
+export function useTimelineStore(): TimelineStore {
+  const store = useContext(TimelineStoreContext)
+  if (!store) {
+    throw new Error(
+      "useTimelineStore must be used within a TimelineProvider"
     )
-  ) {
-    return
   }
-  state.hydrate({ ...state.committed, [clientId]: sorted })
+  return store
 }

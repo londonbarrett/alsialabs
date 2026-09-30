@@ -10,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Spinner } from "@/components/ui/spinner"
 import type { Project } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -29,30 +28,11 @@ export type ProjectFormValues = {
   color: ProjectColor
 }
 
-export type ProjectFormResult = {
-  data?: unknown
-  serverError?: { code: string }
-  /** Shape is owned by next-safe-action; `showFieldErrors` narrows it. */
-  validationErrors?: unknown
-}
-
-export type ProjectFormSubmit = (
-  values: ProjectFormValues
-) => Promise<ProjectFormResult>
+export type ProjectFormSubmit = (values: ProjectFormValues) => void
 
 type ProjectFormProps = {
   categories: { id: string; slug: string; name: string }[]
-  /**
-   * Pre-fills the fields. Present only when the caller is editing an existing
-   * project; the projects list page creates without it.
-   */
   project?: Project
-  /**
-   * Owns the mutation. The list page passes a create handler, the project
-   * detail page passes `useProjectActions().updateProject`, which patches the
-   * project context store. The form never mutates on its own, so it cannot
-   * create a project in place of updating one.
-   */
   onSubmit: ProjectFormSubmit
   onCancel: () => void
 }
@@ -80,7 +60,6 @@ export function ProjectForm({
   const [budget, setBudget] = useState(project?.budget ?? "")
   const [color, setColor] = useState<string | undefined>(project?.color)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState(false)
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
@@ -96,11 +75,10 @@ export function ProjectForm({
     return Object.keys(fieldErrors).length === 0
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault()
     if (!validate()) return
 
-    setSaving(true)
     const data: ProjectFormValues = {
       name: name.trim(),
       categoryId,
@@ -113,23 +91,7 @@ export function ProjectForm({
       color: color as ProjectColor,
     }
 
-    const result = await onSubmit(data)
-    if (!result?.data) showFieldErrors(result)
-    setSaving(false)
-  }
-
-  function showFieldErrors(result: unknown) {
-    const validationErrors = (
-      result as
-        | { validationErrors?: Record<string, string[]> }
-        | undefined
-    )?.validationErrors
-    if (!validationErrors) return
-    const mapped: Record<string, string> = {}
-    for (const [key, msgs] of Object.entries(validationErrors)) {
-      if (msgs && msgs.length > 0) mapped[key] = msgs[0]
-    }
-    setErrors(mapped)
+    onSubmit(data)
   }
 
   return (
@@ -284,16 +246,10 @@ export function ProjectForm({
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={saving}
-        >
+        <Button type="button" variant="outline" onClick={onCancel}>
           {t("common.cancel")}
         </Button>
-        <Button type="submit" disabled={saving}>
-          {saving && <Spinner data-icon="inline-start" />}
+        <Button type="submit">
           {project
             ? t("common.saveChanges")
             : t("projects.createProject")}

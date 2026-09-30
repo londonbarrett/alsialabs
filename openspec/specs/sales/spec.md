@@ -1,37 +1,46 @@
 ## MODIFIED Requirements
 
 ### Requirement: User can view invoices
+
 The system SHALL allow authenticated users with `sales:view` permission to see a table of all invoices regardless of who created them.
 
 #### Scenario: Sales page shows all invoices
+
 - **WHEN** a user with `sales:view` permission navigates to the sales page
 - **THEN** a table of all invoices is displayed with columns: invoice number, client, type, issue date, due date, grand total, outstanding balance, status
 
 #### Scenario: Sales nav link hidden without permission
+
 - **GIVEN** a user without `sales:view` permission
 - **THEN** the Sales link is not shown in the sidebar
 
 ### Requirement: User can delete an invoice
+
 The system SHALL allow authenticated users with `sales:delete` permission to delete an invoice after confirmation. Non-admin users may only delete their own invoices.
 
 #### Scenario: User deletes own invoice
+
 - **WHEN** a non-admin user clicks the delete action on an invoice they created
 - **THEN** the invoice is deleted after confirmation
 
 #### Scenario: Admin deletes any invoice
+
 - **WHEN** an admin user clicks the delete action on any invoice
 - **THEN** the invoice is deleted after confirmation
 
 #### Scenario: User cannot delete others' invoices
+
 - **WHEN** a non-admin user attempts to delete an invoice they did not create
 - **THEN** the action is rejected
 
 ## ADDED Requirements
 
 ### Requirement: User can create a product-type invoice
+
 The system SHALL allow authenticated users with `sales:create` permission to create a new invoice with product line items via a dialog form.
 
 #### Scenario: Successful product invoice creation
+
 - **WHEN** the user clicks "New Invoice" button
 - **THEN** a dialog form appears with fields: client (autocomplete combobox), type (product/service toggle), issue date, due date, amount paid (create only), and a line items table
 - **WHEN** the type is set to "product"
@@ -50,9 +59,11 @@ The system SHALL allow authenticated users with `sales:create` permission to cre
 - **AND** the dialog remains open
 
 ### Requirement: User can create a service-type invoice
+
 The system SHALL allow authenticated users with `sales:create` permission to create a new invoice with ad-hoc service line items.
 
 #### Scenario: Successful service invoice creation
+
 - **WHEN** the user clicks "New Invoice" button
 - **THEN** a dialog form appears with fields: client (autocomplete combobox), type (product/service toggle), issue date, due date, amount paid (create only), and a line items table
 - **WHEN** the type is set to "service"
@@ -63,59 +74,73 @@ The system SHALL allow authenticated users with `sales:create` permission to cre
 - **AND** the line items have no product reference
 
 ### Requirement: Client field is a searchable combobox
+
 The system SHALL use a searchable autocomplete combobox for the client field in the invoice form, integrated with Base UI's combobox pattern via a reusable `ClientCombobox` component.
 
 #### Scenario: User can search clients by name
+
 - **WHEN** the user types in the client field
 - **THEN** the dropdown filters to show only clients whose name matches the typed text
 - **AND** the filtering is case-insensitive and client-side only
 
 #### Scenario: User selects a client from the dropdown
+
 - **WHEN** the user clicks or presses Enter on a client option
 - **THEN** the field shows the selected client's name
 
 #### Scenario: Combobox supports initial value for edit mode
+
 - **WHEN** the invoice form opens in edit mode
 - **THEN** the client field is pre-populated with the existing invoice's client
 - **AND** the dropdown shows all other clients as options
 
 #### Scenario: No inline client creation
+
 - **WHEN** the user types a name that doesn't match any client
 - **THEN** the dropdown shows no results
 - **AND** there is no option to create a new client inline
 
 #### Scenario: Combobox works inside a dialog
+
 - **WHEN** the invoice form is inside a dialog
 - **THEN** the combobox dropdown renders above the dialog overlay
 - **AND** clicking a client option dismisses the dropdown
 
 ### Requirement: User can add and remove line items
+
 The system SHALL allow users to dynamically add or remove line item rows in the invoice form.
 
 #### Scenario: Add a line item
+
 - **WHEN** the user clicks "Add Item" button
 - **THEN** a new empty line item row is added to the line items table
 
 #### Scenario: Remove a line item
+
 - **WHEN** the user clicks the remove button on a line item row
 - **THEN** that row is removed from the line items table
 - **AND** the totals are recalculated
 
 ### Requirement: Totals auto-calculate
+
 The system SHALL compute line totals and invoice grand total in real-time as the user edits line items.
 
 #### Scenario: Line total updates on qty or price change
+
 - **WHEN** the user changes quantity, unit price, discount %, or tax % on a line item
 - **THEN** the line total updates to: qty × unit_price × (1 - discount%/100) × (1 + tax%/100)
 
 #### Scenario: Invoice totals update
+
 - **WHEN** any line item changes
 - **THEN** subtotal, discount total, tax total, and grand total are updated in the form footer
 
 ### Requirement: User can edit an invoice
+
 The system SHALL allow authenticated users with `sales:edit` permission to edit an existing invoice via the same dialog form.
 
 #### Scenario: Successful invoice edit
+
 - **WHEN** the user clicks the edit action in an invoice's row action menu
 - **THEN** a dialog form appears pre-filled with that invoice's data including all line items
 - **WHEN** the user modifies line items and submits
@@ -124,126 +149,155 @@ The system SHALL allow authenticated users with `sales:edit` permission to edit 
 - **AND** the sales table reflects the updated data
 
 ### Requirement: Invoice numbers are auto-generated
+
 The system SHALL generate unique invoice numbers.
 
 #### Scenario: Invoice number assigned on creation
+
 - **WHEN** an invoice is created
 - **THEN** it receives an auto-generated number
 - **AND** the invoice number is unique and immutable
 
 ### Requirement: Server actions require authentication and permission
+
 The system SHALL reject unauthenticated or unauthorized requests to create, update, or delete invoices.
 
 #### Scenario: Unauthenticated request is rejected
+
 - **WHEN** an unauthenticated user attempts to call the server action
 - **THEN** the action returns an unauthorized error
 - **AND** no data is modified
 
 #### Scenario: Delete action requires sales:delete permission
+
 - **WHEN** a user without `sales:delete` permission calls the delete action
 - **THEN** the action returns an error
 - **AND** the invoice is not deleted
 
 ### Requirement: Server-side validation and sanitization
+
 The system SHALL validate and sanitize all input on the server, including recalculating all totals to prevent tampering.
 
 #### Scenario: Malformed invoice data is rejected
+
 - **WHEN** the server receives invalid invoice data
 - **THEN** the server rejects with a validation error
 - **AND** no data is modified
 
 #### Scenario: Tampered totals are corrected
+
 - **WHEN** the server receives invoice data with manipulated totals
 - **THEN** the server recalculates all totals from the raw line item data
 - **AND** stores the correct computed values
 
 ### Requirement: Invoice form is accessible
+
 The dialog and form SHALL be keyboard-navigable and screen-reader friendly.
 
 #### Scenario: Keyboard navigation works
+
 - **WHEN** the dialog is open
 - **THEN** focus is trapped within the dialog
 - **AND** the Escape key closes the dialog
 - **AND** Tab navigates through form fields and line items in logical order
 
 #### Scenario: Screen reader announces dialog purpose
+
 - **WHEN** the dialog opens
 - **THEN** screen readers announce the dialog title ("New Invoice" or "Edit Invoice")
 - **AND** all form fields have associated labels
 
 ### Requirement: Invoice form is reusable
+
 The form component SHALL be a reusable component that can be used outside the dialog context.
 
 #### Scenario: Form works standalone
+
 - **WHEN** the form is rendered outside a dialog
 - **THEN** it renders all fields and line items correctly
 - **AND** accepts an optional `invoice` prop for edit mode
 - **AND** accepts `onSuccess` and `onCancel` callbacks for custom dialog handling
 
 ### Requirement: User can view monthly revenue chart
+
 The sales page SHALL display a stacked bar chart showing monthly revenue split by invoice type (product/service). Revenue SHALL be computed from invoice items, excluding items with `unit_price = 0`. The chart tooltip SHALL display quantity sold alongside revenue for each bar segment.
 
 #### Scenario: Revenue chart shows data grouped by month and type
+
 - **WHEN** a user with `sales:view` permission visits the sales page
 - **THEN** they see a stacked bar chart with months on the x-axis and revenue on the y-axis
 - **AND** each month's bar is split into product revenue and service revenue segments
 
 #### Scenario: Revenue chart shows all available data
+
 - **WHEN** there are invoices dating back multiple years
 - **THEN** the chart SHALL display every month that has invoice data, ordered chronologically
 
 #### Scenario: Revenue chart shows empty state
+
 - **WHEN** there are no invoices in the system
 - **THEN** the chart area SHALL display a placeholder message indicating no data
 
 #### Scenario: Tooltip shows quantity sold alongside revenue
+
 - **WHEN** a user hovers over a bar segment in the monthly revenue chart
 - **THEN** the tooltip SHALL display both the revenue amount and the quantity sold for that segment
 
 #### Scenario: Items with zero unit price are excluded
+
 - **WHEN** an invoice item has `unit_price = 0`
 - **THEN** that item SHALL NOT be included in the revenue or quantity calculations
 
 ### Requirement: User can view top clients by revenue
+
 The sales page SHALL display a horizontal bar chart ranking the top 10 clients by total invoice amount.
 
 #### Scenario: Top clients chart shows highest revenue clients
+
 - **WHEN** a user with `sales:view` permission visits the sales page
 - **THEN** they see a horizontal bar chart with client names on the y-axis and total revenue on the x-axis
 - **AND** clients are ordered from highest to lowest revenue
 - **AND** at most 10 clients are shown
 
 #### Scenario: Top clients chart shows empty state
+
 - **WHEN** there are no invoices in the system
 - **THEN** the chart area SHALL display a placeholder message indicating no data
 
 ### Requirement: User can search and filter invoices
+
 The sales page SHALL allow users with `sales:view` permission to search and filter the invoices table. The invoices table SHALL be contained in a card with filter controls and a result count displayed above the table.
 
 #### Scenario: Invoices table is in a card with filters
+
 - **WHEN** a user with `sales:view` permission visits the sales page
 - **THEN** the invoices table is displayed inside a card
 - **AND** the card shows filter controls (search, status, date range) above the table
 - **AND** the number of matching results is shown on the left of the filter controls
 
 #### Scenario: User searches invoices by number or client
+
 - **WHEN** the user types text in the search field
 - **THEN** only invoices whose invoice number or client name matches the text (case-insensitive) are displayed
 
 #### Scenario: User filters invoices by status
+
 - **WHEN** the user selects a status from the status filter
 - **THEN** only invoices with that status are displayed
 - **AND** selecting "All statuses" shows all invoices
 
 #### Scenario: User filters invoices by issue date range
+
 - **WHEN** the user sets a "from" or "to" date
 - **THEN** only invoices whose issue date falls within the range are displayed
 
 #### Scenario: Filters combine with each other
+
 - **WHEN** the user applies search, status, and date range filters together
 - **THEN** only invoices matching all criteria are displayed
 
 #### Scenario: User clears filters
+
 - **WHEN** at least one filter is active
 - **THEN** a "Clear filters" button is shown as the first control
 - **WHEN** the user clicks "Clear filters"
@@ -251,62 +305,78 @@ The sales page SHALL allow users with `sales:view` permission to search and filt
 - **AND** all invoices are displayed
 
 #### Scenario: No invoices match the filters
+
 - **WHEN** no invoices match the active filters
 - **THEN** a "no results" message is displayed in place of the table
 - **AND** the filter controls remain visible so the user can adjust or clear them
 
 ### Requirement: Sales page uses Page composition
+
 The sales page SHALL be a server component that fetches data and composes Page layout, and delegates content to a client SalesView.
 
 #### Scenario: Sales page server fetches with unwrapResponse
+
 - **WHEN** `app/app/ventas/page.tsx` renders
 - **THEN** it calls `getInvoices()` `lib/actions/invoices.ts`, `getMonthlyRevenue` and `getTopClientsByRevenue` `lib/actions/sales.ts` and unwraps results via `unwrapResponse` `lib/util/unwrap.ts`
 - **AND** it renders `Page` `components/common/page.tsx` with `PageHeader` `components/common/page-header.tsx` (title `sales.title`, subtitle `sales.subtitle`, icon `ChartNoAxesCombined`) fetched via `getTranslations("sales")` on the server
 
 #### Scenario: SalesView is client and delegates
+
 - **WHEN** `components/sales/sales-view.tsx` renders
 - **THEN** it no longer contains `PageHeader` or outer `div flex-1`
 - **AND** it renders revenue charts (`MonthlyRevenueChart`/`TopClientsChart` in `Card`) and `InvoicesCard` `components/sales/invoices-card.tsx`
 
-### Requirement: InvoicesCard is fully optimistic with an invoice store
-The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be fully optimistic using the global pending-actions store pattern (`useOptimisticDerived`/`useOptimisticAction` `hooks/use-optimistic-store.ts` with `invoiceReducer`/`applyInvoiceAction` `stores/invoice-store.ts`).
+### Requirement: InvoicesCard is fully optimistic with a page-scoped invoice store
+
+The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be a single component that is fully optimistic, using `useOptimisticAction` `hooks/use-optimistic-action.ts` with `invoiceReducer` `stores/invoice-store.ts`. The store SHALL be scoped to the sales route by `InvoiceProvider` `components/sales/invoice-provider.tsx`, which SHALL be mounted by `app/app/ventas/page.tsx` — NOT by `InvoicesCard`. Consequently `InvoicesCard` SHALL take no props and read the store itself, and `SalesView` `components/sales/sales-view.tsx` SHALL NOT receive an `invoices` prop, because the page passes the fetched array to the provider instead. There SHALL NOT be a wrapper/content component pair in which the inner component consumes the store the outer one provides.
 
 #### Scenario: InvoicesCard uses useInvoiceActions and the invoice store
-- **WHEN** `InvoicesCard` mounts with `invoices: InvoiceWithClientName[]` `components/sales/sales-invoice-table.tsx:17`
-- **THEN** it obtains `invoices` plus the optimistic mutation handlers `deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`sendInvoice` from `useInvoiceActions` `hooks/use-invoice-actions.ts` (backed by `useInvoiceStore` `stores/invoice-store.ts` and the pending-actions store `stores/pending-actions-store.ts`)
+
+- **WHEN** the sales page renders
+- **THEN** `InvoiceProvider` builds a store once per mount, seeded with the `InvoiceWithClientName[]` `components/sales/sales-invoice-table.tsx:17` fetched by the page
+- **AND** `InvoicesCard` obtains `invoices` plus the optimistic mutation handlers `deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`sendInvoice` from `useInvoiceActions` `hooks/use-invoice-actions.ts`, which SHALL take no arguments
 - **AND** on success each handler commits the server `returning()` data via the store, on error it commits the rollback and toasts `useActionError` `lib/util/action-errors.ts`
 
 #### Scenario: Invoice filters are extracted
+
 - **WHEN** `InvoicesCard` renders
 - **THEN** `InvoiceFilters` `components/sales/invoice-filters.tsx` owns the filters (4 `useState` + `useMemo filteredInvoices`) and exposes the filtered list via a render-prop `children`, using shadcn `InputGroup` `components/ui/input-group.tsx` with `Search` addon, `Select` for status, `Input type=date` for range, `gap-2` rounded units, `aria-live` resultCount instead of inline filter bar
 
 #### Scenario: Invoice dialogs are rendered by InvoicesCard
+
 - **WHEN** `InvoicesCard` renders
 - **THEN** it renders `SalesInvoiceDialog` `components/sales/sales-invoice-dialog.tsx`, `PaymentDialog` `components/sales/payment-dialog.tsx` (record variant), and `PaymentHistoryDialog` `components/sales/payment-history-dialog.tsx` directly
 
 #### Scenario: Payment dialog closes optimistically
+
 - **WHEN** a user submits the record `PaymentDialog`
 - **THEN** `handleRecordPaymentSubmit` `components/sales/invoices-card.tsx:69` closes the dialog (`setPaymentDialog((s) => ({ ...s, open: false }))`) immediately before `await recordPayment` `lib/actions/payments.ts:10`, while the invoice store updates `paidAmount`/`status` optimistically; rollback on `serverError` does not reopen the dialog
 
 #### Scenario: Invoice table updates on payment delete
+
 - **WHEN** a payment is deleted via `PaymentHistory` `components/sales/payment-history.tsx:57` (`useOptimistic`+`paymentReducer` `reducers/payment-reducer.ts:7` with `setPayments` commit to base state)
 - **THEN** `InvoicesCard` also updates its `invoices` via `dispatch({type:"recordPayment"})` or `onPaymentDeleted` callback so the `outstandingBalance` column reflects the deletion without a full `router.refresh`
 
 ### Requirement: Invoice domain is properly modularized
+
 The system SHALL keep invoice-related code separate from sales analytics.
 
 #### Scenario: Schemas are separated
+
 - **WHEN** inspecting `lib/schemas/invoice.ts` and `lib/schemas/payment.ts`
 - **THEN** `invoiceSchema`/`createInvoiceSchema`/`updateInvoiceSchema`/`lineItemSchema` live in `lib/schemas/invoice.ts:16`, and `paymentSchema` lives in `lib/schemas/payment.ts:3`. No `upsertInvoiceSchema` exists, and no `lib/schemas/sales.ts` re-export barrel exists
 
 #### Scenario: Actions are separated
+
 - **WHEN** inspecting `lib/actions/invoices.ts` and `lib/actions/payments.ts` and `lib/actions/sales.ts`
 - **THEN** `getInvoices`/`getInvoiceProducts`/`getInvoiceItems`/`getInvoicePayments`/`createInvoice`/`updateInvoice`/`cancelInvoice`/`reopenInvoice`/`markInvoiceAsSent`/`deleteInvoice` live in `lib/actions/invoices.ts:471` with `sessionAction` `next-safe-action` and `zod` schemas `createInvoiceSchema`/`updateInvoiceSchema`, `recordPayment`/`updatePayment`/`deletePayment` live in `lib/actions/payments.ts:10` with `sales:create`/`edit`/`delete` permissions (no `record-payment`), and `getMonthlyRevenue`/`getTopClientsByRevenue` remain in `lib/actions/sales.ts:16`
 
 #### Scenario: Permissions use existing sales actions
+
 - **WHEN** a user calls `recordPayment`
 - **THEN** it requires `sales:create` `lib/actions/payments.ts:12`, `updatePayment` requires `sales:edit` `lib/actions/payments.ts:125`, `deletePayment` requires `sales:delete` `lib/actions/payments.ts:201` (no `sales:record-payment` in `lib/drizzle/seed.ts:37`)
 
 #### Scenario: Tests are co-located
+
 - **WHEN** inspecting `lib/actions/invoices.test.ts` `lib/actions/payments.test.ts`, `stores/invoice-store.test.ts`, `reducers/payment-reducer.test.ts`, `lib/util/invoices.test.ts`
-- **THEN** each file lives next to its target (`stores/`, `reducers/`, `lib/actions/`, or `lib/util/`) and tests business logic (e.g. `computeInvoiceTotals` `lib/util/invoices.ts:26`, `overdue` derivation, `initialStatus` from `paidAmount`, `applyInvoiceAction`/`invoiceReducer` `stores/invoice-store.ts`, `paymentReducer` `add`/`update`/`delete`, `canRecordPayment` validation) without mocking action logic, with `vitest-drizzle-mock` only for `db` where needed
+- **THEN** each file lives next to its target (`stores/`, `reducers/`, `lib/actions/`, or `lib/util/`) and tests business logic (e.g. `computeInvoiceTotals` `lib/util/invoices.ts:26`, `overdue` derivation, `initialStatus` from `paidAmount`, `invoiceReducer` `stores/invoice-store.ts`, `paymentReducer` `add`/`update`/`delete`, `canRecordPayment` validation) without mocking action logic, with `vitest-drizzle-mock` only for `db` where needed

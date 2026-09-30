@@ -1,9 +1,10 @@
 "use client"
 
+import { useTimelineReminderSubmit } from "@/hooks/use-reminder-submit"
 import { ActionMenu } from "@/components/common/action-menu"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
 import { Button } from "@/components/ui/button"
-import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import {
   completeReminder,
   deleteReminder,
@@ -27,11 +28,12 @@ export function ReminderItem({
   clientId,
   readOnly = false,
 }: ReminderItemProps) {
+  const submitReminder = useTimelineReminderSubmit()
   const t = useTranslations("reminders")
   const canEdit = useHasPermission("client-activity:edit")
   const canDelete = useHasPermission("client-activity:delete")
   const canComplete = useHasPermission("client-activity:edit")
-  const { run } = useOptimisticAction(useTimelineStore)
+  const { run } = useOptimisticAction(useTimelineStore())
   const [dialog, setDialog] = useState<{
     open: boolean
     editing?: ClientReminder
@@ -51,8 +53,7 @@ export function ReminderItem({
         id: reminder.id,
         patch: { completed: true, completedAt: new Date() },
       },
-      () => completeReminder(reminder.id),
-      { key: clientId }
+      () => completeReminder(reminder.id)
     )
     if (!result.success) {
       toast.error(result.error || t("failedToComplete"))
@@ -62,10 +63,8 @@ export function ReminderItem({
   }
 
   async function handleDelete() {
-    const result = await run(
-      { type: "remove", kind: "reminder", id: reminder.id },
-      () => deleteReminder(reminder.id),
-      { key: clientId }
+    const result = await run({ type: "delete", id: reminder.id }, () =>
+      deleteReminder(reminder.id)
     )
     if (!result.success) {
       toast.error(result.error || t("failedToDelete"))
@@ -147,6 +146,7 @@ export function ReminderItem({
         <ReminderDialog
           clientId={clientId}
           open={dialog.open}
+          onSubmit={submitReminder}
           onOpenChange={(o) =>
             setDialog((s) => ({
               open: o,

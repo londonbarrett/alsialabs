@@ -1,6 +1,6 @@
 "use client"
 
-import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import {
   addProjectCollaborator,
   addProjectOwner,

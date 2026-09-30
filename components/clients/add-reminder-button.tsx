@@ -1,5 +1,6 @@
 "use client"
 
+import { useTimelineReminderSubmit } from "@/hooks/use-reminder-submit"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
 import { Button } from "@/components/ui/button"
 import { useHasPermission } from "@/stores/permissions-store"
@@ -8,6 +9,7 @@ import { useTranslations } from "next-intl"
 import { useState } from "react"
 
 export function AddReminderButton({ clientId }: { clientId: string }) {
+  const submitReminder = useTimelineReminderSubmit()
   const t = useTranslations()
   const canCreate = useHasPermission("client-activity:create")
   const [open, setOpen] = useState(false)
@@ -23,6 +25,7 @@ export function AddReminderButton({ clientId }: { clientId: string }) {
         clientId={clientId}
         open={open}
         onOpenChange={setOpen}
+        onSubmit={submitReminder}
       />
     </>
   )

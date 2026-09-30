@@ -1,17 +1,14 @@
 "use client"
 
 import { InvoiceFilters } from "@/components/sales/invoice-filters"
-import { PaymentHistoryDialog } from "@/components/sales/payment-history-dialog"
 import { PaymentDialog } from "@/components/sales/payment-dialog"
 import type {
   PaymentFormValues,
   PaymentSubmitResult,
 } from "@/components/sales/payment-form"
+import { PaymentHistoryDialog } from "@/components/sales/payment-history-dialog"
 import { SalesInvoiceDialog } from "@/components/sales/sales-invoice-dialog"
-import {
-  SalesInvoiceTable,
-  type InvoiceWithClientName,
-} from "@/components/sales/sales-invoice-table"
+import { SalesInvoiceTable } from "@/components/sales/sales-invoice-table"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -20,27 +17,22 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useInvoiceActions } from "@/hooks/use-invoice-actions"
-import { useOptimisticAction } from "@/hooks/use-optimistic-store"
+import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import { recordPayment } from "@/lib/actions/payments"
 import type { Invoice, InvoiceStatus } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
-import { useHasPermission } from "@/stores/permissions-store"
 import { useInvoiceStore } from "@/stores/invoice-store"
+import { useHasPermission } from "@/stores/permissions-store"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { toast } from "sonner"
 
-interface InvoicesCardProps {
-  invoices: InvoiceWithClientName[]
-}
-
-export function InvoicesCard({
-  invoices: initialInvoices,
-}: InvoicesCardProps) {
+export function InvoicesCard() {
   const t = useTranslations()
   const translateError = useActionError()
-  const { run: runInvoice } = useOptimisticAction(useInvoiceStore)
+  const store = useInvoiceStore()
+  const { run: runInvoice } = useOptimisticAction(store)
 
   const {
     invoices,
@@ -48,9 +40,9 @@ export function InvoicesCard({
     cancelInvoice,
     reopenInvoice,
     sendInvoice,
-  } = useInvoiceActions(initialInvoices)
+  } = useInvoiceActions()
 
-  // Dialog state — owned by this parent
+  // Dialog state
   const [invoiceDialog, setInvoiceDialog] = useState<{
     open: boolean
     editing?: Invoice
