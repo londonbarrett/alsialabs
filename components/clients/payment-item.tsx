@@ -6,7 +6,7 @@ import type {
   PaymentFormValues,
   PaymentSubmitResult,
 } from "@/components/sales/payment-form"
-import { useOptimisticAction } from "@/hooks/use-optimistic-action"
+import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { deletePayment, updatePayment } from "@/lib/actions/payments"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"

@@ -2,7 +2,7 @@
 
 import { PageHeader } from "@/components/common/page-header"
 import { Button } from "@/components/ui/button"
-import { useProjectsList } from "@/hooks/use-projects-list"
+import { useProjectsList } from "@/stores/use-projects-list"
 import { useHasPermission } from "@/stores/permissions-store"
 import { useProjectsActions } from "@/stores/use-projects-actions"
 import { FolderKanban, Plus } from "lucide-react"

@@ -3,7 +3,7 @@
 import { ActionMenu } from "@/components/common/action-menu"
 import { TimelineInvoiceDialog } from "@/components/clients/timeline-invoice-dialog"
 import { StatusBadge } from "@/components/sales/status-badge"
-import { useOptimisticAction } from "@/hooks/use-optimistic-action"
+import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { deleteInvoice } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"

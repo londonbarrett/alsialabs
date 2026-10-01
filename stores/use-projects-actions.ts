@@ -1,7 +1,7 @@
 "use client"
 
 import type { ProjectFormValues } from "@/components/projects/project-form"
-import { useOptimisticAction } from "@/hooks/use-optimistic-action"
+import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { createProject } from "@/lib/actions/projects"
 import type { Project } from "@/lib/types"
 import { useActionError } from "@/lib/util/action-errors"

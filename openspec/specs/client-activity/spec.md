@@ -2,7 +2,7 @@
 
 ### Requirement: Admin can view activity timeline
 
-The system SHALL display a combined activity timeline on the client profile page, showing past activities, pending/completed reminders, invoices, and payments sorted by date descending. Entries with the same date SHALL be ordered deterministically (created-at descending, then id). Entries SHALL be built server-side via `getClientActivities` `lib/actions/activities.ts` and `getClientReminders` `lib/actions/reminders.ts` — both SHALL return `[]` for `user`-role sessions — and handed to `TimelineProvider` `components/clients/timeline-provider.tsx`, which owns a store created once per mount and publishes it through `TimelineStoreContext` `stores/timeline-store.ts`. The provider SHALL be mounted by the page (`app/app/clientes/[clientId]/page.tsx` and `app/app/perfil/page.tsx`), NOT by `ActivityTimeline`, so that `ActivityTimeline` `components/clients/activity-timeline.tsx` is a single component taking only `clientId` and contains no store-creation logic. Each entry SHALL render via a self-contained item (`ActivityItem`/`ReminderItem`/`InvoiceItem`/`PaymentItem`) that owns its permission checks, optimistic handlers, and edit dialogs.
+The system SHALL display a combined activity timeline on the client profile page, showing past activities, pending/completed reminders, invoices, and payments sorted by date descending. Entries with the same date SHALL be ordered deterministically (created-at descending, then id). Entries SHALL be built server-side via `getClientActivities` `lib/actions/activities.ts` and `getClientReminders` `lib/actions/reminders.ts` — both SHALL return `[]` for `user`-role sessions — and handed to `TimelineProvider` `components/clients/timeline-provider.tsx`, which owns a store created once per mount and publishes it through `TimelineStoreContext` `stores/timeline-store.ts`. The provider SHALL be mounted by the page (`app/app/clientes/[clientId]/page.tsx` and `app/app/perfil/page.tsx`), NOT by `ActivityTimeline`, so that `ActivityTimeline` `components/clients/activity-timeline.tsx` is a single component taking only `clientId` and contains no store-creation logic. Each entry SHALL render via a self-contained item (`ActivityItem`/`ReminderItem`/`InvoiceItem`/`PaymentItem`) that owns its permission checks, optimistic handlers, and edit dialogs. Each of those items belongs to this route alone and SHALL NOT carry a mode flag for other routes: the activity page has its own store-free rows, because it mounts `ActivityProvider` rather than `TimelineProvider`.
 
 #### Scenario: Timeline shows on client profile when permitted
 
@@ -24,15 +24,17 @@ The system SHALL display a combined activity timeline on the client profile page
 
 #### Scenario: Timeline entries are self-contained
 
-- **WHEN** a timeline entry renders
+- **WHEN** a timeline entry renders in its editable form
 - **THEN** the item SHALL check its permissions via `useHasPermission` `stores/permissions-store.ts`
-- **AND** it SHALL run its mutation via `useOptimisticAction` `hooks/use-optimistic-action.ts` on `useTimelineStore`, which SHALL throw if no `TimelineProvider` is mounted
+- **AND** it SHALL run its mutation via `useOptimisticAction` `stores/use-optimistic-action.ts` on `useTimelineStore`, which SHALL throw if no `TimelineProvider` is mounted
 - **AND** it SHALL render its own edit dialog (`LogActivityDialog`/`ReminderDialog`/`TimelineInvoiceDialog`/`PaymentDialog`)
 
-#### Scenario: Read-only preview hides actions
+#### Scenario: The activity page renders its own store-free rows
 
-- **WHEN** `ActivityItem`/`ReminderItem` render with `readOnly`
-- **THEN** they SHALL show no action buttons and SHALL NOT open edit dialogs (used for the read-only expanded-panel preview on the activity page)
+- **WHEN** the activity page's expanded client list renders an activity or a reminder
+- **THEN** it SHALL use `ActivityPageEntry` `components/activity/activity-page-entry.tsx`, which dispatches on `entry.kind` to `ActivityEntryRow` `components/activity/activity-entry-row.tsx` or `ReminderEntryRow` `components/activity/reminder-entry-row.tsx`
+- **AND** those rows SHALL show no action buttons and SHALL NOT open edit dialogs, because the row's own pencil button opens them
+- **AND** they SHALL NOT touch `useTimelineStore`, because the activity page mounts no `TimelineProvider`; the timeline page's `ActivityItem`/`ReminderItem` are separate components rather than a mode flag on shared ones, since hooks cannot be called conditionally
 
 #### Scenario: Build actions are self-contained buttons
 
@@ -180,7 +182,7 @@ The system SHALL allow users with `sales:delete` permission to delete a payment 
 
 ### Requirement: Timeline mutations are optimistic
 
-The system SHALL update the timeline optimistically when logging an activity, adding/editing/completing a reminder, or creating an invoice, while showing the global loading bar during the server request. Each mutation SHALL run through `useOptimisticAction` `hooks/use-optimistic-action.ts` on the `useTimelineStore` `stores/timeline-store.ts` store, applying `TimelineEntryAction` (`add`, `patch`, `delete`) via `timelineReducer`. The pending action SHALL be committed on success — optionally combined with a `commitAction` that swaps the temporary entry for the authoritative server row — or discarded on failure. `delete` SHALL match on id alone, and SHALL NOT carry a `kind` discriminator; `patch` SHALL retain `kind` because its payload is a typed discriminated union.
+The system SHALL update the timeline optimistically when logging an activity, adding/editing/completing a reminder, or creating an invoice, while showing the global loading bar during the server request. Each mutation SHALL run through `useOptimisticAction` `stores/use-optimistic-action.ts` on the `useTimelineStore` `stores/timeline-store.ts` store, applying `TimelineEntryAction` (`add`, `patch`, `delete`) via `timelineReducer`. The pending action SHALL be committed on success — optionally combined with a `commitAction` that swaps the temporary entry for the authoritative server row — or discarded on failure. `delete` SHALL match on id alone, and SHALL NOT carry a `kind` discriminator; `patch` SHALL retain `kind` because its payload is a typed discriminated union.
 
 #### Scenario: New entry appears immediately
 

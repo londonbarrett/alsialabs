@@ -10,12 +10,12 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import type { Reminder } from "@/lib/actions/reminders"
+import type { ClientReminder } from "@/lib/drizzle/schema"
 import type {
   ReminderSubmitData,
   ReminderSubmitResult,
-} from "@/hooks/use-reminder-submit"
-import type { Reminder } from "@/lib/actions/reminders"
-import type { ClientReminder } from "@/lib/drizzle/schema"
+} from "@/lib/types"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -26,6 +26,8 @@ type ReminderDialogTarget = ClientReminder | Reminder
 
 interface ReminderDialogProps {
   clientId: string
+  /** Only the reminders list renders the client name on the row. */
+  clientName?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   reminder?: ReminderDialogTarget
@@ -37,6 +39,7 @@ interface ReminderDialogProps {
 
 export function ReminderDialog({
   clientId,
+  clientName,
   open,
   onOpenChange,
   reminder,
@@ -62,6 +65,7 @@ export function ReminderDialog({
       <ReminderForm
         key={open ? (reminder?.id ?? "new") : "closed"}
         clientId={clientId}
+        clientName={clientName}
         reminder={reminder}
         onOpenChange={onOpenChange}
         onSubmit={onSubmit}
@@ -72,13 +76,15 @@ export function ReminderDialog({
 
 function ReminderForm({
   clientId,
-  reminder,
+  clientName,
   onOpenChange,
+  reminder,
   onSubmit,
 }: {
   clientId: string
-  reminder?: ReminderDialogTarget
+  clientName?: string
   onOpenChange: (open: boolean) => void
+  reminder?: ReminderDialogTarget
   onSubmit: (
     data: ReminderSubmitData,
     editingId?: string
@@ -117,7 +123,12 @@ function ReminderForm({
     if (!validate()) return
 
     const isEdit = !!reminder?.id
-    const data = { clientId, description: description.trim(), remindAt }
+    const data = {
+      clientId,
+      clientName,
+      description: description.trim(),
+      remindAt,
+    }
 
     onOpenChange(false)
 

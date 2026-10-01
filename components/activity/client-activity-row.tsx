@@ -1,19 +1,15 @@
 "use client"
 
-import { useRemindersSubmit } from "@/hooks/use-reminder-submit"
-import { ActivityItem } from "@/components/clients/activity-item"
+import { ActivityPageEntry } from "@/components/activity/activity-page-entry"
 import { ClientDialog } from "@/components/clients/client-dialog"
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
-import { ReminderItem } from "@/components/clients/reminder-item"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { TableCell, TableRow } from "@/components/ui/table"
-import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import {
-  getClientTimelinePage,
-  type ClientTimelineEntry,
-} from "@/lib/actions/client-timeline"
+import { useActivityStore } from "@/stores/activity-store"
+import { useActivityActions } from "@/stores/use-activity-actions"
+import type { ReminderSubmitData } from "@/lib/types"
 import type { Client } from "@/lib/drizzle/schema"
 import { cn } from "cn"
 import {
@@ -50,71 +46,48 @@ interface ClientActivityRowProps {
 
 type RowDialog = "edit" | "activity" | "reminder"
 
-const PAGE_SIZE = 5
-
 export function ClientActivityRow({
   client,
   onClientChange,
 }: ClientActivityRowProps) {
-  const submitReminder = useRemindersSubmit(client.clientName)
   const t = useTranslations()
   const router = useRouter()
-  const { start: startLoading, stop: stopLoading } =
-    useLoadingIndicator()
   const [dialog, setDialog] = useState<RowDialog | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-  const [entries, setEntries] = useState<ClientTimelineEntry[]>([])
-  const [hasMore, setHasMore] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
-  async function loadFirstPage() {
-    setIsLoading(true)
-    startLoading()
-    try {
-      const result = await getClientTimelinePage(client.clientId, {
-        offset: 0,
-        limit: PAGE_SIZE,
-      })
-      setEntries(result.entries)
-      setHasMore(result.hasMore)
-      setLoaded(true)
-    } finally {
-      setIsLoading(false)
-      stopLoading()
+  const { loadActivities, submitReminder, logActivity } =
+    useActivityActions()
+  const activities = useActivityStore().getClientActivities(
+    client.clientId
+  )
+
+  // The row's timeline lives in the activity page's store, so the card's
+  // reminder list and this activity list never drift apart.
+  const handleSubmitReminder = (
+    data: ReminderSubmitData,
+    editingId?: string
+  ) =>
+    submitReminder(data, {
+      editingId,
+      activityClientId: client.clientId,
+    })
+
+  async function toggleRow() {
+    const next = !expanded
+    setExpanded(next)
+    if (next && !activities.loaded) {
+      await loadActivities(client.clientId, 0)
     }
   }
 
-  async function loadMore() {
+  async function handleLoadMore() {
     setIsLoadingMore(true)
-    startLoading()
     try {
-      const result = await getClientTimelinePage(client.clientId, {
-        offset: entries.length,
-        limit: PAGE_SIZE,
-      })
-      setEntries((prev) => [...prev, ...result.entries])
-      setHasMore(result.hasMore)
+      await loadActivities(client.clientId, activities.entries.length)
     } finally {
       setIsLoadingMore(false)
-      stopLoading()
     }
-  }
-
-  function toggleRow() {
-    if (expanded) {
-      setExpanded(false)
-      return
-    }
-    setExpanded(true)
-    if (!loaded) {
-      loadFirstPage()
-    }
-  }
-
-  function handleToggleClick() {
-    toggleRow()
   }
 
   function handleEditClick() {
@@ -171,7 +144,7 @@ export function ClientActivityRow({
                 name: client.clientName,
               })}
               aria-expanded={expanded}
-              onClick={handleToggleClick}
+              onClick={toggleRow}
             >
               <ChevronRight
                 className={cn(
@@ -232,36 +205,22 @@ export function ClientActivityRow({
               </h3>
               <ChevronDown className="size-4 text-muted-foreground" />
             </div>
-            {isLoading ? (
+            {!activities.loaded ? (
               <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
                 <Spinner />
                 {t("activity.loadingActivities")}
               </div>
-            ) : entries.length > 0 ? (
+            ) : activities.entries.length > 0 ? (
               <div className="py-1">
-                {entries.map((entry) =>
-                  entry.kind === "activity" ? (
-                    <ActivityItem
-                      key={entry.id}
-                      activity={entry}
-                      clientId={client.clientId}
-                      readOnly
-                    />
-                  ) : (
-                    <ReminderItem
-                      key={entry.id}
-                      reminder={entry}
-                      clientId={client.clientId}
-                      readOnly
-                    />
-                  )
-                )}
-                {hasMore && (
+                {activities.entries.map((entry) => (
+                  <ActivityPageEntry key={entry.id} entry={entry} />
+                ))}
+                {activities.hasMore && (
                   <div className="flex justify-center pt-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={loadMore}
+                      onClick={handleLoadMore}
                       disabled={isLoadingMore}
                     >
                       {isLoadingMore && <Spinner />}
@@ -291,14 +250,16 @@ export function ClientActivityRow({
       <LogActivityDialog
         clientId={client.clientId}
         open={dialog === "activity"}
+        onSubmit={logActivity}
         onOpenChange={(open) => {
           if (!open) setDialog(null)
         }}
       />
       <ReminderDialog
         clientId={client.clientId}
+        clientName={client.clientName}
         open={dialog === "reminder"}
-        onSubmit={submitReminder}
+        onSubmit={handleSubmitReminder}
         onOpenChange={(open) => {
           if (!open) setDialog(null)
         }}
