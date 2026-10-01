@@ -3,6 +3,7 @@
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
 import { Button } from "@/components/ui/button"
 import { useHasPermission } from "@/stores/permissions-store"
+import { useTimelineActions } from "@/stores/use-timeline-actions"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -10,6 +11,7 @@ import { useState } from "react"
 export function LogActivityButton({ clientId }: { clientId: string }) {
   const t = useTranslations()
   const canCreate = useHasPermission("client-activity:create")
+  const { submitActivity } = useTimelineActions()
   const [open, setOpen] = useState(false)
 
   if (!canCreate) return null
@@ -23,6 +25,7 @@ export function LogActivityButton({ clientId }: { clientId: string }) {
         clientId={clientId}
         open={open}
         onOpenChange={setOpen}
+        onSubmit={submitActivity}
       />
     </>
   )

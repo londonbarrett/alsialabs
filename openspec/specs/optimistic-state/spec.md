@@ -35,7 +35,7 @@ The generic store SHALL NOT provide an `isSuccess`, `onSuccess`, or `onFailure` 
 
 Every store provider SHALL build its store with a lazy `useState` initializer — `const [store] = useState(() => createXStore(seed))` — and SHALL publish it through the store's context. Providers SHALL NOT read `ref.current` during render: `react-hooks/refs` forbids it, so `useRef` + `if (storeRef.current == null)` SHALL NOT be used and no `eslint-disable` comment SHALL suppress that rule. No provider SHALL synchronize state from props in an effect, because the store is seeded once per mount.
 
-The provider SHALL be mounted by the route's page, not by the component that consumes the store. Consequently a consuming component SHALL be a single component that calls `useXStore()` directly, rather than a wrapper that renders a provider around an inner content component. `TimelineProvider`, `RemindersProvider`, `InvoiceProvider`, and `ProjectsProvider` are each mounted by their page (`app/app/clientes/[clientId]/page.tsx`, `app/app/actividad/page.tsx`, `app/app/ventas/page.tsx`, and `app/app/proyectos/page.tsx` respectively).
+The provider SHALL be mounted by the route's page, not by the component that consumes the store. Consequently a consuming component SHALL be a single component that calls `useXStore()` directly, rather than a wrapper that renders a provider around an inner content component. `TimelineProvider`, `ActivityProvider`, `InvoiceProvider`, and `ProjectsProvider` are each mounted by their page (`app/app/clientes/[clientId]/page.tsx`, `app/app/actividad/page.tsx`, `app/app/ventas/page.tsx`, and `app/app/proyectos/page.tsx` respectively).
 
 #### Scenario: Provider is built once per mount
 
@@ -49,7 +49,7 @@ The provider SHALL be mounted by the route's page, not by the component that con
 
 ### Requirement: Optimistic reads go through store read methods
 
-Components and hooks SHALL NOT select `s.optimistic` or `s.pending` directly. Each LIST-shaped store factory SHALL attach named read methods with `Object.assign` (`getEntries` `stores/timeline-store.ts`, `getInvoices` `stores/invoice-store.ts`, `getReminders` `stores/reminders-store.ts`, `getProjects`/`getPending` `stores/projects-store.ts`) so a component expresses intent rather than store layout. A read method calls a Zustand hook internally, so it SHALL be invoked unconditionally at the top level of render.
+Components and hooks SHALL NOT select `s.optimistic` or `s.pending` directly. Each LIST-shaped store factory SHALL attach named read methods with `Object.assign` (`getEntries` `stores/timeline-store.ts`, `getInvoices` `stores/invoice-store.ts`, `getReminders`/`getClientActivities` `stores/activity-store.ts`, `getProjects`/`getPending` `stores/projects-store.ts`) so a component expresses intent rather than store layout. A read method calls a Zustand hook internally, so it SHALL be invoked unconditionally at the top level of render.
 
 The single-object project context store `stores/project-context-store.ts` SHALL NOT need read methods, because its consumers read derived data — `project`, `owners`, `collaborators`, `permissions`, `canEdit` and so on — through `useProjectContext` `stores/use-project-context.ts`, which is a richer hook over one object rather than a list.
 
@@ -60,7 +60,7 @@ The single-object project context store `stores/project-context-store.ts` SHALL 
 
 ### Requirement: Mutations run through one action hook
 
-All optimistic mutations SHALL run through `useOptimisticAction` `hooks/use-optimistic-action.ts`, which pends an action, runs the server mutation, then commits on success or discards on failure, and which drives both the global loading bar and a local `isPending` flag. A caller MAY pass a `commitAction` to apply a second action after the original one commits — used to swap a temporary row for the authoritative server row, or to `replaceTemp` a row the server has just saved.
+All optimistic mutations SHALL run through `useOptimisticAction` `stores/use-optimistic-action.ts`, which pends an action, runs the server mutation, then commits on success or discards on failure, and which drives both the global loading bar and a local `isPending` flag. A caller MAY pass a `commitAction` to apply a second action after the original one commits — used to swap a temporary row for the authoritative server row, or to `replaceTemp` a row the server has just saved.
 
 `RunOptions` SHALL expose `commitAction` only. `isSuccess`, `onSuccess`, and `onFailure` SHALL NOT exist, because no caller passed them; the hook SHALL determine success with a single shared heuristic and SHALL leave toasts to the caller.
 

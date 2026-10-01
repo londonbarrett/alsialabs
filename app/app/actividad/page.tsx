@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { RemindersProvider } from "@/components/activity/reminders-provider"
+import { ActivityProvider } from "@/components/activity/activity-provider"
 import { RemindersCard } from "@/components/activity/reminders-card"
 import { InactiveClientsCard } from "@/components/activity/inactive-clients-card"
 import { InactiveClientsCardFallback } from "@/components/activity/inactive-clients-card-fallback"
@@ -36,7 +36,7 @@ export default async function ActivityPage() {
         subtitle={t("subtitle")}
         icon={BellRing}
       />
-      <RemindersProvider reminders={reminders}>
+      <ActivityProvider reminders={reminders}>
         <RemindersCard />
         <Suspense
           fallback={
@@ -48,7 +48,7 @@ export default async function ActivityPage() {
             defaultPeriod={DEFAULT_INACTIVE_PERIOD}
           />
         </Suspense>
-      </RemindersProvider>
+      </ActivityProvider>
     </div>
   )
 }

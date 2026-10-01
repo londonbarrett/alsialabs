@@ -328,13 +328,13 @@ The sales page SHALL be a server component that fetches data and composes Page l
 
 ### Requirement: InvoicesCard is fully optimistic with a page-scoped invoice store
 
-The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be a single component that is fully optimistic, using `useOptimisticAction` `hooks/use-optimistic-action.ts` with `invoiceReducer` `stores/invoice-store.ts`. The store SHALL be scoped to the sales route by `InvoiceProvider` `components/sales/invoice-provider.tsx`, which SHALL be mounted by `app/app/ventas/page.tsx` — NOT by `InvoicesCard`. Consequently `InvoicesCard` SHALL take no props and read the store itself, and `SalesView` `components/sales/sales-view.tsx` SHALL NOT receive an `invoices` prop, because the page passes the fetched array to the provider instead. There SHALL NOT be a wrapper/content component pair in which the inner component consumes the store the outer one provides.
+The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be a single component that is fully optimistic, using `useOptimisticAction` `stores/use-optimistic-action.ts` with `invoiceReducer` `stores/invoice-store.ts`. The store SHALL be scoped to the sales route by `InvoiceProvider` `components/sales/invoice-provider.tsx`, which SHALL be mounted by `app/app/ventas/page.tsx` — NOT by `InvoicesCard`. Consequently `InvoicesCard` SHALL take no props and read the store itself, and `SalesView` `components/sales/sales-view.tsx` SHALL NOT receive an `invoices` prop, because the page passes the fetched array to the provider instead. There SHALL NOT be a wrapper/content component pair in which the inner component consumes the store the outer one provides.
 
 #### Scenario: InvoicesCard uses useInvoiceActions and the invoice store
 
 - **WHEN** the sales page renders
 - **THEN** `InvoiceProvider` builds a store once per mount, seeded with the `InvoiceWithClientName[]` `components/sales/sales-invoice-table.tsx:17` fetched by the page
-- **AND** `InvoicesCard` obtains `invoices` plus the optimistic mutation handlers `deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`sendInvoice` from `useInvoiceActions` `hooks/use-invoice-actions.ts`, which SHALL take no arguments
+- **AND** `InvoicesCard` obtains `invoices` plus the optimistic mutation handlers `deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`sendInvoice` from `useInvoiceActions` `stores/use-invoice-actions.ts`, which SHALL take no arguments
 - **AND** on success each handler commits the server `returning()` data via the store, on error it commits the rollback and toasts `useActionError` `lib/util/action-errors.ts`
 
 #### Scenario: Invoice filters are extracted

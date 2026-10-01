@@ -1,6 +1,5 @@
 "use client"
 
-import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import {
   cancelInvoice as cancelInvoiceAction,
   deleteInvoice as deleteInvoiceAction,
@@ -9,6 +8,7 @@ import {
 } from "@/lib/actions/invoices"
 import { useActionError } from "@/lib/util/action-errors"
 import { useInvoiceStore } from "@/stores/invoice-store"
+import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
 import { toast } from "sonner"

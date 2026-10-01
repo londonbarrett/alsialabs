@@ -112,3 +112,36 @@ export type CalendarRoutineData = {
   startDate: string | null
   endDate: string | null
 }
+
+/**
+ * The submit contract `ReminderDialog` `components/clients/reminder-dialog.tsx`
+ * requires. Shared by the timeline and reminders submit handlers, which differ
+ * only in the store they write to.
+ */
+export type ReminderSubmitData = {
+  clientId: string
+  description: string
+  remindAt: string
+  /**
+   * Only the reminders list needs it — that row renders the client name, so a
+   * temp row has to carry one. The timeline derives the client from the page it
+   * is on and has no name to hand over.
+   */
+  clientName?: string
+}
+
+export type ReminderSubmitResult = {
+  success: boolean
+  error?: string
+}
+
+/**
+ * The same contract for `LogActivityDialog`
+ * `components/clients/log-activity-dialog.tsx`. Shared because the dialog is
+ * used from the client detail page and the activity page, which own their
+ * mutations separately.
+ */
+export type ActivitySubmitResult = {
+  success: boolean
+  error?: string
+}

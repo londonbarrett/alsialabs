@@ -3,15 +3,12 @@
 import { Dialog } from "@/components/common/dialog"
 import { Field } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
-import { useOptimisticAction } from "@/hooks/use-optimistic-action"
-import { upsertActivity } from "@/lib/actions/activities"
+import type { ActivityFormData } from "@/lib/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
-import { buildTempActivity } from "@/lib/util/temp-entries"
-import { useTimelineStore } from "@/stores/timeline-store"
+import type { ActivitySubmitResult } from "@/lib/types"
 import { cn } from "cn"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
-import { toast } from "sonner"
 
 const activityTypes = ["call", "email", "meeting", "note"] as const
 
@@ -20,6 +17,10 @@ interface LogActivityDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   activity?: ClientActivity
+  onSubmit: (
+    data: ActivityFormData,
+    editingId?: string
+  ) => Promise<ActivitySubmitResult>
 }
 
 export function LogActivityDialog({
@@ -27,6 +28,7 @@ export function LogActivityDialog({
   open,
   onOpenChange,
   activity,
+  onSubmit,
 }: LogActivityDialogProps) {
   const t = useTranslations()
 
@@ -50,6 +52,7 @@ export function LogActivityDialog({
         clientId={clientId}
         activity={activity}
         onOpenChange={onOpenChange}
+        onSubmit={onSubmit}
       />
     </Dialog>
   )
@@ -59,12 +62,16 @@ function LogActivityForm({
   clientId,
   activity,
   onOpenChange,
+  onSubmit,
 }: {
   clientId: string
   activity?: ClientActivity
   onOpenChange: (open: boolean) => void
+  onSubmit: (
+    data: ActivityFormData,
+    editingId?: string
+  ) => Promise<ActivitySubmitResult>
 }) {
-  const { run } = useOptimisticAction(useTimelineStore())
   const t = useTranslations()
 
   const [type, setType] = useState<(typeof activityTypes)[number]>(
@@ -100,7 +107,6 @@ function LogActivityForm({
     e.preventDefault()
     if (!validate()) return
 
-    const isEdit = !!activity?.id
     const data = {
       clientId,
       type,
@@ -112,34 +118,8 @@ function LogActivityForm({
     // Close optimistically
     onOpenChange(false)
 
-    const action = isEdit
-      ? {
-          type: "patch" as const,
-          kind: "activity" as const,
-          id: activity!.id,
-          patch: {
-            subject: data.subject,
-            description: data.description || null,
-            type: data.type,
-            activityDate: data.activityDate,
-          },
-        }
-      : { type: "add" as const, entry: buildTempActivity(data) }
-
-    const result = await run(action, () =>
-      // TODO: migrate to safe actions
-      upsertActivity(data, activity?.id)
-    )
-
-    if (result.success) {
-      toast.success(
-        isEdit
-          ? t("activities.activityUpdated")
-          : t("activities.activityLogged")
-      )
-    } else {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    }
+    // Toasts are the action's job, so the dialog stays store-agnostic.
+    await onSubmit(data, activity?.id)
   }
 
   return (

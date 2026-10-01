@@ -1,6 +1,5 @@
 "use client"
 
-import { useOptimisticAction } from "@/hooks/use-optimistic-action"
 import type { ProjectDetail } from "@/lib/actions/projects"
 import {
   deleteProject as deleteProjectAction,
@@ -9,6 +8,7 @@ import {
 import type { UpdateProjectInput } from "@/lib/schemas/project"
 import { useActionError } from "@/lib/util/action-errors"
 import { useProjectContextStore } from "@/stores/project-context-store"
+import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useProjectContext } from "@/stores/use-project-context"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"

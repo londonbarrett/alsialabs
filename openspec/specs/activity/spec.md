@@ -53,7 +53,7 @@ The system SHALL display a table of clients who have not made a purchase within 
 
 ### Requirement: User can view reminders
 
-The system SHALL display a card (`RemindersCard` `components/activity/reminders-card.tsx`) listing all reminders (active and completed), with completed reminders listed last and active reminders ordered with expired dates first, then by nearest date. The card SHALL take no props and SHALL read reminders from `useRemindersStore` `stores/reminders-store.ts`, a store scoped to the activity page by `RemindersProvider` `components/activity/reminders-provider.tsx`, seeded from `getReminders` `lib/actions/reminders.ts` which returns all reminders as `Reminder[]` sorted completed-last. The provider is mounted by `app/app/actividad/page.tsx`, so the store is built once per page visit and the card itself contains no store-creation logic. Completing a reminder is optimistic (`remindersReducer` `complete` patches `{ completed: true }`) and SHALL keep the reminder in the list.
+The system SHALL display a card (`RemindersCard` `components/activity/reminders-card.tsx`) listing all reminders (active and completed), with completed reminders listed last and active reminders ordered with expired dates first, then by nearest date. The card SHALL take no props and SHALL read reminders through `getReminders` on `useActivityStore` `stores/activity-store.ts` — a store scoped to the whole activity page by `ActivityProvider` `components/activity/activity-provider.tsx`, which also holds one activity list per expanded inactive-client row. The provider is seeded from `getReminders` `lib/actions/reminders.ts`, which returns all reminders as `Reminder[]` sorted completed-last, and is mounted by `app/app/actividad/page.tsx`, so the store is built once per page visit and the card itself contains no store-creation logic. Completing a reminder is optimistic (`activityReducer` `completeReminder` patches `{ completed: true }`) and SHALL keep the reminder in the list.
 
 #### Scenario: Reminders show client name, description, and date
 
@@ -104,7 +104,7 @@ The system SHALL display a card (`RemindersCard` `components/activity/reminders-
 
 `ReminderDialog` `components/clients/reminder-dialog.tsx` SHALL contain no store logic and SHALL import no store module. It SHALL accept a required `onSubmit(data, editingId?)` prop and SHALL rely on the caller to perform the mutation, the optimistic write, and the resulting toast. The dialog SHALL accept either reminder shape as `reminder` (`ClientReminder` from the client timeline, or `Reminder` from the activity list) because it is used from both routes.
 
-Each call site SHALL select the handler matching the list rendered on its own route, since exactly one store is live per route: the client detail page renders the timeline, and the activity page renders the reminders list. `AddReminderButton` `components/clients/add-reminder-button.tsx` and `ReminderItem` `components/clients/reminder-item.tsx` SHALL use `useTimelineReminderSubmit` `hooks/use-reminder-submit.ts` (requires `TimelineProvider`), and `RemindersCard` `components/activity/reminders-card.tsx` and `ClientActivityRow` `components/activity/client-activity-row.tsx` SHALL use `useRemindersSubmit` `hooks/use-reminder-submit.ts` (requires `RemindersProvider`). The dialog SHALL NOT write to a second store to keep another list in sync, and there SHALL NOT be an optional store accessor that silently degrades when no provider is mounted.
+Each call site SHALL select the handler matching the store live on its own route: the client detail page renders the timeline, and the activity page renders the reminders list and the expanded activity lists. `AddReminderButton` `components/clients/add-reminder-button.tsx`, `ReminderItem` `components/clients/reminder-item.tsx`, `LogActivityButton` `components/clients/log-activity-button.tsx`, and `ActivityItem` SHALL use `useTimelineActions` `stores/use-timeline-actions.ts` (requires `TimelineProvider`), while `RemindersCard` `components/activity/reminders-card.tsx` and `ClientActivityRow` `components/activity/client-activity-row.tsx` SHALL use `useActivityActions` `stores/use-activity-actions.ts` (requires `ActivityProvider`); its rows SHALL come from `ActivityPageEntry` `components/activity/activity-page-entry.tsx`, which reads no store. Each hook SHALL own every write to its own store AND the toasts for it, so no component builds its own `run()` call or calls `toast` directly: `useActivityActions` returns `loadActivities`/`submitReminder`/`completeReminder`/`deleteReminder`/`logActivity`, and `useTimelineActions` returns `submitReminder`/`submitActivity`/`completeReminder`/`deleteReminder`/`deleteActivity`. Because the hooks own the toasts, `submitReminder`/`submitActivity` and their siblings SHALL stay uniform across routes: both routes SHALL pick the success message from whether an `editingId` was passed, so a create from the activity page and a create from the timeline read the same. `LogActivityDialog` `components/clients/log-activity-dialog.tsx` and `ReminderDialog` `components/clients/reminder-dialog.tsx` SHALL be store-free and take `onSubmit`, because each is rendered under two different providers and cannot know which store to write to. A reminder created from an expanded row SHALL be written to BOTH the card's list and that row's activity list in a single action, since one store holds both; a logged activity SHALL land only in that row's activity list, because the card lists reminders and not activities.
 
 #### Scenario: Creating a reminder on the activity page appears immediately
 
@@ -155,15 +155,15 @@ The system SHALL allow users to expand an inactive client row in the inactive cl
 - **THEN** the row expands inline
 - **AND** it loads and displays that client's 5 most recent timeline entries (activities and non-completed reminders), ordered newest first
 
-#### Scenario: Expanded panel shows both activities and reminders
+#### Scenario: Expanded activity list shows both activities and reminders
 
 - **WHEN** an expanded inactive client has logged activities and active reminders
-- **THEN** the panel SHALL show the activity entries alongside the pending reminder entries in a single merged list
+- **THEN** the activity list SHALL show the activities alongside the pending reminder entries in a single merged list
 
 #### Scenario: Double-click again collapses the row
 
 - **WHEN** a user double-clicks an expanded inactive client row
-- **THEN** the expanded activity panel closes
+- **THEN** the expanded activity list closes
 
 #### Scenario: Chevron arrow toggles the row
 
@@ -177,15 +177,15 @@ The system SHALL allow users to expand an inactive client row in the inactive cl
 - **THEN** the app loading indicator SHALL be shown at the top of the viewport
 - **AND** it SHALL disappear once the fetch completes
 
-#### Scenario: Expanded panel shows a loading state
+#### Scenario: Expanded activity list shows a loading state
 
 - **WHEN** a user expands a row and activities are still loading
-- **THEN** the panel SHALL display a loading indicator
+- **THEN** the activity list SHALL display a loading indicator
 
 #### Scenario: Client with no activities shows empty state
 
 - **WHEN** an expanded client has no registered activities
-- **THEN** the panel SHALL display a "no activities" message
+- **THEN** the activity list SHALL display a "no activities" message
 - **AND** no "Load more" button SHALL be shown
 
 #### Scenario: Load more fetches the next 5 activities
@@ -201,21 +201,21 @@ The system SHALL allow users to expand an inactive client row in the inactive cl
 #### Scenario: Existing row actions remain functional
 
 - **WHEN** a user uses the edit, log activity, or add reminder action on an inactive client row
-- **THEN** the action SHALL still work and SHALL NOT toggle the expanded panel
+- **THEN** the action SHALL still work and SHALL NOT collapse the expanded list
 
-#### Scenario: Expanded panel refreshes after logging an activity
+#### Scenario: Expanded activity list refreshes after logging an activity
 
 - **WHEN** a user logs a new activity for a client whose row is expanded
-- **THEN** the new activity SHALL be prepended to the expanded panel optimistically
-- **AND** the panel SHALL NOT re-fetch on submission
+- **THEN** the new activity SHALL be prepended to the expanded list optimistically
+- **AND** the activity list SHALL NOT re-fetch on submission
 - **AND** on success the optimistic entry SHALL be replaced with the persisted activity
 - **AND** on failure the optimistic entry SHALL be removed
 - **AND** the client's activity count SHALL update immediately
 
-#### Scenario: Optimistic reminder appears immediately in expanded panel
+#### Scenario: Optimistic reminder appears immediately in the expanded list
 
 - **WHEN** a user adds a reminder for a client whose row is expanded
-- **THEN** the new reminder SHALL be prepended to the expanded panel immediately
+- **THEN** the new reminder SHALL be prepended to the expanded list immediately
 - **AND** on failure the optimistic entry SHALL be removed
 
 ### Requirement: User can see inactive client count and period filter
@@ -239,9 +239,36 @@ The inactive clients card SHALL display the number of inactive clients found and
 - **WHEN** the inactive clients table is displayed
 - **THEN** each row SHALL show the total number of activities registered for that client
 
+### Requirement: Per-client activity lists live in the activity-page store
+
+The expanded rows' timelines SHALL be held in `activity-store.ts` as `activities: Record<clientId, ClientActivityList>`, keyed by client, each list carrying `entries`, `hasMore`, and `loaded`. The row component SHALL NOT hold `entries`, `hasMore`, or `loaded` in React state, because a reminder written from an expanded row has to reach both the card's list and that row's activity list, and one store is what makes that a single write. `ClientActivityRow` SHALL read its list via `getClientActivities(clientId)` and SHALL render only the keys it actually uses, so an expanded row re-renders without disturbing its siblings.
+
+#### Scenario: An unexpanded row reads a stable empty list
+
+- **WHEN** `getClientActivities(clientId)` is called for a client that has never been expanded
+- **THEN** it SHALL return a shared empty list constant rather than a freshly built object
+- **AND** the constant SHALL be the same reference on every call, because a new object each call would loop `useSyncExternalStore`
+
+#### Scenario: Expanding a row fetches once and marks the list loaded
+
+- **WHEN** a user expands a row whose activity list is not `loaded`
+- **THEN** `loadActivities(clientId)` SHALL fetch the first page and store it with `loaded: true`
+- **AND** the loading state SHALL NOT be published before the fetch resolves, so the row cannot flash an empty list
+
+#### Scenario: Collapsing and re-expanding does not refetch
+
+- **WHEN** a user collapses a loaded list and expands it again
+- **THEN** the already-loaded entries SHALL be shown without another fetch
+
+#### Scenario: Load more appends to the existing list
+
+- **WHEN** `loadActivities(clientId, nextCursor)` is called for a list that already has a page
+- **THEN** the new entries SHALL be appended after the existing ones rather than replacing them
+- **AND** `hasMore` SHALL be updated from the response
+
 ### Requirement: Paginated client timeline fetch
 
-The system SHALL provide a paginated server action to retrieve a client's merged timeline (activities and non-completed reminders) for the inline panel.
+The system SHALL provide a paginated server action to retrieve a client's merged timeline (activities and non-completed reminders) for the inline activity list.
 
 #### Scenario: Action returns a page of entries and hasMore flag
 

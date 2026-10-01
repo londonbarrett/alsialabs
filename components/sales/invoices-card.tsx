@@ -16,8 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useInvoiceActions } from "@/hooks/use-invoice-actions"
-import { useOptimisticAction } from "@/hooks/use-optimistic-action"
+import { useInvoiceActions } from "@/stores/use-invoice-actions"
+import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { recordPayment } from "@/lib/actions/payments"
 import type { Invoice, InvoiceStatus } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"

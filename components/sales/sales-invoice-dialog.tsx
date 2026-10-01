@@ -3,7 +3,7 @@
 import { Dialog } from "@/components/common/dialog"
 import { InvoiceForm } from "@/components/sales/invoice-form"
 import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
-import { useOptimisticAction } from "@/hooks/use-optimistic-action"
+import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { createInvoice, updateInvoice } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
