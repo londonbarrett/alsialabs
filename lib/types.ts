@@ -107,7 +107,7 @@ export type CalendarRoutineData = {
   assigneeName: string | null
   recurrence: "daily" | "weekly"
   interval: number
-  daysOfWeek: number[] | null
+  daysOfWeek: string[] | null
   time: string | null
   startDate: string | null
   endDate: string | null
