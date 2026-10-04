@@ -1,4 +1,10 @@
-## ADDED Requirements
+# client-list-search Specification
+
+## Purpose
+
+Search and result count on the clients list, with an accessible input.
+
+## Requirements
 
 ### Requirement: Client list search input
 

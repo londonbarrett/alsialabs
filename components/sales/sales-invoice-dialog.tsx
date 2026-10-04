@@ -2,19 +2,11 @@
 
 import { Dialog } from "@/components/common/dialog"
 import { InvoiceForm } from "@/components/sales/invoice-form"
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
-import { useOptimisticAction } from "@/stores/use-optimistic-action"
-import { createInvoice, updateInvoice } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
-import { useActionError } from "@/lib/util/action-errors"
-import { buildOptimisticInvoice } from "@/lib/util/invoices"
-import {
-  useInvoiceStore,
-  type InvoiceAction,
-} from "@/stores/invoice-store"
+import type { SettleResult } from "@/lib/types"
+import { useInvoiceActions } from "@/stores/use-invoice-actions"
 import { useTranslations } from "next-intl"
-import { toast } from "sonner"
 
 interface SalesInvoiceDialogProps {
   open: boolean
@@ -28,83 +20,24 @@ export function SalesInvoiceDialog({
   editingInvoice,
 }: SalesInvoiceDialogProps) {
   const t = useTranslations()
-  const translateError = useActionError()
-  const store = useInvoiceStore()
-  const { run } = useOptimisticAction(store)
+  const { createInvoice, updateInvoice } = useInvoiceActions()
 
   async function handleSubmit(
     data: InvoiceFormData,
-    invoiceId?: string
-  ) {
-    const isEdit = !!invoiceId
-    const invoices = store.getState().committed
-    const optimisticInvoice = buildOptimisticInvoice(
-      data,
-      invoiceId,
-      editingInvoice,
-      invoices
-    )
-    const action: InvoiceAction = isEdit
-      ? { type: "update", invoice: optimisticInvoice }
-      : { type: "add", invoice: optimisticInvoice }
-
+    invoiceId?: string,
+    clientName?: string | null
+  ): Promise<SettleResult> {
     onOpenChange(false)
-    const result = await run(
-      action,
-      () =>
-        isEdit
-          ? updateInvoice({ ...data, invoiceId: invoiceId! })
-          : createInvoice(data),
-      {
-        commitAction: (res): InvoiceAction => {
-          const real = (res as { data?: unknown })
-            .data as unknown as InvoiceWithClientName
-          const realWithClient: InvoiceWithClientName = {
-            ...real,
-            clientName: optimisticInvoice.clientName,
-          }
-          return isEdit
-            ? { type: "update", invoice: realWithClient }
-            : {
-                type: "replaceTemp",
-                tempId: optimisticInvoice.id,
-                invoice: realWithClient,
-              }
-        },
-      }
-    )
-
-    if (result?.data) {
-      toast.success(
-        isEdit ? t("sales.invoiceUpdated") : t("sales.invoiceCreated")
-      )
-      return { success: true as const, data: result.data }
-    }
-
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-      return {
-        success: false as const,
-        error: translateError(result.serverError.code),
-      }
-    }
-    if (result?.validationErrors) {
-      // Re-open so the form can show field errors
-      onOpenChange(true)
-      return {
-        success: false as const,
-        error: t("common.somethingWentWrong"),
-        fieldErrors: result.validationErrors as Record<
-          string,
-          string[] | undefined
-        >,
-      }
-    }
-    toast.error(t("common.somethingWentWrong"))
-    return {
-      success: false as const,
-      error: t("common.somethingWentWrong"),
-    }
+    const result = invoiceId
+      ? await updateInvoice(data, {
+          invoiceId,
+          editingInvoice,
+          clientName,
+        })
+      : await createInvoice(data, clientName ?? null)
+    // Re-open so the form can show server field errors.
+    if (!result.success && result.fieldErrors) onOpenChange(true)
+    return result
   }
 
   return (

@@ -1,3 +1,11 @@
+# optimistic-state Specification
+
+## Purpose
+
+Page-scoped optimistic stores, the provider/read-method pattern, and the shared mutation and action-hook contract.
+
+## Requirements
+
 ### Requirement: Optimistic client state is a page-scoped store
 
 Client-side optimistic state SHALL be held in a Zustand store created per route visit, never in a module-level singleton and never threaded through props. Every optimistic store SHALL be built by a factory `createXStore(seed)` and published through a `XStoreContext` with a `useXStore()` hook that SHALL throw a provider-named error when no provider is mounted, so a missing provider fails loudly at the boundary instead of silently degrading.
@@ -60,7 +68,7 @@ The single-object project context store `stores/project-context-store.ts` SHALL 
 
 ### Requirement: Mutations run through one action hook
 
-All optimistic mutations SHALL run through `useOptimisticAction` `stores/use-optimistic-action.ts`, which pends an action, runs the server mutation, then commits on success or discards on failure, and which drives both the global loading bar and a local `isPending` flag. A caller MAY pass a `commitAction` to apply a second action after the original one commits — used to swap a temporary row for the authoritative server row, or to `replaceTemp` a row the server has just saved.
+All optimistic mutations SHALL run through `useOptimisticAction` `stores/use-optimistic-action.ts`, which pends an action, runs the server mutation, then commits on success or discards on failure, and which drives the global loading bar. A caller MAY pass a `commitAction` to apply a second action after the original one commits — used to swap a temporary row for the authoritative server row, or to `replaceTemp` a row the server has just saved.
 
 `RunOptions` SHALL expose `commitAction` only. `isSuccess`, `onSuccess`, and `onFailure` SHALL NOT exist, because no caller passed them; the hook SHALL determine success with a single shared heuristic and SHALL leave toasts to the caller.
 
@@ -73,3 +81,17 @@ All optimistic mutations SHALL run through `useOptimisticAction` `stores/use-opt
 
 - **WHEN** an optimistic mutation is in flight
 - **THEN** the global loading bar SHALL be visible and SHALL hide once it settles
+
+### Requirement: Mutation hooks settle their outcome the same way
+
+Every action hook (`useInvoiceActions`, `useTimelineActions`, `useActivityActions`, `usePaymentActions`, `useProjectActions`, `useProjectsActions`, `useProjectPeopleActions`) SHALL report each mutation through the shared `useSettle` hook `hooks/use-settle.ts`, which toasts the translated `serverError`, returns `validationErrors` for the form to render without toasting, toasts a success message otherwise, and returns `SettleResult` `lib/types.ts`. A handler SHALL return `SettleResult` only when its caller consumes the outcome — the invoice `createInvoice`/`updateInvoice` handlers, whose `InvoiceForm` caller renders the returned `fieldErrors`; every other handler SHALL return `void`, because no caller reads the outcome. Fetch helpers (`loadPayments` `stores/use-payment-actions.ts`, `loadActivities` `stores/use-activity-actions.ts`) SHALL return `void`, SHALL pend and commit the store directly, and SHALL NOT drive the loading bar or toast a success, because reading a list is not a mutation.
+
+#### Scenario: Fire-and-forget handler returns nothing
+
+- **WHEN** a payment, activity, reminder, project, or project-people mutation runs
+- **THEN** its handler SHALL return `void` and SHALL still own its success or error toast via `useSettle`
+
+#### Scenario: Invoice form consumes the settled field errors
+
+- **WHEN** `createInvoice`/`updateInvoice` returns validation errors
+- **THEN** the handler SHALL return `SettleResult` carrying `fieldErrors` and SHALL NOT toast, so `InvoiceForm` can render them

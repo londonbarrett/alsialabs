@@ -1,4 +1,10 @@
-## ADDED Requirements
+# client-invitations Specification
+
+## Purpose
+
+Inviting clients by email, including re-invites, Spanish email content, and server-side permission checks.
+
+## Requirements
 
 ### Requirement: Admin can invite a client from the clients list
 

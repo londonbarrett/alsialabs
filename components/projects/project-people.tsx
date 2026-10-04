@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useProjectContext } from "@/stores/use-project-context"
-import { useProjectMemberActions } from "@/stores/use-project-member-actions"
+import { useProjectPeopleActions } from "@/stores/use-project-people-actions"
 import { Crown, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useMemo } from "react"
@@ -17,7 +17,7 @@ import { UserInviteInput } from "./user-invite-input"
 export function ProjectPeople() {
   const t = useTranslations()
   const { addOwner, removeOwner, addCollaborator, removeCollaborator } =
-    useProjectMemberActions()
+    useProjectPeopleActions()
   const { project, owners, collaborators, canManageUsers, isOwner } =
     useProjectContext()
   const primaryOwnerId = project.primaryOwnerId

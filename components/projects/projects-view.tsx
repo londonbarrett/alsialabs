@@ -4,7 +4,10 @@ import { PageHeader } from "@/components/common/page-header"
 import { Button } from "@/components/ui/button"
 import { useProjectsList } from "@/stores/use-projects-list"
 import { useHasPermission } from "@/stores/permissions-store"
-import { useProjectsActions } from "@/stores/use-projects-actions"
+import {
+  type ProjectOwner,
+  useProjectsActions,
+} from "@/stores/use-projects-actions"
 import { FolderKanban, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -13,15 +16,19 @@ import { ProjectDialog } from "./project-dialog"
 
 interface ProjectsViewProps {
   categories: { id: string; slug: string; name: string }[]
+  owner: ProjectOwner
 }
 
-export function ProjectsView({ categories }: ProjectsViewProps) {
+export function ProjectsView({
+  categories,
+  owner,
+}: ProjectsViewProps) {
   const t = useTranslations()
   const canCreate = useHasPermission("projects:create")
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const { projects, pendingIds } = useProjectsList()
-  const { createProject } = useProjectsActions(categories)
+  const { createProject } = useProjectsActions(categories, owner)
 
   return (
     <>

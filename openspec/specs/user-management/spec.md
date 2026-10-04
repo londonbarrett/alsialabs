@@ -1,4 +1,10 @@
-## ADDED Requirements
+# user-management Specification
+
+## Purpose
+
+Super-admin user CRUD and invitations, plus profile, dashboard, and route guards.
+
+## Requirements
 
 ### Requirement: Super can view all users
 

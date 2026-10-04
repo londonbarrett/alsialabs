@@ -3,7 +3,6 @@
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
 import type { StoreApi, UseBoundStore } from "zustand"
 
 type StoreHook<S, A> = UseBoundStore<StoreApi<OptimisticStore<S, A>>>
@@ -35,12 +34,11 @@ export function useOptimisticAction<S, A>(store: StoreHook<S, A>) {
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const router = useRouter()
-  const [isPending, setIsPending] = useState(false)
 
   /**
    * Optimistically pends `action`, runs the server mutation, then commits
    * (persists) on success or discards (auto-reverts) on failure. Drives the
-   * global loading indicator plus a local `isPending` flag.
+   * global loading indicator.
    */
   async function run<Result>(
     action: A,
@@ -48,7 +46,6 @@ export function useOptimisticAction<S, A>(store: StoreHook<S, A>) {
     options: RunOptions<Result, A> = {}
   ): Promise<Result> {
     const id = store.getState().pend(action)
-    setIsPending(true)
     startLoading()
     try {
       const result = await execute()
@@ -67,10 +64,9 @@ export function useOptimisticAction<S, A>(store: StoreHook<S, A>) {
       store.getState().discard(id)
       throw error
     } finally {
-      setIsPending(false)
       stopLoading()
     }
   }
 
-  return { run, isPending }
+  return { run }
 }

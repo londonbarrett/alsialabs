@@ -37,12 +37,14 @@ export function RemindersCard() {
   }>({ open: false })
 
   const optimisticReminders = useActivityStore().getReminders()
-  const { submitReminder, completeReminder } = useActivityActions()
+  const { createReminder, updateReminder, completeReminder } =
+    useActivityActions()
 
   const handleSubmitReminder = (
     data: ReminderSubmitData,
     editingId?: string
-  ) => submitReminder(data, { editingId })
+  ) =>
+    editingId ? updateReminder(data, editingId) : createReminder(data)
 
   function handleEdit(reminder: Reminder) {
     setReminderDialog({ open: true, editing: reminder })

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# money-input Specification
+
+## Purpose
+
+A currency money input that formats values as the user types and integrates with the Field component.
+
+## Requirements
 
 ### Requirement: Money input field formats currency as user types
 

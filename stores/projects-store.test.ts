@@ -1,9 +1,9 @@
 import type { Project } from "@/lib/types"
+import { createProjectsStore } from "./projects-store"
 import {
-  createProjectsStore,
   nextOptimisticProjectId,
   projectsReducer,
-} from "./projects-store"
+} from "./projects-reducer"
 import { describe, expect, it } from "vitest"
 
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a00"

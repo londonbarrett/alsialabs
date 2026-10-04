@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# roles-permissions Specification
+
+## Purpose
+
+Seeded, manageable permission modules per role, with UI and server-side enforcement.
+
+## Requirements
 
 ### Requirement: Sales permissions are seeded and manageable
 
@@ -25,8 +31,6 @@ The system SHALL include client module permissions that can be toggled for each 
 - **AND** the admin role has `clients:view`, `clients:create`, `clients:edit`, `clients:invite` enabled
 - **AND** the admin role does NOT have `clients:delete` enabled
 - **AND** the client role has no client permissions
-
-## ADDED Requirements
 
 ### Requirement: Activity permissions are seeded and manageable
 

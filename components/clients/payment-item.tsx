@@ -2,21 +2,14 @@
 
 import { ActionMenu } from "@/components/common/action-menu"
 import { PaymentDialog } from "@/components/sales/payment-dialog"
-import type {
-  PaymentFormValues,
-  PaymentSubmitResult,
-} from "@/components/sales/payment-form"
-import { useOptimisticAction } from "@/stores/use-optimistic-action"
-import { deletePayment, updatePayment } from "@/lib/actions/payments"
+import type { PaymentFormValues } from "@/components/sales/payment-form"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
-import { useActionError } from "@/lib/util/action-errors"
 import { formatCurrency } from "@/lib/util/money"
 import { useHasPermission } from "@/stores/permissions-store"
-import { useTimelineStore } from "@/stores/timeline-store"
+import { useTimelineActions } from "@/stores/use-timeline-actions"
 import { Banknote } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
-import { toast } from "sonner"
 
 interface PaymentItemProps {
   payment: InvoicePayment
@@ -28,10 +21,9 @@ export function PaymentItem({
   invoiceNumber,
 }: PaymentItemProps) {
   const t = useTranslations()
-  const translateError = useActionError()
   const canEdit = useHasPermission("sales:edit")
   const canDelete = useHasPermission("sales:delete")
-  const { run } = useOptimisticAction(useTimelineStore())
+  const { updatePayment, deletePayment } = useTimelineActions()
   const [dialog, setDialog] = useState<{
     open: boolean
     editing?: InvoicePayment
@@ -41,62 +33,15 @@ export function PaymentItem({
   const date = `${m}/${d}/${y}`
 
   async function handleDelete() {
-    const result = await run({ type: "delete", id: payment.id }, () =>
-      deletePayment({ paymentId: payment.id })
-    )
-    if (result.serverError) {
-      toast.error(translateError(result.serverError.code))
-    } else if (result.data) {
-      toast.success(t("sales.paymentDeleted"))
-    } else {
-      toast.error(t("common.somethingWentWrong"))
-    }
+    await deletePayment(payment.id)
   }
 
-  async function handleEditSubmit(
-    values: PaymentFormValues
-  ): Promise<PaymentSubmitResult> {
-    const patch = {
-      amount: values.amount,
-      paymentDate: values.paymentDate,
-      method: values.method || null,
-      reference: values.reference || null,
-      notes: values.notes || null,
-    }
+  function handleEditSubmit(values: PaymentFormValues) {
+    const editing = dialog.editing
+    if (!editing) return
 
     setDialog({ open: false })
-    const result = await run(
-      { type: "patch", kind: "payment", id: payment.id, patch },
-      () => updatePayment({ paymentId: payment.id, ...values })
-    )
-
-    if (result.data) {
-      toast.success(t("sales.paymentUpdated"))
-      return { success: true as const }
-    }
-
-    if (result.serverError) {
-      toast.error(translateError(result.serverError.code))
-      return {
-        success: false as const,
-        error: translateError(result.serverError.code),
-      }
-    }
-    if (result.validationErrors) {
-      return {
-        success: false as const,
-        error: t("common.somethingWentWrong"),
-        fieldErrors: result.validationErrors as Record<
-          string,
-          string[] | undefined
-        >,
-      }
-    }
-    toast.error(t("common.somethingWentWrong"))
-    return {
-      success: false as const,
-      error: t("common.somethingWentWrong"),
-    }
+    updatePayment(editing.id, values)
   }
 
   return (

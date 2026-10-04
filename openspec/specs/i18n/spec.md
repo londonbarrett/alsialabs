@@ -1,4 +1,10 @@
-## ADDED Requirements
+# i18n Specification
+
+## Purpose
+
+Locale detection and switching, translated UI strings, and server-action translation.
+
+## Requirements
 
 ### Requirement: Locale detection
 

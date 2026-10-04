@@ -2,10 +2,7 @@
 
 import { InvoiceFilters } from "@/components/sales/invoice-filters"
 import { PaymentDialog } from "@/components/sales/payment-dialog"
-import type {
-  PaymentFormValues,
-  PaymentSubmitResult,
-} from "@/components/sales/payment-form"
+import type { PaymentFormValues } from "@/components/sales/payment-form"
 import { PaymentHistoryDialog } from "@/components/sales/payment-history-dialog"
 import { SalesInvoiceDialog } from "@/components/sales/sales-invoice-dialog"
 import { SalesInvoiceTable } from "@/components/sales/sales-invoice-table"
@@ -17,30 +14,25 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useInvoiceActions } from "@/stores/use-invoice-actions"
-import { useOptimisticAction } from "@/stores/use-optimistic-action"
-import { recordPayment } from "@/lib/actions/payments"
-import type { Invoice, InvoiceStatus } from "@/lib/drizzle/schema"
-import { useActionError } from "@/lib/util/action-errors"
 import { useInvoiceStore } from "@/stores/invoice-store"
+import { usePaymentActions } from "@/stores/use-payment-actions"
+import type { Invoice } from "@/lib/drizzle/schema"
 import { useHasPermission } from "@/stores/permissions-store"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
-import { toast } from "sonner"
 
 export function InvoicesCard() {
   const t = useTranslations()
-  const translateError = useActionError()
-  const store = useInvoiceStore()
-  const { run: runInvoice } = useOptimisticAction(store)
 
   const {
-    invoices,
     deleteInvoice,
     cancelInvoice,
     reopenInvoice,
     sendInvoice,
   } = useInvoiceActions()
+  const invoices = useInvoiceStore().getInvoices()
+  const { recordPayment } = usePaymentActions()
 
   // Dialog state
   const [invoiceDialog, setInvoiceDialog] = useState<{
@@ -58,62 +50,12 @@ export function InvoicesCard() {
 
   const canCreate = useHasPermission("sales:create")
 
-  async function handleRecordPaymentSubmit(
-    values: PaymentFormValues
-  ): Promise<PaymentSubmitResult> {
+  function handleRecordPaymentSubmit(values: PaymentFormValues) {
     const invoice = paymentDialog.invoice
-    if (!invoice) {
-      return {
-        success: false as const,
-        error: t("common.somethingWentWrong"),
-      }
-    }
-
-    const currentPaid = parseFloat(invoice.paidAmount) || 0
-    const added = parseFloat(values.amount) || 0
-    const newPaid = currentPaid + added
-    const grandTotal = parseFloat(invoice.grandTotal) || 0
-    const newStatus: InvoiceStatus =
-      newPaid >= grandTotal ? "paid" : "partially_paid"
+    if (!invoice) return
 
     setPaymentDialog((s) => ({ ...s, open: false }))
-    const result = await runInvoice(
-      {
-        type: "recordPayment",
-        invoiceId: invoice.id,
-        paidAmount: newPaid.toFixed(2),
-        status: newStatus,
-      },
-      () => recordPayment({ invoiceId: invoice.id, ...values })
-    )
-
-    if (result?.data) {
-      toast.success(t("sales.paymentRecorded"))
-      return { success: true as const }
-    }
-
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-      return {
-        success: false as const,
-        error: translateError(result.serverError.code),
-      }
-    }
-    if (result?.validationErrors) {
-      return {
-        success: false as const,
-        error: t("common.somethingWentWrong"),
-        fieldErrors: result.validationErrors as Record<
-          string,
-          string[] | undefined
-        >,
-      }
-    }
-    toast.error(t("common.somethingWentWrong"))
-    return {
-      success: false as const,
-      error: t("common.somethingWentWrong"),
-    }
+    recordPayment(invoice, values)
   }
 
   return (

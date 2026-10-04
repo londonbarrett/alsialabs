@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# category-management Specification
+
+## Purpose
+
+Taxonomy/category CRUD with translated category names and read access for non-admin users.
+
+## Requirements
 
 ### Requirement: Category management
 

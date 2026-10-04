@@ -2,16 +2,11 @@
 
 import { Dialog } from "@/components/common/dialog"
 import { InvoiceForm } from "@/components/sales/invoice-form"
-import { useOptimisticAction } from "@/stores/use-optimistic-action"
-import { createInvoice, updateInvoice } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
-import { computeInvoiceTotals } from "@/lib/util/invoices"
-import { buildTempInvoice } from "@/lib/util/temp-entries"
-import type { TimelineEntryAction } from "@/stores/timeline-store"
-import { useTimelineStore } from "@/stores/timeline-store"
+import type { SettleResult } from "@/lib/types"
+import { useTimelineActions } from "@/stores/use-timeline-actions"
 import { useTranslations } from "next-intl"
-import { toast } from "sonner"
 
 interface TimelineInvoiceDialogProps {
   clientId: string
@@ -27,55 +22,19 @@ export function TimelineInvoiceDialog({
   editingInvoice,
 }: TimelineInvoiceDialogProps) {
   const t = useTranslations()
-  const { run } = useOptimisticAction(useTimelineStore())
+  const { createInvoice, updateInvoice } = useTimelineActions()
 
   async function handleSubmit(
     data: InvoiceFormData,
     invoiceId?: string
-  ) {
-    const isEdit = !!invoiceId
-
+  ): Promise<SettleResult> {
     onOpenChange(false)
-    const totals = computeInvoiceTotals(data.items)
-    const action: TimelineEntryAction = isEdit
-      ? {
-          type: "patch",
-          kind: "invoice",
-          id: invoiceId!,
-          patch: {
-            type: data.type,
-            clientId: data.clientId,
-            issueDate: data.issueDate,
-            dueDate: data.dueDate || null,
-            notes: data.notes || null,
-            subtotal: totals.subtotal,
-            discountTotal: totals.discountTotal,
-            taxTotal: totals.taxTotal,
-            grandTotal: totals.grandTotal,
-          },
-        }
-      : { type: "add", entry: buildTempInvoice(data) }
-
-    const result = await run(action, () =>
-      isEdit
-        ? updateInvoice({ ...data, invoiceId: invoiceId! })
-        : createInvoice(data)
-    )
-
-    const success =
-      (result as unknown as { data?: unknown })?.data !== undefined
-    if (success) {
-      toast.success(
-        isEdit ? t("sales.invoiceUpdated") : t("sales.invoiceCreated")
-      )
-      return { success: true as const }
-    }
-    // Failure: the pending action was auto-discarded (reverted).
-    toast.error(t("common.somethingWentWrong"))
-    return {
-      success: false as const,
-      error: t("common.somethingWentWrong"),
-    }
+    const result = invoiceId
+      ? await updateInvoice(data, invoiceId)
+      : await createInvoice(data)
+    // Re-open so the form can show server field errors.
+    if (!result.success && result.fieldErrors) onOpenChange(true)
+    return result
   }
 
   return (

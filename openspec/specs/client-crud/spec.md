@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# client-crud Specification
+
+## Purpose
+
+The client profile page: header, info card, invoice-history and activity sections, client switcher, and optimistic list edits.
+
+## Requirements
 
 ### Requirement: Invoice history section on client profile
 
@@ -47,8 +53,6 @@ The system SHALL display an invoice history section on the client profile page, 
 
 - **WHEN** a client is selected and the user clicks the clear button
 - **THEN** the combobox input becomes empty
-
-## ADDED Requirements
 
 ### Requirement: Client detail page header
 

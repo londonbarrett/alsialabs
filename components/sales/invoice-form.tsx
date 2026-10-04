@@ -30,25 +30,21 @@ import {
 } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
+import type { SettleResult } from "@/lib/types"
 import { formatCurrency } from "@/lib/util/money"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
-export interface InvoiceSubmitResult {
-  success: boolean
-  error?: string
-  fieldErrors?: Record<string, string[] | undefined>
-}
-
 interface InvoiceFormProps {
   invoice?: Invoice & { clientName?: string | null }
   selectedClientId?: string
   onSubmit: (
     data: InvoiceFormData,
-    invoiceId?: string
-  ) => Promise<InvoiceSubmitResult>
+    invoiceId?: string,
+    clientName?: string | null
+  ) => Promise<SettleResult>
   onCancel: () => void
 }
 
@@ -381,7 +377,8 @@ export function InvoiceForm({
           productId: item.productId,
         })),
       },
-      invoice?.id
+      invoice?.id,
+      invoice?.clientName ?? client?.name ?? null
     )
 
     if (!result.success && result.fieldErrors) {
@@ -401,7 +398,11 @@ export function InvoiceForm({
             <Select
               value={type}
               onValueChange={(value: unknown) => {
-                if (typeof value === 'string' && (value === 'product' || value === 'service')) setType(value)
+                if (
+                  typeof value === "string" &&
+                  (value === "product" || value === "service")
+                )
+                  setType(value)
               }}
               items={[
                 { value: "product", label: t("sales.product") },

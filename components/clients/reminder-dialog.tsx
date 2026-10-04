@@ -12,13 +12,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import type { Reminder } from "@/lib/actions/reminders"
 import type { ClientReminder } from "@/lib/drizzle/schema"
-import type {
-  ReminderSubmitData,
-  ReminderSubmitResult,
-} from "@/lib/types"
+import type { ReminderSubmitData } from "@/lib/types"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
-import { toast } from "sonner"
 
 /** The dialog is used from the client page (timeline rows) and the activity
  *  page (reminder rows), so it accepts either reminder shape. */
@@ -31,10 +27,7 @@ interface ReminderDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   reminder?: ReminderDialogTarget
-  onSubmit: (
-    data: ReminderSubmitData,
-    editingId?: string
-  ) => Promise<ReminderSubmitResult>
+  onSubmit: (data: ReminderSubmitData, editingId?: string) => void
 }
 
 export function ReminderDialog({
@@ -85,10 +78,7 @@ function ReminderForm({
   clientName?: string
   onOpenChange: (open: boolean) => void
   reminder?: ReminderDialogTarget
-  onSubmit: (
-    data: ReminderSubmitData,
-    editingId?: string
-  ) => Promise<ReminderSubmitResult>
+  onSubmit: (data: ReminderSubmitData, editingId?: string) => void
 }) {
   const t = useTranslations()
 
@@ -118,11 +108,10 @@ function ReminderForm({
     return Object.keys(fieldErrors).length === 0
   }
 
-  async function handleSubmit(e: React.SubmitEvent) {
+  function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault()
     if (!validate()) return
 
-    const isEdit = !!reminder?.id
     const data = {
       clientId,
       clientName,
@@ -131,18 +120,7 @@ function ReminderForm({
     }
 
     onOpenChange(false)
-
-    const result = await onSubmit(data, reminder?.id)
-
-    if (result.success) {
-      toast.success(
-        isEdit
-          ? t("reminders.reminderUpdated")
-          : t("reminders.reminderCreated")
-      )
-    } else {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    }
+    onSubmit(data, reminder?.id)
   }
 
   return (

@@ -11,7 +11,7 @@ import { useState } from "react"
 export function LogActivityButton({ clientId }: { clientId: string }) {
   const t = useTranslations()
   const canCreate = useHasPermission("client-activity:create")
-  const { submitActivity } = useTimelineActions()
+  const { createActivity, updateActivity } = useTimelineActions()
   const [open, setOpen] = useState(false)
 
   if (!canCreate) return null
@@ -25,7 +25,11 @@ export function LogActivityButton({ clientId }: { clientId: string }) {
         clientId={clientId}
         open={open}
         onOpenChange={setOpen}
-        onSubmit={submitActivity}
+        onSubmit={(data, editingId) =>
+          editingId
+            ? updateActivity(data, editingId)
+            : createActivity(data)
+        }
       />
     </>
   )

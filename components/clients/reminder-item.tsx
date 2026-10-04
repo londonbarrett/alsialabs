@@ -1,7 +1,7 @@
 "use client"
 
-import { ActionMenu } from "@/components/common/action-menu"
 import { ReminderDialog } from "@/components/clients/reminder-dialog"
+import { ActionMenu } from "@/components/common/action-menu"
 import { Button } from "@/components/ui/button"
 import type { ClientReminder } from "@/lib/drizzle/schema"
 import { useHasPermission } from "@/stores/permissions-store"
@@ -25,8 +25,12 @@ export function ReminderItem({
   clientId,
 }: ReminderItemProps) {
   const t = useTranslations("reminders")
-  const { submitReminder, completeReminder, deleteReminder } =
-    useTimelineActions()
+  const {
+    createReminder,
+    updateReminder,
+    completeReminder,
+    deleteReminder,
+  } = useTimelineActions()
   const canEdit = useHasPermission("client-activity:edit")
   const canDelete = useHasPermission("client-activity:delete")
   const canComplete = useHasPermission("client-activity:edit")
@@ -66,7 +70,11 @@ export function ReminderItem({
       <ReminderDialog
         clientId={clientId}
         open={dialog.open}
-        onSubmit={submitReminder}
+        onSubmit={(data, editingId) =>
+          editingId
+            ? updateReminder(data, editingId)
+            : createReminder(data)
+        }
         onOpenChange={(o) =>
           setDialog((s) => ({
             open: o,

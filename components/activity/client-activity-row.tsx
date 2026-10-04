@@ -56,8 +56,13 @@ export function ClientActivityRow({
   const [expanded, setExpanded] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
-  const { loadActivities, submitReminder, logActivity } =
-    useActivityActions()
+  const {
+    loadActivities,
+    createReminder,
+    updateReminder,
+    createActivity,
+    updateActivity,
+  } = useActivityActions()
   const activities = useActivityStore().getClientActivities(
     client.clientId
   )
@@ -68,10 +73,9 @@ export function ClientActivityRow({
     data: ReminderSubmitData,
     editingId?: string
   ) =>
-    submitReminder(data, {
-      editingId,
-      activityClientId: client.clientId,
-    })
+    editingId
+      ? updateReminder(data, editingId)
+      : createReminder(data, client.clientId)
 
   async function toggleRow() {
     const next = !expanded
@@ -250,7 +254,11 @@ export function ClientActivityRow({
       <LogActivityDialog
         clientId={client.clientId}
         open={dialog === "activity"}
-        onSubmit={logActivity}
+        onSubmit={(data, editingId) =>
+          editingId
+            ? updateActivity(data, editingId)
+            : createActivity(data)
+        }
         onOpenChange={(open) => {
           if (!open) setDialog(null)
         }}

@@ -3,10 +3,8 @@ import type {
   ProjectContext,
 } from "@/lib/actions/projects"
 import type { ProjectMember } from "@/lib/types"
-import {
-  createProjectContextStore,
-  projectContextReducer,
-} from "./project-context-store"
+import { createProjectContextStore } from "./project-context-store"
+import { projectContextReducer } from "./project-context-reducer"
 import { describe, expect, it } from "vitest"
 
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a00"
@@ -138,13 +136,26 @@ describe("projectContextReducer (via stores/project-context-store)", () => {
     expect(result).toBe(context)
   })
 
-  it("removeMember drops the user from both lists at once", () => {
+  it("removeOwner drops the user from the owners list only", () => {
     const context = makeContext({
       owners: [makeOwner(), makeOwnerMember("user-3")],
       collaborators: [makeMember()],
     })
     const result = projectContextReducer(context, {
-      type: "removeMember",
+      type: "removeOwner",
+      userId: "user-3",
+    })
+    expect(result.owners.map((o) => o.userId)).toEqual(["user-1"])
+    expect(result.collaborators.map((c) => c.userId)).toEqual(["user-2"])
+  })
+
+  it("removeCollaborator drops the user from the collaborators list only", () => {
+    const context = makeContext({
+      owners: [makeOwner(), makeOwnerMember("user-3")],
+      collaborators: [makeMember()],
+    })
+    const result = projectContextReducer(context, {
+      type: "removeCollaborator",
       userId: "user-2",
     })
     expect(result.collaborators).toHaveLength(0)
@@ -154,10 +165,10 @@ describe("projectContextReducer (via stores/project-context-store)", () => {
     ])
   })
 
-  it("removeMember is a no-op for a user who is not on the project", () => {
+  it("removal is a no-op for a user who is not on the project", () => {
     const context = makeContext()
     const result = projectContextReducer(context, {
-      type: "removeMember",
+      type: "removeOwner",
       userId: "user-404",
     })
     expect(result).toBe(context)
@@ -217,7 +228,7 @@ describe("createProjectContextStore (via stores/project-context-store)", () => {
     const store = createProjectContextStore(context)
     const id = store
       .getState()
-      .pend({ type: "removeMember", userId: "user-1" })
+      .pend({ type: "removeOwner", userId: "user-1" })
     expect(derive(store).owners).toHaveLength(0)
 
     store.getState().discard(id)
@@ -230,7 +241,7 @@ describe("createProjectContextStore (via stores/project-context-store)", () => {
       makeContext({ collaborators: [makeMember()] })
     )
     const id = store.getState().pend({
-      type: "removeMember",
+      type: "removeCollaborator",
       userId: "user-2",
     })
     store.getState().commit(id)

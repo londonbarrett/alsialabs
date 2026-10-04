@@ -58,12 +58,19 @@ export function computeInvoiceTotals(items: InvoiceLineTotalsInput[]) {
   }
 }
 
-export function buildOptimisticInvoice(
-  data: InvoiceFormData,
-  invoiceId: string | undefined,
-  editingInvoice: Invoice | undefined,
-  invoices: InvoiceWithClientName[]
-): InvoiceWithClientName {
+export interface BuildOptimisticInvoiceInput {
+  data: InvoiceFormData
+  invoiceId?: string
+  editingInvoice?: Invoice
+  clientName: string | null
+}
+
+export function buildOptimisticInvoice({
+  data,
+  invoiceId,
+  editingInvoice,
+  clientName,
+}: BuildOptimisticInvoiceInput): InvoiceWithClientName {
   const isEdit = !!invoiceId
   const tempId = `temp-${Date.now()}`
   const totals = computeInvoiceTotals(data.items)
@@ -77,12 +84,6 @@ export function buildOptimisticInvoice(
         : isEdit
           ? (editingInvoice?.status as InvoiceStatus) ?? "draft"
           : "draft"
-
-  const clientName =
-    (isEdit
-      ? invoices.find((inv) => inv.id === invoiceId)?.clientName
-      : invoices.find((inv) => inv.clientId === data.clientId)
-          ?.clientName) ?? null
 
   return {
     id: isEdit ? invoiceId! : tempId,
