@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# activity Specification
+
+## Purpose
+
+The activity page: inactive-client tracking, reminders, per-client recent activities, and the activity-page store.
+
+## Requirements
 
 ### Requirement: Access control
 
@@ -13,8 +19,6 @@ The activity page SHALL only be accessible to users with the `activity:view` per
 
 - **WHEN** a user without `activity:view` permission visits `/app/actividad`
 - **THEN** they SHALL receive a 403 Forbidden response
-
-## ADDED Requirements
 
 ### Requirement: User can view inactive clients
 
@@ -53,7 +57,7 @@ The system SHALL display a table of clients who have not made a purchase within 
 
 ### Requirement: User can view reminders
 
-The system SHALL display a card (`RemindersCard` `components/activity/reminders-card.tsx`) listing all reminders (active and completed), with completed reminders listed last and active reminders ordered with expired dates first, then by nearest date. The card SHALL take no props and SHALL read reminders through `getReminders` on `useActivityStore` `stores/activity-store.ts` — a store scoped to the whole activity page by `ActivityProvider` `components/activity/activity-provider.tsx`, which also holds one activity list per expanded inactive-client row. The provider is seeded from `getReminders` `lib/actions/reminders.ts`, which returns all reminders as `Reminder[]` sorted completed-last, and is mounted by `app/app/actividad/page.tsx`, so the store is built once per page visit and the card itself contains no store-creation logic. Completing a reminder is optimistic (`activityReducer` `completeReminder` patches `{ completed: true }`) and SHALL keep the reminder in the list.
+The system SHALL display a card (`RemindersCard` `components/activity/reminders-card.tsx`) listing all reminders (active and completed), with completed reminders listed last and active reminders ordered with expired dates first, then by nearest date. The card SHALL take no props and SHALL read reminders through `getReminders` on `useActivityStore` `stores/activity-store.ts` — a store scoped to the whole activity page by `ActivityProvider` `components/activity/activity-provider.tsx`, which also holds one activity list per expanded inactive-client row. The provider is seeded from `getReminders` `lib/actions/reminders.ts`, which returns all reminders as `Reminder[]` sorted completed-last, and is mounted by `app/app/actividad/page.tsx`, so the store is built once per page visit and the card itself contains no store-creation logic. Completing a reminder is optimistic (`activityReducer` `stores/activity-reducer.ts` `completeReminder` patches `{ completed: true }`) and SHALL keep the reminder in the list.
 
 #### Scenario: Reminders show client name, description, and date
 
@@ -104,7 +108,7 @@ The system SHALL display a card (`RemindersCard` `components/activity/reminders-
 
 `ReminderDialog` `components/clients/reminder-dialog.tsx` SHALL contain no store logic and SHALL import no store module. It SHALL accept a required `onSubmit(data, editingId?)` prop and SHALL rely on the caller to perform the mutation, the optimistic write, and the resulting toast. The dialog SHALL accept either reminder shape as `reminder` (`ClientReminder` from the client timeline, or `Reminder` from the activity list) because it is used from both routes.
 
-Each call site SHALL select the handler matching the store live on its own route: the client detail page renders the timeline, and the activity page renders the reminders list and the expanded activity lists. `AddReminderButton` `components/clients/add-reminder-button.tsx`, `ReminderItem` `components/clients/reminder-item.tsx`, `LogActivityButton` `components/clients/log-activity-button.tsx`, and `ActivityItem` SHALL use `useTimelineActions` `stores/use-timeline-actions.ts` (requires `TimelineProvider`), while `RemindersCard` `components/activity/reminders-card.tsx` and `ClientActivityRow` `components/activity/client-activity-row.tsx` SHALL use `useActivityActions` `stores/use-activity-actions.ts` (requires `ActivityProvider`); its rows SHALL come from `ActivityPageEntry` `components/activity/activity-page-entry.tsx`, which reads no store. Each hook SHALL own every write to its own store AND the toasts for it, so no component builds its own `run()` call or calls `toast` directly: `useActivityActions` returns `loadActivities`/`submitReminder`/`completeReminder`/`deleteReminder`/`logActivity`, and `useTimelineActions` returns `submitReminder`/`submitActivity`/`completeReminder`/`deleteReminder`/`deleteActivity`. Because the hooks own the toasts, `submitReminder`/`submitActivity` and their siblings SHALL stay uniform across routes: both routes SHALL pick the success message from whether an `editingId` was passed, so a create from the activity page and a create from the timeline read the same. `LogActivityDialog` `components/clients/log-activity-dialog.tsx` and `ReminderDialog` `components/clients/reminder-dialog.tsx` SHALL be store-free and take `onSubmit`, because each is rendered under two different providers and cannot know which store to write to. A reminder created from an expanded row SHALL be written to BOTH the card's list and that row's activity list in a single action, since one store holds both; a logged activity SHALL land only in that row's activity list, because the card lists reminders and not activities.
+Each call site SHALL select the handler matching the store live on its own route: the client detail page renders the timeline, and the activity page renders the reminders list and the expanded activity lists. `AddReminderButton` `components/clients/add-reminder-button.tsx`, `ReminderItem` `components/clients/reminder-item.tsx`, `LogActivityButton` `components/clients/log-activity-button.tsx`, and `ActivityItem` SHALL use `useTimelineActions` `stores/use-timeline-actions.ts` (requires `TimelineProvider`), while `RemindersCard` `components/activity/reminders-card.tsx` and `ClientActivityRow` `components/activity/client-activity-row.tsx` SHALL use `useActivityActions` `stores/use-activity-actions.ts` (requires `ActivityProvider`); its rows SHALL come from `ActivityPageEntry` `components/activity/activity-page-entry.tsx`, which reads no store. Each hook SHALL own every write to its own store AND the toasts for it, so no component builds its own `run()` call or calls `toast` directly: `useActivityActions` returns `loadActivities`/`createReminder`/`updateReminder`/`createActivity`/`updateActivity`/`completeReminder`/`deleteReminder`, and `useTimelineActions` returns `createInvoice`/`updateInvoice`/`createReminder`/`updateReminder`/`createActivity`/`updateActivity`/`completeReminder`/`deleteReminder`/`deleteActivity`/`updatePayment`/`deletePayment`. Because the hooks own the toasts, `createReminder`/`updateReminder`/`createActivity`/`updateActivity` and their siblings SHALL stay uniform across routes: a create from the activity page and a create from the timeline SHALL read the same success message, and likewise for updates. `LogActivityDialog` `components/clients/log-activity-dialog.tsx` and `ReminderDialog` `components/clients/reminder-dialog.tsx` SHALL be store-free and take `onSubmit`, because each is rendered under two different providers and cannot know which store to write to. A reminder created from an expanded row SHALL be written to BOTH the card's list and that row's activity list in a single action, since one store holds both; a logged activity SHALL land only in that row's activity list, because the card lists reminders and not activities.
 
 #### Scenario: Creating a reminder on the activity page appears immediately
 

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# safe-actions Specification
+
+## Purpose
+
+The unified authenticated session action, template revalidation, and derived actions.
+
+## Requirements
 
 ### Requirement: Unified session action
 

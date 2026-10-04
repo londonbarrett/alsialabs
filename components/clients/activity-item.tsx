@@ -37,7 +37,8 @@ export function ActivityItem({
   activity,
   clientId,
 }: ActivityItemProps) {
-  const { submitActivity, deleteActivity } = useTimelineActions()
+  const { createActivity, updateActivity, deleteActivity } =
+    useTimelineActions()
   const canEdit = useHasPermission("client-activity:edit")
   const canDelete = useHasPermission("client-activity:delete")
   const [dialog, setDialog] = useState<{
@@ -66,7 +67,11 @@ export function ActivityItem({
       <LogActivityDialog
         clientId={clientId}
         open={dialog.open}
-        onSubmit={submitActivity}
+        onSubmit={(data, editingId) =>
+          editingId
+            ? updateActivity(data, editingId)
+            : createActivity(data)
+        }
         onOpenChange={(o) =>
           setDialog((s) => ({
             open: o,

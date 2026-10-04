@@ -1,17 +1,19 @@
 "use client"
 
-import {
-  createTimelineStore,
-  sortTimelineEntries,
-  type TimelineEntry,
-  TimelineStoreContext,
-} from "@/stores/timeline-store"
 import type {
   ClientActivity,
   ClientReminder,
   Invoice,
   InvoicePayment,
 } from "@/lib/drizzle/schema"
+import {
+  sortTimelineEntries,
+  type TimelineEntry,
+} from "@/stores/timeline-reducer"
+import {
+  createTimelineStore,
+  TimelineStoreContext,
+} from "@/stores/timeline-store"
 import { useState } from "react"
 
 export function TimelineProvider({

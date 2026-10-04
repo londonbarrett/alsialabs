@@ -5,7 +5,6 @@ import { Field } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
 import type { ActivityFormData } from "@/lib/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
-import type { ActivitySubmitResult } from "@/lib/types"
 import { cn } from "cn"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -20,7 +19,7 @@ interface LogActivityDialogProps {
   onSubmit: (
     data: ActivityFormData,
     editingId?: string
-  ) => Promise<ActivitySubmitResult>
+  ) => Promise<void>
 }
 
 export function LogActivityDialog({
@@ -70,7 +69,7 @@ function LogActivityForm({
   onSubmit: (
     data: ActivityFormData,
     editingId?: string
-  ) => Promise<ActivitySubmitResult>
+  ) => Promise<void>
 }) {
   const t = useTranslations()
 

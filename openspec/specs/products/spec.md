@@ -1,4 +1,10 @@
-## ADDED Requirements
+# products Specification
+
+## Purpose
+
+Product CRUD with duplicate-SKU validation, provider seeding, and an accessible dialog.
+
+## Requirements
 
 ### Requirement: User can view products
 

@@ -41,7 +41,14 @@ export default async function ProjectsPage() {
       }
     >
       <ProjectsProvider projects={unwrapResponse(projectsResult)}>
-        <ProjectsView categories={unwrapResponse(categoriesResult)} />
+        <ProjectsView
+          categories={unwrapResponse(categoriesResult)}
+          owner={{
+            id: session.user.id,
+            name: session.user.name ?? session.user.email ?? "",
+            image: session.user.image ?? null,
+          }}
+        />
       </ProjectsProvider>
     </Suspense>
   )

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest"
-import { createInvoiceStore, invoiceReducer } from "./invoice-store"
+import { createInvoiceStore } from "./invoice-store"
+import { invoiceReducer } from "./invoice-reducer"
 import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
+import type { InvoicePayment } from "@/lib/drizzle/schema"
 
 function makeInvoice(
   overrides: Partial<InvoiceWithClientName> = {}
@@ -28,6 +30,23 @@ function makeInvoice(
     updatedAt: new Date("2024-01-15"),
     ...overrides,
   } as InvoiceWithClientName
+}
+
+function makePayment(
+  overrides: Partial<InvoicePayment> = {}
+): InvoicePayment {
+  return {
+    id: "pay-1",
+    invoiceId: "inv-1",
+    amount: "50.00",
+    paymentDate: "2024-01-20",
+    method: "cash",
+    reference: null,
+    notes: null,
+    userId: "user-1",
+    createdAt: new Date("2024-01-20"),
+    ...overrides,
+  } as InvoicePayment
 }
 
 describe("invoiceReducer (via stores/invoice-store)", () => {
@@ -185,8 +204,8 @@ describe("createInvoiceStore (optimistic pending-actions)", () => {
     const a = makeInvoice({ id: "a" })
     const b = makeInvoice({ id: "b" })
     const store = createInvoiceStore([a, b])
-    expect(store.getState().committed).toEqual([a, b])
-    expect(store.getState().optimistic).toEqual([a, b])
+    expect(store.getState().committed.invoices).toEqual([a, b])
+    expect(store.getState().optimistic.invoices).toEqual([a, b])
     expect(store.getState().pending).toHaveLength(0)
   })
 
@@ -195,16 +214,16 @@ describe("createInvoiceStore (optimistic pending-actions)", () => {
     const b = makeInvoice({ id: "b" })
     const store = createInvoiceStore([a])
     const id = store.getState().pend({ type: "add", invoice: b })
-    expect(store.getState().committed).toEqual([a])
+    expect(store.getState().committed.invoices).toEqual([a])
     expect(store.getState().pending).toHaveLength(1)
     expect(store.getState().pending[0].action).toEqual({
       type: "add",
       invoice: b,
     })
     // optimistic equals applying the pending action eagerly
-    expect(store.getState().optimistic[0].id).toBe("b")
+    expect(store.getState().optimistic.invoices[0].id).toBe("b")
     store.getState().commit(id)
-    expect(store.getState().committed[0].id).toBe("b")
+    expect(store.getState().committed.invoices[0].id).toBe("b")
     expect(store.getState().pending).toHaveLength(0)
   })
 
@@ -222,7 +241,7 @@ describe("createInvoiceStore (optimistic pending-actions)", () => {
       tempId: "temp-1",
       invoice: real,
     })
-    expect(store.getState().committed).toEqual([real, a])
+    expect(store.getState().committed.invoices).toEqual([real, a])
   })
 
   it("discard reverts pending without committing", () => {
@@ -231,7 +250,7 @@ describe("createInvoiceStore (optimistic pending-actions)", () => {
     const store = createInvoiceStore([a, b])
     const id = store.getState().pend({ type: "delete", invoiceId: "a" })
     store.getState().discard(id)
-    expect(store.getState().committed).toEqual([a, b])
+    expect(store.getState().committed.invoices).toEqual([a, b])
     expect(store.getState().pending).toHaveLength(0)
   })
 
@@ -249,8 +268,87 @@ describe("createInvoiceStore (optimistic pending-actions)", () => {
       status: "partially_paid",
     })
     store.getState().commit(id)
-    const updated = store.getState().committed[0]
+    const updated = store.getState().committed.invoices[0]
     expect(updated.paidAmount).toBe("50.00")
     expect(updated.status).toBe("partially_paid")
+  })
+
+  it("setPayments seeds the per-invoice payment list", () => {
+    const a = makeInvoice({ id: "a" })
+    const store = createInvoiceStore([a])
+    const payment = makePayment({ invoiceId: "a" })
+    const id = store.getState().pend({
+      type: "setPayments",
+      invoiceId: "a",
+      payments: [payment],
+    })
+    store.getState().commit(id)
+    expect(store.getState().committed.paymentsByInvoiceId.a).toEqual([
+      payment,
+    ])
+  })
+
+  it("updatePayment patches the payment list and the invoice", () => {
+    const a = makeInvoice({ id: "a", paidAmount: "10.00" })
+    const store = createInvoiceStore([a])
+    const seed = store.getState().pend({
+      type: "setPayments",
+      invoiceId: "a",
+      payments: [
+        makePayment({ id: "p1", invoiceId: "a", amount: "10.00" }),
+      ],
+    })
+    store.getState().commit(seed)
+
+    const id = store.getState().pend({
+      type: "updatePayment",
+      invoiceId: "a",
+      payment: makePayment({
+        id: "p1",
+        invoiceId: "a",
+        amount: "40.00",
+      }),
+      paidAmount: "40.00",
+      status: "partially_paid",
+    })
+    store.getState().commit(id)
+
+    expect(
+      store.getState().committed.paymentsByInvoiceId.a[0].amount
+    ).toBe("40.00")
+    expect(store.getState().committed.invoices[0].paidAmount).toBe(
+      "40.00"
+    )
+    expect(store.getState().committed.invoices[0].status).toBe(
+      "partially_paid"
+    )
+  })
+
+  it("deletePayment removes the payment and patches the invoice", () => {
+    const a = makeInvoice({ id: "a", paidAmount: "10.00" })
+    const store = createInvoiceStore([a])
+    const seed = store.getState().pend({
+      type: "setPayments",
+      invoiceId: "a",
+      payments: [
+        makePayment({ id: "p1", invoiceId: "a", amount: "10.00" }),
+      ],
+    })
+    store.getState().commit(seed)
+
+    const id = store.getState().pend({
+      type: "deletePayment",
+      invoiceId: "a",
+      paymentId: "p1",
+      paidAmount: "0.00",
+      status: "draft",
+    })
+    store.getState().commit(id)
+
+    expect(store.getState().committed.paymentsByInvoiceId.a).toEqual([])
+    expect(store.getState().committed.invoices[0].paidAmount).toBe(
+      "0.00"
+    )
+    expect(store.getState().committed.invoices[0].status).toBe("draft")
   })
 })

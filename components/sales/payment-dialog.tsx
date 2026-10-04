@@ -4,7 +4,6 @@ import { Dialog } from "@/components/common/dialog"
 import {
   PaymentForm,
   type PaymentFormValues,
-  type PaymentSubmitResult,
 } from "@/components/sales/payment-form"
 import { getOutstanding } from "@/components/sales/sales-invoice-table"
 import type { Invoice, InvoicePayment } from "@/lib/drizzle/schema"
@@ -15,7 +14,7 @@ interface PaymentDialogProps {
   payment?: InvoicePayment
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (values: PaymentFormValues) => Promise<PaymentSubmitResult>
+  onSubmit: (values: PaymentFormValues) => void
 }
 
 export function PaymentDialog({

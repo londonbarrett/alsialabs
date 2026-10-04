@@ -1,12 +1,8 @@
 "use client"
 
-import type {
-  ProjectContext,
-  ProjectDetail,
-  ProjectOwner,
-} from "@/lib/actions/projects"
+import type { ProjectContext } from "@/lib/actions/projects"
 import { createOptimisticStore } from "@/lib/optimistic-store"
-import type { ProjectMember } from "@/lib/types"
+import { projectContextReducer } from "@/stores/project-context-reducer"
 import { createContext, useContext } from "react"
 
 /**
@@ -19,54 +15,6 @@ import { createContext, useContext } from "react"
  * `router.refresh()` to re-read the context — the store is seeded once per
  * provider mount, so a refresh does not rewrite it.
  */
-type ProjectContextAction =
-  | { type: "patchProject"; patch: Partial<ProjectDetail> }
-  | { type: "addOwner"; member: ProjectOwner }
-  | { type: "addCollaborator"; member: ProjectMember }
-  | { type: "removeMember"; userId: string }
-
-export function projectContextReducer(
-  state: ProjectContext,
-  action: ProjectContextAction
-): ProjectContext {
-  switch (action.type) {
-    case "patchProject":
-      return {
-        ...state,
-        project: { ...state.project, ...action.patch },
-      }
-    case "addOwner":
-      if (state.owners.some((o) => o.userId === action.member.userId))
-        return state
-      return { ...state, owners: [...state.owners, action.member] }
-    case "addCollaborator":
-      if (
-        state.collaborators.some(
-          (c) => c.userId === action.member.userId
-        )
-      )
-        return state
-      return {
-        ...state,
-        collaborators: [...state.collaborators, action.member],
-      }
-    case "removeMember": {
-      const owners = state.owners.filter(
-        (o) => o.userId !== action.userId
-      )
-      const collaborators = state.collaborators.filter(
-        (c) => c.userId !== action.userId
-      )
-      if (
-        owners.length === state.owners.length &&
-        collaborators.length === state.collaborators.length
-      )
-        return state
-      return { ...state, owners, collaborators }
-    }
-  }
-}
-
 export function createProjectContextStore(context: ProjectContext) {
   return createOptimisticStore(context, projectContextReducer)
 }

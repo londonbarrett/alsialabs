@@ -17,15 +17,9 @@ export interface PaymentFormValues {
   notes: string
 }
 
-export interface PaymentSubmitResult {
-  success: boolean
-  error?: string
-  fieldErrors?: Record<string, string[] | undefined>
-}
-
 interface PaymentFormProps {
   initialValues: PaymentFormValues
-  onSubmit: (values: PaymentFormValues) => Promise<PaymentSubmitResult>
+  onSubmit: (values: PaymentFormValues) => void
   submitLabel: string
   onCancel: () => void
 }
@@ -45,7 +39,7 @@ export function PaymentForm({
   const [reference, setReference] = useState(initialValues.reference)
   const [notes, setNotes] = useState(initialValues.notes)
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault()
 
     if (!amount || parseFloat(amount) <= 0) {
@@ -53,7 +47,7 @@ export function PaymentForm({
       return
     }
 
-    await onSubmit({
+    onSubmit({
       amount,
       paymentDate,
       method,

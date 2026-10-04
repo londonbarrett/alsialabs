@@ -130,18 +130,16 @@ export type ReminderSubmitData = {
   clientName?: string
 }
 
-export type ReminderSubmitResult = {
-  success: boolean
-  error?: string
-}
-
 /**
- * The same contract for `LogActivityDialog`
- * `components/clients/log-activity-dialog.tsx`. Shared because the dialog is
- * used from the client detail page and the activity page, which own their
- * mutations separately.
+ * The contract a mutation handler hands back to a form/dialog: success plus an
+ * optional translated error and server field errors. A handler returns this
+ * only when its caller consumes the outcome; otherwise it returns `void`. The
+ * invoice and reminder hooks return it (`InvoiceForm` renders `fieldErrors`,
+ * `ReminderDialog` toasts `success`/`error`); everything else is
+ * fire-and-forget. Produced by `useSettle` `hooks/use-settle.ts`.
  */
-export type ActivitySubmitResult = {
+export type SettleResult = {
   success: boolean
   error?: string
+  fieldErrors?: Record<string, string[] | undefined>
 }

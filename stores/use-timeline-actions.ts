@@ -1,31 +1,38 @@
 "use client"
 
+import type { PaymentFormValues } from "@/components/sales/payment-form"
 import type { ActivityFormData } from "@/lib/actions/activities"
 import {
   deleteActivity as deleteActivityAction,
   upsertActivity,
 } from "@/lib/actions/activities"
 import {
+  createInvoice as createInvoiceAction,
+  updateInvoice as updateInvoiceAction,
+} from "@/lib/actions/invoices"
+import {
+  deletePayment as deletePaymentAction,
+  updatePayment as updatePaymentAction,
+} from "@/lib/actions/payments"
+import {
   completeReminder as completeReminderAction,
   deleteReminder as deleteReminderAction,
   upsertReminder,
 } from "@/lib/actions/reminders"
-import type {
-  ActivitySubmitResult,
-  ReminderSubmitData,
-  ReminderSubmitResult,
-} from "@/lib/types"
+import type { Invoice } from "@/lib/drizzle/schema"
+import type { InvoiceFormData } from "@/lib/schemas/invoice"
+import type { ReminderSubmitData, SettleResult } from "@/lib/types"
+import { computeInvoiceTotals } from "@/lib/util/invoices"
 import {
   buildTempActivity,
+  buildTempInvoice,
   buildTempReminder,
 } from "@/lib/util/temp-entries"
-import {
-  useTimelineStore,
-  type TimelineEntryAction,
-} from "@/stores/timeline-store"
+import { useTimelineStore } from "@/stores/timeline-store"
+import { type TimelineEntryAction } from "@/stores/timeline-reducer"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
+import { useSettle } from "@/hooks/use-settle"
 import { useTranslations } from "next-intl"
-import { toast } from "sonner"
 
 /**
  * Mutations for the client detail page, where the timeline is the list on
@@ -36,28 +43,59 @@ import { toast } from "sonner"
  */
 export function useTimelineActions() {
   const t = useTranslations()
+  const settle = useSettle()
   const { run } = useOptimisticAction(useTimelineStore())
 
-  async function submitReminder(
-    data: ReminderSubmitData,
-    editingId?: string
-  ): Promise<ReminderSubmitResult> {
-    if (editingId) {
-      const result = await run(
-        {
+  async function createInvoice(
+    data: InvoiceFormData
+  ): Promise<SettleResult> {
+    const entry = buildTempInvoice(data)
+    const result = await run(
+      { type: "add", entry },
+      () => createInvoiceAction(data),
+      {
+        commitAction: (res): TimelineEntryAction => ({
           type: "patch",
-          kind: "reminder",
-          id: editingId,
-          patch: {
-            description: data.description,
-            remindAt: data.remindAt,
-          },
-        },
-        () => upsertReminder(data, editingId)
-      )
-      return { success: result.success, error: result.error }
-    }
+          kind: "invoice",
+          id: entry.id,
+          patch: ((res as { data?: unknown }).data ??
+            {}) as Partial<Invoice>,
+        }),
+      }
+    )
+    return settle(result, t("sales.invoiceCreated"))
+  }
 
+  async function updateInvoice(
+    data: InvoiceFormData,
+    invoiceId: string
+  ): Promise<SettleResult> {
+    const totals = computeInvoiceTotals(data.items)
+    const result = await run(
+      {
+        type: "patch",
+        kind: "invoice",
+        id: invoiceId,
+        patch: {
+          type: data.type,
+          clientId: data.clientId,
+          issueDate: data.issueDate,
+          dueDate: data.dueDate || null,
+          notes: data.notes || null,
+          subtotal: totals.subtotal,
+          discountTotal: totals.discountTotal,
+          taxTotal: totals.taxTotal,
+          grandTotal: totals.grandTotal,
+        },
+      },
+      () => updateInvoiceAction({ ...data, invoiceId })
+    )
+    return settle(result, t("sales.invoiceUpdated"))
+  }
+
+  async function createReminder(
+    data: ReminderSubmitData
+  ): Promise<void> {
     const entry = buildTempReminder(data)
     const result = await run(
       { type: "add", entry },
@@ -71,38 +109,31 @@ export function useTimelineActions() {
         }),
       }
     )
-    return { success: result.success, error: result.error }
+    settle(result, t("reminders.reminderCreated"))
   }
 
-  async function submitActivity(
-    data: ActivityFormData,
-    editingId?: string
-  ): Promise<ActivitySubmitResult> {
-    if (editingId) {
-      const result = await run(
-        {
-          type: "patch",
-          kind: "activity",
-          id: editingId,
-          patch: {
-            subject: data.subject,
-            description: data.description || null,
-            type: data.type,
-            activityDate: data.activityDate,
-          },
+  async function updateReminder(
+    data: ReminderSubmitData,
+    editingId: string
+  ): Promise<void> {
+    const result = await run(
+      {
+        type: "patch",
+        kind: "reminder",
+        id: editingId,
+        patch: {
+          description: data.description,
+          remindAt: data.remindAt,
         },
-        () => upsertActivity(data, editingId)
-      )
-      if (result.success) {
-        toast.success(t("activities.activityUpdated"))
-      } else {
-        toast.error(result.error || t("common.somethingWentWrong"))
-      }
-      return result.success
-        ? { success: true }
-        : { success: false, error: result.error }
-    }
+      },
+      () => upsertReminder(data, editingId)
+    )
+    settle(result, t("reminders.reminderUpdated"))
+  }
 
+  async function createActivity(
+    data: ActivityFormData
+  ): Promise<void> {
     const entry = buildTempActivity(data)
     const result = await run(
       { type: "add", entry },
@@ -117,14 +148,28 @@ export function useTimelineActions() {
         }),
       }
     )
-    if (result.success) {
-      toast.success(t("activities.activityLogged"))
-    } else {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    }
-    return result.success
-      ? { success: true }
-      : { success: false, error: result.error }
+    settle(result, t("activities.activityLogged"))
+  }
+
+  async function updateActivity(
+    data: ActivityFormData,
+    editingId: string
+  ): Promise<void> {
+    const result = await run(
+      {
+        type: "patch",
+        kind: "activity",
+        id: editingId,
+        patch: {
+          subject: data.subject,
+          description: data.description || null,
+          type: data.type,
+          activityDate: data.activityDate,
+        },
+      },
+      () => upsertActivity(data, editingId)
+    )
+    settle(result, t("activities.activityUpdated"))
   }
 
   async function completeReminder(reminderId: string) {
@@ -137,40 +182,71 @@ export function useTimelineActions() {
       },
       () => completeReminderAction(reminderId)
     )
-    if (result.success) {
-      toast.success(t("reminders.reminderCompleted"))
-    } else {
-      toast.error(result.error || t("reminders.failedToComplete"))
-    }
+    settle(
+      result,
+      t("reminders.reminderCompleted"),
+      t("reminders.failedToComplete")
+    )
   }
 
   async function deleteReminder(reminderId: string) {
     const result = await run({ type: "delete", id: reminderId }, () =>
       deleteReminderAction(reminderId)
     )
-    if (result.success) {
-      toast.success(t("reminders.reminderDeleted"))
-    } else {
-      toast.error(result.error || t("reminders.failedToDelete"))
-    }
+    settle(
+      result,
+      t("reminders.reminderDeleted"),
+      t("reminders.failedToDelete")
+    )
   }
 
   async function deleteActivity(activityId: string) {
     const result = await run({ type: "delete", id: activityId }, () =>
       deleteActivityAction(activityId)
     )
-    if (result.success) {
-      toast.success(t("activities.activityDeleted"))
-    } else {
-      toast.error(result.error || t("activities.failedToDelete"))
+    settle(
+      result,
+      t("activities.activityDeleted"),
+      t("activities.failedToDelete")
+    )
+  }
+
+  async function updatePayment(
+    paymentId: string,
+    values: PaymentFormValues
+  ) {
+    const patch = {
+      amount: values.amount,
+      paymentDate: values.paymentDate,
+      method: values.method || null,
+      reference: values.reference || null,
+      notes: values.notes || null,
     }
+    const result = await run(
+      { type: "patch", kind: "payment", id: paymentId, patch },
+      () => updatePaymentAction({ paymentId, ...values })
+    )
+    settle(result, t("sales.paymentUpdated"))
+  }
+
+  async function deletePayment(paymentId: string) {
+    const result = await run({ type: "delete", id: paymentId }, () =>
+      deletePaymentAction({ paymentId })
+    )
+    settle(result, t("sales.paymentDeleted"))
   }
 
   return {
-    submitReminder,
-    submitActivity,
+    createInvoice,
+    updateInvoice,
+    createReminder,
+    updateReminder,
+    createActivity,
+    updateActivity,
     completeReminder,
     deleteReminder,
     deleteActivity,
+    updatePayment,
+    deletePayment,
   }
 }

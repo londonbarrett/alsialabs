@@ -10,12 +10,11 @@ import {
 import type { ProjectOwner } from "@/lib/actions/projects"
 import type { UserOption } from "@/lib/actions/users"
 import type { ProjectMember } from "@/lib/types"
-import { useActionError } from "@/lib/util/action-errors"
+import { useSettle } from "@/hooks/use-settle"
 import { useProjectContextStore } from "@/stores/project-context-store"
 import { useProjectContext } from "@/stores/use-project-context"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
-import { toast } from "sonner"
 
 function toMember(user: UserOption): ProjectMember {
   return {
@@ -45,9 +44,9 @@ function toOwner(
  * details needed to render their pill immediately; if the server rejects the
  * change, the pending action is discarded and the pill reverts.
  */
-export function useProjectMemberActions() {
+export function useProjectPeopleActions() {
   const t = useTranslations("projects")
-  const translateError = useActionError()
+  const settle = useSettle()
   const { project, projectId } = useProjectContext()
   const { run } = useOptimisticAction(useProjectContextStore())
 
@@ -61,10 +60,6 @@ export function useProjectMemberActions() {
     removeProjectCollaborator
   )
 
-  function reportError(result: { serverError: { code: string } }) {
-    toast.error(translateError(result.serverError.code))
-  }
-
   async function addOwner(user: UserOption) {
     const result = await run(
       {
@@ -73,18 +68,14 @@ export function useProjectMemberActions() {
       },
       () => executeAddOwner({ projectId, userId: user.id })
     )
-    if (result?.serverError) reportError(result)
-    else if (result?.data) toast.success(t("ownerAdded"))
-    return result
+    settle(result, t("ownerAdded"))
   }
 
   async function removeOwner(userId: string) {
-    const result = await run({ type: "removeMember", userId }, () =>
+    const result = await run({ type: "removeOwner", userId }, () =>
       executeRemoveOwner({ projectId, userId })
     )
-    if (result?.serverError) reportError(result)
-    else if (result?.data) toast.success(t("ownerRemoved"))
-    return result
+    settle(result, t("ownerRemoved"))
   }
 
   async function addCollaborator(user: UserOption) {
@@ -92,18 +83,14 @@ export function useProjectMemberActions() {
       { type: "addCollaborator", member: toMember(user) },
       () => executeAddCollaborator({ projectId, userId: user.id })
     )
-    if (result?.serverError) reportError(result)
-    else if (result?.data) toast.success(t("collaboratorAdded"))
-    return result
+    settle(result, t("collaboratorAdded"))
   }
 
   async function removeCollaborator(userId: string) {
-    const result = await run({ type: "removeMember", userId }, () =>
+    const result = await run({ type: "removeCollaborator", userId }, () =>
       executeRemoveCollaborator({ projectId, userId })
     )
-    if (result?.serverError) reportError(result)
-    else if (result?.data) toast.success(t("collaboratorRemoved"))
-    return result
+    settle(result, t("collaboratorRemoved"))
   }
 
   return { addOwner, removeOwner, addCollaborator, removeCollaborator }

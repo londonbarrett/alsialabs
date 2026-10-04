@@ -1,8 +1,6 @@
 import type { ClientActivity } from "@/lib/drizzle/schema"
-import {
-  createTimelineStore,
-  type TimelineEntry,
-} from "./timeline-store"
+import { type TimelineEntry } from "./timeline-reducer"
+import { createTimelineStore } from "./timeline-store"
 import { describe, expect, it } from "vitest"
 
 function makeActivity(

@@ -5,15 +5,15 @@ import {
   deleteProject as deleteProjectAction,
   updateProject as updateProjectAction,
 } from "@/lib/actions/projects"
+import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
+import { useSettle } from "@/hooks/use-settle"
 import type { UpdateProjectInput } from "@/lib/schemas/project"
-import { useActionError } from "@/lib/util/action-errors"
 import { useProjectContextStore } from "@/stores/project-context-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useProjectContext } from "@/stores/use-project-context"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 
 type ProjectUpdateValues = Omit<UpdateProjectInput, "projectId">
 
@@ -46,11 +46,11 @@ function toOptimisticPatch(
  */
 export function useProjectActions() {
   const t = useTranslations()
-  const translateError = useActionError()
+  const settle = useSettle()
   const router = useRouter()
-  const { run, isPending } = useOptimisticAction(
-    useProjectContextStore()
-  )
+  const { run } = useOptimisticAction(useProjectContextStore())
+  const { start: startLoading, stop: stopLoading } =
+    useLoadingIndicator()
   const { executeAsync: executeUpdate } = useAction(updateProjectAction)
   const { executeAsync: executeDelete } = useAction(deleteProjectAction)
   const { projectId } = useProjectContext()
@@ -67,26 +67,22 @@ export function useProjectActions() {
         }),
       }
     )
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-    } else if (result?.data) {
-      toast.success(t("projects.projectUpdated"))
-    }
-    return result
+    settle(result, t("projects.projectUpdated"))
   }
 
   // No optimistic action: the provider owning this store unmounts as soon as
-  // we navigate away, so there is nothing left to update.
+  // we navigate away, so there is nothing left to update. The loading bar is
+  // still driven here, since the mutation is not running through `run`.
   async function deleteProject() {
-    const result = await executeDelete({ projectId })
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-      return result
+    startLoading()
+    try {
+      const result = await executeDelete({ projectId })
+      const settled = settle(result, t("projects.projectDeleted"))
+      if (settled.success) router.push("/app/proyectos")
+    } finally {
+      stopLoading()
     }
-    toast.success(t("projects.projectDeleted"))
-    router.push("/app/proyectos")
-    return result
   }
 
-  return { isPending, updateProject, deleteProject }
+  return { updateProject, deleteProject }
 }

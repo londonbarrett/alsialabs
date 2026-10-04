@@ -79,9 +79,7 @@ export function ProjectDetails() {
   const handleDelete = async () => {
     setDeleteDialogOpen(false)
     setDeleting(true)
-    startLoading()
     await deleteProjectAction()
-    stopLoading()
     setDeleting(false)
   }
 

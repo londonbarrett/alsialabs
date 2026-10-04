@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# dashboard-navigation Specification
+
+## Purpose
+
+The app sidebar: role- and permission-based sections, menu items and icons, responsive/collapsible layout, and the store switcher.
+
+## Requirements
 
 ### Requirement: Role-based sidebar sections
 
@@ -25,8 +31,6 @@ The sidebar SHALL organize nav items into three sections based on role and permi
 - **WHEN** the sidebar renders
 - **THEN** the "Activity" link is visible in the Admin section with a BarChart3 icon
 - **AND** clicking it navigates to `/app/actividad`
-
-## ADDED Requirements
 
 ### Requirement: Dashboard sidebar
 
@@ -83,11 +87,21 @@ The system shall allow the user to collapse the sidebar to icons-only.
 
 ### Requirement: Menu data source
 
-Menu items shall be loaded from a config JSON object.
+The sidebar SHALL load menu items from a config JSON object.
+
+#### Scenario: Menu items come from config
+
+- **WHEN** the sidebar renders
+- **THEN** each nav item is derived from the menu config object
 
 ### Requirement: Icons on menu items
 
-All menu items shall display an icon.
+Every menu item SHALL display an icon.
+
+#### Scenario: Each nav item shows its icon
+
+- **WHEN** the sidebar renders a nav item
+- **THEN** the item shows the icon defined in the menu config
 
 ### Requirement: Responsive sidebar
 
@@ -102,7 +116,14 @@ The sidebar shall adapt its layout on mobile viewports.
 
 ### Requirement: Keyboard navigation
 
-The sidebar shall be fully keyboard navigable.
+The sidebar SHALL be fully keyboard navigable.
+
+#### Scenario: Tab through nav items
+
+- **GIVEN** the sidebar is focused
+- **WHEN** the user presses Tab
+- **THEN** focus moves through the nav items and controls in order
+- **AND** the focused item can be activated with Enter or Space
 
 ### Requirement: Sidebar filtered by permissions
 

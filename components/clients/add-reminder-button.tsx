@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl"
 import { useState } from "react"
 
 export function AddReminderButton({ clientId }: { clientId: string }) {
-  const { submitReminder } = useTimelineActions()
+  const { createReminder, updateReminder } = useTimelineActions()
   const t = useTranslations()
   const canCreate = useHasPermission("client-activity:create")
   const [open, setOpen] = useState(false)
@@ -25,7 +25,11 @@ export function AddReminderButton({ clientId }: { clientId: string }) {
         clientId={clientId}
         open={open}
         onOpenChange={setOpen}
-        onSubmit={submitReminder}
+        onSubmit={(data, editingId) =>
+          editingId
+            ? updateReminder(data, editingId)
+            : createReminder(data)
+        }
       />
     </>
   )

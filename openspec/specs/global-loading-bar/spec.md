@@ -1,3 +1,11 @@
+# global-loading-bar Specification
+
+## Purpose
+
+The global top loading bar, its indicator hook, route-level loading, and accessibility.
+
+## Requirements
+
 ### Requirement: Global loading bar visibility
 
 The system SHALL display a fixed-position gradient bar at the top of the viewport whenever the app is in a loading state. The bar SHALL be hidden when no loading state is active.

@@ -1,10 +1,11 @@
 import type { Reminder } from "@/lib/actions/reminders"
 import type { ClientTimelineEntry } from "@/lib/actions/client-timeline"
-import type {
-  ClientActivityList,
-  ActivityState,
-} from "@/stores/activity-store"
-import { activityReducer, createActivityStore } from "./activity-store"
+import {
+  activityReducer,
+  type ClientActivityList,
+  type ActivityState,
+} from "./activity-reducer"
+import { createActivityStore } from "./activity-store"
 import { describe, expect, it } from "vitest"
 
 function makeReminder(overrides: Partial<Reminder> = {}): Reminder {
@@ -93,7 +94,7 @@ describe("activityReducer reminders", () => {
     expect(next.activities["client-1"].entries).toHaveLength(1)
   })
 
-  it("replaceReminder swaps the temp row in both lists", () => {
+  it("replaceTempReminder swaps the temp row in both lists", () => {
     const temp = makeReminder({ id: "temp-1" })
     const saved = makeReminder({ id: "real-1" })
     const state: ActivityState = {
@@ -107,7 +108,7 @@ describe("activityReducer reminders", () => {
       },
     }
     const next = activityReducer(state, {
-      type: "replaceReminder",
+      type: "replaceTempReminder",
       tempId: "temp-1",
       reminder: saved,
       activityClientId: "client-1",

@@ -1,4 +1,10 @@
-# Calendar
+# calendar Specification
+
+## Purpose
+
+A self-contained, locale-aware calendar component with month, week, and day views, event rendering, and a demo page.
+
+## Requirements
 
 ### Requirement: Calendar with month, week, and day views
 

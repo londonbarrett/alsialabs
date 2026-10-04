@@ -1,4 +1,10 @@
-## ADDED Requirements
+# theme-preference Specification
+
+## Purpose
+
+The user theme preference, defaulting to system and persisting the choice.
+
+## Requirements
 
 ### Requirement: User can view and toggle theme preference
 

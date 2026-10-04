@@ -1,17 +1,23 @@
-## ADDED Requirements
+# payment-tracking Specification
+
+## Purpose
+
+Recording, viewing, editing, and deleting invoice payments, and the automatic invoice status they drive.
+
+## Requirements
 
 ### Requirement: User can record a payment against an invoice
 
-The system SHALL allow authenticated users with `sales:create` permission to record a payment against any invoice. The payment SHALL update the invoice's paid amount optimistically via the `recordPayment` case of the invoice store `stores/invoice-store.ts` (dispatched by `handleRecordPaymentSubmit` `components/sales/invoices-card.tsx:69`), and the invoice status SHALL automatically update based on the outstanding balance.
+The system SHALL allow authenticated users with `sales:create` permission to record a payment against any invoice. The payment SHALL update the invoice's paid amount optimistically via the `recordPayment` action of `salesReducer` `stores/sales-reducer.ts`, dispatched by `handleRecordPaymentSubmit` `components/sales/invoices-card.tsx:53` through `usePaymentActions().recordPayment` `stores/use-payment-actions.ts`, and the invoice status SHALL automatically update based on the outstanding balance.
 
 #### Scenario: Record full payment
 
 - **WHEN** a user with `sales:create` permission opens the record payment dialog for an invoice
 - **THEN** they see fields: amount (pre-filled with remaining balance), payment date, method (optional), reference (optional), notes (optional)
 - **WHEN** the user submits a valid payment with amount equal to the remaining balance
-- **THEN** the dialog closes immediately before server confirmation (`setPaymentDialog((s) => ({ ...s, open: false }))` `components/sales/invoices-card.tsx:87` inside `handleRecordPaymentSubmit`, which optimistically dispatches `{type:"recordPayment", paidAmount, status}`)
-- **AND** the invoices table updates optimistically to `paid`/`paidAmount` via the invoice store, and `PaymentHistory` `components/sales/payment-history.tsx:31` updates via `paymentReducer`
-- **AND** on server success via `recordPayment` `lib/actions/payments.ts:10` (`sessionAction` `sales:create`, `paymentSchema` `lib/schemas/payment.ts:3`) the base state is committed via `setPayments`, otherwise rollback via `update`/`reset`
+- **THEN** the dialog closes immediately (`setPaymentDialog((s) => ({ ...s, open: false }))` `components/sales/invoices-card.tsx:57` inside `handleRecordPaymentSubmit`), which calls `recordPayment` from `usePaymentActions` `stores/use-payment-actions.ts` fire-and-forget
+- **AND** the invoices table updates optimistically to `paid`/`paidAmount` through `salesReducer` `stores/sales-reducer.ts`, and the pending action is committed on success or discarded on failure
+- **AND** the server call is `recordPayment` `lib/actions/payments.ts:10` (`sessionAction` `sales:create`, `paymentSchema` `lib/schemas/payment.ts:3`), whose `serverError` is toasted and whose `validationErrors` revert the optimistic update
 
 #### Scenario: Record partial payment
 
@@ -45,7 +51,7 @@ The system SHALL allow authenticated users with `sales:create` permission to rec
 
 ### Requirement: User can view payment history for an invoice
 
-The system SHALL display a list of payments recorded against an invoice, accessible from the invoice row in the sales table, with optimistic updates via `paymentReducer`.
+The system SHALL display a list of payments recorded against an invoice, accessible from the invoice row in the sales table. `PaymentHistory` `components/sales/payment-history.tsx` reads them from the invoice store (`useInvoiceStore().getPayments` `stores/invoice-store.ts`) and loads them with `usePaymentActions().loadPayments` `stores/use-payment-actions.ts`, which stores them via the `setPayments` case of `salesReducer` `stores/sales-reducer.ts`.
 
 #### Scenario: View payments from invoice row
 
@@ -70,14 +76,14 @@ The system SHALL display a list of payments recorded against an invoice, accessi
 
 ### Requirement: User can edit a payment
 
-The system SHALL allow authenticated users with `sales:edit` permission to edit a payment's amount, payment date, method, reference, and notes from the payment history dialog, optimistically via `paymentReducer`.
+The system SHALL allow authenticated users with `sales:edit` permission to edit a payment's amount, payment date, method, reference, and notes from the payment history dialog. `PaymentHistory` `components/sales/payment-history.tsx` and `PaymentItem` `components/clients/payment-item.tsx` delegate to `usePaymentActions().updatePayment` `stores/use-payment-actions.ts` (sales page) or `useTimelineActions().updatePayment` `stores/use-timeline-actions.ts` (timeline), which patch the store optimistically.
 
 #### Scenario: Successful payment edit
 
 - **WHEN** a user with `sales:edit` permission clicks "Edit {amount}" on a payment row
 - **THEN** a pre-filled dialog appears
 - **WHEN** the user submits
-- **THEN** `PaymentHistory` `components/sales/payment-history.tsx:31` dispatches `update` optimistically inside `startTransition` `components/sales/payment-history.tsx:100` before `updatePayment` `lib/actions/payments.ts:123` (`sales:edit`, `paymentSchema` `lib/schemas/payment.ts:3`), closes dialog immediately, and on success commits to base `setPayments` `components/sales/payment-history.tsx:113`, otherwise reverts to `original`
+- **THEN** `PaymentHistory` `components/sales/payment-history.tsx` closes the dialog and calls `updatePayment` from `usePaymentActions` `stores/use-payment-actions.ts` fire-and-forget; the `updatePayment` action patches the payment and the parent invoice's `paidAmount`/`status` optimistically through `salesReducer` `stores/sales-reducer.ts`, and the server call is `updatePayment` `lib/actions/payments.ts:123` (`sales:edit`, `paymentSchema` `lib/schemas/payment.ts:3`)
 
 #### Scenario: Edited payment would exceed the invoice total
 
@@ -87,7 +93,7 @@ The system SHALL allow authenticated users with `sales:edit` permission to edit 
 #### Scenario: Editing a payment re-syncs invoice status
 
 - **WHEN** the last payment of a fully paid invoice is reduced below the grand total
-- **THEN** `syncInvoicePaymentState` `lib/actions/payments.ts:76` recomputes `paidAmount`/`status` via `sum(amount)` and the `InvoicesCard` invoice row updates optimistically via `InvoicesCard` `recordPayment` handling or via `PaymentHistory` parent callback
+- **THEN** `syncInvoicePaymentState` `lib/actions/payments.ts:76` recomputes `paidAmount`/`status` via `sum(amount)`, and `InvoicesCard` `components/sales/invoices-card.tsx` reflects it without a `router.refresh`, because `salesReducer` patches the payment list and the parent invoice in the same pass
 
 #### Scenario: Unauthorized payment edit rejected
 
@@ -104,8 +110,8 @@ The system SHALL allow authenticated users with `sales:delete` permission to del
 - **WHEN** a user with `sales:delete` permission clicks "Delete {amount}" on a payment row
 - **THEN** a confirmation dialog appears
 - **WHEN** the user confirms
-- **THEN** `PaymentHistory` dispatches `delete` optimistically `components/sales/payment-history.tsx:57` before `deletePayment` `lib/actions/payments.ts:199` (`sales:delete`), and on success commits base `setPayments(filter)` `components/sales/payment-history.tsx:66` so the optimistic delete persists (fix for revert bug where base `payments` was stale)
-- **AND** `syncInvoicePaymentState` recomputes invoice `paidAmount`/`status`, and `InvoicesCard`'s invoice table updates optimistically via `onPaymentDeleted` callback if provided
+- **THEN** `PaymentHistory` / `PaymentItem` call `deletePayment` from `usePaymentActions` `stores/use-payment-actions.ts` (sales page) or `useTimelineActions` `stores/use-timeline-actions.ts` (timeline) fire-and-forget; the `deletePayment` action removes the row and patches the parent invoice optimistically through `salesReducer`, and the server call is `deletePayment` `lib/actions/payments.ts:199` (`sales:delete`)
+- **AND** `syncInvoicePaymentState` recomputes invoice `paidAmount`/`status`, and `InvoicesCard`'s invoice table reflects the change without a `router.refresh`
 
 #### Scenario: Deleting a payment re-syncs invoice status
 

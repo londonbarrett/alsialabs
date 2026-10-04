@@ -35,7 +35,7 @@ export function PaymentHistoryDialog({
       open={open}
       onOpenChange={onOpenChange}
     >
-      <PaymentHistory invoiceId={invoice.id} canManage={canManage} />
+      <PaymentHistory invoice={invoice} canManage={canManage} />
     </Dialog>
   )
 }
