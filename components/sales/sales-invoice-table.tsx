@@ -53,9 +53,13 @@ export function SalesInvoiceTable({
   const canEdit = useHasPermission("sales:edit")
 
   return (
-    <div role="region" aria-label={t("sales.title")}>
-      <Table className="overflow-x-clip">
-        <TableHeader className="sticky top-12 z-10 [&_th]:bg-card [&_th]:shadow-[0_1px_0_var(--border)]">
+    <div
+      className="**:data-[slot=table-container]:max-h-[calc(100vh-16rem)]"
+      role="region"
+      aria-label={t("sales.title")}
+    >
+      <Table>
+        <TableHeader className="sticky top-0 z-10 [&_th]:bg-card">
           <TableRow>
             <TableHead scope="col">{t("sales.invoiceHash")}</TableHead>
             <TableHead scope="col">{t("sales.client")}</TableHead>
