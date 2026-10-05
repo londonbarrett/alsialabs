@@ -7,14 +7,21 @@ import {
   type ActivityState,
 } from "./activity-reducer"
 import type { OptimisticStore } from "@/lib/optimistic-store"
+import { useStore } from "zustand"
 
 type StoreType = OptimisticStore<ActivityState, ActivityAction>
 
 export function useActivityState() {
   const store = useActivityStore()
-  const reminders = store((s: StoreType) => s.optimistic.reminders)
-  const activities = store((s: StoreType) => s.optimistic.activities)
-  const pending = store((s: StoreType) => s.pending)
+  const reminders = useStore(
+    store,
+    (s: StoreType) => s.optimistic.reminders
+  )
+  const activities = useStore(
+    store,
+    (s: StoreType) => s.optimistic.activities
+  )
+  const pending = useStore(store, (s: StoreType) => s.pending)
 
   /** Stable empty list for rows that have never been expanded. */
   function getClientActivities(clientId: string) {

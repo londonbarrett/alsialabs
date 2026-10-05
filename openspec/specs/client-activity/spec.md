@@ -67,9 +67,15 @@ The system SHALL allow users with `client-activity:create` permission to log a n
 - **AND** a success toast is shown
 - **AND** the dialog closes
 
-#### Scenario: Past date is rejected
+#### Scenario: Past date is accepted for an activity
 
-- **WHEN** an admin enters an activity date before today
+- **WHEN** an admin enters an activity date before today, to log a call, email, or meeting that already happened
+- **THEN** the form SHALL validate successfully
+- **AND** the activity SHALL be persisted with that date
+
+#### Scenario: Future date is rejected for an activity
+
+- **WHEN** an admin enters an activity date after today
 - **THEN** the form shows a validation error
 - **AND** submission is blocked
 
@@ -228,15 +234,21 @@ The system SHALL validate and authorize all server actions for activities and re
 
 ### Requirement: Date validation
 
-The system SHALL validate that activity_date and remind_at are today or in the future, on both client and server.
+Activity dates and reminder dates SHALL be validated in opposite directions, because they mean different things: an activity records something that already happened, while a reminder asks for a future follow-up. `activity_date` SHALL be today or earlier and SHALL reject future dates, on both client and server; `remind_at` SHALL be today or later and SHALL reject past dates, on both client and server. Neither field SHALL be validated as "today or in the future", which would wrongly forbid logging a past interaction.
 
-#### Scenario: Future date is accepted
+#### Scenario: Past activity date is accepted on server
 
-- **WHEN** an admin enters today's date or a future date
-- **THEN** the form validates successfully
+- **WHEN** the server receives an activity with a date before today
+- **THEN** the activity SHALL be saved with that date
 
-#### Scenario: Past date is rejected on server
+#### Scenario: Future activity date is rejected on server
 
-- **WHEN** the server receives data with a past date
+- **WHEN** the server receives an activity with a date after today
+- **THEN** the server returns a validation error
+- **AND** no data is saved
+
+#### Scenario: Past reminder date is rejected on server
+
+- **WHEN** the server receives a reminder due before today
 - **THEN** the server returns a validation error
 - **AND** no data is saved

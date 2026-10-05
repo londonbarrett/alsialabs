@@ -55,9 +55,32 @@ The provider SHALL be mounted by the route's page, not by the component that con
 - **WHEN** the provider files are linted
 - **THEN** they SHALL contain no `eslint-disable` comment
 
+### Requirement: Stores are vanilla stores, never bound hooks
+
+Every optimistic store SHALL be built by `createOptimisticStore` from `createStore` in `zustand/vanilla` and SHALL expose the vanilla `StoreApi` surface: `getState`, `setState`, `getInitialState`, and `subscribe`. A store SHALL NOT be built with `create` from `zustand`, because `create` returns a React hook bound to the store. These stores are shared through context and read imperatively from async handlers, so a callable store invites calling a hook off the render path, which throws `Invalid hook call` at runtime instead of failing at build time.
+
+Reading SHALL follow one split. Reactive reads — the values a component renders — SHALL be selected with `useStore(store, selector)` during render, and only from a state hook. Imperative reads — inside async handlers, action hooks, and tests — SHALL use `store.getState()`. No code SHALL call a store as a function, because a vanilla store is not a function. `createOptimisticStore` SHALL return `StoreApi<OptimisticStore<S, A>>`, and `useOptimisticAction` SHALL accept that `StoreApi` rather than a `UseBoundStore`.
+
+#### Scenario: An async handler reads the store
+
+- **WHEN** a fetch helper such as `loadActivities` needs the entries already loaded for a client before appending the next page
+- **THEN** it SHALL read through a store read method or `store.getState()`, never a hook
+
+#### Scenario: A component reads the store
+
+- **WHEN** a state hook selects `optimistic` or `pending`
+- **THEN** it SHALL select with `useStore(store, selector)` during render
+
+#### Scenario: The store is not callable
+
+- **WHEN** a store factory's result is inspected
+- **THEN** it SHALL be an object exposing `getState`, `setState`, `getInitialState`, and `subscribe`, and SHALL NOT be a function
+
 ### Requirement: Every store is read through one state hook
 
-Each optimistic store SHALL be read by components through exactly one state hook, `use[Store]State`, living beside the store it wraps: `useActivityState`, `useInvoiceState`, `useProjectsState`, `useTimelineState`, `useProjectContextState`. A state hook SHALL take no arguments, SHALL be the only export of its file, and SHALL return a single object of named values, so a consumer destructures what it needs in one call. Components SHALL NOT import a store directly and SHALL NOT select `s.optimistic` or `s.pending` themselves. The store's own read methods (`getEntries` `stores/timeline/timeline-store.ts`, `getInvoices`/`getPayments` `stores/invoice/invoice-store.ts`, `getReminders`/`getClientActivities` `stores/activity/activity-store.ts`, `getProjects`/`getPending` `stores/projects/projects-store.ts`) SHALL stay attached to the store for action hooks to call; they are not the component-facing surface.
+Each optimistic store SHALL be read by components through exactly one state hook, `use[Store]State`, living beside the store it wraps: `useActivityState`, `useInvoiceState`, `useProjectsState`, `useTimelineState`, `useProjectContextState`. A state hook SHALL take no arguments, SHALL be the only export of its file, and SHALL return a single object of named values, so a consumer destructures what it needs in one call. Components SHALL NOT import a store directly and SHALL NOT select `s.optimistic` or `s.pending` themselves.
+
+A store SHALL expose nothing beyond the `StoreApi` surface and its own state. No store SHALL attach methods with `Object.assign` or any other post-construction assignment: the Zustand v5 `createStore` contract puts actions in the state returned by the state creator, using its `get` argument, and a method bolted onto the API object is reachable neither through `getState()` nor through a selector, which makes it a second, undocumented surface. `createActivityStore`, `createInvoiceStore`, `createProjectsStore`, and `createTimelineStore` SHALL therefore each return `createOptimisticStore(...)` directly and uniformly. A read off the render path SHALL be written inline at its call site against `store.getState()` — as `loadActivities` `stores/activity/use-activity-actions.ts` does to read a client's already-loaded entries — and SHALL NOT be wrapped in a store method for a single caller.
 
 A state hook SHALL name each value for what it holds, not for where it sits in the store, and SHALL NOT alias one value under two names: a store whose state already IS the list SHALL return it as `projects` or `entries`, never again as `optimistic`. The hook SHALL NOT expose `committed`, which no consumer reads. Where a value needs a default or a derivation, the hook owns it — `useActivityState` supplies `EMPTY_ACTIVITIES` for a client with no activities yet, `useProjectsState` derives `pendingIds` from the pending queue, and `useProjectContextState` derives `primaryOwner` and `additionalOwners` from the owner list, so components never re-derive them.
 

@@ -1,22 +1,17 @@
 import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
 import { createOptimisticStore } from "@/lib/optimistic-store"
+import { createContext, useContext } from "react"
 import {
   salesReducer,
   type SalesAction,
   type SalesState,
 } from "./sales-reducer"
-import { createContext, useContext } from "react"
 
 export function createInvoiceStore(invoices: InvoiceWithClientName[]) {
-  const store = createOptimisticStore<SalesState, SalesAction>(
+  return createOptimisticStore<SalesState, SalesAction>(
     { invoices, paymentsByInvoiceId: {} },
     salesReducer
   )
-  return Object.assign(store, {
-    getInvoices: () => store((s) => s.optimistic.invoices),
-    getPayments: (invoiceId: string) =>
-      store((s) => s.optimistic.paymentsByInvoiceId[invoiceId]),
-  })
 }
 
 type InvoiceStore = ReturnType<typeof createInvoiceStore>

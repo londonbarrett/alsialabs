@@ -1,4 +1,4 @@
-import { create } from "zustand"
+import { createStore } from "zustand/vanilla"
 
 type PendingItem<A> = {
   id: number
@@ -19,11 +19,19 @@ export type OptimisticStore<S, A> = {
 
 let nextPendingId = 1
 
+/**
+ * Builds a vanilla optimistic store (`StoreApi`), not a hook.
+ *
+ * These stores are scoped per provider instance and shared through React
+ * context, which is why the Zustand v5 docs pair them with `useStore` for
+ * reactive reads instead of `create`. `create` returns a *hook*, so calling it
+ * outside render throws "Invalid hook call".
+ */
 export function createOptimisticStore<S, A>(
   initialState: S,
   applyAction: ApplyAction<S, A>
 ) {
-  return create<OptimisticStore<S, A>>((set) => {
+  return createStore<OptimisticStore<S, A>>()((set) => {
     // Every state transition routes through here, so `optimistic` can never
     // drift from committed + pending.
     const settle = (committed: S, pending: PendingItem<A>[]) => ({

@@ -1,19 +1,16 @@
 import { createOptimisticStore } from "@/lib/optimistic-store"
+import { createContext, useContext } from "react"
 import {
   sortTimelineEntries,
   timelineReducer,
   type TimelineEntry,
 } from "./timeline-reducer"
-import { createContext, useContext } from "react"
 
 export function createTimelineStore(entries: TimelineEntry[]) {
-  const store = createOptimisticStore(
+  return createOptimisticStore(
     sortTimelineEntries(entries),
     timelineReducer
   )
-  return Object.assign(store, {
-    getEntries: () => store((s) => s.optimistic),
-  })
 }
 
 type TimelineStore = ReturnType<typeof createTimelineStore>

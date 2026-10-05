@@ -353,18 +353,52 @@ describe("createActivityStore", () => {
     expect(store.getState().committed.reminders).toEqual([a])
   })
 
-  it("exposes read methods without breaking the callable surface", () => {
+  it("exposes the plain vanilla store API", () => {
     const store = createActivityStore([makeReminder({ id: "a" })])
-    expect(typeof store.getReminders).toBe("function")
-    expect(typeof store.getClientActivities).toBe("function")
-    expect(typeof store).toBe("function")
+    // The store is a vanilla StoreApi object, not a hook. If it ever becomes
+    // callable again, imperative reads throw "Invalid hook call" off render.
+    expect(typeof store).toBe("object")
+    expect(typeof store.getState).toBe("function")
+    expect(typeof store.setState).toBe("function")
+    expect(typeof store.subscribe).toBe("function")
+    // Every action lives in state, per the createStore docs — nothing is
+    // bolted onto the API object with Object.assign.
+    expect(typeof store.getState().pend).toBe("function")
+    expect(typeof store.getState().commit).toBe("function")
+    expect(typeof store.getState().discard).toBe("function")
     expect(store.getState().committed.reminders).toHaveLength(1)
   })
 
+  it("reads imperatively outside React without throwing", () => {
+    // Reads off the render path go through getState() on the vanilla store.
+    const store = createActivityStore([makeReminder({ id: "a" })])
+    expect(store.getState().optimistic.reminders).toEqual([
+      makeReminder({ id: "a" }),
+    ])
+    // This is how loadActivities reads a client's entries before appending.
+    expect(store.getState().optimistic.activities["client-1"]).toBeUndefined()
+  })
+
+  it("holds the stored list for an expanded client", () => {
+    const store = createActivityStore([])
+    const entry = makeEntry()
+    const id = store.getState().pend({
+      type: "setClientActivity",
+      clientId: "client-1",
+      entries: [entry],
+      hasMore: false,
+    })
+    store.getState().commit(id)
+    expect(store.getState().optimistic.activities["client-1"]).toEqual({
+      entries: [entry],
+      hasMore: false,
+      loaded: true,
+    })
+  })
+
   it("leaves no activities behind for clients that were never expanded", () => {
-    // `getClientActivities` is a hook, so it cannot be called here. What matters for the
-    // read path is that the store holds nothing for an unexpanded client, which
-    // is what makes the shared EMPTY_ACTIVITIES fallback reachable and stable.
+    // The shared EMPTY_ACTIVITIES fallback stays reachable because the store
+    // holds nothing for a client that was never expanded.
     const store = createActivityStore([])
     expect(store.getState().optimistic.activities).toEqual({})
   })

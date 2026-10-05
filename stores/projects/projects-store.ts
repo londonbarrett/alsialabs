@@ -1,16 +1,12 @@
 "use client"
 
-import type { Project } from "@/lib/types"
 import { createOptimisticStore } from "@/lib/optimistic-store"
-import { projectsReducer } from "./projects-reducer"
+import type { Project } from "@/lib/types"
 import { createContext, useContext } from "react"
+import { projectsReducer } from "./projects-reducer"
 
 export function createProjectsStore(projects: Project[]) {
-  const store = createOptimisticStore(projects, projectsReducer)
-  return Object.assign(store, {
-    getProjects: () => store((s) => s.optimistic),
-    getPending: () => store((s) => s.pending),
-  })
+  return createOptimisticStore(projects, projectsReducer)
 }
 
 type ProjectsStore = ReturnType<typeof createProjectsStore>

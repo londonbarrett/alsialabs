@@ -3,9 +3,9 @@
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 import { useRouter } from "next/navigation"
-import type { StoreApi, UseBoundStore } from "zustand"
+import type { StoreApi } from "zustand"
 
-type StoreHook<S, A> = UseBoundStore<StoreApi<OptimisticStore<S, A>>>
+type StoreApiType<S, A> = StoreApi<OptimisticStore<S, A>>
 
 function defaultIsSuccess(result: unknown): boolean {
   const r = result as {
@@ -30,7 +30,7 @@ interface RunOptions<Result, A> {
   commitAction?: A | ((result: Result) => A)
 }
 
-export function useOptimisticAction<S, A>(store: StoreHook<S, A>) {
+export function useOptimisticAction<S, A>(store: StoreApiType<S, A>) {
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const router = useRouter()

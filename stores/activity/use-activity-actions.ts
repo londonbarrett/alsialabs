@@ -1,5 +1,6 @@
 "use client"
 
+import { useSettle } from "@/hooks/use-settle"
 import type { ActivityFormData } from "@/lib/actions/activities"
 import { upsertActivity } from "@/lib/actions/activities"
 import { getClientTimelinePage } from "@/lib/actions/client-timeline"
@@ -14,12 +15,14 @@ import {
   buildTempActivity,
   buildTempReminder,
 } from "@/lib/util/temp-entries"
-import { useSettle } from "@/hooks/use-settle"
-import { type ActivityAction } from "./activity-reducer"
-import { useActivityStore } from "./activity-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
+import {
+  type ActivityAction,
+  EMPTY_ACTIVITIES,
+} from "./activity-reducer"
+import { useActivityStore } from "./activity-store"
 
 export const ACTIVITY_PAGE_SIZE = 5
 
@@ -56,8 +59,14 @@ export function useActivityActions() {
           limit: ACTIVITY_PAGE_SIZE,
         }
       )
+      // Imperative read of the entries already loaded for this client, off the
+      // render path: `store.getState()` rather than a selector, because the
+      // store is a vanilla store and the state creator owns no read method.
       const existing =
-        offset === 0 ? [] : store.getClientActivities(clientId).entries
+        offset === 0
+          ? []
+          : (store.getState().optimistic.activities[clientId]
+              ?.entries ?? EMPTY_ACTIVITIES.entries)
       const pendingId = store.getState().pend({
         type: "setClientActivity",
         clientId,
@@ -151,9 +160,7 @@ export function useActivityActions() {
    * Logs an activity from an expanded row's dialog. It lands in that row's
    * list only — the reminders card lists reminders, not activities.
    */
-  async function createActivity(
-    data: ActivityFormData
-  ): Promise<void> {
+  async function createActivity(data: ActivityFormData): Promise<void> {
     const clientId = data.clientId
     const temp = buildTempActivity(data)
     const result = await run(

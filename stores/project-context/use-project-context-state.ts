@@ -1,15 +1,16 @@
 "use client"
 
-import { useProjectContextStore } from "./project-context-store"
 import type { ProjectContext } from "@/lib/actions/projects"
-import type { ProjectContextAction } from "./project-context-reducer"
 import type { OptimisticStore } from "@/lib/optimistic-store"
+import { useStore } from "zustand"
+import type { ProjectContextAction } from "./project-context-reducer"
+import { useProjectContextStore } from "./project-context-store"
 
 type StoreType = OptimisticStore<ProjectContext, ProjectContextAction>
 
 export function useProjectContextState() {
   const store = useProjectContextStore()
-  const context = store((s: StoreType) => s.optimistic)
+  const context = useStore(store, (s: StoreType) => s.optimistic)
 
   const project = context.project
   const owners = context.owners

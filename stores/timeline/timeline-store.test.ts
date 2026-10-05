@@ -81,13 +81,16 @@ describe("createTimelineStore", () => {
     })
   })
 
-  it("exposes getEntries without breaking the store's callable surface", () => {
+  it("exposes the plain vanilla store API", () => {
     const store = createTimelineStore([activityEntry({ id: "a" })])
-    // getEntries() itself subscribes via useSyncExternalStore, so it can only
-    // be called from a React render. What matters here is that attaching the
-    // method kept the store callable and getState reachable.
-    expect(typeof store.getEntries).toBe("function")
-    expect(typeof store).toBe("function")
+    // No read methods: nothing off the render path needs an imperative read of
+    // this store, so none are attached.
+    // The store is a vanilla StoreApi object, not a hook. If it ever becomes
+    // callable again, imperative reads throw "Invalid hook call" off render.
+    expect(typeof store).toBe("object")
+    expect(typeof store.getState).toBe("function")
+    expect(typeof store.setState).toBe("function")
+    expect(typeof store.subscribe).toBe("function")
     expect(store.getState().committed.map((e) => e.id)).toEqual(["a"])
 
     store.getState().pend({ type: "delete", id: "a" })

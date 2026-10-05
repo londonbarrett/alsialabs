@@ -1,15 +1,19 @@
 "use client"
 
-import { useTimelineStore } from "./timeline-store"
-import type { TimelineEntry, TimelineEntryAction } from "./timeline-reducer"
 import type { OptimisticStore } from "@/lib/optimistic-store"
+import { useStore } from "zustand"
+import type {
+  TimelineEntry,
+  TimelineEntryAction,
+} from "./timeline-reducer"
+import { useTimelineStore } from "./timeline-store"
 
 type StoreType = OptimisticStore<TimelineEntry[], TimelineEntryAction>
 
 export function useTimelineState() {
   const store = useTimelineStore()
-  const entries = store((s: StoreType) => s.optimistic)
-  const pending = store((s: StoreType) => s.pending)
+  const entries = useStore(store, (s: StoreType) => s.optimistic)
+  const pending = useStore(store, (s: StoreType) => s.pending)
 
   return { entries, pending }
 }
