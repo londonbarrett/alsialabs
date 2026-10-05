@@ -12,7 +12,7 @@ import type { UserOption } from "@/lib/actions/users"
 import type { ProjectMember } from "@/lib/types"
 import { useSettle } from "@/hooks/use-settle"
 import { useProjectContextStore } from "@/stores/project-context-store"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useProjectContextState } from "@/stores/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
 
@@ -47,7 +47,7 @@ function toOwner(
 export function useProjectPeopleActions() {
   const t = useTranslations("projects")
   const settle = useSettle()
-  const { project, projectId } = useProjectContext()
+  const { project, projectId } = useProjectContextState()
   const { run } = useOptimisticAction(useProjectContextStore())
 
   const { executeAsync: executeAddOwner } = useAction(addProjectOwner)
@@ -87,8 +87,9 @@ export function useProjectPeopleActions() {
   }
 
   async function removeCollaborator(userId: string) {
-    const result = await run({ type: "removeCollaborator", userId }, () =>
-      executeRemoveCollaborator({ projectId, userId })
+    const result = await run(
+      { type: "removeCollaborator", userId },
+      () => executeRemoveCollaborator({ projectId, userId })
     )
     settle(result, t("collaboratorRemoved"))
   }

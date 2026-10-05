@@ -23,7 +23,7 @@ import type {
   TaskStatus,
 } from "@/lib/drizzle/schema"
 import { combineDateTime } from "@/lib/util/schedule"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useProjectContextState } from "@/stores/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { TaskPrioritySelect } from "./task-priority-select"
@@ -66,7 +66,7 @@ const taskStatuses: TaskStatus[] = [
 
 export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const t = useTranslations()
-  const { members } = useProjectContext()
+  const { members } = useProjectContextState()
   const [name, setName] = useState(task?.name ?? "")
   const [description, setDescription] = useState(
     task?.description ?? ""
@@ -208,7 +208,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
             }}
             items={[
               { value: "", label: t("projects.tasks.unassigned") },
-              ...members.map((m) => ({
+              ...members.map((m: { userId: string; userName: string | null; userEmail: string | null }) => ({
                 value: m.userId,
                 label: m.userName || m.userEmail || m.userId,
               })),
@@ -223,7 +223,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
               <SelectItem value="">
                 {t("projects.tasks.unassigned")}
               </SelectItem>
-              {members.map((m) => (
+              {members.map((m: { userId: string; userName: string | null; userEmail: string | null }) => (
                 <SelectItem key={m.userId} value={m.userId}>
                   {m.userName || m.userEmail || m.userId}
                 </SelectItem>

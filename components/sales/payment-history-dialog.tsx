@@ -3,7 +3,7 @@
 import { Dialog } from "@/components/common/dialog"
 import { PaymentHistory } from "@/components/sales/payment-history"
 import type { Invoice } from "@/lib/drizzle/schema"
-import { useHasPermission } from "@/stores/permissions-store"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { useTranslations } from "next-intl"
 
 interface PaymentHistoryDialogProps {

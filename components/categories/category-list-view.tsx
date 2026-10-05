@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table"
 import { deleteCategory } from "@/lib/actions/categories"
 import { useActionError } from "@/lib/util/action-errors"
-import { useHasPermission } from "@/stores/permissions-store"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useOptimisticAction } from "next-safe-action/hooks"

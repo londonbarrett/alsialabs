@@ -10,7 +10,7 @@ import { useSettle } from "@/hooks/use-settle"
 import type { UpdateProjectInput } from "@/lib/schemas/project"
 import { useProjectContextStore } from "@/stores/project-context-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useProjectContextState } from "@/stores/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
 import { useRouter } from "next/navigation"
@@ -53,7 +53,7 @@ export function useProjectActions() {
     useLoadingIndicator()
   const { executeAsync: executeUpdate } = useAction(updateProjectAction)
   const { executeAsync: executeDelete } = useAction(deleteProjectAction)
-  const { projectId } = useProjectContext()
+  const { projectId } = useProjectContextState()
 
   async function updateProject(values: ProjectUpdateValues) {
     const result = await run(

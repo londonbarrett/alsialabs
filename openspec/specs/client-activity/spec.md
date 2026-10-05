@@ -31,7 +31,7 @@ The system SHALL display a combined activity timeline on the client profile page
 #### Scenario: Timeline entries are self-contained
 
 - **WHEN** a timeline entry renders in its editable form
-- **THEN** the item SHALL check its permissions via `useHasPermission` `stores/permissions-store.ts`
+- **THEN** the item SHALL check its permissions via `useHasPermission` `components/common/permissions-provider.tsx`
 - **AND** it SHALL run its mutation via `useOptimisticAction` `stores/use-optimistic-action.ts` on `useTimelineStore`, which SHALL throw if no `TimelineProvider` is mounted
 - **AND** it SHALL render its own edit dialog (`LogActivityDialog`/`ReminderDialog`/`TimelineInvoiceDialog`/`PaymentDialog`)
 

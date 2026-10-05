@@ -142,7 +142,7 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 
 The projects list page SHALL hold its rows in a client store created per page visit, not in a module-level singleton. `app/app/proyectos/page.tsx` SHALL render `ProjectsProvider` `components/projects/projects-provider.tsx` (named for what it provides, not for the page it serves), which builds the store once per mount with `useState(() => createProjectsStore(projects))` and publishes it through `ProjectsStoreContext` `stores/projects-store.ts`. The provider SHALL NOT hydrate itself from changing props, because the store is seeded once and mutations reach the client through optimistic actions.
 
-Consumers SHALL read the list through `useProjectsList` `stores/use-projects-list.ts`, which SHALL return `projects` and `pendingIds` and SHALL NOT expose raw store state. `getProjects`/`getPending` SHALL be read methods attached to the store, so no component or hook SHALL select `s.optimistic` or `s.pending` directly.
+Consumers SHALL read the list through `useProjectsState` `stores/use-projects-state.ts`, the store's single state hook, which SHALL return `projects`, `pending`, and the derived `pendingIds`, and SHALL NOT expose raw store state or alias `projects` under a second name. `getProjects`/`getPending` SHALL remain read methods attached to the store for action hooks, so no component or hook SHALL select `s.optimistic` or `s.pending` directly.
 
 Creating a project SHALL be optimistic via `useOptimisticAction` `stores/use-optimistic-action.ts` on `useProjectsStore`, applying `add` followed by a `commitAction` that issues `replaceTemp` so the temporary row is swapped for the authoritative server row. Rows that are still pending SHALL render as pending rather than as a confirmed project. The signed-in user's owner row (`ProjectOwner` `stores/use-projects-actions.ts`, an alias of a `Project` owner) SHALL be passed from `app/app/proyectos/page.tsx` through `ProjectsView` `components/projects/projects-view.tsx` into `useProjectsActions`, so the optimistic row renders its real owner without reading `useSession`; there SHALL be no non-optimistic fallback, because `router.refresh()` cannot reach the once-seeded store.
 
@@ -166,7 +166,7 @@ The open project's context SHALL be held in a client store created per project d
 
 Every mutation to the open project's context SHALL be expressed as a `ProjectContextAction` (`stores/project-context-reducer.ts:8`) applied through `createOptimisticStore`, so that client state is never re-read from the server. Actions SHALL be `patchProject`, `addOwner`, `addCollaborator`, `removeOwner`, and `removeCollaborator`; the membership actions SHALL be no-ops (returning the identical state reference) when the user is already present or absent, to keep referential stability for memoized consumers.
 
-Consumers SHALL read context through the `useProjectContext()` hook (`stores/use-project-context.ts:38`), which SHALL return a `ProjectContextValue` with `project`, `projectId`, `owners`, `collaborators`, `members`, `permissions`, `categories`, `currentUserId`, and the derived `isOwner`/`isPrimaryOwner`/`isCollaborator`/`canEdit`/`canDelete`/`canManageUsers` flags. The hook SHALL NOT accept an `initialContext` argument and SHALL NOT return the raw context object. Hooks that mutate the context (`useProjectActions`, `useProjectPeopleActions`) SHALL read `projectId` from the same hook and SHALL throw if called outside a `ProjectContextProvider`.
+Consumers SHALL read context through the `useProjectContextState()` hook (`stores/use-project-context-state.ts`), which SHALL return a single object with `project`, `projectId`, `owners`, the derived `primaryOwner`/`additionalOwners`, `collaborators`, `members`, `categories`, `currentUserId`, `isCurrentUserAdmin`, and the role flags `isOwner`/`isPrimaryOwner`/`isCollaborator`. The hook SHALL NOT accept an `initialContext` argument, SHALL NOT return the raw context object, and SHALL NOT return `permissions` or any permission-derived capability — a component composes `isOwner && useHasPermission("projects:edit")` itself, calling `useHasPermission` unconditionally at the top level of render. Hooks that mutate the context (`useProjectActions`, `useProjectPeopleActions`) SHALL read `projectId` from the same hook and SHALL throw if called outside a `ProjectContextProvider`.
 
 #### Scenario: Context store is created once per project page
 
@@ -186,20 +186,20 @@ Consumers SHALL read context through the `useProjectContext()` hook (`stores/use
 
 - **GIVEN** a component rendered inside the project detail area
 - **WHEN** it needs the project, its id, its members, or the permission flags
-- **THEN** it calls `useProjectContext()`
+- **THEN** it calls `useProjectContextState()`
 - **AND** no `projectId` or `context` prop is passed to it for that purpose
 
 #### Scenario: Project is never null inside the project area
 
 - **GIVEN** any component inside the project detail area
-- **WHEN** it reads `project` from `useProjectContext()`
+- **WHEN** it reads `project` from `useProjectContextState()`
 - **THEN** a project is always present
 - **AND** no null guard or loading placeholder is required
 
 #### Scenario: Store hook outside a provider fails loudly
 
 - **GIVEN** a component rendered outside the project detail area
-- **WHEN** it calls `useProjectContext()` or `useProjectActions()`
+- **WHEN** it calls `useProjectContextState()` or `useProjectActions()`
 - **THEN** it throws an error naming `ProjectContextProvider`
 - **AND** the projects list page is unaffected because it performs only creates
 

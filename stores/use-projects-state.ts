@@ -1,12 +1,17 @@
 "use client"
 
 import { useProjectsStore } from "@/stores/projects-store"
+import type { Project } from "@/lib/types"
+import type { ProjectsAction } from "@/stores/projects-reducer"
+import type { OptimisticStore } from "@/lib/optimistic-store"
 import { useMemo } from "react"
 
-export function useProjectsList() {
+type StoreType = OptimisticStore<Project[], ProjectsAction>
+
+export function useProjectsState() {
   const store = useProjectsStore()
-  const projects = store.getProjects()
-  const pending = store.getPending()
+  const projects = store((s: StoreType) => s.optimistic)
+  const pending = store((s: StoreType) => s.pending)
 
   const pendingIds = useMemo(() => {
     const ids = new Set<string>()
@@ -18,5 +23,5 @@ export function useProjectsList() {
     return ids
   }, [pending])
 
-  return { projects, pendingIds }
+  return { projects, pending, pendingIds }
 }

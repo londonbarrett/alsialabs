@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { Invoice } from "@/lib/drizzle/schema"
-import { useHasPermission } from "@/stores/permissions-store"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 

@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useProjectContextState } from "@/stores/use-project-context-state"
 import { cn } from "cn"
 import {
   ArrowLeft,
@@ -35,7 +35,7 @@ interface ProjectViewProps {
 export function ProjectView({ children }: ProjectViewProps) {
   const t = useTranslations()
   const pathname = usePathname()
-  const { project, projectId } = useProjectContext()
+  const { project, projectId } = useProjectContextState()
   const basePath = `/app/proyectos/${projectId}`
 
   const tabs = [

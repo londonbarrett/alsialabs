@@ -1,5 +1,5 @@
 import { AppSidebar } from "@/components/common/app-sidebar"
-import { StoreSync } from "@/components/common/store-sync"
+import { PermissionsProvider } from "@/components/common/permissions-provider"
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import {
   SidebarInset,
@@ -22,23 +22,24 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <StoreSync permissions={permissions} />
-      <AppSidebar
-        role={session.user?.role}
-        selectedStoreId={selectedStoreId}
-        user={{
-          name: session.user?.name ?? null,
-          email: session.user?.email ?? null,
-          image: session.user?.image ?? null,
-        }}
-      />
-      <SidebarInset>
-        <header className="sticky top-0 z-1 flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
-          <SidebarTrigger />
-          <DashboardBreadcrumb />
-        </header>
-        <section className="flex flex-1 flex-col">{children}</section>
-      </SidebarInset>
+      <PermissionsProvider permissions={permissions}>
+        <AppSidebar
+          role={session.user?.role}
+          selectedStoreId={selectedStoreId}
+          user={{
+            name: session.user?.name ?? null,
+            email: session.user?.email ?? null,
+            image: session.user?.image ?? null,
+          }}
+        />
+        <SidebarInset>
+          <header className="sticky top-0 z-1 flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
+            <SidebarTrigger />
+            <DashboardBreadcrumb />
+          </header>
+          <section className="flex flex-1 flex-col">{children}</section>
+        </SidebarInset>
+      </PermissionsProvider>
     </SidebarProvider>
   )
 }

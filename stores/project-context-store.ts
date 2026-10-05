@@ -28,7 +28,7 @@ export function useProjectContextStore(): ProjectContextStore {
   const store = useContext(ProjectContextStoreContext)
   if (!store) {
     throw new Error(
-      "useProjectContext must be used within a ProjectContextProvider"
+      "useProjectContextStore must be used within a ProjectContextProvider"
     )
   }
   return store

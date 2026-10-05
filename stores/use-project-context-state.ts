@@ -1,0 +1,49 @@
+"use client"
+
+import { useProjectContextStore } from "@/stores/project-context-store"
+import type { ProjectContext } from "@/lib/actions/projects"
+import type { ProjectContextAction } from "@/stores/project-context-reducer"
+import type { OptimisticStore } from "@/lib/optimistic-store"
+
+type StoreType = OptimisticStore<ProjectContext, ProjectContextAction>
+
+export function useProjectContextState() {
+  const store = useProjectContextStore()
+  const context = store((s: StoreType) => s.optimistic)
+
+  const project = context.project
+  const owners = context.owners
+  const collaborators = context.collaborators
+  const categories = context.categories
+  const isCurrentUserAdmin = context.isCurrentUserAdmin
+  const currentUserId = context.session?.user?.id ?? ""
+
+  const members = [...owners, ...collaborators]
+  const primaryOwner =
+    owners.find((o) => o.userId === project.primaryOwnerId) ?? null
+  const additionalOwners = owners.filter(
+    (o) => o.userId !== project.primaryOwnerId
+  )
+
+  const isOwner =
+    owners.some((o) => o.userId === currentUserId) || isCurrentUserAdmin
+  const isPrimaryOwner = project.primaryOwnerId === currentUserId
+  const isCollaborator =
+    !isOwner && collaborators.some((c) => c.userId === currentUserId)
+
+  return {
+    project,
+    projectId: project.id,
+    owners,
+    primaryOwner,
+    additionalOwners,
+    collaborators,
+    members,
+    categories,
+    currentUserId,
+    isCurrentUserAdmin,
+    isOwner,
+    isPrimaryOwner,
+    isCollaborator,
+  }
+}

@@ -20,7 +20,7 @@ import {
 import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
 import type { Reminder } from "@/lib/actions/reminders"
 import type { ReminderSubmitData } from "@/lib/types"
-import { useActivityStore } from "@/stores/activity-store"
+import { useActivityState } from "@/stores/use-activity-state"
 import { useActivityActions } from "@/stores/use-activity-actions"
 import { cn } from "cn"
 import { Bell, BellOff, Check, Pencil } from "lucide-react"
@@ -36,7 +36,7 @@ export function RemindersCard() {
     editing?: Reminder
   }>({ open: false })
 
-  const optimisticReminders = useActivityStore().getReminders()
+  const { reminders } = useActivityState()
   const { createReminder, updateReminder, completeReminder } =
     useActivityActions()
 
@@ -55,17 +55,17 @@ export function RemindersCard() {
       <CardHeader>
         <CardTitle>
           {t("activity.activeReminders")}
-          {optimisticReminders.length > 0 && (
+          {reminders.length > 0 && (
             <span className="ml-2 text-sm font-normal text-muted-foreground">
-              ({optimisticReminders.length})
+              ({reminders.length})
             </span>
           )}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {optimisticReminders.length > 0 ? (
+        {reminders.length > 0 ? (
           <ItemGroup>
-            {optimisticReminders.map((reminder) => {
+            {reminders.map((reminder) => {
               const [y, m, d] = reminder.remindAt.split("-")
               const date = `${m}/${d}/${y}`
               const isCompleted = reminder.completed === true

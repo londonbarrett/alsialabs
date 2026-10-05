@@ -51,7 +51,7 @@ The system SHALL allow authenticated users with `sales:create` permission to rec
 
 ### Requirement: User can view payment history for an invoice
 
-The system SHALL display a list of payments recorded against an invoice, accessible from the invoice row in the sales table. `PaymentHistory` `components/sales/payment-history.tsx` reads them from the invoice store (`useInvoiceStore().getPayments` `stores/invoice-store.ts`) and loads them with `usePaymentActions().loadPayments` `stores/use-payment-actions.ts`, which stores them via the `setPayments` case of `salesReducer` `stores/sales-reducer.ts`.
+The system SHALL display a list of payments recorded against an invoice, accessible from the invoice row in the sales table. `PaymentHistory` `components/sales/payment-history.tsx` reads them from `getPayments` on `useInvoiceState()` `stores/use-invoice-state.ts` and loads them with `usePaymentActions().loadPayments` `stores/use-payment-actions.ts`, which stores them via the `setPayments` case of `salesReducer` `stores/sales-reducer.ts`.
 
 #### Scenario: View payments from invoice row
 

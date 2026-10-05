@@ -6,7 +6,7 @@ import type { PaymentFormValues } from "@/components/sales/payment-form"
 import { Spinner } from "@/components/ui/spinner"
 import type { Invoice, InvoicePayment } from "@/lib/drizzle/schema"
 import { formatCurrency } from "@/lib/util/money"
-import { useInvoiceStore } from "@/stores/invoice-store"
+import { useInvoiceState } from "@/stores/use-invoice-state"
 import { usePaymentActions } from "@/stores/use-payment-actions"
 import { useEffect, useState } from "react"
 
@@ -17,8 +17,8 @@ export function PaymentHistory({
   invoice: Invoice
   canManage?: boolean
 }) {
-  const store = useInvoiceStore()
-  const payments = store.getPayments(invoice.id)
+  const { getPayments } = useInvoiceState()
+  const payments = getPayments(invoice.id)
   const { loadPayments, updatePayment, deletePayment } =
     usePaymentActions()
   const [editingPayment, setEditingPayment] =

@@ -7,7 +7,7 @@ import { ReminderDialog } from "@/components/clients/reminder-dialog"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { TableCell, TableRow } from "@/components/ui/table"
-import { useActivityStore } from "@/stores/activity-store"
+import { useActivityState } from "@/stores/use-activity-state"
 import { useActivityActions } from "@/stores/use-activity-actions"
 import type { ReminderSubmitData } from "@/lib/types"
 import type { Client } from "@/lib/drizzle/schema"
@@ -63,9 +63,8 @@ export function ClientActivityRow({
     createActivity,
     updateActivity,
   } = useActivityActions()
-  const activities = useActivityStore().getClientActivities(
-    client.clientId
-  )
+  const { getClientActivities } = useActivityState()
+  const activities = getClientActivities(client.clientId)
 
   // The row's timeline lives in the activity page's store, so the card's
   // reminder list and this activity list never drift apart.

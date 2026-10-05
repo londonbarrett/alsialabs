@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useProjectContextState } from "@/stores/use-project-context-state"
 import { useProjectPeopleActions } from "@/stores/use-project-people-actions"
 import { Crown, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -18,13 +18,17 @@ export function ProjectPeople() {
   const t = useTranslations()
   const { addOwner, removeOwner, addCollaborator, removeCollaborator } =
     useProjectPeopleActions()
-  const { project, owners, collaborators, canManageUsers, isOwner } =
-    useProjectContext()
-  const primaryOwnerId = project.primaryOwnerId
-  const primaryOwner = owners.find((o) => o.userId === primaryOwnerId)
-  const additionalOwners = owners.filter(
-    (o) => o.userId !== primaryOwnerId
-  )
+  const {
+    owners,
+    primaryOwner,
+    additionalOwners,
+    collaborators,
+    isOwner,
+    isPrimaryOwner,
+    isCurrentUserAdmin,
+  } = useProjectContextState()
+  const canManageUsers = isPrimaryOwner || isCurrentUserAdmin
+
   const allMemberIds = useMemo(
     () => [
       ...owners.map((o) => o.userId),

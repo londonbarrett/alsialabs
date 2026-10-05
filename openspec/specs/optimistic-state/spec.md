@@ -55,16 +55,28 @@ The provider SHALL be mounted by the route's page, not by the component that con
 - **WHEN** the provider files are linted
 - **THEN** they SHALL contain no `eslint-disable` comment
 
-### Requirement: Optimistic reads go through store read methods
+### Requirement: Every store is read through one state hook
 
-Components and hooks SHALL NOT select `s.optimistic` or `s.pending` directly. Each LIST-shaped store factory SHALL attach named read methods with `Object.assign` (`getEntries` `stores/timeline-store.ts`, `getInvoices` `stores/invoice-store.ts`, `getReminders`/`getClientActivities` `stores/activity-store.ts`, `getProjects`/`getPending` `stores/projects-store.ts`) so a component expresses intent rather than store layout. A read method calls a Zustand hook internally, so it SHALL be invoked unconditionally at the top level of render.
+Each optimistic store SHALL be read by components through exactly one state hook, `use[Store]State`, living in `stores/use-[store]-state.ts` beside the store it wraps: `useActivityState`, `useInvoiceState`, `useProjectsState`, `useTimelineState`, `useProjectContextState`. A state hook SHALL take no arguments, SHALL be the only export of its file, and SHALL return a single object of named values, so a consumer destructures what it needs in one call. Components SHALL NOT import a store directly and SHALL NOT select `s.optimistic` or `s.pending` themselves. The store's own read methods (`getEntries` `stores/timeline-store.ts`, `getInvoices`/`getPayments` `stores/invoice-store.ts`, `getReminders`/`getClientActivities` `stores/activity-store.ts`, `getProjects`/`getPending` `stores/projects-store.ts`) SHALL stay attached to the store for action hooks to call; they are not the component-facing surface.
 
-The single-object project context store `stores/project-context-store.ts` SHALL NOT need read methods, because its consumers read derived data — `project`, `owners`, `collaborators`, `permissions`, `canEdit` and so on — through `useProjectContext` `stores/use-project-context.ts`, which is a richer hook over one object rather than a list.
+A state hook SHALL name each value for what it holds, not for where it sits in the store, and SHALL NOT alias one value under two names: a store whose state already IS the list SHALL return it as `projects` or `entries`, never again as `optimistic`. The hook SHALL NOT expose `committed`, which no consumer reads. Where a value needs a default or a derivation, the hook owns it — `useActivityState` supplies `EMPTY_ACTIVITIES` for a client with no activities yet, `useProjectsState` derives `pendingIds` from the pending queue, and `useProjectContextState` derives `primaryOwner` and `additionalOwners` from the owner list, so components never re-derive them.
 
-#### Scenario: A component reads without knowing the store layout
+A state hook SHALL NOT hold permissions. `useProjectContextState` SHALL return role facts only — `project`, `projectId`, `owners`, `primaryOwner`, `additionalOwners`, `collaborators`, `members`, `categories`, `currentUserId`, `isCurrentUserAdmin`, `isOwner`, `isPrimaryOwner`, `isCollaborator` — and SHALL NOT return `permissions`, `canEdit`, `canDelete`, or `canManageUsers`. A component composes its own capability from those facts plus `useHasPermission`, and every `useHasPermission` call SHALL be invoked unconditionally at the top level of render, never inside a boolean expression such as `isOwner && useHasPermission("projects:edit")`, because that calls a hook conditionally and breaks render order.
+
+#### Scenario: A component reads a store without knowing its layout
 
 - **WHEN** a component needs the current list
-- **THEN** it SHALL call the store's `get*` read method and SHALL NOT destructure store internals
+- **THEN** it SHALL call the store's `use[Store]State()` hook and SHALL NOT destructure store internals or import the store
+
+#### Scenario: One value is never exposed under two names
+
+- **WHEN** a store's optimistic state is itself the domain value
+- **THEN** the hook SHALL return it once under its domain name and SHALL NOT also return it as `optimistic`
+
+#### Scenario: A state hook does not answer permission questions
+
+- **WHEN** a component needs to know whether the user may edit
+- **THEN** it SHALL combine a role flag from `useProjectContextState()` with a `useHasPermission()` call, and the state hook SHALL NOT expose a permission-derived flag
 
 ### Requirement: Mutations run through one action hook
 

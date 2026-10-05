@@ -23,8 +23,8 @@ import {
 } from "@/lib/schemas/task"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import type { TaskWithCommentCount } from "@/reducers/task-reducer"
-import { useHasPermission } from "@/stores/permissions-store"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useHasPermission } from "@/components/common/permissions-provider"
+import { useProjectContextState } from "@/stores/use-project-context-state"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { DueDate } from "./due-date"
@@ -52,8 +52,10 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
-  const { members, currentUserId, isOwner, isCollaborator, canEdit } =
-    useProjectContext()
+  const { members, currentUserId, isOwner, isCollaborator } =
+    useProjectContextState()
+  const canEditProject = useHasPermission("projects:edit")
+  const canEdit = isOwner && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
   const canMutate = isOwner && (canEdit || canDeleteProject)
 

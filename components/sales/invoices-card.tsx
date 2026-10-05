@@ -14,10 +14,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useInvoiceActions } from "@/stores/use-invoice-actions"
-import { useInvoiceStore } from "@/stores/invoice-store"
+import { useInvoiceState } from "@/stores/use-invoice-state"
 import { usePaymentActions } from "@/stores/use-payment-actions"
 import type { Invoice } from "@/lib/drizzle/schema"
-import { useHasPermission } from "@/stores/permissions-store"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -31,7 +31,7 @@ export function InvoicesCard() {
     reopenInvoice,
     sendInvoice,
   } = useInvoiceActions()
-  const invoices = useInvoiceStore().getInvoices()
+  const { invoices } = useInvoiceState()
   const { recordPayment } = usePaymentActions()
 
   // Dialog state

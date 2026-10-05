@@ -338,7 +338,7 @@ The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be a single compon
 
 - **WHEN** the sales page renders
 - **THEN** `InvoiceProvider` builds a store once per mount, seeded with the `InvoiceWithClientName[]` `components/sales/sales-invoice-table.tsx:17` fetched by the page
-- **AND** `useInvoiceActions` `stores/use-invoice-actions.ts` (which SHALL take no arguments) SHALL return only invoice mutations: `createInvoice`/`updateInvoice`/`deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`sendInvoice`; `InvoicesCard` `components/sales/invoices-card.tsx` SHALL read the list from the store via `useInvoiceStore().getInvoices()` `stores/invoice-store.ts`
+- **AND** `useInvoiceActions` `stores/use-invoice-actions.ts` (which SHALL take no arguments) SHALL return only invoice mutations: `createInvoice`/`updateInvoice`/`deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`sendInvoice`; `InvoicesCard` `components/sales/invoices-card.tsx` SHALL read the list from `useInvoiceState()` `stores/use-invoice-state.ts` and SHALL NOT import the store
 - **AND** on success each handler commits the server `returning()` data via the store, on error it commits the rollback and toasts `useActionError` `lib/util/action-errors.ts`
 - **AND** `createInvoice`/`updateInvoice` build their optimistic `replaceTemp`/`update` action inside the hook and return `SettleResult` `lib/types.ts` (success plus optional server field errors) so `InvoiceForm` `components/sales/invoice-form.tsx` can render them
 

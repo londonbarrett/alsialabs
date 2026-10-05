@@ -8,7 +8,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useProjectContextState } from "@/stores/use-project-context-state"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import {
   createTask,
   deleteTask,
@@ -41,8 +42,10 @@ interface TasksCardProps {
 
 export function TasksCard({ initialTasks }: TasksCardProps) {
   const t = useTranslations()
-  const { projectId, members, currentUserId, isOwner, canEdit } =
-    useProjectContext()
+  const { projectId, members, currentUserId, isOwner } =
+    useProjectContextState()
+  const canEditProject = useHasPermission("projects:edit")
+  const canEdit = isOwner && canEditProject
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const [tasks, dispatch] = useReducer(taskReducer, initialTasks)
