@@ -6,8 +6,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useProjectContextState } from "@/stores/use-project-context-state"
-import { useProjectPeopleActions } from "@/stores/use-project-people-actions"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
+import { useProjectPeopleActions } from "@/stores/project-context/use-project-people-actions"
 import { Crown, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useMemo } from "react"

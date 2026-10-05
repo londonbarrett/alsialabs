@@ -5,7 +5,7 @@ import { InvoiceForm } from "@/components/sales/invoice-form"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { SettleResult } from "@/lib/types"
-import { useInvoiceActions } from "@/stores/use-invoice-actions"
+import { useInvoiceActions } from "@/stores/invoice/use-invoice-actions"
 import { useTranslations } from "next-intl"
 
 interface SalesInvoiceDialogProps {

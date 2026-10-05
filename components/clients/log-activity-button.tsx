@@ -3,7 +3,7 @@
 import { LogActivityDialog } from "@/components/clients/log-activity-dialog"
 import { Button } from "@/components/ui/button"
 import { useHasPermission } from "@/components/common/permissions-provider"
-import { useTimelineActions } from "@/stores/use-timeline-actions"
+import { useTimelineActions } from "@/stores/timeline/use-timeline-actions"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"

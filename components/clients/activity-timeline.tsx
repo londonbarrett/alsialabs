@@ -1,5 +1,5 @@
 "use client"
-import type { TimelineEntry } from "@/stores/timeline-reducer"
+import type { TimelineEntry } from "@/stores/timeline/timeline-reducer"
 
 import { ActivityItem } from "@/components/clients/activity-item"
 import { AddReminderButton } from "@/components/clients/add-reminder-button"
@@ -10,7 +10,7 @@ import { PaymentItem } from "@/components/clients/payment-item"
 import { ReminderItem } from "@/components/clients/reminder-item"
 import { Separator } from "@/components/ui/separator"
 import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
-import { useTimelineState } from "@/stores/use-timeline-state"
+import { useTimelineState } from "@/stores/timeline/use-timeline-state"
 import { useTranslations } from "next-intl"
 
 export function ActivityTimeline({ clientId }: { clientId: string }) {

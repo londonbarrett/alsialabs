@@ -2,12 +2,12 @@
 
 import { PageHeader } from "@/components/common/page-header"
 import { Button } from "@/components/ui/button"
-import { useProjectsState } from "@/stores/use-projects-state"
+import { useProjectsState } from "@/stores/projects/use-projects-state"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import {
   type ProjectOwner,
   useProjectsActions,
-} from "@/stores/use-projects-actions"
+} from "@/stores/projects/use-projects-actions"
 import { FolderKanban, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"

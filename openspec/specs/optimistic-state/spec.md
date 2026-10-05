@@ -57,7 +57,7 @@ The provider SHALL be mounted by the route's page, not by the component that con
 
 ### Requirement: Every store is read through one state hook
 
-Each optimistic store SHALL be read by components through exactly one state hook, `use[Store]State`, living in `stores/use-[store]-state.ts` beside the store it wraps: `useActivityState`, `useInvoiceState`, `useProjectsState`, `useTimelineState`, `useProjectContextState`. A state hook SHALL take no arguments, SHALL be the only export of its file, and SHALL return a single object of named values, so a consumer destructures what it needs in one call. Components SHALL NOT import a store directly and SHALL NOT select `s.optimistic` or `s.pending` themselves. The store's own read methods (`getEntries` `stores/timeline-store.ts`, `getInvoices`/`getPayments` `stores/invoice-store.ts`, `getReminders`/`getClientActivities` `stores/activity-store.ts`, `getProjects`/`getPending` `stores/projects-store.ts`) SHALL stay attached to the store for action hooks to call; they are not the component-facing surface.
+Each optimistic store SHALL be read by components through exactly one state hook, `use[Store]State`, living beside the store it wraps: `useActivityState`, `useInvoiceState`, `useProjectsState`, `useTimelineState`, `useProjectContextState`. A state hook SHALL take no arguments, SHALL be the only export of its file, and SHALL return a single object of named values, so a consumer destructures what it needs in one call. Components SHALL NOT import a store directly and SHALL NOT select `s.optimistic` or `s.pending` themselves. The store's own read methods (`getEntries` `stores/timeline/timeline-store.ts`, `getInvoices`/`getPayments` `stores/invoice/invoice-store.ts`, `getReminders`/`getClientActivities` `stores/activity/activity-store.ts`, `getProjects`/`getPending` `stores/projects/projects-store.ts`) SHALL stay attached to the store for action hooks to call; they are not the component-facing surface.
 
 A state hook SHALL name each value for what it holds, not for where it sits in the store, and SHALL NOT alias one value under two names: a store whose state already IS the list SHALL return it as `projects` or `entries`, never again as `optimistic`. The hook SHALL NOT expose `committed`, which no consumer reads. Where a value needs a default or a derivation, the hook owns it — `useActivityState` supplies `EMPTY_ACTIVITIES` for a client with no activities yet, `useProjectsState` derives `pendingIds` from the pending queue, and `useProjectContextState` derives `primaryOwner` and `additionalOwners` from the owner list, so components never re-derive them.
 
@@ -78,6 +78,24 @@ A state hook SHALL NOT hold permissions. `useProjectContextState` SHALL return r
 - **WHEN** a component needs to know whether the user may edit
 - **THEN** it SHALL combine a role flag from `useProjectContextState()` with a `useHasPermission()` call, and the state hook SHALL NOT expose a permission-derived flag
 
+### Requirement: Store internals are grouped one folder per domain
+
+Everything belonging to one store SHALL live in a single folder under `stores/`, named for the domain: `stores/activity/`, `stores/invoice/`, `stores/projects/`, `stores/project-context/`, `stores/timeline/`. A folder SHALL hold that domain's reducer, store factory, store test, action hooks, and state hook together — e.g. `stores/invoice/` holds `invoice-reducer.ts`, `invoice-store.ts`, `sales-reducer.ts`, `payment-reducer.ts`, `use-invoice-actions.ts`, `use-invoice-state.ts`, and `use-payment-actions.ts`. A test SHALL sit beside the file it covers.
+
+The shared `useOptimisticAction` SHALL stay at `stores/use-optimistic-action.ts` rather than in a domain folder or a shared subfolder, because it is infrastructure every domain uses rather than one domain's state. Payment state SHALL live in `stores/invoice/` rather than a folder of its own, because payments have no store of their own — `salesReducer` composes `paymentReducer` into the invoice store's `SalesState`, and `usePaymentActions` writes to that store.
+
+Modules inside one folder SHALL import each other relatively (`./invoice-reducer`); code outside `stores/` SHALL import across folders absolutely (`@/stores/invoice/invoice-store`). No store folder SHALL import another store folder, so each domain is self-contained.
+
+#### Scenario: A store's parts are found in one place
+
+- **WHEN** a change is needed to how invoices are stored and mutated
+- **THEN** every relevant file is inside `stores/invoice/`
+
+#### Scenario: Domain folders do not depend on each other
+
+- **WHEN** the files under `stores/` are inspected
+- **THEN** no folder imports from a sibling domain folder
+
 ### Requirement: Mutations run through one action hook
 
 All optimistic mutations SHALL run through `useOptimisticAction` `stores/use-optimistic-action.ts`, which pends an action, runs the server mutation, then commits on success or discards on failure, and which drives the global loading bar. A caller MAY pass a `commitAction` to apply a second action after the original one commits — used to swap a temporary row for the authoritative server row, or to `replaceTemp` a row the server has just saved.
@@ -96,7 +114,7 @@ All optimistic mutations SHALL run through `useOptimisticAction` `stores/use-opt
 
 ### Requirement: Mutation hooks settle their outcome the same way
 
-Every action hook (`useInvoiceActions`, `useTimelineActions`, `useActivityActions`, `usePaymentActions`, `useProjectActions`, `useProjectsActions`, `useProjectPeopleActions`) SHALL report each mutation through the shared `useSettle` hook `hooks/use-settle.ts`, which toasts the translated `serverError`, returns `validationErrors` for the form to render without toasting, toasts a success message otherwise, and returns `SettleResult` `lib/types.ts`. A handler SHALL return `SettleResult` only when its caller consumes the outcome — the invoice `createInvoice`/`updateInvoice` handlers, whose `InvoiceForm` caller renders the returned `fieldErrors`; every other handler SHALL return `void`, because no caller reads the outcome. Fetch helpers (`loadPayments` `stores/use-payment-actions.ts`, `loadActivities` `stores/use-activity-actions.ts`) SHALL return `void`, SHALL pend and commit the store directly, and SHALL NOT drive the loading bar or toast a success, because reading a list is not a mutation.
+Every action hook (`useInvoiceActions`, `useTimelineActions`, `useActivityActions`, `usePaymentActions`, `useProjectActions`, `useProjectsActions`, `useProjectPeopleActions`) SHALL report each mutation through the shared `useSettle` hook `hooks/use-settle.ts`, which toasts the translated `serverError`, returns `validationErrors` for the form to render without toasting, toasts a success message otherwise, and returns `SettleResult` `lib/types.ts`. A handler SHALL return `SettleResult` only when its caller consumes the outcome — the invoice `createInvoice`/`updateInvoice` handlers, whose `InvoiceForm` caller renders the returned `fieldErrors`; every other handler SHALL return `void`, because no caller reads the outcome. Fetch helpers (`loadPayments` `stores/invoice/use-payment-actions.ts`, `loadActivities` `stores/activity/use-activity-actions.ts`) SHALL return `void`, SHALL pend and commit the store directly, and SHALL NOT drive the loading bar or toast a success, because reading a list is not a mutation.
 
 #### Scenario: Fire-and-forget handler returns nothing
 

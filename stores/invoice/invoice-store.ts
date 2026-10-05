@@ -4,7 +4,7 @@ import {
   salesReducer,
   type SalesAction,
   type SalesState,
-} from "@/stores/sales-reducer"
+} from "./sales-reducer"
 import { createContext, useContext } from "react"
 
 export function createInvoiceStore(invoices: InvoiceWithClientName[]) {

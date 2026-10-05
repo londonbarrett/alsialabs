@@ -1,8 +1,8 @@
 "use client"
 
-import { useProjectContextStore } from "@/stores/project-context-store"
+import { useProjectContextStore } from "./project-context-store"
 import type { ProjectContext } from "@/lib/actions/projects"
-import type { ProjectContextAction } from "@/stores/project-context-reducer"
+import type { ProjectContextAction } from "./project-context-reducer"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 
 type StoreType = OptimisticStore<ProjectContext, ProjectContextAction>

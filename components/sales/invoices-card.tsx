@@ -13,9 +13,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useInvoiceActions } from "@/stores/use-invoice-actions"
-import { useInvoiceState } from "@/stores/use-invoice-state"
-import { usePaymentActions } from "@/stores/use-payment-actions"
+import { useInvoiceActions } from "@/stores/invoice/use-invoice-actions"
+import { useInvoiceState } from "@/stores/invoice/use-invoice-state"
+import { usePaymentActions } from "@/stores/invoice/use-payment-actions"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Plus } from "lucide-react"

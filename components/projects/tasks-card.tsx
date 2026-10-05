@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import { useProjectContextState } from "@/stores/use-project-context-state"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import {
   createTask,

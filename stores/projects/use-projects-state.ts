@@ -1,8 +1,8 @@
 "use client"
 
-import { useProjectsStore } from "@/stores/projects-store"
+import { useProjectsStore } from "./projects-store"
 import type { Project } from "@/lib/types"
-import type { ProjectsAction } from "@/stores/projects-reducer"
+import type { ProjectsAction } from "./projects-reducer"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 import { useMemo } from "react"
 

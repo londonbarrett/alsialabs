@@ -5,7 +5,7 @@ import { InvoiceForm } from "@/components/sales/invoice-form"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { SettleResult } from "@/lib/types"
-import { useTimelineActions } from "@/stores/use-timeline-actions"
+import { useTimelineActions } from "@/stores/timeline/use-timeline-actions"
 import { useTranslations } from "next-intl"
 
 interface TimelineInvoiceDialogProps {

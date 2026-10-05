@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useProjectContextState } from "@/stores/use-project-context-state"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { routineTemplates } from "@/lib/routines/templates"
 import { useTranslations } from "next-intl"
 import { useState } from "react"

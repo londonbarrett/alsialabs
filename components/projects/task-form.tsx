@@ -23,7 +23,7 @@ import type {
   TaskStatus,
 } from "@/lib/drizzle/schema"
 import { combineDateTime } from "@/lib/util/schedule"
-import { useProjectContextState } from "@/stores/use-project-context-state"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { TaskPrioritySelect } from "./task-priority-select"

@@ -5,7 +5,7 @@ import {
   EMPTY_ACTIVITIES,
   type ActivityAction,
   type ActivityState,
-} from "@/stores/activity-reducer"
+} from "./activity-reducer"
 import { createContext, useContext } from "react"
 
 export function createActivityStore(reminders: Reminder[]) {

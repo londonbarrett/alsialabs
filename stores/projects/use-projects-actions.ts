@@ -7,8 +7,8 @@ import type { Project } from "@/lib/types"
 import {
   nextOptimisticProjectId,
   type ProjectsAction,
-} from "@/stores/projects-reducer"
-import { useProjectsStore } from "@/stores/projects-store"
+} from "./projects-reducer"
+import { useProjectsStore } from "./projects-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 

@@ -1,7 +1,7 @@
 "use client"
 
-import { useInvoiceStore } from "@/stores/invoice-store"
-import type { SalesAction, SalesState } from "@/stores/sales-reducer"
+import { useInvoiceStore } from "./invoice-store"
+import type { SalesAction, SalesState } from "./sales-reducer"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 
 type StoreType = OptimisticStore<SalesState, SalesAction>

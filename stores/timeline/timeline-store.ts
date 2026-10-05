@@ -3,7 +3,7 @@ import {
   sortTimelineEntries,
   timelineReducer,
   type TimelineEntry,
-} from "@/stores/timeline-reducer"
+} from "./timeline-reducer"
 import { createContext, useContext } from "react"
 
 export function createTimelineStore(entries: TimelineEntry[]) {

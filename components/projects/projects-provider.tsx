@@ -4,7 +4,7 @@ import type { Project } from "@/lib/types"
 import {
   createProjectsStore,
   ProjectsStoreContext,
-} from "@/stores/projects-store"
+} from "@/stores/projects/projects-store"
 import { useState } from "react"
 
 /**

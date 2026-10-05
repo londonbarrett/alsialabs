@@ -28,8 +28,8 @@ import {
   buildTempInvoice,
   buildTempReminder,
 } from "@/lib/util/temp-entries"
-import { useTimelineStore } from "@/stores/timeline-store"
-import { type TimelineEntryAction } from "@/stores/timeline-reducer"
+import { useTimelineStore } from "./timeline-store"
+import { type TimelineEntryAction } from "./timeline-reducer"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useSettle } from "@/hooks/use-settle"
 import { useTranslations } from "next-intl"

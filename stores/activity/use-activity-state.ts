@@ -1,11 +1,11 @@
 "use client"
 
-import { useActivityStore } from "@/stores/activity-store"
+import { useActivityStore } from "./activity-store"
 import {
   EMPTY_ACTIVITIES,
   type ActivityAction,
   type ActivityState,
-} from "@/stores/activity-reducer"
+} from "./activity-reducer"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 
 type StoreType = OptimisticStore<ActivityState, ActivityAction>

@@ -26,7 +26,7 @@ import {
 } from "@/lib/actions/routines"
 import type { Routine } from "@/lib/drizzle/schema"
 import { useHasPermission } from "@/components/common/permissions-provider"
-import { useProjectContextState } from "@/stores/use-project-context-state"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { Plus, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import {

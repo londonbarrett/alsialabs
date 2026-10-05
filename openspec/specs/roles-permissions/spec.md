@@ -144,7 +144,7 @@ Permission codes are server-computed and immutable for the life of a request, so
 
 `PermissionsProvider` SHALL build its context value with `useMemo` keyed on `permissions`, so a new server array does not invalidate consumers on every render. It SHALL expose `usePermissions(): string[]` and `useHasPermission(code: string): boolean` with those exact signatures, so gating a control is a one-line call at the call site and a capability is composed from a role flag plus `useHasPermission`. `usePermissionsContext` SHALL throw an error naming the provider when no provider is mounted, so a missing wrap fails loudly instead of silently granting zero permissions. Because the data is immutable per request there SHALL be no `setPermissions` or `resetPermissions` action.
 
-State hooks SHALL NOT answer permission questions; they return role facts only, and the component composes the capability. `useProjectContextState` `stores/use-project-context-state.ts` SHALL NOT expose `permissions` or any `can*` flag derived from them.
+State hooks SHALL NOT answer permission questions; they return role facts only, and the component composes the capability. `useProjectContextState` `stores/project-context/use-project-context-state.ts` SHALL NOT expose `permissions` or any `can*` flag derived from them.
 
 #### Scenario: Permission-gated UI reads the provider
 

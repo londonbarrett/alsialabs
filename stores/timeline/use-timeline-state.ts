@@ -1,7 +1,7 @@
 "use client"
 
-import { useTimelineStore } from "@/stores/timeline-store"
-import type { TimelineEntry, TimelineEntryAction } from "@/stores/timeline-reducer"
+import { useTimelineStore } from "./timeline-store"
+import type { TimelineEntry, TimelineEntryAction } from "./timeline-reducer"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 
 type StoreType = OptimisticStore<TimelineEntry[], TimelineEntryAction>

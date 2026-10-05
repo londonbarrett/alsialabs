@@ -6,8 +6,8 @@ import type { PaymentFormValues } from "@/components/sales/payment-form"
 import { Spinner } from "@/components/ui/spinner"
 import type { Invoice, InvoicePayment } from "@/lib/drizzle/schema"
 import { formatCurrency } from "@/lib/util/money"
-import { useInvoiceState } from "@/stores/use-invoice-state"
-import { usePaymentActions } from "@/stores/use-payment-actions"
+import { useInvoiceState } from "@/stores/invoice/use-invoice-state"
+import { usePaymentActions } from "@/stores/invoice/use-payment-actions"
 import { useEffect, useState } from "react"
 
 export function PaymentHistory({

@@ -4,7 +4,7 @@ import type { ProjectContext } from "@/lib/actions/projects"
 import {
   createProjectContextStore,
   ProjectContextStoreContext,
-} from "@/stores/project-context-store"
+} from "@/stores/project-context/project-context-store"
 import { useState } from "react"
 
 /**

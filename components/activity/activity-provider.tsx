@@ -4,7 +4,7 @@ import type { Reminder } from "@/lib/actions/reminders"
 import {
   ActivityStoreContext,
   createActivityStore,
-} from "@/stores/activity-store"
+} from "@/stores/activity/activity-store"
 import { useState } from "react"
 
 /**

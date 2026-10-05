@@ -20,8 +20,8 @@ import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import { getProjectForEdit } from "@/lib/actions/projects"
 import type { Project as DbProject } from "@/lib/drizzle/schema"
 import { useHasPermission } from "@/components/common/permissions-provider"
-import { useProjectActions } from "@/stores/use-project-actions"
-import { useProjectContextState } from "@/stores/use-project-context-state"
+import { useProjectActions } from "@/stores/project-context/use-project-actions"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import {
   Calendar,
   ClipboardList,

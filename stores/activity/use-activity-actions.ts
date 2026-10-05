@@ -15,8 +15,8 @@ import {
   buildTempReminder,
 } from "@/lib/util/temp-entries"
 import { useSettle } from "@/hooks/use-settle"
-import { type ActivityAction } from "@/stores/activity-reducer"
-import { useActivityStore } from "@/stores/activity-store"
+import { type ActivityAction } from "./activity-reducer"
+import { useActivityStore } from "./activity-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"

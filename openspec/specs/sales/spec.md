@@ -332,20 +332,20 @@ The sales page SHALL be a server component that fetches data and composes Page l
 
 ### Requirement: InvoicesCard is fully optimistic with a page-scoped invoice store
 
-The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be a single component that is fully optimistic, using `useOptimisticAction` `stores/use-optimistic-action.ts` with `salesReducer` `stores/sales-reducer.ts`, which composes `invoiceReducer` `stores/invoice-reducer.ts` and `paymentReducer` `stores/payment-reducer.ts`. The store SHALL be scoped to the sales route by `InvoiceProvider` `components/sales/invoice-provider.tsx`, which SHALL be mounted by `app/app/ventas/page.tsx` — NOT by `InvoicesCard`. Consequently `InvoicesCard` SHALL take no props and read the store itself, and `SalesView` `components/sales/sales-view.tsx` SHALL NOT receive an `invoices` prop, because the page passes the fetched array to the provider instead. There SHALL NOT be a wrapper/content component pair in which the inner component consumes the store the outer one provides.
+The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be a single component that is fully optimistic, using `useOptimisticAction` `stores/use-optimistic-action.ts` with `salesReducer` `stores/invoice/sales-reducer.ts`, which composes `invoiceReducer` `stores/invoice/invoice-reducer.ts` and `paymentReducer` `stores/invoice/payment-reducer.ts`. The store SHALL be scoped to the sales route by `InvoiceProvider` `components/sales/invoice-provider.tsx`, which SHALL be mounted by `app/app/ventas/page.tsx` — NOT by `InvoicesCard`. Consequently `InvoicesCard` SHALL take no props and read the store itself, and `SalesView` `components/sales/sales-view.tsx` SHALL NOT receive an `invoices` prop, because the page passes the fetched array to the provider instead. There SHALL NOT be a wrapper/content component pair in which the inner component consumes the store the outer one provides.
 
 #### Scenario: InvoicesCard uses useInvoiceActions and the invoice store
 
 - **WHEN** the sales page renders
 - **THEN** `InvoiceProvider` builds a store once per mount, seeded with the `InvoiceWithClientName[]` `components/sales/sales-invoice-table.tsx:17` fetched by the page
-- **AND** `useInvoiceActions` `stores/use-invoice-actions.ts` (which SHALL take no arguments) SHALL return only invoice mutations: `createInvoice`/`updateInvoice`/`deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`sendInvoice`; `InvoicesCard` `components/sales/invoices-card.tsx` SHALL read the list from `useInvoiceState()` `stores/use-invoice-state.ts` and SHALL NOT import the store
+- **AND** `useInvoiceActions` `stores/invoice/use-invoice-actions.ts` (which SHALL take no arguments) SHALL return only invoice mutations: `createInvoice`/`updateInvoice`/`deleteInvoice`/`cancelInvoice`/`reopenInvoice`/`sendInvoice`; `InvoicesCard` `components/sales/invoices-card.tsx` SHALL read the list from `useInvoiceState()` `stores/invoice/use-invoice-state.ts` and SHALL NOT import the store
 - **AND** on success each handler commits the server `returning()` data via the store, on error it commits the rollback and toasts `useActionError` `lib/util/action-errors.ts`
 - **AND** `createInvoice`/`updateInvoice` build their optimistic `replaceTemp`/`update` action inside the hook and return `SettleResult` `lib/types.ts` (success plus optional server field errors) so `InvoiceForm` `components/sales/invoice-form.tsx` can render them
 
 #### Scenario: Invoice dialogs delegate the mutation to the hook
 
 - **WHEN** `SalesInvoiceDialog` `components/sales/sales-invoice-dialog.tsx` or `TimelineInvoiceDialog` `components/clients/timeline-invoice-dialog.tsx` submits
-- **THEN** it calls `createInvoice`/`updateInvoice` from its route hook (`useInvoiceActions` on the sales page, `useTimelineActions` `stores/use-timeline-actions.ts` on the client page)
+- **THEN** it calls `createInvoice`/`updateInvoice` from its route hook (`useInvoiceActions` on the sales page, `useTimelineActions` `stores/timeline/use-timeline-actions.ts` on the client page)
 - **AND** the dialog imports no server action, never calls `run()` or `toast`, and only uses the returned `SettleResult` to re-open on field errors
 
 #### Scenario: Invoice filters are extracted
@@ -361,11 +361,11 @@ The `InvoicesCard` `components/sales/invoices-card.tsx` SHALL be a single compon
 #### Scenario: Payment dialog closes optimistically
 
 - **WHEN** a user submits the record `PaymentDialog`
-- **THEN** `handleRecordPaymentSubmit` `components/sales/invoices-card.tsx:53` closes the dialog (`setPaymentDialog((s) => ({ ...s, open: false }))`) then calls `recordPayment` from `usePaymentActions` `stores/use-payment-actions.ts` (fire-and-forget), whose `recordPayment` action updates the invoice's `paidAmount`/`status` optimistically through `salesReducer` `stores/sales-reducer.ts`; rollback on `serverError` does not reopen the dialog
+- **THEN** `handleRecordPaymentSubmit` `components/sales/invoices-card.tsx:53` closes the dialog (`setPaymentDialog((s) => ({ ...s, open: false }))`) then calls `recordPayment` from `usePaymentActions` `stores/invoice/use-payment-actions.ts` (fire-and-forget), whose `recordPayment` action updates the invoice's `paidAmount`/`status` optimistically through `salesReducer` `stores/invoice/sales-reducer.ts`; rollback on `serverError` does not reopen the dialog
 
 #### Scenario: Invoice table updates on payment delete
 
-- **WHEN** a payment is deleted via `PaymentHistory` `components/sales/payment-history.tsx` (`usePaymentActions().deletePayment` `stores/use-payment-actions.ts`, which routes a `deletePayment` action through the sales store `stores/sales-reducer.ts`)
+- **WHEN** a payment is deleted via `PaymentHistory` `components/sales/payment-history.tsx` (`usePaymentActions().deletePayment` `stores/invoice/use-payment-actions.ts`, which routes a `deletePayment` action through the sales store `stores/invoice/sales-reducer.ts`)
 - **THEN** `InvoicesCard` `invoices` reflect the deletion without a full `router.refresh`, because `salesReducer` patches both `paymentsByInvoiceId` and the parent invoice's `paidAmount`/`status` in the same pass
 
 ### Requirement: Invoice domain is properly modularized
@@ -389,5 +389,5 @@ The system SHALL keep invoice-related code separate from sales analytics.
 
 #### Scenario: Tests are co-located
 
-- **WHEN** inspecting `lib/actions/invoices.test.ts` `lib/actions/payments.test.ts`, `stores/invoice-store.test.ts`, `stores/payment-reducer.test.ts`, `lib/util/invoices.test.ts`
-- **THEN** each file lives next to its target (`stores/`, `reducers/`, `lib/actions/`, or `lib/util/`) and tests business logic (e.g. `computeInvoiceTotals` `lib/util/invoices.ts:26`, `overdue` derivation, `initialStatus` from `paidAmount`, `invoiceReducer` `stores/invoice-reducer.ts`, `paymentReducer` `add`/`update`/`delete`, `canRecordPayment` validation) without mocking action logic, with `vitest-drizzle-mock` only for `db` where needed
+- **WHEN** inspecting `lib/actions/invoices.test.ts` `lib/actions/payments.test.ts`, `stores/invoice/invoice-store.test.ts`, `stores/invoice/payment-reducer.test.ts`, `lib/util/invoices.test.ts`
+- **THEN** each file lives next to its target (`stores/`, `reducers/`, `lib/actions/`, or `lib/util/`) and tests business logic (e.g. `computeInvoiceTotals` `lib/util/invoices.ts:26`, `overdue` derivation, `initialStatus` from `paidAmount`, `invoiceReducer` `stores/invoice/invoice-reducer.ts`, `paymentReducer` `add`/`update`/`delete`, `canRecordPayment` validation) without mocking action logic, with `vitest-drizzle-mock` only for `db` where needed

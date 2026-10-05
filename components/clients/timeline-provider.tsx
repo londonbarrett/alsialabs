@@ -9,11 +9,11 @@ import type {
 import {
   sortTimelineEntries,
   type TimelineEntry,
-} from "@/stores/timeline-reducer"
+} from "@/stores/timeline/timeline-reducer"
 import {
   createTimelineStore,
   TimelineStoreContext,
-} from "@/stores/timeline-store"
+} from "@/stores/timeline/timeline-store"
 import { useState } from "react"
 
 export function TimelineProvider({

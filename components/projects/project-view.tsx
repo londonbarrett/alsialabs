@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { useProjectContextState } from "@/stores/use-project-context-state"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { cn } from "cn"
 import {
   ArrowLeft,

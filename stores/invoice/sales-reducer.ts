@@ -3,11 +3,11 @@ import type { InvoicePayment } from "@/lib/drizzle/schema"
 import {
   invoiceReducer,
   type InvoiceAction,
-} from "@/stores/invoice-reducer"
+} from "./invoice-reducer"
 import {
   paymentReducer,
   type PaymentAction,
-} from "@/stores/payment-reducer"
+} from "./payment-reducer"
 
 export type SalesState = {
   invoices: InvoiceWithClientName[]

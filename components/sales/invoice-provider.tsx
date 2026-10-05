@@ -4,7 +4,7 @@ import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-tab
 import {
   createInvoiceStore,
   InvoiceStoreContext,
-} from "@/stores/invoice-store"
+} from "@/stores/invoice/invoice-store"
 import { useState } from "react"
 
 export function InvoiceProvider({

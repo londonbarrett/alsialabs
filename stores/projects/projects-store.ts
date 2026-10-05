@@ -2,7 +2,7 @@
 
 import type { Project } from "@/lib/types"
 import { createOptimisticStore } from "@/lib/optimistic-store"
-import { projectsReducer } from "@/stores/projects-reducer"
+import { projectsReducer } from "./projects-reducer"
 import { createContext, useContext } from "react"
 
 export function createProjectsStore(projects: Project[]) {

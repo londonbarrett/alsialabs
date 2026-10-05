@@ -10,7 +10,7 @@ import {
 import type { Invoice, InvoicePayment } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
 import { useSettle } from "@/hooks/use-settle"
-import { useInvoiceStore } from "@/stores/invoice-store"
+import { useInvoiceStore } from "./invoice-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
