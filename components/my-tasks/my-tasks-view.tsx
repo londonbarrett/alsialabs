@@ -13,41 +13,35 @@ import {
 } from "@/components/ui/select"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { MyTask } from "@/lib/actions/tasks"
-import { getMyTasks, updateTaskStatus } from "@/lib/actions/tasks"
-import type { Task, TaskStatus } from "@/lib/drizzle/schema"
 import {
   ALL_TASK_STATUSES,
   COLLABORATOR_TASK_STATUSES,
 } from "@/lib/schemas/task"
-import { useActionError } from "@/lib/util/action-errors"
+import { useMyTasksActions } from "@/stores/my-tasks/use-my-tasks-actions"
+import { useMyTasksState } from "@/stores/my-tasks/use-my-tasks-state"
 import { ListTodo } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useMemo, useState, useTransition } from "react"
-import { toast } from "sonner"
+import { useMemo, useState } from "react"
 
 interface MyTasksViewProps {
-  initialTasks: MyTask[]
   currentUserId: string
   isSuperUser: boolean
 }
 
 export function MyTasksView({
-  initialTasks,
   currentUserId,
   isSuperUser,
 }: MyTasksViewProps) {
   const t = useTranslations()
-  const translateError = useActionError()
-  const { start: showLoading, stop: hideLoading } =
-    useLoadingIndicator()
-  const [tasks, setTasks] = useState(initialTasks)
+  const { isLoading } = useLoadingIndicator()
+  const { tasks } = useMyTasksState()
+  const { updateTaskStatus } = useMyTasksActions()
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [projectFilter, setProjectFilter] = useState<string>("all")
-  const [isPending, startTransition] = useTransition()
 
   const projects = useMemo(() => {
     const map = new Map<string, string>()
-    for (const task of initialTasks) {
+    for (const task of tasks) {
       const owner = task.projectOwnerName
         ? ` (${task.projectOwnerName})`
         : ""
@@ -56,89 +50,29 @@ export function MyTasksView({
     return Array.from(map.entries()).sort((a, b) =>
       a[1].localeCompare(b[1])
     )
-  }, [initialTasks])
+  }, [tasks])
 
-  function applyFilters(newStatus: string, newProject: string) {
-    startTransition(async () => {
-      const result = await getMyTasks({
-        statusFilter: newStatus === "all" ? undefined : newStatus,
-        projectIdFilter: newProject === "all" ? undefined : newProject,
-      })
-      if (result.data) {
-        setTasks(result.data)
-      } else if (result.serverError) {
-        toast.error(translateError(result.serverError.code))
-      } else {
-        toast.error(t("common.somethingWentWrong"))
-      }
-    })
-  }
+  /**
+   * The store always holds the unfiltered set, so the projection — not a
+   * network call — decides what is visible. That is what keeps a focus
+   * refresh honest: a fresh seed is a valid base for any filter combination.
+   */
+  const visibleTasks = useMemo(
+    () =>
+      tasks.filter(
+        (task) =>
+          (statusFilter === "all" || task.status === statusFilter) &&
+          (projectFilter === "all" || task.projectId === projectFilter)
+      ),
+    [tasks, statusFilter, projectFilter]
+  )
 
   function handleStatusFilterChange(value: string | null) {
-    if (!value) return
-    setStatusFilter(value)
-    applyFilters(value, projectFilter)
+    if (value) setStatusFilter(value)
   }
 
   function handleProjectFilterChange(value: string | null) {
-    if (!value) return
-    setProjectFilter(value)
-    applyFilters(statusFilter, value)
-  }
-
-  async function handleStatusChange(
-    taskId: string,
-    projectId: string,
-    status: TaskStatus
-  ) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status } : t))
-    )
-    showLoading()
-    try {
-      const result = await updateTaskStatus({
-        projectId,
-        taskId,
-        status,
-      })
-      if (result.serverError) {
-        toast.error(translateError(result.serverError.code))
-        applyFilters(statusFilter, projectFilter)
-      } else {
-        toast.success(t("projects.tasks.statusChanged"))
-        const nextTask = (result.data as unknown as { nextTask?: Task })
-          ?.nextTask
-        if (nextTask) {
-          const completed = tasks.find((task) => task.id === taskId)
-          if (completed) {
-            const matchesStatus =
-              statusFilter === "all" || statusFilter === nextTask.status
-            const matchesProject =
-              projectFilter === "all" ||
-              projectFilter === completed.projectId
-            if (matchesStatus && matchesProject) {
-              const mapped: MyTask = {
-                ...nextTask,
-                projectId: completed.projectId,
-                projectName: completed.projectName,
-                projectColor: completed.projectColor,
-                projectOwnerName: completed.projectOwnerName,
-                isOwner: completed.isOwner,
-                assigneeName: completed.assigneeName,
-                commentCount: 0,
-              } as unknown as MyTask
-              setTasks((prev) => [mapped, ...prev])
-            }
-          }
-          toast.success(t("projects.routines.nextOccurrenceCreated"))
-        }
-      }
-    } catch {
-      toast.error(t("common.somethingWentWrong"))
-      applyFilters(statusFilter, projectFilter)
-    } finally {
-      hideLoading()
-    }
+    if (value) setProjectFilter(value)
   }
 
   function getTaskAllowedStatuses(task: MyTask) {
@@ -148,16 +82,6 @@ export function MyTasksView({
     if (task.assigneeId === currentUserId)
       return COLLABORATOR_TASK_STATUSES
     return null
-  }
-
-  function handleCommentCountChange(taskId: string, delta: number) {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, commentCount: Math.max(0, t.commentCount + delta) }
-          : t
-      )
-    )
   }
 
   return (
@@ -175,7 +99,10 @@ export function MyTasksView({
           items={{
             all: t("myTasks.allStatuses"),
             ...Object.fromEntries(
-              ALL_TASK_STATUSES.map((s) => [s, t(`projects.tasks.status.${s}`)])
+              ALL_TASK_STATUSES.map((s) => [
+                s,
+                t(`projects.tasks.status.${s}`),
+              ])
             ),
           }}
         >
@@ -221,15 +148,19 @@ export function MyTasksView({
       </div>
 
       <MyTasksList
-        tasks={tasks}
+        tasks={visibleTasks}
         statuses={Object.fromEntries(
-          tasks.map((task) => [task.id, getTaskAllowedStatuses(task)])
+          visibleTasks.map((task) => [
+            task.id,
+            getTaskAllowedStatuses(task),
+          ])
         )}
-        isPending={isPending}
+        isPending={isLoading}
         currentUserId={currentUserId}
         isSuperUser={isSuperUser}
-        onStatusChange={handleStatusChange}
-        onCommentCountChange={handleCommentCountChange}
+        onStatusChange={(taskId, projectId, status) =>
+          void updateTaskStatus(projectId, taskId, status)
+        }
       />
     </div>
   )

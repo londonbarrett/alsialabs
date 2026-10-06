@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import { getMyTasks } from "@/lib/actions/tasks"
 import { MyTasksView } from "@/components/my-tasks/my-tasks-view"
+import { MyTasksProvider } from "@/components/my-tasks/my-tasks-provider"
 import { forbidden } from "next/navigation"
 import { unwrapResponse } from "@/lib/util/unwrap"
 
@@ -38,11 +39,9 @@ export default async function MyTasksPage() {
         </div>
       }
     >
-      <MyTasksView
-        initialTasks={tasks}
-        currentUserId={userId}
-        isSuperUser={superUser}
-      />
+      <MyTasksProvider tasks={tasks}>
+        <MyTasksView currentUserId={userId} isSuperUser={superUser} />
+      </MyTasksProvider>
     </Suspense>
   )
 }

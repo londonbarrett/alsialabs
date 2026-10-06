@@ -2,6 +2,7 @@
 
 import { ActionMenu } from "@/components/common/action-menu"
 import { Money } from "@/components/common/money"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,9 +23,8 @@ import {
   COLLABORATOR_TASK_STATUSES,
 } from "@/lib/schemas/task"
 import { isTaskOverdue } from "@/lib/util/tasks"
-import type { TaskWithCommentCount } from "@/reducers/task-reducer"
-import { useHasPermission } from "@/components/common/permissions-provider"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
+import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { DueDate } from "./due-date"

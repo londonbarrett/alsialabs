@@ -8,9 +8,15 @@ import {
 import { createContext, useContext } from "react"
 
 export function createActivityStore(reminders: Reminder[]) {
-  return createOptimisticStore<ActivityState, ActivityAction>(
+  /**
+   * `reminders` is the server's slice. `activities` holds the per-client
+   * lists loaded when a row is expanded, so a reseed keeps them — otherwise
+   * every focus collapse would discard the user's open rows and their pages.
+   */
+  return createOptimisticStore<ActivityState, ActivityAction, Reminder[]>(
     { reminders, activities: {} },
-    activityReducer
+    activityReducer,
+    (committed, next) => ({ ...committed, reminders: next })
   )
 }
 

@@ -8,9 +8,19 @@ import {
 } from "./sales-reducer"
 
 export function createInvoiceStore(invoices: InvoiceWithClientName[]) {
-  return createOptimisticStore<SalesState, SalesAction>(
+  /**
+   * `invoices` is the server's slice. `paymentsByInvoiceId` is fetched when
+   * the payments sheet opens, so a reseed keeps it and the sheet does not
+   * reload on every focus.
+   */
+  return createOptimisticStore<
+    SalesState,
+    SalesAction,
+    InvoiceWithClientName[]
+  >(
     { invoices, paymentsByInvoiceId: {} },
-    salesReducer
+    salesReducer,
+    (committed, next) => ({ ...committed, invoices: next })
   )
 }
 

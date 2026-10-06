@@ -12,7 +12,12 @@ import { toast } from "sonner"
  */
 export interface ActionResult {
   data?: unknown
-  serverError?: { code: string } | null
+  /**
+   * Typed as `unknown` because `sessionAction` is not parameterized with a
+   * `ServerError`, so actions built from it report `serverError: unknown`.
+   * `settle` narrows it internally rather than forcing every caller to cast.
+   */
+  serverError?: unknown
   validationErrors?: unknown
   success?: boolean
   error?: string
@@ -34,8 +39,14 @@ export function useSettle() {
     successMessage: string,
     errorMessage?: string
   ): SettleResult => {
-    if (result?.serverError) {
-      const error = translateError(result.serverError.code)
+    const serverError = result?.serverError as
+      | { code?: string }
+      | null
+      | undefined
+    if (serverError) {
+      const error = serverError.code
+        ? translateError(serverError.code)
+        : (errorMessage ?? t("common.somethingWentWrong"))
       toast.error(error)
       return { success: false, error }
     }

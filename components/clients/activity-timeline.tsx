@@ -9,13 +9,11 @@ import { LogActivityButton } from "@/components/clients/log-activity-button"
 import { PaymentItem } from "@/components/clients/payment-item"
 import { ReminderItem } from "@/components/clients/reminder-item"
 import { Separator } from "@/components/ui/separator"
-import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
 import { useTimelineState } from "@/stores/timeline/use-timeline-state"
 import { useTranslations } from "next-intl"
 
 export function ActivityTimeline({ clientId }: { clientId: string }) {
   const t = useTranslations()
-  useRefreshOnFocus()
 
   const { entries } = useTimelineState()
 

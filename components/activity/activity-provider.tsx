@@ -5,6 +5,7 @@ import {
   ActivityStoreContext,
   createActivityStore,
 } from "@/stores/activity/activity-store"
+import { useServerReseed } from "@/hooks/use-server-reseed"
 import { useState } from "react"
 
 /**
@@ -20,6 +21,7 @@ export function ActivityProvider({
   children: React.ReactNode
 }) {
   const [store] = useState(() => createActivityStore(reminders))
+  useServerReseed(store, reminders)
 
   return (
     <ActivityStoreContext value={store}>

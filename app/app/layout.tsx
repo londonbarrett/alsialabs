@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/common/app-sidebar"
+import { FocusRefresh } from "@/components/common/focus-refresh"
 import { PermissionsProvider } from "@/components/common/permissions-provider"
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import {
@@ -22,6 +23,7 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
+      <FocusRefresh />
       <PermissionsProvider permissions={permissions}>
         <AppSidebar
           role={session.user?.role}

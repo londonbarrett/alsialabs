@@ -334,7 +334,7 @@ The system SHALL provide a combobox input (`components/projects/user-invite-inpu
 
 ### Requirement: Task management
 
-The system SHALL allow owners to manage tasks on their projects. Tasks are managed on the tasks subpage (`/app/proyectos/[id]`, the default project subpage). Tasks SHALL carry an optional priority of `urgent` or `high`; tasks with no priority are allowed. Tasks SHALL carry an optional due date (a datetime). Owners set or edit the due date from the task dialog using a date field and an optional time field; the due date is rendered in the Due Date column of the task table. Tasks SHALL support a `cancelled` status that owners apply from the inline status dropdown; cancelled tasks are read-only for non-owners, do not show the overdue indicator, and are excluded from project task progress. Owners can reopen a cancelled task by selecting an active status. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change, priority change) use optimistic updates with useReducer for instant UI feedback, global loading indicator during server requests, and success toasts on completion.
+The system SHALL allow owners to manage tasks on their projects. Tasks are managed on the tasks subpage (`/app/proyectos/[id]`, the default project subpage). Tasks SHALL carry an optional priority of `urgent` or `high`; tasks with no priority are allowed. Tasks SHALL carry an optional due date (a datetime). Owners set or edit the due date from the task dialog using a date field and an optional time field; the due date is rendered in the Due Date column of the task table. Tasks SHALL support a `cancelled` status that owners apply from the inline status dropdown; cancelled tasks are read-only for non-owners, do not show the overdue indicator, and are excluded from project task progress. Owners can reopen a cancelled task by selecting an active status. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change, priority change) use optimistic updates through the project tasks store, global loading indicator during server requests, and success toasts on completion. The store is page-scoped: `app/app/proyectos/[id]/page.tsx` mounts `ProjectTasksProvider` with the `getTasks` result and `TasksCard` reads `useProjectTasksState()`. A failed mutation SHALL discard only its own pending action, so concurrent mutations do not overwrite each other.
 
 #### Scenario: Create task
 
@@ -675,7 +675,8 @@ The system SHALL allow owners to manage expenses on the expenses subpage (`/app/
 
 ### Requirement: Task comments
 
-The system SHALL allow project members (owners and collaborators) and task assignees to have conversations on tasks. Comments are displayed in a slide-over Sheet panel. Only the comment author or project owners can delete comments. Only the comment author can edit their own comments. Comment operations (add, edit, delete) use optimistic updates with the global loading indicator during server requests and success toasts on completion.
+The system SHALL allow project members (owners and collaborators) and task assignees to have conversations on tasks. Comments are displayed in a slide-over Sheet panel. Only the comment author or project owners can delete comments. Only the comment author can edit their own comments. Comment operations (add, edit, delete) use optimistic updates with the global loading indicator during server requests and success toasts on completion. Comments live in the page's own store keyed by task id — the project tasks store on the project subpage, the my-tasks store on the My Tasks page — and are loaded when the panel opens. A comment mutation SHALL adjust the owning task's `commentCount` in the same action, so a rejected comment rolls its count back with it and the count cannot drift from the list; loading comments SHALL reconcile `commentCount` to the fetched length. The comments slide-over is a single dumb presentational component, `TaskCommentsSheet` `components/common/task-comments-sheet.tsx`, which takes comments plus callbacks and owns only the draft text, which comment is being edited, and scroll position. Each domain supplies its own controller over it — `ProjectTaskCommentsPanel` and `MyTaskCommentsPanel`, at `components/projects/project-task-comments-panel.tsx` and `components/my-tasks/my-task-comments-panel.tsx` — each reading and writing its own store, so the markup exists once while loading, fetching and mutations stay per domain. Neither controller reports count changes upward through a callback: the count moves with the comment in the store action.
+
 
 #### Scenario: Assignee who is not a project member can comment
 
@@ -776,9 +777,23 @@ The system SHALL allow project members (owners and collaborators) and task assig
 - **THEN** the comments list is re-fetched from the server
 - **AND** a loading spinner is shown during the fetch
 
+#### Scenario: Rejected comment does not drift the count
+
+- **WHEN** a comment mutation is rejected by the server
+- **THEN** the pending comment and its `commentCount` increment are discarded together
+- **AND** the list shows the count as it was before the attempt
+
+#### Scenario: Comment count updates without reaching the parent
+
+- **WHEN** a comment is added, edited, or deleted from the My Tasks comments panel
+- **THEN** `commentCount` updates in the my-tasks store action
+- **AND** `MyTasksList` receives no `onCommentCountChange` callback
+
 ### Requirement: My Tasks page
 
-The system SHALL provide a "My Tasks" page accessible from the sidebar that shows all tasks assigned to the current user across all projects they have access to. Status changes use optimistic updates with global loading indicator and success toasts. Each row shows a Due Date column; tasks that are not "done" or "cancelled" with a due date in the past show an "Overdue" badge. The status filter includes "cancelled". Cancelled tasks are read-only for non-owners.
+The system SHALL provide a "My Tasks" page accessible from the sidebar that shows all tasks assigned to the current user across all projects they have access to. Tasks are held in a page-scoped store `MyTasksProvider` mounted by `app/app/mis-tareas/page.tsx`, seeded from `getMyTasks({})`. Status changes use optimistic updates with global loading indicator and success toasts. Each row shows a Due Date column; tasks that are not "done" or "cancelled" with a due date in the past show an "Overdue" badge. The status filter includes "cancelled". Cancelled tasks are read-only for non-owners.
+
+The status and project filters are client-side projections over the full task set in the store, not separate queries: the page already loads every assigned task, so a filtered view derives from that set. Filter selection is local UI state and SHALL NOT live in the store. Because the store always holds the full set, a refresh can reseed it without ever contradicting an active filter.
 
 #### Scenario: Navigate to My Tasks
 
@@ -800,12 +815,14 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 - **WHEN** the user selects a status from the filter dropdown
 - **THEN** only tasks with the selected status are shown
 - **AND** "Cancelled" is an available filter option
+- **AND** no server request is made
 
 #### Scenario: Filter tasks by project
 
 - **GIVEN** a user on the My Tasks page
 - **WHEN** the user selects a project from the filter dropdown
 - **THEN** only tasks from the selected project are shown
+- **AND** no server request is made
 
 #### Scenario: Change task status from My Tasks
 
@@ -837,13 +854,26 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 - **WHEN** the user double-clicks a task row or clicks the comment count button
 - **THEN** the comments panel opens as a slide-over Sheet
 
+#### Scenario: Refreshing the tab picks up tasks changed elsewhere
+
+- **GIVEN** a task assigned to the user was completed on another page
+- **WHEN** the user returns to the My Tasks tab and the window regains focus
+- **THEN** `useRefreshOnFocus` triggers `router.refresh()` and the store reseeds from the fresh result
+- **AND** the list shows the task's new status without a full page reload
+
+#### Scenario: A change returned by a routine keeps its comment count
+
+- **GIVEN** a status change on My Tasks returns `nextTask`
+- **WHEN** the new task is merged into the store
+- **THEN** the existing count of the completed task is preserved rather than reset
+- **AND** the new task's visibility in the current filter is derived from the projection
+
 #### Scenario: Forbidden without projects view permission
 
 - **GIVEN** a user without `projects:view` permission
 - **WHEN** the user navigates to `/app/mis-tareas`
 - **THEN** a 403 forbidden screen is displayed
 - **AND** no server error is thrown
-
 ### Requirement: User-scoped project queries
 
 Projects SHALL be scoped to the authenticated user. Users only see projects they own. Collaborators cannot see project details. Admins and super users see all projects.

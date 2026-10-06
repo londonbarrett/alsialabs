@@ -2,7 +2,7 @@
 
 import { Money } from "@/components/common/money"
 import { DueDate } from "@/components/projects/due-date"
-import { TaskCommentsPanel } from "@/components/projects/task-comments-panel"
+import { MyTaskCommentsPanel } from "./my-task-comments-panel"
 import { taskPriorityColors } from "@/components/projects/task-priority-select"
 import {
   TaskStatusSelect,
@@ -37,7 +37,6 @@ interface MyTasksListProps {
     projectId: string,
     status: TaskStatus
   ) => void
-  onCommentCountChange?: (taskId: string, delta: number) => void
 }
 
 export function MyTasksList({
@@ -47,7 +46,6 @@ export function MyTasksList({
   currentUserId,
   isSuperUser,
   onStatusChange,
-  onCommentCountChange,
 }: MyTasksListProps) {
   const t = useTranslations()
   const [commentsTask, setCommentsTask] = useState<MyTask | undefined>()
@@ -199,7 +197,7 @@ export function MyTasksList({
         )}
       </CardContent>
 
-      <TaskCommentsPanel
+      <MyTaskCommentsPanel
         key={commentsTask?.id ?? "empty"}
         taskId={commentsTask?.id ?? ""}
         taskName={commentsTask?.name ?? ""}
@@ -213,7 +211,6 @@ export function MyTasksList({
         }}
         currentUserId={currentUserId}
         isOwner={isSuperUser || commentsTask?.isOwner || false}
-        onCommentCountChange={onCommentCountChange}
       />
     </Card>
   )

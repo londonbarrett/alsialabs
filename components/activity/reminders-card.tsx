@@ -17,7 +17,6 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
-import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
 import type { Reminder } from "@/lib/actions/reminders"
 import type { ReminderSubmitData } from "@/lib/types"
 import { useActivityState } from "@/stores/activity/use-activity-state"
@@ -30,7 +29,6 @@ import { useState } from "react"
 
 export function RemindersCard() {
   const t = useTranslations()
-  useRefreshOnFocus()
   const [reminderDialog, setReminderDialog] = useState<{
     open: boolean
     editing?: Reminder

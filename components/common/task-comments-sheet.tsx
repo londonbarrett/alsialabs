@@ -14,195 +14,71 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
-import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import {
-  createComment,
-  deleteComment,
-  getTaskComments,
-  updateComment,
-} from "@/lib/actions/task-comments"
+import type { TaskCommentWithAuthor } from "@/lib/types"
 import { Pencil, RefreshCw, Send, Trash2 } from "lucide-react"
 import { useTranslations } from "next-intl"
-import {
-  useCallback,
-  useEffect,
-  useOptimistic,
-  useRef,
-  useState,
-  useTransition,
-} from "react"
-import { toast } from "sonner"
+import { useEffect, useRef, useState } from "react"
 
-interface TaskCommentWithAuthor {
-  id: string
-  taskId: string
-  authorId: string
-  authorName: string | null
-  authorImage: string | null
-  content: string
-  createdAt: Date
-  updatedAt: Date
-}
-
-type CommentAction =
-  | { type: "add"; comment: TaskCommentWithAuthor }
-  | { type: "delete"; commentId: string }
-  | { type: "update"; commentId: string; content: string }
-
-function commentReducer(
-  state: TaskCommentWithAuthor[],
-  action: CommentAction
-): TaskCommentWithAuthor[] {
-  switch (action.type) {
-    case "add":
-      return [...state, action.comment]
-    case "delete":
-      return state.filter((c) => c.id !== action.commentId)
-    case "update":
-      return state.map((c) =>
-        c.id === action.commentId
-          ? { ...c, content: action.content, updatedAt: new Date() }
-          : c
-      )
-  }
-}
-
-interface TaskCommentsPanelProps {
-  taskId: string
+/**
+ * The comments slide-over, with no data access of its own.
+ *
+ * Each domain supplies a controller: `ProjectTaskCommentsPanel` for project
+ * tasks (backed by `ProjectTasksProvider`) and `MyTaskCommentsPanel` for
+ * `my-tasks` (local `useOptimistic` state until that domain gets a store).
+ * Both render this, so the markup, edit-in-place state and scroll behaviour
+ * exist once instead of drifting apart per domain.
+ *
+ * Only ephemeral form state lives here — the draft text, which comment is being
+ * edited, and the scroll position. Loading, fetching and mutations belong to
+ * the controller.
+ */
+interface TaskCommentsSheetProps {
   taskName: string
   description?: string | null
+  comments: TaskCommentWithAuthor[]
+  loading: boolean
+  currentUserId: string
+  /** Whether the viewer may delete any comment on the task. */
+  canModerate: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
-  currentUserId: string
-  isOwner: boolean
-  onCommentCountChange?: (taskId: string, delta: number) => void
+  onRefresh: () => void
+  onSend: (content: string) => void
+  onEdit: (commentId: string, content: string) => void
+  onDelete: (commentId: string) => void
 }
 
-function getInitials(name: string | null) {
-  if (!name) return "?"
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-function formatRelativeTime(date: Date) {
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return "just now"
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return date.toLocaleDateString()
-}
-
-export function TaskCommentsPanel({
-  taskId,
+export function TaskCommentsSheet({
   taskName,
   description,
+  comments,
+  loading,
+  currentUserId,
+  canModerate,
   open,
   onOpenChange,
-  currentUserId,
-  isOwner,
-  onCommentCountChange,
-}: TaskCommentsPanelProps) {
+  onRefresh,
+  onSend,
+  onEdit,
+  onDelete,
+}: TaskCommentsSheetProps) {
   const t = useTranslations()
-  const { start: startLoading, stop: stopLoading } =
-    useLoadingIndicator()
-  const [comments, setComments] = useState<TaskCommentWithAuthor[]>([])
-  const [optimisticComments, addOptimistic] = useOptimistic(
-    comments,
-    commentReducer
-  )
   const [newComment, setNewComment] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [, startTransition] = useTransition()
   const scrollRef = useRef<HTMLDivElement>(null)
-
-  const fetchComments = useCallback(async () => {
-    try {
-      setLoading(true)
-      const result = await getTaskComments(taskId)
-      setComments(result)
-    } catch {
-      toast.error(t("common.somethingWentWrong"))
-    } finally {
-      setLoading(false)
-    }
-  }, [taskId, t])
-
-  useEffect(() => {
-    if (open) {
-      startTransition(() => {
-        fetchComments()
-      })
-    }
-  }, [open, fetchComments])
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [optimisticComments])
+  }, [comments])
 
-  async function handleSend() {
+  function handleSend() {
     const content = newComment.trim()
     if (!content) return
-
-    const existingComment = comments.find(
-      (c) => c.authorId === currentUserId
-    )
-    const tempComment: TaskCommentWithAuthor = {
-      id: `temp-${Date.now()}`,
-      taskId,
-      authorId: currentUserId,
-      authorName: existingComment?.authorName ?? null,
-      authorImage: existingComment?.authorImage ?? null,
-      content,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
     setNewComment("")
-
-    startTransition(() => {
-      addOptimistic({ type: "add", comment: tempComment })
-    })
-
-    startLoading()
-    const result = await createComment(taskId, content)
-    stopLoading()
-    if (result.success) {
-      setComments((prev) => [...prev, result.data.comment])
-      onCommentCountChange?.(taskId, 1)
-      toast.success(t("projects.tasks.comments.commentAdded"))
-    } else {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    }
-  }
-
-  function handleDelete(commentId: string) {
-    startTransition(() => {
-      addOptimistic({ type: "delete", commentId })
-    })
-
-    startLoading()
-    deleteComment(commentId, taskId).then((result) => {
-      stopLoading()
-      if (result.success) {
-        setComments((prev) => prev.filter((c) => c.id !== commentId))
-        onCommentCountChange?.(taskId, -1)
-        toast.success(t("projects.tasks.comments.commentDeleted"))
-      } else {
-        toast.error(result.error || t("common.somethingWentWrong"))
-      }
-    })
+    onSend(content)
   }
 
   function handleEditStart(comment: TaskCommentWithAuthor) {
@@ -215,34 +91,12 @@ export function TaskCommentsPanel({
     setEditContent("")
   }
 
-  async function handleEditSave() {
+  function handleEditSave() {
     if (!editingId || !editContent.trim()) return
-
     const content = editContent.trim()
     setEditingId(null)
     setEditContent("")
-
-    startTransition(() => {
-      addOptimistic({
-        type: "update",
-        commentId: editingId,
-        content,
-      })
-    })
-
-    startLoading()
-    const result = await updateComment(editingId, taskId, content)
-    stopLoading()
-    if (result.success) {
-      setComments((prev) =>
-        prev.map((c) =>
-          c.id === result.data.comment.id ? result.data.comment : c
-        )
-      )
-      toast.success(t("projects.tasks.comments.commentUpdated"))
-    } else {
-      toast.error(result.error || t("common.somethingWentWrong"))
-    }
+    onEdit(editingId, content)
   }
 
   function handleEditKeyDown(e: React.KeyboardEvent) {
@@ -272,7 +126,7 @@ export function TaskCommentsPanel({
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => fetchComments()}
+            onClick={onRefresh}
             disabled={loading}
           >
             <RefreshCw
@@ -289,13 +143,13 @@ export function TaskCommentsPanel({
             <p className="py-8 text-center text-sm text-muted-foreground">
               {t("common.loading")}
             </p>
-          ) : optimisticComments.length === 0 ? (
+          ) : comments.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               {t("projects.tasks.comments.noComments")}
             </p>
           ) : (
             <div className="flex flex-col gap-4">
-              {optimisticComments.map((comment) => (
+              {comments.map((comment) => (
                 <div key={comment.id} className="group flex gap-3">
                   <Avatar size="sm">
                     <AvatarImage
@@ -365,18 +219,18 @@ export function TaskCommentsPanel({
                         <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
                     )}
-                  {comment.authorId === currentUserId || isOwner
-                    ? editingId !== comment.id && (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="shrink-0 opacity-0 group-hover:opacity-100"
-                          onClick={() => handleDelete(comment.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                      )
-                    : null}
+                  {(comment.authorId === currentUserId ||
+                    canModerate) &&
+                    editingId !== comment.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="shrink-0 opacity-0 group-hover:opacity-100"
+                        onClick={() => onDelete(comment.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    )}
                 </div>
               ))}
             </div>
@@ -411,4 +265,27 @@ export function TaskCommentsPanel({
       </SheetContent>
     </Sheet>
   )
+}
+
+function getInitials(name: string | null) {
+  if (!name) return "?"
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+function formatRelativeTime(date: Date) {
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return "just now"
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return date.toLocaleDateString()
 }

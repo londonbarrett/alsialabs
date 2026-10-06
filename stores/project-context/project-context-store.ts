@@ -3,6 +3,7 @@
 import type { ProjectContext } from "@/lib/actions/projects"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { projectContextReducer } from "./project-context-reducer"
+import type { ProjectContextAction } from "./project-context-reducer"
 import { createContext, useContext } from "react"
 
 /**
@@ -11,12 +12,26 @@ import { createContext, useContext } from "react"
  * there is no empty first render and no way to read a stale project left over
  * from a previous route.
  *
- * Every mutation goes through an action here rather than relying on
- * `router.refresh()` to re-read the context — the store is seeded once per
- * provider mount, so a refresh does not rewrite it.
+ * Mutations still go through actions here; `router.refresh()` only re-reads the
+ * context once `useServerReseed` hands the provider a fresh `context` prop and
+ * the store adopts it through `reseedFromServer`, since the store is seeded
+ * once per provider mount and a refresh alone would not rewrite it. Any pending
+ * action survives that, so an in-flight optimistic edit is not lost when the
+ * context is refreshed.
  */
 export function createProjectContextStore(context: ProjectContext) {
-  return createOptimisticStore(context, projectContextReducer)
+  /**
+   * The whole state is the server's slice, so a reseed replaces it.
+   */
+  return createOptimisticStore<
+    ProjectContext,
+    ProjectContextAction,
+    ProjectContext
+  >(
+    context,
+    projectContextReducer,
+    (_, next) => next
+  )
 }
 
 type ProjectContextStore = ReturnType<typeof createProjectContextStore>

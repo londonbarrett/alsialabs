@@ -7,49 +7,28 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useHasPermission } from "@/components/common/permissions-provider"
-import {
-  createTask,
-  deleteTask,
-  updateTask,
-  updateTaskPriority,
-  updateTaskStatus,
-} from "@/lib/actions/tasks"
-import type {
-  Task,
-  TaskPriority,
-  TaskStatus,
-} from "@/lib/drizzle/schema"
-import { useActionError } from "@/lib/util/action-errors"
-import {
-  taskReducer,
-  type TaskWithCommentCount,
-} from "@/reducers/task-reducer"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
+import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
+import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
+import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
+import type { TaskPriority, TaskStatus } from "@/lib/drizzle/schema"
 import { ListTodo, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useAction } from "next-safe-action/hooks"
-import { useReducer, useState, useTransition } from "react"
-import { toast } from "sonner"
-import { TaskCommentsPanel } from "./task-comments-panel"
+import { useState } from "react"
+import { ProjectTaskCommentsPanel } from "./project-task-comments-panel"
 import { TaskDialog } from "./task-dialog"
 import { TasksTable } from "./tasks-table"
 
-interface TasksCardProps {
-  initialTasks: TaskWithCommentCount[]
-}
-
-export function TasksCard({ initialTasks }: TasksCardProps) {
+export function TasksCard() {
   const t = useTranslations()
   const { projectId, members, currentUserId, isOwner } =
     useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = isOwner && canEditProject
-  const { start: startLoading, stop: stopLoading } =
-    useLoadingIndicator()
-  const [tasks, dispatch] = useReducer(taskReducer, initialTasks)
-  const [, startTransition] = useTransition()
+  const { tasks } = useProjectTasksState()
+  const { saveTask, deleteTask, updateTaskStatus, updateTaskPriority } =
+    useProjectTasksActions()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<
     TaskWithCommentCount | undefined
@@ -58,13 +37,21 @@ export function TasksCard({ initialTasks }: TasksCardProps) {
     TaskWithCommentCount | undefined
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
-  const translateError = useActionError()
-  const { executeAsync: executeCreate } = useAction(createTask)
-  const { executeAsync: executeUpdate } = useAction(updateTask)
-  const { executeAsync: executeDelete } = useAction(deleteTask)
-  const { executeAsync: executeStatus } = useAction(updateTaskStatus)
-  const { executeAsync: executePriority } =
-    useAction(updateTaskPriority)
+
+  const openNew = () => {
+    setEditingTask(undefined)
+    setDialogOpen(true)
+  }
+
+  const openEdit = (task: TaskWithCommentCount) => {
+    setEditingTask(task)
+    setDialogOpen(true)
+  }
+
+  const handleOpenChange = (open: boolean) => {
+    setDialogOpen(open)
+    if (!open) setEditingTask(undefined)
+  }
 
   async function handleTaskSubmit(data: {
     name: string
@@ -75,7 +62,6 @@ export function TasksCard({ initialTasks }: TasksCardProps) {
     dueDate: string | null
     assigneeId: string | null
   }) {
-    const isEdit = !!editingTask
     setEditingTask(undefined)
     setDialogOpen(false)
     const taskStatus = data.status as TaskStatus
@@ -104,163 +90,12 @@ export function TasksCard({ initialTasks }: TasksCardProps) {
       updatedAt: new Date(),
     }
 
-    dispatch({ type: isEdit ? "update" : "add", task: optimisticTask })
-
-    startLoading()
-    const result = isEdit
-      ? await executeUpdate({
-          projectId,
-          taskId: editingTask!.id,
-          name: data.name,
-          description: data.description,
-          cost: data.cost,
-          status: taskStatus,
-          priority: taskPriority,
-          dueDate: data.dueDate,
-          assigneeId: data.assigneeId,
-        })
-      : await executeCreate({
-          projectId,
-          name: data.name,
-          description: data.description,
-          cost: data.cost,
-          status: taskStatus,
-          priority: taskPriority,
-          dueDate: data.dueDate,
-          assigneeId: data.assigneeId,
-        })
-    stopLoading()
-
-    if (result?.data) {
-      const assignee = members.find(
-        (m) => m.userId === result.data!.assigneeId
-      )
-      const realTask: TaskWithCommentCount = {
-        ...result.data!,
-        assigneeName:
-          assignee?.userName ??
-          assignee?.userEmail ??
-          (result.data as unknown as { assigneeName: string | null })
-            .assigneeName,
-        commentCount: optimisticTask.commentCount,
-      }
-      startTransition(() => {
-        dispatch({
-          type: "replaceTemp",
-          tempId: optimisticTask.id,
-          task: realTask,
-        })
-      })
-      toast.success(
-        isEdit
-          ? t("projects.tasks.taskUpdated")
-          : t("projects.tasks.taskCreated")
-      )
-    } else {
-      if (!isEdit) {
-        startTransition(() => {
-          dispatch({ type: "delete", taskId: optimisticTask.id })
-        })
-      }
-      if (result?.serverError) {
-        toast.error(translateError(result.serverError.code))
-      } else {
-        toast.error(t("common.somethingWentWrong"))
-      }
-    }
-
-    return result
-  }
-
-  function openNew() {
-    setEditingTask(undefined)
-    setDialogOpen(true)
-  }
-
-  function openEdit(task: TaskWithCommentCount) {
-    setEditingTask(task)
-    setDialogOpen(true)
-  }
-
-  function handleOpenChange(open: boolean) {
-    setDialogOpen(open)
-    if (!open) setEditingTask(undefined)
-  }
-
-  async function handleDeleteTask(taskId: string) {
-    dispatch({ type: "delete", taskId })
-    startLoading()
-    const result = await executeDelete({ projectId, taskId })
-    stopLoading()
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-      startTransition(() => {
-        dispatch({ type: "reset", tasks: initialTasks })
-      })
-    } else {
-      toast.success(t("projects.tasks.taskDeleted"))
-    }
-  }
-
-  async function handleTaskStatusChange(
-    taskId: string,
-    status: TaskStatus
-  ) {
-    dispatch({ type: "updateStatus", taskId, status })
-    startLoading()
-    const result = await executeStatus({ projectId, taskId, status })
-    stopLoading()
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-      startTransition(() => {
-        dispatch({ type: "reset", tasks: initialTasks })
-      })
-    } else {
-      toast.success(t("projects.tasks.statusChanged"))
-      const nextTask = (result?.data as unknown as { nextTask?: Task })
-        ?.nextTask
-      if (nextTask) {
-        const assignee = members.find(
-          (m) => m.userId === nextTask!.assigneeId
-        )
-        const mapped: TaskWithCommentCount = {
-          ...nextTask,
-          assigneeName:
-            assignee?.userName ?? assignee?.userEmail ?? null,
-          commentCount: 0,
-        }
-        startTransition(() => {
-          dispatch({ type: "add", task: mapped })
-        })
-        toast.success(t("projects.routines.nextOccurrenceCreated"))
-      }
-    }
-  }
-
-  async function handleTaskPriorityChange(
-    taskId: string,
-    priority: TaskPriority
-  ) {
-    dispatch({
-      type: "updatePriority",
-      taskId,
-      priority,
-    })
-    startLoading()
-    const result = await executePriority({
+    await saveTask({
       projectId,
-      taskId,
-      priority,
+      values: data,
+      optimisticTask,
+      editingTaskId: editingTask?.id ?? null,
     })
-    stopLoading()
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-      startTransition(() => {
-        dispatch({ type: "reset", tasks: initialTasks })
-      })
-    } else {
-      toast.success(t("projects.tasks.priorityChanged"))
-    }
   }
 
   return (
@@ -287,9 +122,13 @@ export function TasksCard({ initialTasks }: TasksCardProps) {
         ) : (
           <TasksTable
             tasks={tasks}
-            onStatusChange={handleTaskStatusChange}
-            onPriorityChange={handleTaskPriorityChange}
-            onDelete={handleDeleteTask}
+            onStatusChange={(taskId, status) =>
+              updateTaskStatus(projectId, taskId, status)
+            }
+            onPriorityChange={(taskId, priority) =>
+              updateTaskPriority(projectId, taskId, priority)
+            }
+            onDelete={(taskId) => deleteTask(projectId, taskId)}
             onEdit={openEdit}
             onComments={(task) => {
               setCommentsTask(task)
@@ -306,11 +145,9 @@ export function TasksCard({ initialTasks }: TasksCardProps) {
         onSubmit={handleTaskSubmit}
       />
 
-      <TaskCommentsPanel
+      <ProjectTaskCommentsPanel
         key={commentsTask?.id ?? "empty"}
-        taskId={commentsTask?.id ?? ""}
-        taskName={commentsTask?.name ?? ""}
-        description={commentsTask?.description}
+        task={commentsTask}
         open={isCommentsOpen}
         onOpenChange={(open) => {
           if (!open) {
@@ -320,9 +157,6 @@ export function TasksCard({ initialTasks }: TasksCardProps) {
         }}
         currentUserId={currentUserId}
         isOwner={isOwner}
-        onCommentCountChange={(taskId, delta) =>
-          dispatch({ type: "updateCommentCount", taskId, delta })
-        }
       />
     </Card>
   )

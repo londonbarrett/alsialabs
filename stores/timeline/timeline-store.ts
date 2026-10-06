@@ -4,12 +4,23 @@ import {
   sortTimelineEntries,
   timelineReducer,
   type TimelineEntry,
+  type TimelineEntryAction,
 } from "./timeline-reducer"
 
 export function createTimelineStore(entries: TimelineEntry[]) {
-  return createOptimisticStore(
+  /**
+   * The whole state is the server's slice — nothing here is loaded
+   * client-side — so a reseed replaces it. Re-sorted, because the seed sorts
+   * and a freshly built list has to land in the same order.
+   */
+  return createOptimisticStore<
+    TimelineEntry[],
+    TimelineEntryAction,
+    TimelineEntry[]
+  >(
     sortTimelineEntries(entries),
-    timelineReducer
+    timelineReducer,
+    (_, next) => sortTimelineEntries(next)
   )
 }
 

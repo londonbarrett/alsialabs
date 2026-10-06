@@ -22,7 +22,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { getInactiveClients } from "@/lib/actions/activity"
-import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
 import { useTranslations } from "next-intl"
 import { use, useState } from "react"
 import {
@@ -53,7 +52,6 @@ export function InactiveClientsCard({
   defaultPeriod,
 }: InactiveClientsCardProps) {
   const t = useTranslations()
-  useRefreshOnFocus()
   const initialData = use(initialClients)
   const [period, setPeriod] = useState(defaultPeriod)
   const [clients, setClients] = useState<InactiveClient[]>(initialData)

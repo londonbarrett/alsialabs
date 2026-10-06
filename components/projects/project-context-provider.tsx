@@ -5,6 +5,7 @@ import {
   createProjectContextStore,
   ProjectContextStoreContext,
 } from "@/stores/project-context/project-context-store"
+import { useServerReseed } from "@/hooks/use-server-reseed"
 import { useState } from "react"
 
 /**
@@ -25,6 +26,7 @@ export function ProjectContextProvider({
   children: React.ReactNode
 }) {
   const [store] = useState(() => createProjectContextStore(context))
+  useServerReseed(store, context)
 
   return (
     <ProjectContextStoreContext value={store}>
