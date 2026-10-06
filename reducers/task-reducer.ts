@@ -3,12 +3,13 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "@/lib/drizzle/schema"
+import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
 
-export type TaskWithCommentCount = Task & {
-  commentCount: number
-  assigneeName: string | null
-}
-
+// Project tasks moved to the store in `stores/project-tasks/`, which owns
+// `TaskWithCommentCount`. This reducer stays only for the expenses card
+// (`ProjectExpenses`), until expenses get their own store; it has no other
+// caller. `updateCommentCount` is unreachable from that caller, since it
+// instantiates the reducer with plain `Task[]`.
 export type TaskAction<T extends Task> =
   | { type: "add"; task: T }
   | { type: "update"; task: T }

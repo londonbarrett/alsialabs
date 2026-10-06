@@ -143,3 +143,19 @@ export type SettleResult = {
   error?: string
   fieldErrors?: Record<string, string[] | undefined>
 }
+
+/**
+ * A task comment joined with its author's profile, as `getTaskComments` returns.
+ * Shared by the project tasks store and the `my-tasks` comments controller,
+ * since both render the same comment row.
+ */
+export type TaskCommentWithAuthor = {
+  id: string
+  taskId: string
+  authorId: string
+  authorName: string | null
+  authorImage: string | null
+  content: string
+  createdAt: Date
+  updatedAt: Date
+}

@@ -8,7 +8,7 @@ A client's activity timeline — activities, reminders, invoices, and payments �
 
 ### Requirement: Admin can view activity timeline
 
-The system SHALL display a combined activity timeline on the client profile page, showing past activities, pending/completed reminders, invoices, and payments sorted by date descending. Entries with the same date SHALL be ordered deterministically (created-at descending, then id). Entries SHALL be built server-side via `getClientActivities` `lib/actions/activities.ts` and `getClientReminders` `lib/actions/reminders.ts` — both SHALL return `[]` for `user`-role sessions — and handed to `TimelineProvider` `components/clients/timeline-provider.tsx`, which owns a store created once per mount and publishes it through `TimelineStoreContext` `stores/timeline-store.ts`. The provider SHALL be mounted by the page (`app/app/clientes/[clientId]/page.tsx` and `app/app/perfil/page.tsx`), NOT by `ActivityTimeline`, so that `ActivityTimeline` `components/clients/activity-timeline.tsx` is a single component taking only `clientId` and contains no store-creation logic. Each entry SHALL render via a self-contained item (`ActivityItem`/`ReminderItem`/`InvoiceItem`/`PaymentItem`) that owns its permission checks and edit dialogs and runs any mutation through the route's action hook (`useTimelineActions`) rather than importing a server action. Each of those items belongs to this route alone and SHALL NOT carry a mode flag for other routes: the activity page has its own store-free rows, because it mounts `ActivityProvider` rather than `TimelineProvider`.
+The system SHALL display a combined activity timeline on the client profile page, showing past activities, pending/completed reminders, invoices, and payments sorted by date descending. Entries with the same date SHALL be ordered deterministically (created-at descending, then id). Entries SHALL be built server-side via `getClientActivities` `lib/actions/activities.ts` and `getClientReminders` `lib/actions/reminders.ts` — both SHALL return `[]` for `user`-role sessions — and handed to `TimelineProvider` `components/clients/timeline-provider.tsx`, which owns a store created once per mount and publishes it through `TimelineStoreContext` `stores/timeline/timeline-store.ts`. The provider SHALL be mounted by the page (`app/app/clientes/[clientId]/page.tsx` and `app/app/perfil/page.tsx`), NOT by `ActivityTimeline`, so that `ActivityTimeline` `components/clients/activity-timeline.tsx` is a single component taking only `clientId` and contains no store-creation logic. Each entry SHALL render via a self-contained item (`ActivityItem`/`ReminderItem`/`InvoiceItem`/`PaymentItem`) that owns its permission checks and edit dialogs and runs any mutation through the route's action hook (`useTimelineActions`) rather than importing a server action. Each of those items belongs to this route alone and SHALL NOT carry a mode flag for other routes: the activity page has its own store-free rows, because it mounts `ActivityProvider` rather than `TimelineProvider`.
 
 #### Scenario: Timeline shows on client profile when permitted
 
@@ -31,7 +31,7 @@ The system SHALL display a combined activity timeline on the client profile page
 #### Scenario: Timeline entries are self-contained
 
 - **WHEN** a timeline entry renders in its editable form
-- **THEN** the item SHALL check its permissions via `useHasPermission` `stores/permissions-store.ts`
+- **THEN** the item SHALL check its permissions via `useHasPermission` `components/common/permissions-provider.tsx`
 - **AND** it SHALL run its mutation via `useOptimisticAction` `stores/use-optimistic-action.ts` on `useTimelineStore`, which SHALL throw if no `TimelineProvider` is mounted
 - **AND** it SHALL render its own edit dialog (`LogActivityDialog`/`ReminderDialog`/`TimelineInvoiceDialog`/`PaymentDialog`)
 
@@ -67,9 +67,15 @@ The system SHALL allow users with `client-activity:create` permission to log a n
 - **AND** a success toast is shown
 - **AND** the dialog closes
 
-#### Scenario: Past date is rejected
+#### Scenario: Past date is accepted for an activity
 
-- **WHEN** an admin enters an activity date before today
+- **WHEN** an admin enters an activity date before today, to log a call, email, or meeting that already happened
+- **THEN** the form SHALL validate successfully
+- **AND** the activity SHALL be persisted with that date
+
+#### Scenario: Future date is rejected for an activity
+
+- **WHEN** an admin enters an activity date after today
 - **THEN** the form shows a validation error
 - **AND** submission is blocked
 
@@ -159,7 +165,7 @@ The system SHALL allow users with `client-activity:delete` permission to delete 
 
 ### Requirement: Admin can edit a payment from the timeline
 
-The system SHALL allow users with `sales:edit` permission to edit a payment directly from the client activity timeline, and users with `sales:delete` permission to delete one. Payment entries are rendered by `PaymentItem` `components/clients/payment-item.tsx`, which contains no store logic and imports no store or server-action module: it calls `updatePayment`/`deletePayment` from `useTimelineActions` `stores/use-timeline-actions.ts` (requires `TimelineProvider`), the hook that owns the timeline store patch, the server mutation, and the toast, and renders `PaymentDialog` `components/sales/payment-dialog.tsx` — a presentational shell with a required `onSubmit` prop and no store logic.
+The system SHALL allow users with `sales:edit` permission to edit a payment directly from the client activity timeline, and users with `sales:delete` permission to delete one. Payment entries are rendered by `PaymentItem` `components/clients/payment-item.tsx`, which contains no store logic and imports no store or server-action module: it calls `updatePayment`/`deletePayment` from `useTimelineActions` `stores/timeline/use-timeline-actions.ts` (requires `TimelineProvider`), the hook that owns the timeline store patch, the server mutation, and the toast, and renders `PaymentDialog` `components/sales/payment-dialog.tsx` — a presentational shell with a required `onSubmit` prop and no store logic.
 
 #### Scenario: Edit payment from timeline
 
@@ -188,7 +194,7 @@ The system SHALL allow users with `sales:delete` permission to delete a payment 
 
 ### Requirement: Timeline mutations are optimistic
 
-The system SHALL update the timeline optimistically when logging an activity, adding/editing/completing a reminder, or creating an invoice, while showing the global loading bar during the server request. Each mutation SHALL run through `useOptimisticAction` `stores/use-optimistic-action.ts` on the `useTimelineStore` `stores/timeline-store.ts` store, applying `TimelineEntryAction` (`add`, `patch`, `delete`) via `timelineReducer` `stores/timeline-reducer.ts`. The pending action SHALL be committed on success — optionally combined with a `commitAction` that swaps the temporary entry for the authoritative server row — or discarded on failure. `delete` SHALL match on id alone, and SHALL NOT carry a `kind` discriminator; `patch` SHALL retain `kind` because its payload is a typed discriminated union.
+The system SHALL update the timeline optimistically when logging an activity, adding/editing/completing a reminder, or creating an invoice, while showing the global loading bar during the server request. Each mutation SHALL run through `useOptimisticAction` `stores/use-optimistic-action.ts` on the `useTimelineStore` `stores/timeline/timeline-store.ts` store, applying `TimelineEntryAction` (`add`, `patch`, `delete`) via `timelineReducer` `stores/timeline/timeline-reducer.ts`. The pending action SHALL be committed on success — optionally combined with a `commitAction` that swaps the temporary entry for the authoritative server row — or discarded on failure. `delete` SHALL match on id alone, and SHALL NOT carry a `kind` discriminator; `patch` SHALL retain `kind` because its payload is a typed discriminated union.
 
 #### Scenario: New entry appears immediately
 
@@ -228,15 +234,21 @@ The system SHALL validate and authorize all server actions for activities and re
 
 ### Requirement: Date validation
 
-The system SHALL validate that activity_date and remind_at are today or in the future, on both client and server.
+Activity dates and reminder dates SHALL be validated in opposite directions, because they mean different things: an activity records something that already happened, while a reminder asks for a future follow-up. `activity_date` SHALL be today or earlier and SHALL reject future dates, on both client and server; `remind_at` SHALL be today or later and SHALL reject past dates, on both client and server. Neither field SHALL be validated as "today or in the future", which would wrongly forbid logging a past interaction.
 
-#### Scenario: Future date is accepted
+#### Scenario: Past activity date is accepted on server
 
-- **WHEN** an admin enters today's date or a future date
-- **THEN** the form validates successfully
+- **WHEN** the server receives an activity with a date before today
+- **THEN** the activity SHALL be saved with that date
 
-#### Scenario: Past date is rejected on server
+#### Scenario: Future activity date is rejected on server
 
-- **WHEN** the server receives data with a past date
+- **WHEN** the server receives an activity with a date after today
+- **THEN** the server returns a validation error
+- **AND** no data is saved
+
+#### Scenario: Past reminder date is rejected on server
+
+- **WHEN** the server receives a reminder due before today
 - **THEN** the server returns a validation error
 - **AND** no data is saved

@@ -52,7 +52,7 @@ The system SHALL include activity module permissions that can be toggled for eac
 
 ### Requirement: Client activity permissions are seeded and manageable
 
-The system SHALL include a `client-activity` module that can be toggled for each role in the permission matrix, used to gate the client profile activity timeline and its items (which own their permission checks via `useHasPermission` `stores/permissions-store.ts`).
+The system SHALL include a `client-activity` module that can be toggled for each role in the permission matrix, used to gate the client profile activity timeline and its items (which own their permission checks via `useHasPermission` `components/common/permissions-provider.tsx`).
 
 #### Scenario: Client activity permissions exist after seeding
 
@@ -137,6 +137,29 @@ The system SHALL hide sidebar navigation items for modules the user does not hav
 - **GIVEN** a user has `clients:view` permission
 - **WHEN** viewing the sidebar
 - **THEN** the Clients link is visible
+
+### Requirement: Permissions reach the client through a provider, not a global store
+
+Permission codes are server-computed and immutable for the life of a request, so they SHALL NOT be held in a module-level Zustand store. `app/app/layout.tsx` SHALL fetch them with `getUserPermissions(session.user.id)` and pass them as the `permissions` prop to `PermissionsProvider` `components/common/permissions-provider.tsx`, which SHALL wrap the dashboard tree so that every consumer is inside it. Permissions SHALL NOT be pushed into a store from a component's render body: there SHALL be no `useStore.setState` call during render, and the `StoreSync` component pattern SHALL NOT exist.
+
+`PermissionsProvider` SHALL build its context value with `useMemo` keyed on `permissions`, so a new server array does not invalidate consumers on every render. It SHALL expose `usePermissions(): string[]` and `useHasPermission(code: string): boolean` with those exact signatures, so gating a control is a one-line call at the call site and a capability is composed from a role flag plus `useHasPermission`. `usePermissionsContext` SHALL throw an error naming the provider when no provider is mounted, so a missing wrap fails loudly instead of silently granting zero permissions. Because the data is immutable per request there SHALL be no `setPermissions` or `resetPermissions` action.
+
+State hooks SHALL NOT answer permission questions; they return role facts only, and the component composes the capability. `useProjectContextState` `stores/project-context/use-project-context-state.ts` SHALL NOT expose `permissions` or any `can*` flag derived from them.
+
+#### Scenario: Permission-gated UI reads the provider
+
+- **WHEN** a component renders a control gated on `sales:create`
+- **THEN** it SHALL call `useHasPermission("sales:create")` at the top level of render, conditionally rendering on the result
+
+#### Scenario: Permissions are not written during render
+
+- **WHEN** the dashboard layout renders
+- **THEN** the permission codes SHALL flow prop → provider → context with no store write in a component body
+
+#### Scenario: A consumer outside the provider fails loudly
+
+- **WHEN** `useHasPermission` is called with no `PermissionsProvider` mounted
+- **THEN** it SHALL throw an error naming the provider
 
 ### Requirement: Non-super cannot access permissions page
 

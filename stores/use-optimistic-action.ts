@@ -3,9 +3,9 @@
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 import { useRouter } from "next/navigation"
-import type { StoreApi, UseBoundStore } from "zustand"
+import type { StoreApi } from "zustand"
 
-type StoreHook<S, A> = UseBoundStore<StoreApi<OptimisticStore<S, A>>>
+type StoreApiType<S, A> = StoreApi<OptimisticStore<S, A>>
 
 function defaultIsSuccess(result: unknown): boolean {
   const r = result as {
@@ -26,11 +26,14 @@ interface RunOptions<Result, A> {
   /**
    * Action applied on commit *after* the original pending action, e.g.
    * swap a temp entry for the real server-returned one via replaceTemp.
+   *
+   * A callback may return `undefined` to skip the follow-up action, for a
+   * mutation whose server result only sometimes produces one.
    */
-  commitAction?: A | ((result: Result) => A)
+  commitAction?: A | ((result: Result) => A | undefined)
 }
 
-export function useOptimisticAction<S, A>(store: StoreHook<S, A>) {
+export function useOptimisticAction<S, A>(store: StoreApiType<S, A>) {
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const router = useRouter()
@@ -52,7 +55,9 @@ export function useOptimisticAction<S, A>(store: StoreHook<S, A>) {
       if (defaultIsSuccess(result)) {
         const commitAction =
           typeof options.commitAction === "function"
-            ? (options.commitAction as (result: Result) => A)(result)
+            ? (
+                options.commitAction as (result: Result) => A | undefined
+              )(result)
             : options.commitAction
         store.getState().commit(id, commitAction)
         router.refresh()

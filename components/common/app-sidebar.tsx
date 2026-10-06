@@ -19,7 +19,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { getSidebarMenu, type SidebarItem } from "@/config/sidebar-menu"
-import { usePermissions } from "@/stores/permissions-store"
+import { usePermissions } from "@/components/common/permissions-provider"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { usePathname } from "next/navigation"

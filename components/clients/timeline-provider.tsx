@@ -1,20 +1,18 @@
 "use client"
 
+import { useServerReseed } from "@/hooks/use-server-reseed"
 import type {
   ClientActivity,
   ClientReminder,
   Invoice,
   InvoicePayment,
 } from "@/lib/drizzle/schema"
-import {
-  sortTimelineEntries,
-  type TimelineEntry,
-} from "@/stores/timeline-reducer"
+import type { TimelineEntry } from "@/stores/timeline/timeline-reducer"
 import {
   createTimelineStore,
   TimelineStoreContext,
-} from "@/stores/timeline-store"
-import { useState } from "react"
+} from "@/stores/timeline/timeline-store"
+import { useMemo, useState } from "react"
 
 export function TimelineProvider({
   activities,
@@ -29,14 +27,14 @@ export function TimelineProvider({
   payments?: Array<InvoicePayment & { invoiceNumber: string }>
   children: React.ReactNode
 }) {
-  const [store] = useState(() =>
-    createTimelineStore(
-      sortTimelineEntries(
-        toEntries({ activities, reminders, invoices, payments })
-      )
-    )
+  // Memoised because `useServerReseed` compares this by identity: a fresh array
+  // on every render would look like new server data and reseed each time.
+  const entries = useMemo(
+    () => toEntries({ activities, reminders, invoices, payments }),
+    [activities, reminders, invoices, payments]
   )
-
+  const [store] = useState(() => createTimelineStore(entries))
+  useServerReseed(store, entries)
   return (
     <TimelineStoreContext value={store}>
       {children}

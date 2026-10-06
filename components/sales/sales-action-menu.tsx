@@ -10,7 +10,7 @@ import {
 } from "@/lib/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
-import { useHasPermission } from "@/stores/permissions-store"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { Banknote, HandCoins, Send, Undo2, X } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"

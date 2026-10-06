@@ -140,11 +140,11 @@ The system SHALL allow owners to create, view, edit, and delete projects. The pr
 
 ### Requirement: Project list state
 
-The projects list page SHALL hold its rows in a client store created per page visit, not in a module-level singleton. `app/app/proyectos/page.tsx` SHALL render `ProjectsProvider` `components/projects/projects-provider.tsx` (named for what it provides, not for the page it serves), which builds the store once per mount with `useState(() => createProjectsStore(projects))` and publishes it through `ProjectsStoreContext` `stores/projects-store.ts`. The provider SHALL NOT hydrate itself from changing props, because the store is seeded once and mutations reach the client through optimistic actions.
+The projects list page SHALL hold its rows in a client store created per page visit, not in a module-level singleton. `app/app/proyectos/page.tsx` SHALL render `ProjectsProvider` `components/projects/projects-provider.tsx` (named for what it provides, not for the page it serves), which builds the store once per mount with `useState(() => createProjectsStore(projects))` and publishes it through `ProjectsStoreContext` `stores/projects/projects-store.ts`. The provider SHALL NOT hydrate itself from changing props, because the store is seeded once and mutations reach the client through optimistic actions.
 
-Consumers SHALL read the list through `useProjectsList` `stores/use-projects-list.ts`, which SHALL return `projects` and `pendingIds` and SHALL NOT expose raw store state. `getProjects`/`getPending` SHALL be read methods attached to the store, so no component or hook SHALL select `s.optimistic` or `s.pending` directly.
+Consumers SHALL read the list through `useProjectsState` `stores/projects/use-projects-state.ts`, the store's single state hook, which SHALL return `projects`, `pending`, and the derived `pendingIds`, and SHALL NOT expose raw store state or alias `projects` under a second name. No component or hook SHALL select `s.optimistic` or `s.pending` directly, and `createProjectsStore` SHALL attach no imperative read methods, because `useProjectsActions` reads the store through `store.getState()` via `useOptimisticAction`.
 
-Creating a project SHALL be optimistic via `useOptimisticAction` `stores/use-optimistic-action.ts` on `useProjectsStore`, applying `add` followed by a `commitAction` that issues `replaceTemp` so the temporary row is swapped for the authoritative server row. Rows that are still pending SHALL render as pending rather than as a confirmed project. The signed-in user's owner row (`ProjectOwner` `stores/use-projects-actions.ts`, an alias of a `Project` owner) SHALL be passed from `app/app/proyectos/page.tsx` through `ProjectsView` `components/projects/projects-view.tsx` into `useProjectsActions`, so the optimistic row renders its real owner without reading `useSession`; there SHALL be no non-optimistic fallback, because `router.refresh()` cannot reach the once-seeded store.
+Creating a project SHALL be optimistic via `useOptimisticAction` `stores/use-optimistic-action.ts` on `useProjectsStore`, applying `add` followed by a `commitAction` that issues `replaceTemp` so the temporary row is swapped for the authoritative server row. Rows that are still pending SHALL render as pending rather than as a confirmed project. The signed-in user's owner row (`ProjectOwner` `stores/projects/use-projects-actions.ts`, an alias of a `Project` owner) SHALL be passed from `app/app/proyectos/page.tsx` through `ProjectsView` `components/projects/projects-view.tsx` into `useProjectsActions`, so the optimistic row renders its real owner without reading `useSession`; there SHALL be no non-optimistic fallback, because `router.refresh()` cannot reach the once-seeded store.
 
 `ProjectDialog` `components/projects/project-dialog.tsx` SHALL be a single component that contains no store logic and takes a required `onSubmit`; the caller owning the mutation owns the optimistic write. `ProjectForm` SHALL be rendered by both the list page and the project detail subpage and SHALL NOT import a store.
 
@@ -162,11 +162,11 @@ Creating a project SHALL be optimistic via `useOptimisticAction` `stores/use-opt
 
 ### Requirement: Project context state
 
-The open project's context SHALL be held in a client store created per project detail page, not in a module-level singleton and not threaded through props. `app/app/proyectos/[id]/layout.tsx` SHALL render `components/projects/project-context-provider.tsx`, which builds the store exactly once per mount with a lazy `useState` initializer — `const [store] = useState(() => createProjectContextStore(context))` — and publishes it through `ProjectContextStoreContext` (`stores/project-context-store.ts`). Reading `ref.current` during render is forbidden by `react-hooks/refs`, so the store SHALL be created via `useState` and NOT via `useRef` + `if (storeRef.current == null)`; no `eslint-disable` comment SHALL be used to work around it. This is the SAME construction pattern used by every other store provider (`ProjectsProvider`, `InvoiceProvider`, `TimelineProvider`, `ActivityProvider`). Because the store is seeded at construction it SHALL have no "not yet seeded" state, so no consumer needs a null guard, and the seeding SHALL NOT be repeated from an effect. The store SHALL hold exactly one project, keyed by nothing — the route supplies the identity — so `projectContextReducer` SHALL take no key.
+The open project's context SHALL be held in a client store created per project detail page, not in a module-level singleton and not threaded through props. `app/app/proyectos/[id]/layout.tsx` SHALL render `components/projects/project-context-provider.tsx`, which builds the store exactly once per mount with a lazy `useState` initializer — `const [store] = useState(() => createProjectContextStore(context))` — and publishes it through `ProjectContextStoreContext` (`stores/project-context/project-context-store.ts`). Reading `ref.current` during render is forbidden by `react-hooks/refs`, so the store SHALL be created via `useState` and NOT via `useRef` + `if (storeRef.current == null)`; no `eslint-disable` comment SHALL be used to work around it. This is the SAME construction pattern used by every other store provider (`ProjectsProvider`, `InvoiceProvider`, `TimelineProvider`, `ActivityProvider`). Because the store is seeded at construction it SHALL have no "not yet seeded" state, so no consumer needs a null guard, and the seeding SHALL NOT be repeated from an effect. The store SHALL hold exactly one project, keyed by nothing — the route supplies the identity — so `projectContextReducer` SHALL take no key.
 
-Every mutation to the open project's context SHALL be expressed as a `ProjectContextAction` (`stores/project-context-reducer.ts:8`) applied through `createOptimisticStore`, so that client state is never re-read from the server. Actions SHALL be `patchProject`, `addOwner`, `addCollaborator`, `removeOwner`, and `removeCollaborator`; the membership actions SHALL be no-ops (returning the identical state reference) when the user is already present or absent, to keep referential stability for memoized consumers.
+Every mutation to the open project's context SHALL be expressed as a `ProjectContextAction` (`stores/project-context/project-context-reducer.ts:8`) applied through `createOptimisticStore`, so that client state is never re-read from the server. Actions SHALL be `patchProject`, `addOwner`, `addCollaborator`, `removeOwner`, and `removeCollaborator`; the membership actions SHALL be no-ops (returning the identical state reference) when the user is already present or absent, to keep referential stability for memoized consumers.
 
-Consumers SHALL read context through the `useProjectContext()` hook (`stores/use-project-context.ts:38`), which SHALL return a `ProjectContextValue` with `project`, `projectId`, `owners`, `collaborators`, `members`, `permissions`, `categories`, `currentUserId`, and the derived `isOwner`/`isPrimaryOwner`/`isCollaborator`/`canEdit`/`canDelete`/`canManageUsers` flags. The hook SHALL NOT accept an `initialContext` argument and SHALL NOT return the raw context object. Hooks that mutate the context (`useProjectActions`, `useProjectPeopleActions`) SHALL read `projectId` from the same hook and SHALL throw if called outside a `ProjectContextProvider`.
+Consumers SHALL read context through the `useProjectContextState()` hook (`stores/project-context/use-project-context-state.ts`), which SHALL return a single object with `project`, `projectId`, `owners`, the derived `primaryOwner`/`additionalOwners`, `collaborators`, `members`, `categories`, `currentUserId`, `isCurrentUserAdmin`, and the role flags `isOwner`/`isPrimaryOwner`/`isCollaborator`. The hook SHALL NOT accept an `initialContext` argument, SHALL NOT return the raw context object, and SHALL NOT return `permissions` or any permission-derived capability — a component composes `isOwner && useHasPermission("projects:edit")` itself, calling `useHasPermission` unconditionally at the top level of render. Hooks that mutate the context (`useProjectActions`, `useProjectPeopleActions`) SHALL read `projectId` from the same hook and SHALL throw if called outside a `ProjectContextProvider`.
 
 #### Scenario: Context store is created once per project page
 
@@ -186,20 +186,20 @@ Consumers SHALL read context through the `useProjectContext()` hook (`stores/use
 
 - **GIVEN** a component rendered inside the project detail area
 - **WHEN** it needs the project, its id, its members, or the permission flags
-- **THEN** it calls `useProjectContext()`
+- **THEN** it calls `useProjectContextState()`
 - **AND** no `projectId` or `context` prop is passed to it for that purpose
 
 #### Scenario: Project is never null inside the project area
 
 - **GIVEN** any component inside the project detail area
-- **WHEN** it reads `project` from `useProjectContext()`
+- **WHEN** it reads `project` from `useProjectContextState()`
 - **THEN** a project is always present
 - **AND** no null guard or loading placeholder is required
 
 #### Scenario: Store hook outside a provider fails loudly
 
 - **GIVEN** a component rendered outside the project detail area
-- **WHEN** it calls `useProjectContext()` or `useProjectActions()`
+- **WHEN** it calls `useProjectContextState()` or `useProjectActions()`
 - **THEN** it throws an error naming `ProjectContextProvider`
 - **AND** the projects list page is unaffected because it performs only creates
 
@@ -207,7 +207,7 @@ Consumers SHALL read context through the `useProjectContext()` hook (`stores/use
 
 Projects SHALL support multiple owners and collaborators. The primary owner has full control. Owners can manage collaborators and tasks. Collaborators can view and comment on tasks. The people UI SHALL use `components/projects/project-people.tsx` composed with `components/projects/member-pill.tsx:1` (`MemberPill` with a `size-8` `Avatar` + `initials`, the member's name over their email at `text-xs text-muted-foreground`, and an `X` remove button) and `components/projects/user-invite-input.tsx:45` debounced via `hooks/use-debounced.ts:3` `useDebounced`. The email SHALL only render as a second line when the member has both a name and an email, so a member without a name still shows their email exactly once.
 
-Membership changes SHALL be applied optimistically to the project context store via `useProjectPeopleActions` (`stores/use-project-people-actions.ts:48`) and SHALL NOT depend on `router.refresh()` to reach the client, because the context store is seeded once per page mount. Adding or removing a member SHALL pend the corresponding action, render the result immediately, and SHALL discard the pending action and show the server's error toast if the server rejects the change. Each mutation SHALL report exactly one toast: a translated error (`useActionError` over the `errors` namespace) when the action returns a `serverError`, or a success toast (`projects.ownerAdded`/`ownerRemoved`/`collaboratorAdded`/`collaboratorRemoved`) when it returns `data`. Each removal SHALL be expressed as its own action (`removeOwner`/`removeCollaborator`) that drops the user from only that list, mirroring the separate `removeProjectOwner`/`removeProjectCollaborator` server actions. `UserInviteInput`'s `onSelect` SHALL receive the whole `UserOption` (`components/projects/user-invite-input.tsx:27`), not just a user id, so the reducer can render the new member's name, email, and image before the server responds.
+Membership changes SHALL be applied optimistically to the project context store via `useProjectPeopleActions` (`stores/project-context/use-project-people-actions.ts:48`) and SHALL NOT depend on `router.refresh()` to reach the client, because the context store is seeded once per page mount. Adding or removing a member SHALL pend the corresponding action, render the result immediately, and SHALL discard the pending action and show the server's error toast if the server rejects the change. Each mutation SHALL report exactly one toast: a translated error (`useActionError` over the `errors` namespace) when the action returns a `serverError`, or a success toast (`projects.ownerAdded`/`ownerRemoved`/`collaboratorAdded`/`collaboratorRemoved`) when it returns `data`. Each removal SHALL be expressed as its own action (`removeOwner`/`removeCollaborator`) that drops the user from only that list, mirroring the separate `removeProjectOwner`/`removeProjectCollaborator` server actions. `UserInviteInput`'s `onSelect` SHALL receive the whole `UserOption` (`components/projects/user-invite-input.tsx:27`), not just a user id, so the reducer can render the new member's name, email, and image before the server responds.
 
 #### Scenario: Remove a collaborator updates the store immediately
 
@@ -334,7 +334,7 @@ The system SHALL provide a combobox input (`components/projects/user-invite-inpu
 
 ### Requirement: Task management
 
-The system SHALL allow owners to manage tasks on their projects. Tasks are managed on the tasks subpage (`/app/proyectos/[id]`, the default project subpage). Tasks SHALL carry an optional priority of `urgent` or `high`; tasks with no priority are allowed. Tasks SHALL carry an optional due date (a datetime). Owners set or edit the due date from the task dialog using a date field and an optional time field; the due date is rendered in the Due Date column of the task table. Tasks SHALL support a `cancelled` status that owners apply from the inline status dropdown; cancelled tasks are read-only for non-owners, do not show the overdue indicator, and are excluded from project task progress. Owners can reopen a cancelled task by selecting an active status. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change, priority change) use optimistic updates with useReducer for instant UI feedback, global loading indicator during server requests, and success toasts on completion.
+The system SHALL allow owners to manage tasks on their projects. Tasks are managed on the tasks subpage (`/app/proyectos/[id]`, the default project subpage). Tasks SHALL carry an optional priority of `urgent` or `high`; tasks with no priority are allowed. Tasks SHALL carry an optional due date (a datetime). Owners set or edit the due date from the task dialog using a date field and an optional time field; the due date is rendered in the Due Date column of the task table. Tasks SHALL support a `cancelled` status that owners apply from the inline status dropdown; cancelled tasks are read-only for non-owners, do not show the overdue indicator, and are excluded from project task progress. Owners can reopen a cancelled task by selecting an active status. Collaborators can view tasks and change status to blocked or in_review only. The tasks section uses a Card component with a ListTodo icon in the header. Task operations (create, edit, delete, status change, priority change) use optimistic updates through the project tasks store, global loading indicator during server requests, and success toasts on completion. The store is page-scoped: `app/app/proyectos/[id]/page.tsx` mounts `ProjectTasksProvider` with the `getTasks` result and `TasksCard` reads `useProjectTasksState()`. A failed mutation SHALL discard only its own pending action, so concurrent mutations do not overwrite each other.
 
 #### Scenario: Create task
 
@@ -675,7 +675,8 @@ The system SHALL allow owners to manage expenses on the expenses subpage (`/app/
 
 ### Requirement: Task comments
 
-The system SHALL allow project members (owners and collaborators) and task assignees to have conversations on tasks. Comments are displayed in a slide-over Sheet panel. Only the comment author or project owners can delete comments. Only the comment author can edit their own comments. Comment operations (add, edit, delete) use optimistic updates with the global loading indicator during server requests and success toasts on completion.
+The system SHALL allow project members (owners and collaborators) and task assignees to have conversations on tasks. Comments are displayed in a slide-over Sheet panel. Only the comment author or project owners can delete comments. Only the comment author can edit their own comments. Comment operations (add, edit, delete) use optimistic updates with the global loading indicator during server requests and success toasts on completion. Comments live in the page's own store keyed by task id — the project tasks store on the project subpage, the my-tasks store on the My Tasks page — and are loaded when the panel opens. A comment mutation SHALL adjust the owning task's `commentCount` in the same action, so a rejected comment rolls its count back with it and the count cannot drift from the list; loading comments SHALL reconcile `commentCount` to the fetched length. The comments slide-over is a single dumb presentational component, `TaskCommentsSheet` `components/common/task-comments-sheet.tsx`, which takes comments plus callbacks and owns only the draft text, which comment is being edited, and scroll position. Each domain supplies its own controller over it — `ProjectTaskCommentsPanel` and `MyTaskCommentsPanel`, at `components/projects/project-task-comments-panel.tsx` and `components/my-tasks/my-task-comments-panel.tsx` — each reading and writing its own store, so the markup exists once while loading, fetching and mutations stay per domain. Neither controller reports count changes upward through a callback: the count moves with the comment in the store action.
+
 
 #### Scenario: Assignee who is not a project member can comment
 
@@ -776,9 +777,23 @@ The system SHALL allow project members (owners and collaborators) and task assig
 - **THEN** the comments list is re-fetched from the server
 - **AND** a loading spinner is shown during the fetch
 
+#### Scenario: Rejected comment does not drift the count
+
+- **WHEN** a comment mutation is rejected by the server
+- **THEN** the pending comment and its `commentCount` increment are discarded together
+- **AND** the list shows the count as it was before the attempt
+
+#### Scenario: Comment count updates without reaching the parent
+
+- **WHEN** a comment is added, edited, or deleted from the My Tasks comments panel
+- **THEN** `commentCount` updates in the my-tasks store action
+- **AND** `MyTasksList` receives no `onCommentCountChange` callback
+
 ### Requirement: My Tasks page
 
-The system SHALL provide a "My Tasks" page accessible from the sidebar that shows all tasks assigned to the current user across all projects they have access to. Status changes use optimistic updates with global loading indicator and success toasts. Each row shows a Due Date column; tasks that are not "done" or "cancelled" with a due date in the past show an "Overdue" badge. The status filter includes "cancelled". Cancelled tasks are read-only for non-owners.
+The system SHALL provide a "My Tasks" page accessible from the sidebar that shows all tasks assigned to the current user across all projects they have access to. Tasks are held in a page-scoped store `MyTasksProvider` mounted by `app/app/mis-tareas/page.tsx`, seeded from `getMyTasks({})`. Status changes use optimistic updates with global loading indicator and success toasts. Each row shows a Due Date column; tasks that are not "done" or "cancelled" with a due date in the past show an "Overdue" badge. The status filter includes "cancelled". Cancelled tasks are read-only for non-owners.
+
+The status and project filters are client-side projections over the full task set in the store, not separate queries: the page already loads every assigned task, so a filtered view derives from that set. Filter selection is local UI state and SHALL NOT live in the store. Because the store always holds the full set, a refresh can reseed it without ever contradicting an active filter.
 
 #### Scenario: Navigate to My Tasks
 
@@ -800,12 +815,14 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 - **WHEN** the user selects a status from the filter dropdown
 - **THEN** only tasks with the selected status are shown
 - **AND** "Cancelled" is an available filter option
+- **AND** no server request is made
 
 #### Scenario: Filter tasks by project
 
 - **GIVEN** a user on the My Tasks page
 - **WHEN** the user selects a project from the filter dropdown
 - **THEN** only tasks from the selected project are shown
+- **AND** no server request is made
 
 #### Scenario: Change task status from My Tasks
 
@@ -837,13 +854,26 @@ The system SHALL provide a "My Tasks" page accessible from the sidebar that show
 - **WHEN** the user double-clicks a task row or clicks the comment count button
 - **THEN** the comments panel opens as a slide-over Sheet
 
+#### Scenario: Refreshing the tab picks up tasks changed elsewhere
+
+- **GIVEN** a task assigned to the user was completed on another page
+- **WHEN** the user returns to the My Tasks tab and the window regains focus
+- **THEN** `useRefreshOnFocus` triggers `router.refresh()` and the store reseeds from the fresh result
+- **AND** the list shows the task's new status without a full page reload
+
+#### Scenario: A change returned by a routine keeps its comment count
+
+- **GIVEN** a status change on My Tasks returns `nextTask`
+- **WHEN** the new task is merged into the store
+- **THEN** the existing count of the completed task is preserved rather than reset
+- **AND** the new task's visibility in the current filter is derived from the projection
+
 #### Scenario: Forbidden without projects view permission
 
 - **GIVEN** a user without `projects:view` permission
 - **WHEN** the user navigates to `/app/mis-tareas`
 - **THEN** a 403 forbidden screen is displayed
 - **AND** no server error is thrown
-
 ### Requirement: User-scoped project queries
 
 Projects SHALL be scoped to the authenticated user. Users only see projects they own. Collaborators cannot see project details. Admins and super users see all projects.

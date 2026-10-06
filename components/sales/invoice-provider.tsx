@@ -4,7 +4,8 @@ import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-tab
 import {
   createInvoiceStore,
   InvoiceStoreContext,
-} from "@/stores/invoice-store"
+} from "@/stores/invoice/invoice-store"
+import { useServerReseed } from "@/hooks/use-server-reseed"
 import { useState } from "react"
 
 export function InvoiceProvider({
@@ -15,6 +16,7 @@ export function InvoiceProvider({
   children: React.ReactNode
 }) {
   const [store] = useState(() => createInvoiceStore(invoices))
+  useServerReseed(store, invoices)
 
   return (
     <InvoiceStoreContext value={store}>{children}</InvoiceStoreContext>

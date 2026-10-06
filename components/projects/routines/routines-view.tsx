@@ -25,8 +25,8 @@ import {
   updateRoutine,
 } from "@/lib/actions/routines"
 import type { Routine } from "@/lib/drizzle/schema"
-import { useHasPermission } from "@/stores/permissions-store"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useHasPermission } from "@/components/common/permissions-provider"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { Plus, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import {
@@ -86,7 +86,9 @@ export const RoutinesView = memo(function RoutinesView({
   initialRoutines,
 }: RoutinesViewProps) {
   const t = useTranslations()
-  const { projectId, members, isOwner, canEdit } = useProjectContext()
+  const { projectId, members, isOwner } = useProjectContextState()
+  const canEditProject = useHasPermission("projects:edit")
+  const canEdit = isOwner && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()

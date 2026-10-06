@@ -5,19 +5,21 @@ import type { Task } from "@/lib/drizzle/schema"
 import { useTranslations } from "next-intl"
 import { TaskForm } from "./task-form"
 
+export interface TaskFormValues {
+  name: string
+  description: string
+  cost: string
+  status: string
+  priority: string | null
+  dueDate: string | null
+  assigneeId: string | null
+}
+
 interface TaskDialogProps {
   task?: Task
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: {
-    name: string
-    description: string
-    cost: string
-    status: string
-    priority: string | null
-    dueDate: string | null
-    assigneeId: string | null
-  }) => void
+  onSubmit: (data: TaskFormValues) => void
 }
 
 export function TaskDialog({

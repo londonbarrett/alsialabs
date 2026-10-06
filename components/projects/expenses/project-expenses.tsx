@@ -26,7 +26,8 @@ import type { ExpenseWithCategory } from "@/lib/types"
 import { useActionError } from "@/lib/util/action-errors"
 import { expenseReducer } from "@/reducers/expense-reducer"
 import { taskReducer } from "@/reducers/task-reducer"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useHasPermission } from "@/components/common/permissions-provider"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { cn } from "cn"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -61,15 +62,17 @@ export function ProjectExpenses({
   const {
     project,
     projectId,
-    permissions,
-    canEdit: canEditProject,
-    canDelete: canDeleteProject,
-  } = useProjectContext()
+    isOwner,
+    isPrimaryOwner,
+    isCurrentUserAdmin,
+  } = useProjectContextState()
   const budget = project.budget ?? null
+  const canEditProject = useHasPermission("projects:edit")
   const canEdit =
-    permissions.includes("expenses:create") || canEditProject
+    useHasPermission("expenses:create") || (isOwner && canEditProject)
+  const canDeleteExpense = useHasPermission("expenses:delete")
   const canDelete =
-    permissions.includes("expenses:delete") || canDeleteProject
+    canDeleteExpense || isPrimaryOwner || isCurrentUserAdmin
   const translateError = useActionError()
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()

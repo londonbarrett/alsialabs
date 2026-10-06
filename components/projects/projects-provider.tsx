@@ -4,7 +4,8 @@ import type { Project } from "@/lib/types"
 import {
   createProjectsStore,
   ProjectsStoreContext,
-} from "@/stores/projects-store"
+} from "@/stores/projects/projects-store"
+import { useServerReseed } from "@/hooks/use-server-reseed"
 import { useState } from "react"
 
 /**
@@ -19,6 +20,7 @@ export function ProjectsProvider({
   children: React.ReactNode
 }) {
   const [store] = useState(() => createProjectsStore(projects))
+  useServerReseed(store, projects)
 
   return (
     <ProjectsStoreContext value={store}>

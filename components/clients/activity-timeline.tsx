@@ -1,4 +1,5 @@
 "use client"
+import type { TimelineEntry } from "@/stores/timeline/timeline-reducer"
 
 import { ActivityItem } from "@/components/clients/activity-item"
 import { AddReminderButton } from "@/components/clients/add-reminder-button"
@@ -8,15 +9,13 @@ import { LogActivityButton } from "@/components/clients/log-activity-button"
 import { PaymentItem } from "@/components/clients/payment-item"
 import { ReminderItem } from "@/components/clients/reminder-item"
 import { Separator } from "@/components/ui/separator"
-import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
-import { useTimelineStore } from "@/stores/timeline-store"
+import { useTimelineState } from "@/stores/timeline/use-timeline-state"
 import { useTranslations } from "next-intl"
 
 export function ActivityTimeline({ clientId }: { clientId: string }) {
   const t = useTranslations()
-  useRefreshOnFocus()
 
-  const entries = useTimelineStore().getEntries()
+  const { entries } = useTimelineState()
 
   return (
     <section>
@@ -37,7 +36,7 @@ export function ActivityTimeline({ clientId }: { clientId: string }) {
         </div>
       ) : (
         <div className="rounded-md border p-4">
-          {entries.map((entry, idx) => (
+          {entries.map((entry: TimelineEntry, idx: number) => (
             <div key={`${entry.kind}-${entry.id}`}>
               {idx > 0 && <Separator />}
               {entry.kind === "activity" ? (

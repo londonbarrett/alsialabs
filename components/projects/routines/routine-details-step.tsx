@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { routineTemplates } from "@/lib/routines/templates"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -52,7 +52,7 @@ export function RoutineDetailsStep({
   onCancel,
 }: RoutineDetailsStepProps) {
   const t = useTranslations()
-  const { members } = useProjectContext()
+  const { members } = useProjectContextState()
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   function handleNameChange(value: string | null) {

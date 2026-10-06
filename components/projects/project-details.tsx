@@ -19,8 +19,9 @@ import { Spinner } from "@/components/ui/spinner"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import { getProjectForEdit } from "@/lib/actions/projects"
 import type { Project as DbProject } from "@/lib/drizzle/schema"
-import { useProjectActions } from "@/stores/use-project-actions"
-import { useProjectContext } from "@/stores/use-project-context"
+import { useHasPermission } from "@/components/common/permissions-provider"
+import { useProjectActions } from "@/stores/project-context/use-project-actions"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import {
   Calendar,
   ClipboardList,
@@ -39,13 +40,18 @@ import { ProjectDialog } from "./project-dialog"
 
 export function ProjectDetails() {
   const t = useTranslations()
-  const { project, owners, categories, canEdit, canDelete } =
-    useProjectContext()
-  const { deleteProject: deleteProjectAction, updateProject } =
-    useProjectActions()
-  const primaryOwner = owners.find(
-    (o) => o.userId === project.primaryOwnerId
-  )
+  const {
+    project,
+    categories,
+    primaryOwner,
+    isOwner,
+    isPrimaryOwner,
+    isCurrentUserAdmin,
+  } = useProjectContextState()
+  const canEditProject = useHasPermission("projects:edit")
+  const canEdit = isOwner && canEditProject
+  const canDelete = isPrimaryOwner || isCurrentUserAdmin
+  const { deleteProject, updateProject } = useProjectActions()
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
@@ -79,7 +85,7 @@ export function ProjectDetails() {
   const handleDelete = async () => {
     setDeleteDialogOpen(false)
     setDeleting(true)
-    await deleteProjectAction()
+    await deleteProject()
     setDeleting(false)
   }
 
