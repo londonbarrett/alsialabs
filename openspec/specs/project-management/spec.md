@@ -582,6 +582,14 @@ The system SHALL allow owners to manage recurring tasks (routines) on the routin
 - **THEN** the routine is deleted
 - **AND** existing task instances remain but are no longer linked to a routine
 
+#### Scenario: A failed routine mutation reverts automatically
+
+- **GIVEN** a user on the routines subpage
+- **WHEN** a create, edit, or delete is applied optimistically through the routines store
+- **AND** the server action fails
+- **THEN** the pending change is discarded and the list shows the last committed state again
+- **AND** an error toast is shown
+
 #### Scenario: Completing a routine task spawns the next instance
 
 - **GIVEN** a routine task that is assigned and open

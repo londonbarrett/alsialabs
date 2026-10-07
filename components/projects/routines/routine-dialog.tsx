@@ -2,6 +2,7 @@
 
 import { Dialog } from "@/components/common/dialog"
 import type { Routine } from "@/lib/drizzle/schema"
+import type { RoutineSubmitData } from "@/lib/types"
 import { useTranslations } from "next-intl"
 import { RoutineForm } from "./routine-form"
 
@@ -9,22 +10,7 @@ interface RoutineDialogProps {
   routine?: Routine
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: {
-    name: string
-    description: string
-    cost: string
-    recurrence: string
-    interval: string
-    daysOfWeek: string[]
-    time: string
-    startDate: string
-    endDate: string
-    assigneeId: string | null
-  }) => Promise<{
-    success: boolean
-    fieldErrors?: Record<string, string[]>
-    error?: string
-  }>
+  onSubmit: (data: RoutineSubmitData) => void
 }
 
 export function RoutineDialog({

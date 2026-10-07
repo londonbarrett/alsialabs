@@ -1,3 +1,4 @@
+import { RoutinesProvider } from "@/components/projects/routines/routines-provider"
 import { RoutinesView } from "@/components/projects/routines/routines-view"
 import { getProjectRoutines } from "@/lib/actions/routines"
 
@@ -9,5 +10,9 @@ export default async function RoutinesPage({ params }: Props) {
   const { id } = await params
   const routines = await getProjectRoutines(id)
 
-  return <RoutinesView initialRoutines={routines} />
+  return (
+    <RoutinesProvider routines={routines}>
+      <RoutinesView />
+    </RoutinesProvider>
+  )
 }
