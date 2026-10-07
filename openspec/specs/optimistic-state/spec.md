@@ -47,7 +47,7 @@ Every store provider SHALL build its store with a lazy `useState` initializer �
 
 Every provider SHALL re-apply server data through `useServerReseed(store, serverData)`, because a lazy initializer runs once and client state survives `router.refresh()`, so a refresh would otherwise re-render the page with new props that nothing reads. The hook SHALL be typed against `ServerSeededStore<S, A, Seed>`, so it accepts only stores carrying `reseedFromServer` — it SHALL NOT accept a bare apply callback, which would let `useState`'s setter and other non-store state satisfy it. Identity is the correct signal because these props are built by the server component, so a new reference means the server re-ran, whereas client-only re-renders pass the same reference; no deep comparison is required. The store SHALL come from a `useState` initializer and the data from props, so both are stable and no ref is needed to keep a callback fresh. A provider SHALL NOT re-derive its reseed token during render — a token built inline changes identity every render and would reseed constantly — so it SHALL be memoised or the prop used directly. Reseeding SHALL happen in an effect, never during render, preserving the invariant that no render-phase write reaches the store its subscribers are reading.
 
-The provider SHALL be mounted by the route's page, not by the component that consumes the store. Consequently a consuming component SHALL be a single component that calls `useXStore()` directly, rather than a wrapper that renders a provider around an inner content component. `TimelineProvider`, `ActivityProvider`, `InvoiceProvider`, `ProjectsProvider`, `ProjectTasksProvider`, and `MyTasksProvider` are each mounted by their page (`app/app/clientes/[clientId]/page.tsx`, `app/app/actividad/page.tsx`, `app/app/ventas/page.tsx`, `app/app/proyectos/page.tsx`, `app/app/proyectos/[id]/page.tsx`, and `app/app/mis-tareas/page.tsx` respectively).
+The provider SHALL be mounted by the route's page, not by the component that consumes the store. Consequently a consuming component SHALL be a single component that calls `useXStore()` directly, rather than a wrapper that renders a provider around an inner content component. `TimelineProvider`, `ActivityProvider`, `InvoiceProvider`, `ProjectsProvider`, `ProjectTasksProvider`, `MyTasksProvider`, and `ExpensesProvider` are each mounted by their page (`app/app/clientes/[clientId]/page.tsx`, `app/app/actividad/page.tsx`, `app/app/ventas/page.tsx`, `app/app/proyectos/page.tsx`, `app/app/proyectos/[id]/page.tsx`, `app/app/mis-tareas/page.tsx`, and `app/app/proyectos/[id]/gastos/page.tsx` respectively). The expenses page nests `ProjectTasksProvider` inside `ExpensesProvider`, because the expenses table lists and edits task cost rows through the project tasks store, and a page SHALL mount every provider its content reads.
 
 #### Scenario: Provider is built once per mount
 
@@ -104,7 +104,7 @@ Each store factory SHALL expose one method named `reseedFromServer(next)` that t
 
 #### Scenario: A whole-state store reseeds by replacement
 
-- **GIVEN** a factory whose state IS the server's slice, such as `createProjectsStore`
+- **GIVEN** a factory whose state IS the server's slice, such as `createProjectsStore` or `createExpensesStore`
 - **WHEN** the provider reseeds it
 - **THEN** the seed SHALL replace the committed state, because the factory omitted `serverSlice`
 
@@ -152,9 +152,9 @@ Reading SHALL follow one split. Reactive reads — the values a component render
 
 ### Requirement: Every store is read through one state hook
 
-Each optimistic store SHALL be read by components through exactly one state hook, `use[Store]State`, living beside the store it wraps: `useActivityState`, `useInvoiceState`, `useProjectsState`, `useTimelineState`, `useProjectContextState`, `useProjectTasksState`. A state hook SHALL take no arguments, SHALL be the only export of its file, and SHALL return a single object of named values, so a consumer destructures what it needs in one call. Components SHALL NOT import a store directly and SHALL NOT select `s.optimistic` or `s.pending` themselves.
+Each optimistic store SHALL be read by components through exactly one state hook, `use[Store]State`, living beside the store it wraps: `useActivityState`, `useInvoiceState`, `useProjectsState`, `useTimelineState`, `useProjectContextState`, `useProjectTasksState`, `useExpensesState`. A state hook SHALL take no arguments, SHALL be the only export of its file, and SHALL return a single object of named values, so a consumer destructures what it needs in one call. Components SHALL NOT import a store directly and SHALL NOT select `s.optimistic` or `s.pending` themselves.
 
-A store SHALL expose nothing beyond the `StoreApi` surface and its own state. No store SHALL attach methods with `Object.assign` or any other post-construction assignment: the Zustand v5 `createStore` contract puts actions in the state returned by the state creator, using its `get` argument, and a method bolted onto the API object is reachable neither through `getState()` nor through a selector, which makes it a second, undocumented surface. `createActivityStore`, `createInvoiceStore`, `createProjectsStore`, `createTimelineStore`, and `createProjectTasksStore` SHALL therefore each return `createOptimisticStore(...)` directly and uniformly. A read off the render path SHALL be written inline at its call site against `store.getState()` — as `loadActivities` `stores/activity/use-activity-actions.ts` does to read a client's already-loaded entries — and SHALL NOT be wrapped in a store method for a single caller.
+A store SHALL expose nothing beyond the `StoreApi` surface and its own state. No store SHALL attach methods with `Object.assign` or any other post-construction assignment: the Zustand v5 `createStore` contract puts actions in the state returned by the state creator, using its `get` argument, and a method bolted onto the API object is reachable neither through `getState()` nor through a selector, which makes it a second, undocumented surface. `createActivityStore`, `createInvoiceStore`, `createProjectsStore`, `createTimelineStore`, `createProjectTasksStore`, and `createExpensesStore` SHALL therefore each return `createOptimisticStore(...)` directly and uniformly. A read off the render path SHALL be written inline at its call site against `store.getState()` — as `loadActivities` `stores/activity/use-activity-actions.ts` does to read a client's already-loaded entries — and SHALL NOT be wrapped in a store method for a single caller.
 
 A state hook SHALL name each value for what it holds, not for where it sits in the store, and SHALL NOT alias one value under two names: a store whose state already IS the list SHALL return it as `projects` or `entries`, never again as `optimistic`. The hook SHALL NOT expose `committed`, which no consumer reads. Where a value needs a default or a derivation, the hook owns it — `useActivityState` supplies `EMPTY_ACTIVITIES` for a client with no activities yet, `useProjectsState` derives `pendingIds` from the pending queue, and `useProjectContextState` derives `primaryOwner` and `additionalOwners` from the owner list, so components never re-derive them.
 
@@ -177,7 +177,7 @@ A state hook SHALL NOT hold permissions. `useProjectContextState` SHALL return r
 
 ### Requirement: Store internals are grouped one folder per domain
 
-Everything belonging to one store SHALL live in a single folder under `stores/`, named for the domain: `stores/activity/`, `stores/invoice/`, `stores/projects/`, `stores/project-context/`, `stores/project-tasks/`, `stores/timeline/`. A folder SHALL hold that domain's reducer, store factory, store test, action hooks, and state hook together — e.g. `stores/invoice/` holds `invoice-reducer.ts`, `invoice-store.ts`, `sales-reducer.ts`, `payment-reducer.ts`, `use-invoice-actions.ts`, `use-invoice-state.ts`, and `use-payment-actions.ts`. A test SHALL sit beside the file it covers.
+Everything belonging to one store SHALL live in a single folder under `stores/`, named for the domain: `stores/activity/`, `stores/invoice/`, `stores/projects/`, `stores/project-context/`, `stores/project-tasks/`, `stores/expenses/`, `stores/timeline/`. A folder SHALL hold that domain's reducer, store factory, store test, action hooks, and state hook together — e.g. `stores/invoice/` holds `invoice-reducer.ts`, `invoice-store.ts`, `sales-reducer.ts`, `payment-reducer.ts`, `use-invoice-actions.ts`, `use-invoice-state.ts`, and `use-payment-actions.ts`. A test SHALL sit beside the file it covers.
 
 The shared `useOptimisticAction` SHALL stay at `stores/use-optimistic-action.ts` rather than in a domain folder or a shared subfolder, because it is infrastructure every domain uses rather than one domain's state. Payment state SHALL live in `stores/invoice/` rather than a folder of its own, because payments have no store of their own — `salesReducer` composes `paymentReducer` into the invoice store's `SalesState`, and `usePaymentActions` writes to that store.
 
@@ -197,7 +197,7 @@ Modules inside one folder SHALL import each other relatively (`./invoice-reducer
 
 All optimistic mutations SHALL run through `useOptimisticAction` `stores/use-optimistic-action.ts`, which pends an action, runs the server mutation, then commits on success or discards on failure, and which drives the global loading bar. A caller MAY pass a `commitAction` to apply a second action after the original one commits — used to swap a temporary row for the authoritative server row, or to `replaceTemp` a row the server has just saved.
 
-`RunOptions` SHALL expose `commitAction` only. `isSuccess`, `onSuccess`, and `onFailure` SHALL NOT exist, because no caller passed them; the hook SHALL determine success with a single shared heuristic and SHALL leave toasts to the caller. A `commitAction` callback MAY return `undefined` to skip the follow-up action, for a mutation whose server result only sometimes produces one — completing a recurring task spawns its next occurrence, most completions do not.
+`RunOptions` SHALL expose `commitAction` only. `isSuccess`, `onSuccess`, and `onFailure` SHALL NOT exist, because no caller passed them; the hook SHALL determine success with a single shared heuristic — `defaultIsSuccess` `lib/util/action-result.ts` — and SHALL leave toasts to the caller. A `commitAction` callback MAY return `undefined` to skip the follow-up action, for a mutation whose server result only sometimes produces one — completing a recurring task spawns its next occurrence, most completions do not.
 
 #### Scenario: Temporary row is swapped for the saved row
 
@@ -209,9 +209,30 @@ All optimistic mutations SHALL run through `useOptimisticAction` `stores/use-opt
 - **WHEN** an optimistic mutation is in flight
 - **THEN** the global loading bar SHALL be visible and SHALL hide once it settles
 
+### Requirement: Mutation success is decided by one shared heuristic
+
+`useOptimisticAction` SHALL decide whether a mutation succeeded with `defaultIsSuccess` `lib/util/action-result.ts`, and `useSettle` SHALL agree with it, so a result that commits is the same result that toasts success. The heuristic SHALL treat a result as failure only when it carries evidence of failure — a next-safe-action `serverError` or `validationErrors`, or a store action's `success: false` — and SHALL treat every other result as success, including a missing result.
+
+A next-safe-action mutation that returns no value resolves to an empty object, so a delete or a plain update the server completes successfully SHALL be recognised as success and SHALL commit. A heuristic that required `data !== undefined` SHALL NOT be used, because it misreads a void success as a failure, discards the applied action, and shows an error — the mutation has already landed on the server, so the row reappears on the next fetch.
+
+#### Scenario: A void mutation commits and toasts success
+
+- **WHEN** a delete action that returns nothing completes successfully
+- **THEN** `defaultIsSuccess` SHALL return true, the pending action SHALL commit, and `useSettle` SHALL toast the success message
+
+#### Scenario: A server error still reverts
+
+- **WHEN** a mutation resolves to `{ serverError }` or `{ validationErrors }`
+- **THEN** `defaultIsSuccess` SHALL return false and the pending action SHALL be discarded
+
+#### Scenario: A store action reports failure explicitly
+
+- **WHEN** a store action resolves to `{ success: false, error }`
+- **THEN** `defaultIsSuccess` SHALL return false and `useSettle` SHALL toast the error
+
 ### Requirement: Mutation hooks settle their outcome the same way
 
-Every action hook (`useInvoiceActions`, `useTimelineActions`, `useActivityActions`, `usePaymentActions`, `useProjectActions`, `useProjectsActions`, `useProjectPeopleActions`, `useProjectTasksActions`) SHALL report each mutation through the shared `useSettle` hook `hooks/use-settle.ts`, which toasts the translated `serverError`, returns `validationErrors` for the form to render without toasting, toasts a success message otherwise, and returns `SettleResult` `lib/types.ts`. A handler SHALL return `SettleResult` only when its caller consumes the outcome — the invoice `createInvoice`/`updateInvoice` handlers, whose `InvoiceForm` caller renders the returned `fieldErrors`; every other handler SHALL return `void`, because no caller reads the outcome. Fetch helpers (`loadPayments` `stores/invoice/use-payment-actions.ts`, `loadActivities` `stores/activity/use-activity-actions.ts`) SHALL return `void`, SHALL pend and commit the store directly, and SHALL NOT drive the loading bar or toast a success, because reading a list is not a mutation.
+Every action hook (`useInvoiceActions`, `useTimelineActions`, `useActivityActions`, `usePaymentActions`, `useProjectActions`, `useProjectsActions`, `useProjectPeopleActions`, `useProjectTasksActions`, `useExpensesActions`) SHALL report each mutation through the shared `useSettle` hook `hooks/use-settle.ts`, which toasts the translated `serverError`, returns `validationErrors` for the form to render without toasting, toasts a success message otherwise, and returns `SettleResult` `lib/types.ts`. A handler SHALL return `SettleResult` only when its caller consumes the outcome — the invoice `createInvoice`/`updateInvoice` handlers, whose `InvoiceForm` caller renders the returned `fieldErrors`; every other handler SHALL return `void`, because no caller reads the outcome. Fetch helpers (`loadPayments` `stores/invoice/use-payment-actions.ts`, `loadActivities` `stores/activity/use-activity-actions.ts`) SHALL return `void`, SHALL pend and commit the store directly, and SHALL NOT drive the loading bar or toast a success, because reading a list is not a mutation.
 
 #### Scenario: Fire-and-forget handler returns nothing
 

@@ -71,12 +71,11 @@ export function useSettle() {
       toast.error(error)
       return { success: false, error }
     }
-    if (result?.data) {
-      toast.success(successMessage)
-      return { success: true }
-    }
-    const error = errorMessage ?? t("common.somethingWentWrong")
-    toast.error(error)
-    return { success: false, error }
+    // A next-safe-action mutation resolves to `{ data }` when it returns a
+    // value and to `{}` when it returns nothing; every failure envelope
+    // (`serverError`/`validationErrors`) was handled above, so reaching here
+    // means the mutation succeeded.
+    toast.success(successMessage)
+    return { success: true }
   }
 }

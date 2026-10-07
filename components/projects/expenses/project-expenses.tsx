@@ -1,6 +1,7 @@
 "use client"
 
 import { Money } from "@/components/common/money"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -9,33 +10,23 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import {
-  createExpense,
-  deleteExpense,
-  updateExpense,
-} from "@/lib/actions/expenses"
-import { createTask, deleteTask, updateTask } from "@/lib/actions/tasks"
 import type {
   Expense,
-  Task,
   TaskPriority,
   TaskStatus,
 } from "@/lib/drizzle/schema"
 import type { ExpenseWithCategory } from "@/lib/types"
-import { useActionError } from "@/lib/util/action-errors"
-import { expenseReducer } from "@/reducers/expense-reducer"
-import { taskReducer } from "@/reducers/task-reducer"
-import { useHasPermission } from "@/components/common/permissions-provider"
+import { useExpensesActions } from "@/stores/expenses/use-expenses-actions"
+import { useExpensesState } from "@/stores/expenses/use-expenses-state"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
+import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
+import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
+import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
 import { cn } from "cn"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useAction } from "next-safe-action/hooks"
-import { useRouter } from "next/navigation"
-import { useReducer, useState, useTransition } from "react"
-import { toast } from "sonner"
-import { TaskDialog } from "../task-dialog"
+import { useState } from "react"
+import { TaskDialog, type TaskFormValues } from "../task-dialog"
 import { ExpenseDialog } from "./expense-dialog"
 import { ExpensesTable } from "./expenses-table"
 
@@ -47,21 +38,15 @@ function formatDate(date: Date): string {
 }
 
 interface ProjectExpensesProps {
-  expenses: ExpenseWithCategory[]
-  tasks: Task[]
   categories: { id: string; slug: string; name: string }[]
 }
 
-export function ProjectExpenses({
-  expenses,
-  tasks,
-  categories,
-}: ProjectExpensesProps) {
-  const router = useRouter()
+export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const t = useTranslations()
   const {
     project,
     projectId,
+    members,
     isOwner,
     isPrimaryOwner,
     isCurrentUserAdmin,
@@ -73,49 +58,28 @@ export function ProjectExpenses({
   const canDeleteExpense = useHasPermission("expenses:delete")
   const canDelete =
     canDeleteExpense || isPrimaryOwner || isCurrentUserAdmin
-  const translateError = useActionError()
-  const { start: startLoading, stop: stopLoading } =
-    useLoadingIndicator()
-  const [localTasks, dispatch] = useReducer(taskReducer, tasks)
-  const [optimisticExpenses, dispatchExpenses] = useReducer(
-    expenseReducer,
-    expenses
-  )
-  const [, startTransition] = useTransition()
+
+  const { expenses } = useExpensesState()
+  const { saveExpense, deleteExpense } = useExpensesActions()
+  const { tasks } = useProjectTasksState()
+  const { saveTask, deleteTask } = useProjectTasksActions()
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<
     ExpenseWithCategory | undefined
   >()
-  const [editingTask, setEditingTask] = useState<Task | undefined>()
+  const [editingTask, setEditingTask] = useState<
+    TaskWithCommentCount | undefined
+  >()
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
 
-  const { executeAsync: executeCreateExpense } =
-    useAction(createExpense)
-  const { executeAsync: executeUpdateExpense } =
-    useAction(updateExpense)
-  const { executeAsync: executeDeleteExpense } =
-    useAction(deleteExpense)
-  const { executeAsync: executeCreateTask } = useAction(createTask)
-  const { executeAsync: executeUpdateTask } = useAction(updateTask)
-  const { executeAsync: executeDeleteTask } = useAction(deleteTask)
-
-  // TODO: move handler to dialog
-  async function handleTaskSubmit(data: {
-    name: string
-    description: string
-    cost: string
-    status: string
-    priority: string | null
-    dueDate: string | null
-    assigneeId: string | null
-  }) {
-    const isEdit = !!editingTask
+  async function handleTaskSubmit(data: TaskFormValues) {
     setEditingTask(undefined)
     setTaskDialogOpen(false)
     const taskStatus = data.status as TaskStatus
     const taskPriority = data.priority as TaskPriority
 
-    const optimisticTask: Task = {
+    const optimisticTask: TaskWithCommentCount = {
       id: editingTask?.id ?? `temp-${Date.now()}`,
       projectId,
       name: data.name,
@@ -123,67 +87,27 @@ export function ProjectExpenses({
       cost: data.cost || null,
       status: taskStatus,
       priority: taskPriority,
-      routineId: null,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      routineId: editingTask?.routineId ?? null,
       assigneeId: data.assigneeId,
+      assigneeName:
+        members.find((m) => m.userId === data.assigneeId)?.userName ??
+        editingTask?.assigneeName ??
+        null,
+      commentCount: editingTask
+        ? (tasks.find((t) => t.id === editingTask.id)?.commentCount ??
+          0)
+        : 0,
       createdAt: editingTask?.createdAt ?? new Date(),
       updatedAt: new Date(),
     }
 
-    dispatch({ type: isEdit ? "update" : "add", task: optimisticTask })
-
-    startLoading()
-    const result = isEdit
-      ? await executeUpdateTask({
-          projectId,
-          taskId: editingTask!.id,
-          name: data.name,
-          description: data.description,
-          cost: data.cost,
-          status: taskStatus,
-          priority: taskPriority,
-          dueDate: data.dueDate,
-          assigneeId: data.assigneeId,
-        })
-      : await executeCreateTask({
-          projectId,
-          name: data.name,
-          description: data.description,
-          cost: data.cost,
-          status: taskStatus,
-          priority: taskPriority,
-          dueDate: data.dueDate,
-          assigneeId: data.assigneeId,
-        })
-    stopLoading()
-
-    if (result?.data) {
-      startTransition(() => {
-        dispatch({
-          type: "replaceTemp",
-          tempId: optimisticTask.id,
-          task: result.data!,
-        })
-      })
-      toast.success(
-        isEdit
-          ? t("projects.tasks.taskUpdated")
-          : t("projects.tasks.taskCreated")
-      )
-    } else {
-      if (!isEdit) {
-        startTransition(() => {
-          dispatch({ type: "delete", taskId: optimisticTask.id })
-        })
-      }
-      if (result?.serverError) {
-        toast.error(translateError(result.serverError.code))
-      } else {
-        toast.error(t("common.somethingWentWrong"))
-      }
-    }
-
-    return result
+    await saveTask({
+      projectId,
+      values: data,
+      optimisticTask,
+      editingTaskId: editingTask?.id ?? null,
+    })
   }
 
   function openNew() {
@@ -196,7 +120,7 @@ export function ProjectExpenses({
     setDialogOpen(true)
   }
 
-  function openEditTask(task: Task) {
+  function openEditTask(task: TaskWithCommentCount) {
     setEditingTask(task)
     setTaskDialogOpen(true)
   }
@@ -212,112 +136,19 @@ export function ProjectExpenses({
   }
 
   async function handleDeleteTask(taskId: string) {
-    dispatch({ type: "delete", taskId })
-    startLoading()
-    const result = await executeDeleteTask({ projectId, taskId })
-    stopLoading()
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-      startTransition(() => {
-        dispatch({ type: "reset", tasks })
-      })
-    } else {
-      toast.success(t("projects.tasks.taskDeleted"))
-    }
+    await deleteTask(projectId, taskId)
   }
 
   async function handleDeleteExpense(expenseId: string) {
-    dispatchExpenses({ type: "delete", expenseId })
-    startLoading()
-    const result = await executeDeleteExpense({
-      projectId,
-      id: expenseId,
-    })
-    stopLoading()
-    if (result?.serverError) {
-      toast.error(translateError(result.serverError.code))
-      dispatchExpenses({ type: "reset", expenses })
-      router.refresh()
-    } else {
-      toast.success(t("projects.expenses.expenseDeleted"))
-    }
+    await deleteExpense({ projectId, expenseId })
   }
 
   async function handleExpenseSubmit(data: Expense) {
-    const isEdit = !!editingExpense
-    const tempId = editingExpense?.id ?? `temp-${Date.now()}`
-    const cat = categories.find((c) => c.id === data.categoryId)
-
-    const optimisticExpense: ExpenseWithCategory = {
-      id: data.id || tempId,
-      projectId: data.projectId,
-      categoryId: data.categoryId,
-      description: data.description,
-      amount: data.amount,
-      expenseDate: data.expenseDate,
-      createdAt: editingExpense?.createdAt ?? new Date(),
-      updatedAt: new Date(),
-      categoryName: cat?.name ?? null,
-      categorySlug: cat?.slug ?? null,
-    }
-
-    dispatchExpenses({
-      type: isEdit ? "update" : "add",
-      expense: optimisticExpense,
-    })
-
-    const canonical: ExpenseWithCategory = {
-      ...optimisticExpense,
-      categoryName: cat?.name ?? null,
-      categorySlug: cat?.slug ?? null,
-    }
-
-    if (isEdit) {
-      startLoading()
-      const result = await executeUpdateExpense({
-        ...data,
-        projectId: data.projectId,
-        id: editingExpense!.id,
-      })
-      stopLoading()
-      if (result?.serverError) {
-        toast.error(translateError(result.serverError.code))
-        dispatchExpenses({ type: "reset", expenses })
-        router.refresh()
-        return
-      }
-      dispatchExpenses({
-        type: "replaceTemp",
-        tempId,
-        expense: { ...canonical, id: result.data?.id ?? tempId },
-      })
-      toast.success(t("projects.expenses.expenseUpdated"))
-    } else {
-      startLoading()
-      const result = await executeCreateExpense({
-        ...data,
-        projectId: data.projectId,
-      })
-      stopLoading()
-      if (result?.serverError) {
-        toast.error(translateError(result.serverError.code))
-        dispatchExpenses({ type: "delete", expenseId: tempId })
-        router.refresh()
-        return
-      }
-      dispatchExpenses({
-        type: "replaceTemp",
-        tempId,
-        expense: { ...canonical, id: result.data?.id ?? tempId },
-      })
-      toast.success(t("projects.expenses.expenseCreated"))
-    }
+    await saveExpense({ data, categories, editingExpense })
   }
 
-  const taskCosts = localTasks.filter(
-    (t) => t.cost && Number(t.cost) > 0
-  )
-  const expenseTotal = optimisticExpenses.reduce(
+  const taskCosts = tasks.filter((t) => t.cost && Number(t.cost) > 0)
+  const expenseTotal = expenses.reduce(
     (sum, e) => sum + Number(e.amount),
     0
   )
@@ -326,7 +157,7 @@ export function ProjectExpenses({
     0
   )
   const total = expenseTotal + taskCostTotal
-  const hasItems = optimisticExpenses.length > 0 || taskCosts.length > 0
+  const hasItems = expenses.length > 0 || taskCosts.length > 0
   const budgetNum = budget ? Number(budget) : 0
   const spendPct =
     budgetNum > 0
@@ -343,7 +174,7 @@ export function ProjectExpenses({
         ? formatDate(new Date(task.createdAt))
         : "9999-12-31",
     })),
-    ...optimisticExpenses.map((expense) => ({
+    ...expenses.map((expense) => ({
       key: expense.id,
       type: "expense" as const,
       expense,
