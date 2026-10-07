@@ -7,7 +7,10 @@ import type {
   Invoice,
   InvoicePayment,
 } from "@/lib/drizzle/schema"
-import type { TimelineEntry } from "@/stores/timeline/timeline-reducer"
+import {
+  sortTimelineEntries,
+  type TimelineEntry,
+} from "@/stores/timeline/timeline-reducer"
 import {
   createTimelineStore,
   TimelineStoreContext,
@@ -30,7 +33,10 @@ export function TimelineProvider({
   // Memoised because `useServerReseed` compares this by identity: a fresh array
   // on every render would look like new server data and reseed each time.
   const entries = useMemo(
-    () => toEntries({ activities, reminders, invoices, payments }),
+    () =>
+      sortTimelineEntries(
+        toEntries({ activities, reminders, invoices, payments })
+      ),
     [activities, reminders, invoices, payments]
   )
   const [store] = useState(() => createTimelineStore(entries))

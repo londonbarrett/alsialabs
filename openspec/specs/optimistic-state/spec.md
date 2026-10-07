@@ -10,7 +10,7 @@ Page-scoped optimistic stores, the provider/read-method pattern, and the shared 
 
 Client-side optimistic state SHALL be held in a Zustand store created per route visit, never in a module-level singleton and never threaded through props. Every optimistic store SHALL be built by a factory `createXStore(seed)` and published through a `XStoreContext` with a `useXStore()` hook that SHALL throw a provider-named error when no provider is mounted, so a missing provider fails loudly at the boundary instead of silently degrading.
 
-The store SHALL expose exactly `committed`, `pending`, `optimistic`, `pend`, `commit`, `discard`, and `reseed`. It SHALL NOT expose a `hydrate` method, a `reset` action, or a client-keyed scope, which would discard committed state wholesale rather than adopting server data on top of it. `createOptimisticStore(initialState, applyAction)` SHALL take exactly two arguments.
+The store SHALL expose exactly `committed`, `pending`, `optimistic`, `pend`, `commit`, `discard`, `reseed`, and `reseedFromServer`. It SHALL NOT expose a `hydrate` method, a `reset` action, or a client-keyed scope, which would discard committed state wholesale rather than adopting server data on top of it. `createOptimisticStore` SHALL take a single config object — `{ initialState, reducer, serverSlice? }` — rather than positional arguments, so each factory names its inputs and the key naming the server's slice cannot be confused with a merge callback.
 
 Mutations are the ordinary route for fresh server data. `reseed` exists for the one case a mutation cannot cover: a `router.refresh()` triggered by something outside this store, such as the window regaining focus.
 
@@ -80,7 +80,7 @@ The provider SHALL be mounted by the route's page, not by the component that con
 
 `reseed(update)` SHALL set committed state to `update(committed)` and SHALL recompute `optimistic` as that result with every pending action applied in order, so an in-flight optimistic write survives the refresh and its server response still lands on top. `update` SHALL receive the current committed state rather than a replacement value, because the server owns only part of the state: each store's reseed method SHALL replace the slice the server sent and preserve client-only slices — loaded task comments, expanded activity rows, fetched invoice payments — which a wholesale replacement would discard.
 
-Each store factory SHALL expose one method named `reseedFromServer(next)` that takes the new server data, typed as `ServerSeededStore<S, A, Seed>`, so the merge sits beside the state shape, the method is referentially stable for effect dependencies, and one uniform name serves every store. `createOptimisticStore` SHALL build that method in the state creator, from an `applySeed(committed, seed)` argument every factory MUST supply, so a store cannot be constructed without declaring the slice the server owns — reload tolerance is then a property of the factory rather than a line each provider has to remember. The method SHALL NOT be attached after construction with `Object.assign` or any other assignment, because a method bolted onto the API object is reachable through neither `getState()` nor a selector, making it a second, undocumented surface. A card SHALL NOT need to pass a callback to `useRefreshOnFocus`, which SHALL continue to drive `router.refresh()` alone.
+Each store factory SHALL expose one method named `reseedFromServer(next)` that takes the new server data, typed as `ServerSeededStore<S, A, Seed>`, so the merge sits beside the state shape, the method is referentially stable for effect dependencies, and one uniform name serves every store. `createOptimisticStore` SHALL build that method in the state creator, from the `serverSlice` its config declares: a reseed replaces that top-level key and leaves every other field untouched, which is all the partial stores need, since their merge is always `{ ...committed, [slice]: seed }`. A store whose state IS the server's slice SHALL omit `serverSlice`, and a reseed then replaces committed state wholesale. No factory SHALL pass a merge callback, and the seed type SHALL be inferred from the declaration — `S[K]` for a slice key, `S` for a whole-state store — so a factory cannot name a slice of the wrong shape and a partial store that forgets its `serverSlice` fails at compile time, because `Seed` infers as the whole state while its provider passes a slice. The method SHALL NOT be attached after construction with `Object.assign` or any other assignment, because a method bolted onto the API object is reachable through neither `getState()` nor a selector, making it a second, undocumented surface. A card SHALL NOT need to pass a callback to `useRefreshOnFocus`, which SHALL continue to drive `router.refresh()` alone.
 
 #### Scenario: An in-flight edit survives a focus refresh
 
@@ -102,10 +102,27 @@ Each store factory SHALL expose one method named `reseedFromServer(next)` that t
 - **WHEN** a pending action is discarded after a reseed
 - **THEN** the store SHALL show the newly refreshed server data, not the data as it was before the refresh
 
-#### Scenario: A store cannot be built without declaring the server's slice
+#### Scenario: A whole-state store reseeds by replacement
 
-- **WHEN** `createOptimisticStore` is called without its `applySeed` argument
-- **THEN** TypeScript SHALL reject the call, because a store that does not know which slice the server owns cannot reseed the data a refresh delivers
+- **GIVEN** a factory whose state IS the server's slice, such as `createProjectsStore`
+- **WHEN** the provider reseeds it
+- **THEN** the seed SHALL replace the committed state, because the factory omitted `serverSlice`
+
+#### Scenario: A partial store reseeds only its declared slice
+
+- **GIVEN** a factory whose state also carries client-only fields, such as `createActivityStore` with `activities`
+- **WHEN** the provider reseeds it
+- **THEN** the seed SHALL replace only the declared `serverSlice` and the client-only fields SHALL survive
+
+#### Scenario: The seed type is inferred from the declaration
+
+- **WHEN** a factory declares `serverSlice: "tasks"`
+- **THEN** `Seed` SHALL be `S["tasks"]`, so the provider's seed is checked against the list the server actually sends, not against the whole state
+
+#### Scenario: A missing slice declaration is caught at the provider
+
+- **WHEN** a partial store omits `serverSlice`, leaving `Seed` as the whole state `S`
+- **THEN** its `useServerReseed(store, someList)` SHALL fail to typecheck, because the seed is a slice and not `S`
 
 #### Scenario: No lint suppression in providers
 

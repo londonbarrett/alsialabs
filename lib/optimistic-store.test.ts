@@ -23,11 +23,11 @@ function counterReducer(
 }
 
 function makeStore(items: number[] = [1, 2]) {
-  return createOptimisticStore<Counter, CounterAction, number[]>(
-    { items, clientOnly: "loaded" },
-    counterReducer,
-    (committed, next) => ({ ...committed, items: next })
-  )
+  return createOptimisticStore({
+    initialState: { items, clientOnly: "loaded" },
+    reducer: counterReducer,
+    serverSlice: "items",
+  })
 }
 
 describe("createOptimisticStore reseed", () => {

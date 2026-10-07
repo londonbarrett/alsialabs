@@ -2,8 +2,6 @@ import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
 import {
   projectTasksReducer,
-  type ProjectTaskAction,
-  type ProjectTasksState,
   type TaskWithCommentCount,
 } from "./project-tasks-reducer"
 
@@ -13,16 +11,12 @@ export function createProjectTasksStore(tasks: TaskWithCommentCount[]) {
    * task when the panel opens, so a reseed keeps them rather than making the
    * open panel reload.
    */
-  return createOptimisticStore<
-    ProjectTasksState,
-    ProjectTaskAction,
-    TaskWithCommentCount[]
-  >(
+  return createOptimisticStore({
     // Comments load per task when the panel opens, so nothing is seeded here.
-    { tasks, commentsByTask: {} },
-    projectTasksReducer,
-    (committed, next) => ({ ...committed, tasks: next })
-  )
+    initialState: { tasks, commentsByTask: {} },
+    reducer: projectTasksReducer,
+    serverSlice: "tasks",
+  })
 }
 
 type ProjectTasksStore = ReturnType<typeof createProjectTasksStore>

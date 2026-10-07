@@ -39,14 +39,16 @@ describe("createTimelineStore", () => {
     expect(store.getState().pending).toHaveLength(0)
   })
 
-  it("sorts seeded entries newest first", () => {
+  it("keeps the order the provider seeded, without re-sorting", () => {
+    // Sorting moved to the provider: it is the data boundary, so the store
+    // only has to preserve whatever order it is given.
     const store = createTimelineStore([
       activityEntry({ id: "old", activityDate: "2024-01-01" }),
       activityEntry({ id: "new", activityDate: "2024-06-01" }),
     ])
     expect(store.getState().committed.map((e) => e.id)).toEqual([
-      "new",
       "old",
+      "new",
     ])
   })
 
