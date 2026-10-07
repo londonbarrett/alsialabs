@@ -2,6 +2,7 @@
 
 import type { Routine } from "@/lib/drizzle/schema"
 import { routineTemplates } from "@/lib/routines/templates"
+import type { RoutineSubmitData } from "@/lib/types"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { RoutineDetailsStep } from "./routine-details-step"
@@ -10,22 +11,7 @@ import { StepIndicator } from "./routine-step-indicator"
 
 interface RoutineFormProps {
   routine?: Routine
-  onSubmit: (data: {
-    name: string
-    description: string
-    cost: string
-    recurrence: string
-    interval: string
-    daysOfWeek: string[]
-    time: string
-    startDate: string
-    endDate: string
-    assigneeId: string | null
-  }) => Promise<{
-    success: boolean
-    fieldErrors?: Record<string, string[]>
-    error?: string
-  }>
+  onSubmit: (data: RoutineSubmitData) => void
   onCancel: () => void
 }
 
