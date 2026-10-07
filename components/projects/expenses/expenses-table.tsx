@@ -12,11 +12,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { ExpenseWithCategory } from "@/lib/types"
-import type { Task } from "@/lib/drizzle/schema"
+import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
 import { useTranslations } from "next-intl"
 
 type ExpenseRow =
-  | { key: string; type: "task"; task: Task; date: string }
+  | {
+      key: string
+      type: "task"
+      task: TaskWithCommentCount
+      date: string
+    }
   | {
       key: string
       type: "expense"
@@ -29,7 +34,7 @@ interface ExpensesTableProps {
   canEdit: boolean
   canDelete: boolean
   onEditExpense: (expense: ExpenseWithCategory) => void
-  onEditTask: (task: Task) => void
+  onEditTask: (task: TaskWithCommentCount) => void
   onDeleteExpense: (expenseId: string) => Promise<void>
   onDeleteTask: (taskId: string) => Promise<void>
 }

@@ -3,7 +3,6 @@
 import type { ProjectContext } from "@/lib/actions/projects"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { projectContextReducer } from "./project-context-reducer"
-import type { ProjectContextAction } from "./project-context-reducer"
 import { createContext, useContext } from "react"
 
 /**
@@ -23,15 +22,10 @@ export function createProjectContextStore(context: ProjectContext) {
   /**
    * The whole state is the server's slice, so a reseed replaces it.
    */
-  return createOptimisticStore<
-    ProjectContext,
-    ProjectContextAction,
-    ProjectContext
-  >(
-    context,
-    projectContextReducer,
-    (_, next) => next
-  )
+  return createOptimisticStore({
+    initialState: context,
+    reducer: projectContextReducer,
+  })
 }
 
 type ProjectContextStore = ReturnType<typeof createProjectContextStore>

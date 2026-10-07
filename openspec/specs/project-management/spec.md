@@ -625,6 +625,8 @@ The system SHALL allow owners to manage recurring tasks (routines) on the routin
 
 The system SHALL allow owners to manage expenses on the expenses subpage (`/app/proyectos/[id]/gastos`). The subpage shows a budget progress card (total spend = expense amounts + task costs compared against the project budget, with an over-budget indicator) and a table listing expense rows and task cost rows ordered by date (expense `expense_date` and task creation date). Owners can create, edit, and delete expenses, and can edit or delete task cost rows from the same table. Actions are granted via the `expenses:create`, `expenses:edit`, and `expenses:delete` permissions or project ownership rights.
 
+The subpage SHALL hold its expenses in a page-scoped optimistic store supplied by `ExpensesProvider` `app/app/proyectos/[id]/gastos/page.tsx`, and SHALL list and edit task cost rows through the `ProjectTasksProvider` mounted alongside it (nested inside `ExpensesProvider`), so the expense table reuses the project tasks store rather than a local reducer. `ProjectExpenses` `components/projects/expenses/project-expenses.tsx` SHALL read `useExpensesState()` and `useProjectTasksState()` and mutate through `useExpensesActions()` and `useProjectTasksActions()`; it SHALL NOT own a `useReducer` for either list. Every expense create, edit, and delete SHALL apply optimistically and revert automatically if the server rejects it. The category badge on an optimistic expense row SHALL be resolved from the categories the page passes in, because the create/update action returns the bare expense row without its joined category name.
+
 #### Scenario: View expenses subpage
 
 - **GIVEN** a user with `projects:view` permission
@@ -650,7 +652,7 @@ The system SHALL allow owners to manage expenses on the expenses subpage (`/app/
 - **WHEN** the user clicks "Add Expense" in the expenses card header
 - **THEN** a dialog opens with fields for description, category, amount, and date
 - **WHEN** the user fills the required fields and submits
-- **THEN** the expense is created and the page refreshes
+- **THEN** the expense SHALL appear in the table immediately with its category badge, and the page SHALL refresh
 
 #### Scenario: Edit expense
 
@@ -658,14 +660,15 @@ The system SHALL allow owners to manage expenses on the expenses subpage (`/app/
 - **WHEN** the user clicks "Edit" on an expense row's action menu
 - **THEN** a dialog opens with the expense's current values pre-filled
 - **WHEN** the user modifies fields and submits
-- **THEN** the expense is updated and the page refreshes
+- **THEN** the row SHALL show the new values immediately, and the page SHALL refresh
 
 #### Scenario: Delete expense
 
 - **GIVEN** a user with `expenses:delete` permission or delete rights on the project
 - **WHEN** the user clicks "Delete" on an expense row's action menu
-- **THEN** the expense is deleted
-- **AND** a success toast confirms the deletion
+- **THEN** the row SHALL disappear immediately
+- **AND** a success toast SHALL confirm the deletion
+- **AND** if the server rejects the deletion, the row SHALL be restored
 
 #### Scenario: Edit or delete task cost from expenses subpage
 

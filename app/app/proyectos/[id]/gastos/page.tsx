@@ -1,4 +1,6 @@
+import { ExpensesProvider } from "@/components/projects/expenses/expenses-provider"
 import { ProjectExpenses } from "@/components/projects/expenses/project-expenses"
+import { ProjectTasksProvider } from "@/components/projects/project-tasks-provider"
 import {
   getExpenseCategories,
   getExpensesByProjectId,
@@ -19,10 +21,12 @@ export default async function ProjectExpensesPage({ params }: Props) {
   ])
 
   return (
-    <ProjectExpenses
-      expenses={unwrapResponse(expenses)}
-      tasks={unwrapResponse(tasksResult)}
-      categories={unwrapResponse(expenseCategories)}
-    />
+    <ExpensesProvider expenses={unwrapResponse(expenses)}>
+      <ProjectTasksProvider tasks={unwrapResponse(tasksResult)}>
+        <ProjectExpenses
+          categories={unwrapResponse(expenseCategories)}
+        />
+      </ProjectTasksProvider>
+    </ExpensesProvider>
   )
 }

@@ -1,10 +1,6 @@
 import type { Reminder } from "@/lib/actions/reminders"
 import { createOptimisticStore } from "@/lib/optimistic-store"
-import {
-  activityReducer,
-  type ActivityAction,
-  type ActivityState,
-} from "./activity-reducer"
+import { activityReducer } from "./activity-reducer"
 import { createContext, useContext } from "react"
 
 export function createActivityStore(reminders: Reminder[]) {
@@ -13,11 +9,11 @@ export function createActivityStore(reminders: Reminder[]) {
    * lists loaded when a row is expanded, so a reseed keeps them — otherwise
    * every focus collapse would discard the user's open rows and their pages.
    */
-  return createOptimisticStore<ActivityState, ActivityAction, Reminder[]>(
-    { reminders, activities: {} },
-    activityReducer,
-    (committed, next) => ({ ...committed, reminders: next })
-  )
+  return createOptimisticStore({
+    initialState: { reminders, activities: {} },
+    reducer: activityReducer,
+    serverSlice: "reminders",
+  })
 }
 
 type ActivityStore = ReturnType<typeof createActivityStore>

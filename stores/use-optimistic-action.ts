@@ -2,25 +2,11 @@
 
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { OptimisticStore } from "@/lib/optimistic-store"
+import { defaultIsSuccess } from "@/lib/util/action-result"
 import { useRouter } from "next/navigation"
 import type { StoreApi } from "zustand"
 
 type StoreApiType<S, A> = StoreApi<OptimisticStore<S, A>>
-
-function defaultIsSuccess(result: unknown): boolean {
-  const r = result as {
-    success?: boolean
-    data?: unknown
-    hasRedirected?: boolean
-    serverError?: unknown
-    error?: unknown
-    validationErrors?: unknown
-  }
-  if (r.serverError !== undefined || r.validationErrors !== undefined)
-    return false
-  if (r.success !== undefined) return r.success !== false
-  return r.data !== undefined || r.hasRedirected === true
-}
 
 interface RunOptions<Result, A> {
   /**

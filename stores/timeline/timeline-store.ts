@@ -1,10 +1,8 @@
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
 import {
-  sortTimelineEntries,
   timelineReducer,
   type TimelineEntry,
-  type TimelineEntryAction,
 } from "./timeline-reducer"
 
 export function createTimelineStore(entries: TimelineEntry[]) {
@@ -13,15 +11,10 @@ export function createTimelineStore(entries: TimelineEntry[]) {
    * client-side — so a reseed replaces it. Re-sorted, because the seed sorts
    * and a freshly built list has to land in the same order.
    */
-  return createOptimisticStore<
-    TimelineEntry[],
-    TimelineEntryAction,
-    TimelineEntry[]
-  >(
-    sortTimelineEntries(entries),
-    timelineReducer,
-    (_, next) => sortTimelineEntries(next)
-  )
+  return createOptimisticStore({
+    initialState: entries,
+    reducer: timelineReducer,
+  })
 }
 
 type TimelineStore = ReturnType<typeof createTimelineStore>

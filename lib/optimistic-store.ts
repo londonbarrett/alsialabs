@@ -5,7 +5,7 @@ type PendingItem<A> = {
   action: A
 }
 
-type ApplyAction<S, A> = (state: S, action: A) => S
+type Reducer<S, A> = (state: S, action: A) => S
 
 export type OptimisticStore<S, A, Seed = unknown> = {
   committed: S
@@ -33,7 +33,7 @@ export type OptimisticStore<S, A, Seed = unknown> = {
    */
   reseed: (update: (committed: S) => S) => void
   /**
-   * Adopts the slice the server owns, through the `applySeed` the store was
+   * Adopts the slice the server owns, through the `serverSlice` the store was
    * built with. It lives in state beside `reseed` because `createStore` puts
    * actions in the state the state creator returns: a method bolted onto the
    * API object is reachable neither through `getState()` nor through a
@@ -57,26 +57,48 @@ let nextPendingId = 1
  * reactive reads instead of `create`. `create` returns a *hook*, so calling it
  * outside render throws "Invalid hook call".
  *
- * `applySeed` is required because it is the only thing that says which slice
- * the server owns: `(_, tasks) => ({ ...committed, tasks })` for a store whose
- * list is refetched, `(_, next) => next` for one the server sends whole. A
- * store that cannot be built without it cannot reach a provider that fails to
- * reseed, so reload tolerance is the default rather than a line someone has to
- * remember to write.
+ * `serverSlice` says which slice the server owns. Omit it for a store the
+ * server sends whole: the seed replaces the committed state. Pass the
+ * top-level key it lives under for a store whose state also carries
+ * client-only fields loaded after mount — a reseed then replaces just that
+ * key and the rest survives.
  */
-export function createOptimisticStore<S, A, Seed>(
-  initialState: S,
-  applyAction: ApplyAction<S, A>,
-  applySeed: (committed: S, seed: Seed) => S
-): StoreApi<OptimisticStore<S, A, Seed>> {
-  return createStore<OptimisticStore<S, A, Seed>>()((set) => {
+export function createOptimisticStore<S, A, K extends keyof S>(config: {
+  /** Committed state the store starts from, built by the provider from server props. */
+  initialState: S
+  /** Pure reducer; every optimistic transition (`pend`/`commit`/`discard`) routes through it. */
+  reducer: Reducer<S, A>
+  /** Top-level key of the slice the server owns, e.g. `"tasks"`. */
+  serverSlice: K
+}): StoreApi<OptimisticStore<S, A, S[K]>>
+
+export function createOptimisticStore<S, A>(config: {
+  /** Committed state the store starts from, built by the provider from server props. */
+  initialState: S
+  /** Pure reducer; every optimistic transition (`pend`/`commit`/`discard`) routes through it. */
+  reducer: Reducer<S, A>
+}): StoreApi<OptimisticStore<S, A, S>>
+
+export function createOptimisticStore<S, A>(config: {
+  initialState: S
+  reducer: Reducer<S, A>
+  serverSlice?: keyof S
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): StoreApi<OptimisticStore<S, A, any>> {
+  const { initialState, reducer, serverSlice } = config
+  const applySeed = serverSlice
+    ? (committed: S, seed: unknown) =>
+        ({ ...committed, [serverSlice]: seed }) as S
+    : (_committed: S, seed: unknown) => seed as S
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return createStore<OptimisticStore<S, A, any>>()((set) => {
     // Every state transition routes through here, so `optimistic` can never
     // drift from committed + pending.
     const settle = (committed: S, pending: PendingItem<A>[]) => ({
       committed,
       pending,
       optimistic: pending.reduce(
-        (acc, item) => applyAction(acc, item.action),
+        (acc, item) => reducer(acc, item.action),
         committed
       ),
     })
@@ -101,9 +123,9 @@ export function createOptimisticStore<S, A, Seed>(
         set((state) => {
           const item = state.pending.find((p) => p.id === id)
           if (!item) return state
-          const base = applyAction(state.committed, item.action)
+          const base = reducer(state.committed, item.action)
           return settle(
-            overrideAction ? applyAction(base, overrideAction) : base,
+            overrideAction ? reducer(base, overrideAction) : base,
             state.pending.filter((p) => p.id !== id)
           )
         }),

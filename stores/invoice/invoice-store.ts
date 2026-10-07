@@ -1,11 +1,7 @@
 import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
-import {
-  salesReducer,
-  type SalesAction,
-  type SalesState,
-} from "./sales-reducer"
+import { salesReducer } from "./sales-reducer"
 
 export function createInvoiceStore(invoices: InvoiceWithClientName[]) {
   /**
@@ -13,15 +9,11 @@ export function createInvoiceStore(invoices: InvoiceWithClientName[]) {
    * the payments sheet opens, so a reseed keeps it and the sheet does not
    * reload on every focus.
    */
-  return createOptimisticStore<
-    SalesState,
-    SalesAction,
-    InvoiceWithClientName[]
-  >(
-    { invoices, paymentsByInvoiceId: {} },
-    salesReducer,
-    (committed, next) => ({ ...committed, invoices: next })
-  )
+  return createOptimisticStore({
+    initialState: { invoices, paymentsByInvoiceId: {} },
+    reducer: salesReducer,
+    serverSlice: "invoices",
+  })
 }
 
 type InvoiceStore = ReturnType<typeof createInvoiceStore>
