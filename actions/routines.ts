@@ -1,14 +1,24 @@
 "use server"
 
 import { verifyProjectAccess } from "@/actions/project-access"
-import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   routinesTable,
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/util/i18n-actions"
+import {
+  createRoutineSchema,
+  deleteRoutineSchema,
+  spawnRoutineTaskSchema,
+  updateRoutineSchema,
+  type RoutineFormData,
+} from "@/lib/schemas/routine"
+import {
+  projectScopedAction,
+  returnActionError,
+  sessionAction,
+} from "@/lib/safe-action"
 import {
   computeScheduledFor,
   parseISODate,
@@ -16,385 +26,236 @@ import {
   type ScheduleConfig,
 } from "@/lib/util/schedule"
 import { and, desc, eq, notInArray, sql } from "drizzle-orm"
-import { revalidatePath } from "next/cache"
+import { returnServerError } from "next-safe-action"
 import { z } from "zod"
 
-const routineFields = z.object({
-  name: z
-    .string()
-    .min(1, { message: "Name is required" })
-    .transform((v) => v.trim()),
-  description: z
-    .string()
-    .transform((v) => v.trim())
-    .optional()
-    .default(""),
-  cost: z.string().optional().default(""),
-  recurrence: z.enum(["daily", "weekly"]).default("weekly"),
-  interval: z.coerce.number().int().min(1).max(365).default(1),
-  daysOfWeek: z.array(z.string()).optional().default([]),
-  time: z.string().optional().default(""),
-  startDate: z.string().optional().default(""),
-  endDate: z.string().optional().default(""),
-  assigneeId: z.string().nullable().optional(),
-})
+// ---------- Query actions ----------
 
-const endAfterStartRefine = (data: z.infer<typeof routineFields>) =>
-  !data.startDate || !data.endDate || data.endDate >= data.startDate
-
-const startNotPastRefine = (data: z.infer<typeof routineFields>) =>
-  !data.startDate ||
-  parseISODate(data.startDate).getTime() >=
-    startOfDay(new Date()).getTime()
-
-const endFutureRefine = (data: z.infer<typeof routineFields>) =>
-  !data.endDate ||
-  parseISODate(data.endDate).getTime() >
-    startOfDay(new Date()).getTime()
-
-const routineSchema = routineFields
-  .refine(endAfterStartRefine, {
-    message: "End date must be after start date",
-    path: ["endDate"],
-  })
-  .refine(startNotPastRefine, {
-    message: "Start date cannot be in the past",
-    path: ["startDate"],
-  })
-  .refine(endFutureRefine, {
-    message: "End date must be in the future",
-    path: ["endDate"],
+export const getProjectRoutines = projectScopedAction(
+  z.object({ projectId: z.uuid() })
+)
+  .metadata({ permission: { module: "projects", action: "view" } })
+  .action(async ({ parsedInput }) => {
+    return db
+      .select({
+        id: routinesTable.id,
+        projectId: routinesTable.projectId,
+        name: routinesTable.name,
+        description: routinesTable.description,
+        cost: routinesTable.cost,
+        recurrence: routinesTable.recurrence,
+        interval: routinesTable.interval,
+        daysOfWeek: routinesTable.daysOfWeek,
+        time: routinesTable.time,
+        startDate: routinesTable.startDate,
+        endDate: routinesTable.endDate,
+        assigneeId: routinesTable.assigneeId,
+        assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
+        createdAt: routinesTable.createdAt,
+        updatedAt: routinesTable.updatedAt,
+      })
+      .from(routinesTable)
+      .leftJoin(usersTable, eq(routinesTable.assigneeId, usersTable.id))
+      .where(eq(routinesTable.projectId, parsedInput.projectId))
+      .orderBy(desc(routinesTable.createdAt))
   })
 
-const updateRoutineSchema = routineFields.refine(endAfterStartRefine, {
-  message: "End date must be after start date",
-  path: ["endDate"],
-})
+// ---------- Mutation actions ----------
 
-export type RoutineFormData = z.infer<typeof routineSchema>
-
-export async function getProjectRoutines(projectId: string) {
-  const t = await getActionT("actions.projects")
-
-  try {
-    await requirePermission("projects", "view")
-  } catch {
-    throw new Error(t("forbidden"))
+/** Create/edit/delete are owner-only: `projectScopedAction` guarantees
+ * membership, not ownership. */
+function requireProjectOwner(ctx: { isProjectOwner: boolean }): void {
+  if (!ctx.isProjectOwner) {
+    returnActionError("FORBIDDEN")
   }
-
-  const session = await auth()
-  if (!session?.user) throw new Error(t("unauthorized"))
-
-  const access = await verifyProjectAccess(
-    projectId,
-    session.user.id,
-    session.user.role ?? null
-  )
-  if (!access.hasAccess) throw new Error(t("notFound"))
-
-  return db
-    .select({
-      id: routinesTable.id,
-      projectId: routinesTable.projectId,
-      name: routinesTable.name,
-      description: routinesTable.description,
-      cost: routinesTable.cost,
-      recurrence: routinesTable.recurrence,
-      interval: routinesTable.interval,
-      daysOfWeek: routinesTable.daysOfWeek,
-      time: routinesTable.time,
-      startDate: routinesTable.startDate,
-      endDate: routinesTable.endDate,
-      assigneeId: routinesTable.assigneeId,
-      assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
-      createdAt: routinesTable.createdAt,
-      updatedAt: routinesTable.updatedAt,
-    })
-    .from(routinesTable)
-    .leftJoin(usersTable, eq(routinesTable.assigneeId, usersTable.id))
-    .where(eq(routinesTable.projectId, projectId))
-    .orderBy(desc(routinesTable.createdAt))
 }
 
-export async function createRoutine(
-  data: RoutineFormData,
-  projectId: string
-) {
-  const t = await getActionT("actions.projects")
-
-  const session = await auth()
-  if (!session?.user)
-    return { success: false as const, error: t("unauthorized") }
-
-  const access = await verifyProjectAccess(
-    projectId,
-    session.user.id,
-    session.user.role ?? null
-  )
-  if (!access.hasAccess)
-    return { success: false as const, error: t("notFound") }
-
-  if (!access.isOwner) {
-    return { success: false as const, error: t("forbidden") }
-  }
-
-  try {
-    await requirePermission("projects", "edit")
-  } catch {
-    return { success: false as const, error: t("forbidden") }
-  }
-
-  const parsed = routineSchema.safeParse(data)
-  if (!parsed.success) {
-    return {
-      success: false as const,
-      error: t("validationFailed"),
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    }
-  }
-
-  const {
-    name,
-    description,
-    cost,
-    recurrence,
-    interval,
-    daysOfWeek,
-    time,
-    startDate,
-    endDate,
-    assigneeId,
-  } = parsed.data
-
-  const rows = await db
-    .insert(routinesTable)
-    .values({
-      projectId,
-      name,
-      description: description || null,
-      cost: cost || null,
-      recurrence,
-      interval,
-      daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
-      time: time || null,
-      startDate: startDate || null,
-      endDate: endDate || null,
-      assigneeId: assigneeId ?? null,
-    })
-    .returning()
-  const routine = rows[0]
-
-  const spawned = await createNextRoutineTask(routine.id)
-
-  revalidatePath(`/app/proyectos/${projectId}`)
+/** Validated form fields onto routine columns, shared by create and update:
+ * empty strings collapse to NULL. */
+function routineValues(data: RoutineFormData) {
   return {
-    success: true as const,
-    data: routine,
-    task: spawned.success && spawned.spawned ? spawned.task : null,
+    name: data.name,
+    description: data.description || null,
+    cost: data.cost || null,
+    recurrence: data.recurrence,
+    interval: data.interval,
+    daysOfWeek: data.daysOfWeek.length > 0 ? data.daysOfWeek : null,
+    time: data.time || null,
+    startDate: data.startDate || null,
+    endDate: data.endDate || null,
+    assigneeId: data.assigneeId ?? null,
   }
 }
 
-export async function updateRoutine(
-  data: RoutineFormData,
-  routineId: string,
-  projectId: string
-) {
-  const t = await getActionT("actions.projects")
+const ROUTINE_EDIT_METADATA = {
+  permission: { module: "projects", action: "edit" },
+  revalidate: ["/app/proyectos/:projectId"],
+}
 
-  const session = await auth()
-  if (!session?.user)
-    return { success: false as const, error: t("unauthorized") }
+export const createRoutine = projectScopedAction(createRoutineSchema)
+  .metadata(ROUTINE_EDIT_METADATA)
+  .action(async ({ parsedInput, ctx }) => {
+    requireProjectOwner(ctx)
 
-  const access = await verifyProjectAccess(
-    projectId,
-    session.user.id,
-    session.user.role ?? null
-  )
-  if (!access.hasAccess)
-    return { success: false as const, error: t("notFound") }
+    const { projectId, ...fields } = parsedInput
 
-  if (!access.isOwner) {
-    return { success: false as const, error: t("forbidden") }
-  }
+    const [routine] = await db
+      .insert(routinesTable)
+      .values({ projectId, ...routineValues(fields) })
+      .returning()
 
-  try {
-    await requirePermission("projects", "edit")
-  } catch {
-    return { success: false as const, error: t("forbidden") }
-  }
-
-  const parsed = updateRoutineSchema.safeParse(data)
-  if (!parsed.success) {
-    return {
-      success: false as const,
-      error: t("validationFailed"),
-      fieldErrors: parsed.error.flatten().fieldErrors,
+    if (!routine) {
+      returnActionError("NOT_FOUND")
     }
-  }
 
-  const {
-    name,
-    description,
-    cost,
-    recurrence,
-    interval,
-    daysOfWeek,
-    time,
-    startDate,
-    endDate,
-    assigneeId,
-  } = parsed.data
-
-  const rows = await db
-    .update(routinesTable)
-    .set({
-      name,
-      description: description || null,
-      cost: cost || null,
-      recurrence,
-      interval,
-      daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
-      time: time || null,
-      startDate: startDate || null,
-      endDate: endDate || null,
-      assigneeId: assigneeId ?? null,
-    })
-    .where(
-      and(
-        eq(routinesTable.id, routineId),
-        eq(routinesTable.projectId, projectId)
-      )
-    )
-    .returning()
-  const routine = rows[0]
-
-  if (!routine) {
-    return { success: false as const, error: t("notFound") }
-  }
-
-  revalidatePath(`/app/proyectos/${projectId}`)
-  return { success: true as const, data: routine }
-}
-
-export async function deleteRoutine(
-  routineId: string,
-  projectId: string
-) {
-  const t = await getActionT("actions.projects")
-
-  const session = await auth()
-  if (!session?.user)
-    return { success: false as const, error: t("unauthorized") }
-
-  const access = await verifyProjectAccess(
-    projectId,
-    session.user.id,
-    session.user.role ?? null
-  )
-  if (!access.hasAccess)
-    return { success: false as const, error: t("notFound") }
-
-  if (!access.isOwner) {
-    return { success: false as const, error: t("forbidden") }
-  }
-
-  try {
-    await requirePermission("projects", "delete")
-  } catch {
-    return { success: false as const, error: t("forbidden") }
-  }
-
-  await db
-    .delete(routinesTable)
-    .where(
-      and(
-        eq(routinesTable.id, routineId),
-        eq(routinesTable.projectId, projectId)
-      )
-    )
-
-  revalidatePath(`/app/proyectos/${projectId}`)
-  return { success: true as const }
-}
-
-export async function createNextRoutineTask(
-  routineId: string,
-  after?: Date | null
-) {
-  const t = await getActionT("actions.projects")
-
-  const session = await auth()
-  if (!session?.user)
-    return { success: false as const, error: t("unauthorized") }
-
-  const routine = await db
-    .select()
-    .from(routinesTable)
-    .where(eq(routinesTable.id, routineId))
-    .then((rows) => rows[0])
-
-  if (!routine) return { success: false as const, error: t("notFound") }
-
-  const access = await verifyProjectAccess(
-    routine.projectId,
-    session.user.id,
-    session.user.role ?? null
-  )
-  if (!access.hasAccess || !access.isOwner) {
-    return { success: false as const, error: t("forbidden") }
-  }
-
-  const openInstance = await db
-    .select({ id: tasksTable.id })
-    .from(tasksTable)
-    .where(
-      and(
-        eq(tasksTable.routineId, routineId),
-        notInArray(tasksTable.status, ["done", "cancelled"])
-      )
-    )
-    .limit(1)
-    .then((rows) => rows[0])
-
-  if (openInstance) return { success: true as const, spawned: false }
-
-  const schedule: ScheduleConfig = {
-    recurrence: routine.recurrence,
-    interval: routine.interval,
-    daysOfWeek: routine.daysOfWeek ?? [],
-    time: routine.time,
-  }
-  const startDate = routine.startDate
-    ? parseISODate(routine.startDate)
-    : null
-  const endDate = routine.endDate ? parseISODate(routine.endDate) : null
-
-  let anchor = after ?? new Date()
-  if (startDate && anchor < startDate) {
-    anchor = new Date(startDate.getTime() - 1)
-  }
-  const dueDate = computeScheduledFor(anchor, schedule)
-
-  if (dueDate && endDate && startOfDay(dueDate) > endDate) {
-    return { success: true as const, spawned: false }
-  }
-
-  const rows = await db
-    .insert(tasksTable)
-    .values({
-      projectId: routine.projectId,
+    const spawned = await createNextRoutineTask({
       routineId: routine.id,
-      name: routine.name,
-      description: routine.description,
-      cost: routine.cost,
-      status: "todo",
-      priority: null,
-      dueDate,
-      assigneeId: routine.assigneeId,
     })
-    .returning()
-  const task = rows[0]
+    if (spawned.serverError) {
+      returnServerError(spawned.serverError)
+    }
 
-  revalidatePath(`/app/proyectos/${routine.projectId}`)
-  return { success: true as const, spawned: true, task }
-}
+    return routine
+  })
+
+export const updateRoutine = projectScopedAction(updateRoutineSchema)
+  .metadata(ROUTINE_EDIT_METADATA)
+  .action(async ({ parsedInput, ctx }) => {
+    requireProjectOwner(ctx)
+
+    const { projectId, routineId, ...fields } = parsedInput
+
+    const [routine] = await db
+      .update(routinesTable)
+      .set(routineValues(fields))
+      .where(
+        and(
+          eq(routinesTable.id, routineId),
+          eq(routinesTable.projectId, projectId)
+        )
+      )
+      .returning()
+
+    if (!routine) {
+      returnActionError("NOT_FOUND")
+    }
+
+    return routine
+  })
+
+export const deleteRoutine = projectScopedAction(deleteRoutineSchema)
+  .metadata({
+    permission: { module: "projects", action: "delete" },
+    revalidate: ["/app/proyectos/:projectId"],
+  })
+  .action(async ({ parsedInput, ctx }) => {
+    requireProjectOwner(ctx)
+
+    const { projectId, routineId } = parsedInput
+
+    // No existence check: a routine deleted from another tab must still
+    // settle as success so the optimistic row can be dropped.
+    await db
+      .delete(routinesTable)
+      .where(
+        and(
+          eq(routinesTable.id, routineId),
+          eq(routinesTable.projectId, projectId)
+        )
+      )
+  })
+
+// ---------- Routine spawning ----------
+
+/**
+ * Spawns the next open instance of a routine. Called server-to-server from
+ * `createRoutine` and from `updateTaskStatus` (both already revalidate the
+ * project page, so this action declares no `revalidate` metadata). The
+ * routine's project — not a caller-supplied one — decides access, and only
+ * owners may spawn.
+ */
+export const createNextRoutineTask = sessionAction
+  .metadata({})
+  .inputSchema(spawnRoutineTaskSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { routineId, after } = parsedInput
+
+    const routine = await db
+      .select()
+      .from(routinesTable)
+      .where(eq(routinesTable.id, routineId))
+      .then((rows) => rows[0])
+
+    if (!routine) {
+      returnActionError("NOT_FOUND")
+    }
+
+    const access = await verifyProjectAccess(
+      routine.projectId,
+      ctx.session.user.id,
+      ctx.session.user.role ?? null
+    )
+    if (!access.hasAccess || !access.isOwner) {
+      returnActionError("FORBIDDEN")
+    }
+
+    const openInstance = await db
+      .select({ id: tasksTable.id })
+      .from(tasksTable)
+      .where(
+        and(
+          eq(tasksTable.routineId, routineId),
+          notInArray(tasksTable.status, ["done", "cancelled"])
+        )
+      )
+      .limit(1)
+      .then((rows) => rows[0])
+
+    if (openInstance) {
+      return { spawned: false as const }
+    }
+
+    const schedule: ScheduleConfig = {
+      recurrence: routine.recurrence,
+      interval: routine.interval,
+      daysOfWeek: routine.daysOfWeek ?? [],
+      time: routine.time,
+    }
+    const startDate = routine.startDate
+      ? parseISODate(routine.startDate)
+      : null
+    const endDate = routine.endDate
+      ? parseISODate(routine.endDate)
+      : null
+
+    let anchor = after ?? new Date()
+    if (startDate && anchor < startDate) {
+      anchor = new Date(startDate.getTime() - 1)
+    }
+    const dueDate = computeScheduledFor(anchor, schedule)
+
+    if (dueDate && endDate && startOfDay(dueDate) > endDate) {
+      return { spawned: false as const }
+    }
+
+    const [task] = await db
+      .insert(tasksTable)
+      .values({
+        projectId: routine.projectId,
+        routineId: routine.id,
+        name: routine.name,
+        description: routine.description,
+        cost: routine.cost,
+        status: "todo",
+        priority: null,
+        dueDate,
+        assigneeId: routine.assigneeId,
+      })
+      .returning()
+
+    if (!task) {
+      returnActionError("NOT_FOUND")
+    }
+
+    return { spawned: true as const, task }
+  })

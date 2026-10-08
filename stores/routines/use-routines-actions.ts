@@ -2,9 +2,9 @@
 
 import { useSettle } from "@/hooks/use-settle"
 import {
-  createRoutine,
+  createRoutine as createRoutineAction,
   deleteRoutine as deleteRoutineAction,
-  updateRoutine,
+  updateRoutine as updateRoutineAction,
 } from "@/actions/routines"
 import type { Routine } from "@/lib/drizzle/schema"
 import type {
@@ -14,7 +14,52 @@ import type {
 } from "@/lib/types"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
+import { useAction } from "next-safe-action/hooks"
 import { useRoutinesStore } from "./routines-store"
+
+interface SaveRoutineParams {
+  data: RoutineSubmitData
+  projectId: string
+  members: ProjectMember[]
+}
+
+/** The form hands `recurrence`/`interval` over as plain strings. */
+function routinePayload(data: RoutineSubmitData) {
+  return {
+    ...data,
+    recurrence: data.recurrence as Routine["recurrence"],
+    interval: Number(data.interval) || 1,
+  }
+}
+
+function buildOptimisticRoutine({
+  data,
+  projectId,
+  members,
+  editingRoutine,
+}: SaveRoutineParams & { editingRoutine?: RoutineWithAssignee }): RoutineWithAssignee {
+  const { recurrence, interval } = routinePayload(data)
+  return {
+    id: editingRoutine?.id ?? `temp-${Date.now()}`,
+    projectId,
+    name: data.name,
+    description: data.description || null,
+    cost: data.cost || null,
+    recurrence,
+    interval,
+    daysOfWeek: data.daysOfWeek,
+    time: data.time || null,
+    startDate: data.startDate || null,
+    endDate: data.endDate || null,
+    assigneeId: data.assigneeId,
+    assigneeName:
+      members.find((m) => m.userId === data.assigneeId)?.userName ??
+      editingRoutine?.assigneeName ??
+      null,
+    createdAt: editingRoutine?.createdAt ?? new Date(),
+    updatedAt: new Date(),
+  }
+}
 
 /**
  * Every routine mutation, so `routines-view` never imports the server actions
@@ -29,54 +74,20 @@ export function useRoutinesActions() {
   const store = useRoutinesStore()
   const { run } = useOptimisticAction(store)
 
-  async function saveRoutine({
-    data,
-    projectId,
-    members,
-    editingRoutine,
-  }: {
-    data: RoutineSubmitData
-    projectId: string
-    members: ProjectMember[]
-    editingRoutine?: RoutineWithAssignee
-  }) {
-    const isEdit = !!editingRoutine
-    const recurrence = data.recurrence as Routine["recurrence"]
-    const interval = Number(data.interval) || 1
+  const { executeAsync: executeCreate } = useAction(createRoutineAction)
+  const { executeAsync: executeUpdate } = useAction(updateRoutineAction)
+  const { executeAsync: executeDelete } = useAction(deleteRoutineAction)
 
-    const optimistic: RoutineWithAssignee = {
-      id: editingRoutine?.id ?? `temp-${Date.now()}`,
-      projectId,
-      name: data.name,
-      description: data.description || null,
-      cost: data.cost || null,
-      recurrence,
-      interval,
-      daysOfWeek: data.daysOfWeek,
-      time: data.time || null,
-      startDate: data.startDate || null,
-      endDate: data.endDate || null,
-      assigneeId: data.assigneeId,
-      assigneeName:
-        members.find((m) => m.userId === data.assigneeId)?.userName ??
-        editingRoutine?.assigneeName ??
-        null,
-      createdAt: editingRoutine?.createdAt ?? new Date(),
-      updatedAt: new Date(),
-    }
-
-    const payload = { ...data, recurrence, interval }
+  async function createRoutine({ data, projectId, members }: SaveRoutineParams) {
+    const optimistic = buildOptimisticRoutine({ data, projectId, members })
     const result = await run(
-      { type: isEdit ? "update" : "add", routine: optimistic },
-      () =>
-        isEdit
-          ? updateRoutine(payload, editingRoutine!.id, projectId)
-          : createRoutine(payload, projectId),
+      { type: "add", routine: optimistic },
+      () => executeCreate({ ...routinePayload(data), projectId }),
       {
         // The mutations return the bare routine row, so carry the assignee
         // label the optimistic row already resolved.
         commitAction: (r) =>
-          r.success && r.data
+          r.data
             ? {
                 type: "replaceTemp" as const,
                 tempId: optimistic.id,
@@ -88,13 +99,47 @@ export function useRoutinesActions() {
             : undefined,
       }
     )
+    settle(result, t("projects.routines.routineCreated"))
+  }
 
-    settle(
-      result,
-      isEdit
-        ? t("projects.routines.routineUpdated")
-        : t("projects.routines.routineCreated")
+  async function updateRoutine({
+    data,
+    projectId,
+    members,
+    editingRoutine,
+  }: SaveRoutineParams & {
+    editingRoutine: RoutineWithAssignee
+  }) {
+    const optimistic = buildOptimisticRoutine({
+      data,
+      projectId,
+      members,
+      editingRoutine,
+    })
+    const result = await run(
+      { type: "update", routine: optimistic },
+      () =>
+        executeUpdate({
+          ...routinePayload(data),
+          routineId: editingRoutine.id,
+          projectId,
+        }),
+      {
+        // Same as create: the server row carries no assignee join.
+        commitAction: (r) =>
+          r.data
+            ? {
+                type: "replaceTemp" as const,
+                tempId: optimistic.id,
+                routine: {
+                  ...r.data,
+                  assigneeName: optimistic.assigneeName,
+                },
+              }
+            : undefined,
+      }
     )
+    settle(result, t("projects.routines.routineUpdated"))
   }
 
   async function deleteRoutine({
@@ -105,10 +150,10 @@ export function useRoutinesActions() {
     routineId: string
   }) {
     const result = await run({ type: "delete", routineId }, () =>
-      deleteRoutineAction(routineId, projectId)
+      executeDelete({ projectId, routineId })
     )
     settle(result, t("projects.routines.routineDeleted"))
   }
 
-  return { saveRoutine, deleteRoutine }
+  return { createRoutine, updateRoutine, deleteRoutine }
 }

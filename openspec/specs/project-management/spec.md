@@ -494,6 +494,12 @@ The system SHALL allow owners to manage tasks on their projects. Tasks are manag
 
 The system SHALL allow owners to manage recurring tasks (routines) on the routines subpage (`/app/proyectos/[id]/rutinas`). A routine defines a name, description, cost, assignee, and a schedule; routines have no status and no priority. The schedule is captured in a two-step form (details, then scheduling) and supports two recurrences: `daily` (an "every N days" interval) and `weekly` (selected weekdays combined with an "every N weeks" interval). Each routine optionally stores a perform-at time (HH:MM) and an optional start/end date range that bounds the occurrences. Creating a routine immediately spawns its first task instance scheduled for the next occurrence (no earlier than the start date), and marking a routine-instance task as done or cancelled automatically spawns the next instance scheduled after the completed instance (status `todo`, no priority) unless an open instance already exists or the next occurrence falls after the end date. An instance is open when its status is not "done" and not "cancelled". Routine-instance tasks carry a due date (`due_date` column) and are identified by a `routineId`, shown with a "Routine" badge and their due date in the Due Date column of the Tasks and My Tasks tables. Common routines can be started from static templates (irrigation, fertilization, pest monitoring, weeding, harvest).
 
+Routine data operations SHALL live in `actions/routines.ts` as safe actions with their schemas in `lib/schemas/routine.ts` (`routineSchema` for create-time refinement, `createRoutineSchema`/`updateRoutineSchema` extending it with `projectId`/`routineId`, `deleteRoutineSchema`). The subpage query `getProjectRoutines` SHALL be a `projectScopedAction` with `permission: projects:view` and input `{ projectId }`. `createRoutine` and `updateRoutine` SHALL be `projectScopedAction`s sharing one `ROUTINE_EDIT_METADATA` (`permission: projects:edit`, `revalidate: ["/app/proyectos/:projectId"]`), and `deleteRoutine` SHALL declare `permission: projects:delete` with the same revalidation. Membership is not ownership: each mutation SHALL run a shared `requireProjectOwner` guard returning `FORBIDDEN` via `returnActionError` when `ctx.isProjectOwner` is false, so a collaborator holding the global permission is still rejected. Create and update SHALL map their validated fields through one shared `routineValues` helper (empty optional strings collapse to `NULL`) so the insert and the update cannot drift, and SHALL return `NOT_FOUND` when no row matches. `deleteRoutine` SHALL NOT check existence — a routine deleted from another tab must still settle as success so the optimistic row can be dropped. Failures SHALL be returned as codes via `returnActionError` (`UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, declared in `actions/error-codes.ts` and translated from the `errors` namespace), never as interpolated server strings; the client form validates the same schema, so a server-side validation failure reaches `useSettle` as `validationErrors` and is rendered by the form rather than toasted.
+
+Spawning SHALL go through `createNextRoutineTask`, a `sessionAction` with empty metadata and input `spawnRoutineTaskSchema` (`routineId`, optional `after` date), called server-to-server from `createRoutine` and `updateTaskStatus`. The routine's own project — not a caller-supplied one — SHALL decide access, and only its owners may spawn: `NOT_FOUND` for a missing routine, `FORBIDDEN` for a caller without owner access to that project. It SHALL declare no `revalidate` metadata, because both callers already revalidate the project page. It SHALL return `{ spawned: false }` when an open instance already exists or when the computed next occurrence falls after the end date, and `{ spawned: true, task }` otherwise; callers SHALL merge `task` only when `spawned` is true.
+
+The subpage SHALL hold its routines in a page-scoped optimistic store supplied by `RoutinesProvider` `app/app/proyectos/[id]/rutinas/page.tsx`. `RoutinesView` `components/projects/routines/routines-view.tsx` SHALL read `useRoutinesState()` and mutate through `useRoutinesActions()`, which SHALL expose separate `createRoutine`, `updateRoutine`, and `deleteRoutine` handlers — no combined save handler — each running through `useOptimisticAction`, carrying the assignee label the optimistic row resolved into the `replaceTemp` commit (the mutations return the bare routine row, so the join cannot supply it), and settling through `useSettle`. Create and update SHALL return `void`, because no caller reads their outcome. Dialog and form state SHALL stay local to the view, which SHALL branch on its local `editingRoutine` and SHALL NOT import the server actions directly. Every create, edit, and delete SHALL apply optimistically and revert automatically if the server rejects it.
+
 #### Scenario: View routines subpage
 
 - **GIVEN** a user with `projects:view` permission
@@ -628,6 +634,24 @@ The system SHALL allow owners to manage recurring tasks (routines) on the routin
 - **WHEN** the task is displayed in the Tasks table or My Tasks
 - **THEN** a "Routine" badge is shown next to the task name
 - **AND** the task's due date and time are shown in the Due Date column
+
+#### Scenario: A collaborator cannot mutate routines
+
+- **GIVEN** a user who is a collaborator of the project and holds the global `projects:edit` permission
+- **WHEN** the user attempts to create, edit, or delete a routine
+- **THEN** the action returns `FORBIDDEN` and no routine is changed
+
+#### Scenario: Spawn access follows the routine's project
+
+- **GIVEN** a routine belonging to a project the caller does not own
+- **WHEN** `createNextRoutineTask` is called with that `routineId`
+- **THEN** access is checked against the routine's own project and the action returns `FORBIDDEN`
+
+#### Scenario: Delete settles even when the routine is already gone
+
+- **GIVEN** a routine removed from another tab while its row is still shown
+- **WHEN** the user deletes it optimistically
+- **THEN** the delete action succeeds without an existence check and the pending row is dropped
 
 ### Requirement: Expense management
 

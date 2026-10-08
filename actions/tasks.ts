@@ -364,11 +364,11 @@ export const updateTaskStatus = sessionAction
       currentTask.routineId &&
       (status === "done" || status === "cancelled")
     ) {
-      const spawned = await createNextRoutineTask(
-        currentTask.routineId,
-        currentTask.dueDate
-      )
-      if (spawned.success && spawned.spawned) nextTask = spawned.task
+      const spawned = await createNextRoutineTask({
+        routineId: currentTask.routineId,
+        after: currentTask.dueDate,
+      })
+      if (spawned.data?.spawned) nextTask = spawned.data.task
     }
 
     return { nextTask }
