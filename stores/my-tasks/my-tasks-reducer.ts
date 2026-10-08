@@ -17,7 +17,7 @@ export type MyTaskAction =
   | { type: "updateTaskStatus"; taskId: string; status: TaskStatus }
   | { type: "addNextTask"; sourceTaskId: string; nextTask: Task }
   | { type: "setComments"; taskId: string; comments: TaskCommentWithAuthor[] }
-  | { type: "addComment"; taskId: string; comment: TaskCommentWithAuthor }
+  | { type: "createComment"; taskId: string; comment: TaskCommentWithAuthor }
   | {
       type: "replaceTempComment"
       taskId: string
@@ -113,7 +113,7 @@ export function myTasksReducer(
         },
       }
 
-    case "addComment":
+    case "createComment":
       return {
         tasks: bumpCommentCount(state.tasks, action.taskId, 1),
         commentsByTask: {

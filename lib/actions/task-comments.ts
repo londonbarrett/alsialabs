@@ -1,24 +1,20 @@
 "use server"
 
 import { verifyProjectAccess } from "@/lib/actions/project-access"
-import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   taskCommentsTable,
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/util/i18n-actions"
+import { returnActionError, sessionAction } from "@/lib/safe-action"
+import {
+  createTaskCommentSchema,
+  deleteTaskCommentSchema,
+  updateTaskCommentSchema,
+} from "@/lib/schemas/task-comment"
 import { asc, eq } from "drizzle-orm"
 import { z } from "zod"
-
-const commentSchema = z.object({
-  taskId: z.string().min(1),
-  content: z
-    .string()
-    .min(1, { message: "Comment is required" })
-    .transform((v) => v.trim()),
-})
 
 async function getTaskContext(
   taskId: string
@@ -34,95 +30,80 @@ async function getTaskContext(
   return task ?? null
 }
 
-export async function getTaskComments(taskId: string) {
-  const t = await getActionT("actions.projects")
+export const getTaskComments = sessionAction
+  .metadata({ permission: { module: "projects", action: "view" } })
+  .inputSchema(z.object({ taskId: z.uuid() }))
+  .action(async ({ parsedInput, ctx }) => {
+    const { taskId } = parsedInput
+    const session = ctx.session
 
-  try {
-    await requirePermission("projects", "view")
-  } catch {
-    throw new Error(t("forbidden"))
-  }
+    const task = await getTaskContext(taskId)
+    if (!task) returnActionError("NOT_FOUND")
 
-  const session = await auth()
-  if (!session?.user) throw new Error(t("unauthorized"))
-
-  const task = await getTaskContext(taskId)
-  if (!task) throw new Error(t("notFound"))
-
-  const access = await verifyProjectAccess(
-    task.projectId,
-    session.user.id,
-    session.user.role ?? null
-  )
-  const isAssignee = task.assigneeId === session.user.id
-  if (!access.hasAccess && !isAssignee) throw new Error(t("notFound"))
-
-  return db
-    .select({
-      id: taskCommentsTable.id,
-      taskId: taskCommentsTable.taskId,
-      authorId: taskCommentsTable.authorId,
-      authorName: usersTable.name,
-      authorImage: usersTable.image,
-      content: taskCommentsTable.content,
-      createdAt: taskCommentsTable.createdAt,
-      updatedAt: taskCommentsTable.updatedAt,
-    })
-    .from(taskCommentsTable)
-    .innerJoin(
-      usersTable,
-      eq(taskCommentsTable.authorId, usersTable.id)
+    const access = await verifyProjectAccess(
+      task!.projectId,
+      session.user.id,
+      session.user.role ?? null
     )
-    .where(eq(taskCommentsTable.taskId, taskId))
-    .orderBy(asc(taskCommentsTable.createdAt))
-}
+    const isAssignee = task!.assigneeId === session.user.id
+    if (!access.hasAccess && !isAssignee) returnActionError("NOT_FOUND")
 
-export async function createComment(taskId: string, content: string) {
-  const t = await getActionT("actions.projects")
+    return db
+      .select({
+        id: taskCommentsTable.id,
+        taskId: taskCommentsTable.taskId,
+        authorId: taskCommentsTable.authorId,
+        authorName: usersTable.name,
+        authorImage: usersTable.image,
+        content: taskCommentsTable.content,
+        createdAt: taskCommentsTable.createdAt,
+        updatedAt: taskCommentsTable.updatedAt,
+      })
+      .from(taskCommentsTable)
+      .innerJoin(
+        usersTable,
+        eq(taskCommentsTable.authorId, usersTable.id)
+      )
+      .where(eq(taskCommentsTable.taskId, taskId))
+      .orderBy(asc(taskCommentsTable.createdAt))
+  })
 
-  const session = await auth()
-  if (!session?.user)
-    return { success: false as const, error: t("unauthorized") }
+export const createComment = sessionAction
+  .inputSchema(createTaskCommentSchema)
+  .metadata({
+    permission: { module: "projects", action: "view" },
+  })
+  .action(async ({ parsedInput, ctx }) => {
+    const { taskId, content } = parsedInput
+    const session = ctx.session
 
-  const task = await getTaskContext(taskId)
-  if (!task) return { success: false as const, error: t("notFound") }
+    const task = await getTaskContext(taskId)
+    if (!task) returnActionError("NOT_FOUND")
 
-  const access = await verifyProjectAccess(
-    task.projectId,
-    session.user.id,
-    session.user.role ?? null
-  )
-  const isAssignee = task.assigneeId === session.user.id
-  if (!access.hasAccess && !isAssignee)
-    return { success: false as const, error: t("notFound") }
+    const access = await verifyProjectAccess(
+      task!.projectId,
+      session.user.id,
+      session.user.role ?? null
+    )
+    const isAssignee = task!.assigneeId === session.user.id
+    if (!access.hasAccess && !isAssignee) returnActionError("NOT_FOUND")
 
-  const parsed = commentSchema.safeParse({ taskId, content })
-  if (!parsed.success) {
+    const [inserted] = await db
+      .insert(taskCommentsTable)
+      .values({
+        taskId,
+        authorId: session.user.id,
+        content,
+      })
+      .returning()
+
+    const user = await db
+      .select({ name: usersTable.name, image: usersTable.image })
+      .from(usersTable)
+      .where(eq(usersTable.id, session.user.id))
+      .then((rows) => rows[0])
+
     return {
-      success: false as const,
-      error: t("validationFailed"),
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    }
-  }
-
-  const [inserted] = await db
-    .insert(taskCommentsTable)
-    .values({
-      taskId,
-      authorId: session.user.id,
-      content: parsed.data.content,
-    })
-    .returning()
-
-  const user = await db
-    .select({ name: usersTable.name, image: usersTable.image })
-    .from(usersTable)
-    .where(eq(usersTable.id, session.user.id))
-    .then((rows) => rows[0])
-
-  return {
-    success: true as const,
-    data: {
       comment: {
         id: inserted.id,
         taskId: inserted.taskId,
@@ -133,122 +114,105 @@ export async function createComment(taskId: string, content: string) {
         createdAt: inserted.createdAt,
         updatedAt: inserted.updatedAt,
       },
-    },
-  }
-}
-
-export async function updateComment(
-  commentId: string,
-  taskId: string,
-  content: string
-) {
-  const t = await getActionT("actions.projects")
-
-  const session = await auth()
-  if (!session?.user)
-    return { success: false as const, error: t("unauthorized") }
-
-  const task = await getTaskContext(taskId)
-  if (!task) return { success: false as const, error: t("notFound") }
-
-  const access = await verifyProjectAccess(
-    task.projectId,
-    session.user.id,
-    session.user.role ?? null
-  )
-  const isAssignee = task.assigneeId === session.user.id
-  if (!access.hasAccess && !isAssignee)
-    return { success: false as const, error: t("notFound") }
-
-  const parsed = commentSchema.safeParse({ taskId, content })
-  if (!parsed.success) {
-    return {
-      success: false as const,
-      error: t("validationFailed"),
-      fieldErrors: parsed.error.flatten().fieldErrors,
     }
-  }
+  })
 
-  const comment = await db
-    .select({ authorId: taskCommentsTable.authorId })
-    .from(taskCommentsTable)
-    .where(eq(taskCommentsTable.id, commentId))
-    .then((rows) => rows[0])
+export const updateComment = sessionAction
+  .inputSchema(updateTaskCommentSchema)
+  .metadata({
+    permission: { module: "projects", action: "view" },
+  })
+  .action(async ({ parsedInput, ctx }) => {
+    const { commentId, taskId, content } = parsedInput
+    const session = ctx.session
 
-  if (!comment) return { success: false as const, error: t("notFound") }
+    const task = await getTaskContext(taskId)
+    if (!task) returnActionError("NOT_FOUND")
 
-  if (comment.authorId !== session.user.id)
-    return { success: false as const, error: t("forbidden") }
-
-  await db
-    .update(taskCommentsTable)
-    .set({ content: parsed.data.content })
-    .where(eq(taskCommentsTable.id, commentId))
-
-  const [updated] = await db
-    .select({
-      id: taskCommentsTable.id,
-      taskId: taskCommentsTable.taskId,
-      authorId: taskCommentsTable.authorId,
-      authorName: usersTable.name,
-      authorImage: usersTable.image,
-      content: taskCommentsTable.content,
-      createdAt: taskCommentsTable.createdAt,
-      updatedAt: taskCommentsTable.updatedAt,
-    })
-    .from(taskCommentsTable)
-    .innerJoin(
-      usersTable,
-      eq(taskCommentsTable.authorId, usersTable.id)
+    const access = await verifyProjectAccess(
+      task!.projectId,
+      session.user.id,
+      session.user.role ?? null
     )
-    .where(eq(taskCommentsTable.id, commentId))
+    const isAssignee = task!.assigneeId === session.user.id
+    if (!access.hasAccess && !isAssignee) returnActionError("NOT_FOUND")
 
-  return {
-    success: true as const,
-    data: { comment: updated },
-  }
-}
+    const comment = await db
+      .select({ authorId: taskCommentsTable.authorId })
+      .from(taskCommentsTable)
+      .where(eq(taskCommentsTable.id, commentId))
+      .then((rows) => rows[0])
 
-export async function deleteComment(commentId: string, taskId: string) {
-  const t = await getActionT("actions.projects")
+    if (!comment) returnActionError("NOT_FOUND")
 
-  const session = await auth()
-  if (!session?.user)
-    return { success: false as const, error: t("unauthorized") }
+    if (comment.authorId !== session.user.id)
+      returnActionError("FORBIDDEN")
 
-  const task = await getTaskContext(taskId)
-  if (!task) return { success: false as const, error: t("notFound") }
+    await db
+      .update(taskCommentsTable)
+      .set({ content })
+      .where(eq(taskCommentsTable.id, commentId))
 
-  const access = await verifyProjectAccess(
-    task.projectId,
-    session.user.id,
-    session.user.role ?? null
-  )
-  const isAssignee = task.assigneeId === session.user.id
-  if (!access.hasAccess && !isAssignee)
-    return { success: false as const, error: t("notFound") }
+    const [updated] = await db
+      .select({
+        id: taskCommentsTable.id,
+        taskId: taskCommentsTable.taskId,
+        authorId: taskCommentsTable.authorId,
+        authorName: usersTable.name,
+        authorImage: usersTable.image,
+        content: taskCommentsTable.content,
+        createdAt: taskCommentsTable.createdAt,
+        updatedAt: taskCommentsTable.updatedAt,
+      })
+      .from(taskCommentsTable)
+      .innerJoin(
+        usersTable,
+        eq(taskCommentsTable.authorId, usersTable.id)
+      )
+      .where(eq(taskCommentsTable.id, commentId))
 
-  const comment = await db
-    .select({ authorId: taskCommentsTable.authorId })
-    .from(taskCommentsTable)
-    .where(eq(taskCommentsTable.id, commentId))
-    .then((rows) => rows[0])
+    return {
+      comment: updated,
+    }
+  })
 
-  if (!comment) return { success: false as const, error: t("notFound") }
+export const deleteComment = sessionAction
+  .inputSchema(deleteTaskCommentSchema)
+  .metadata({
+    permission: { module: "projects", action: "view" },
+  })
+  .action(async ({ parsedInput, ctx }) => {
+    const { commentId, taskId } = parsedInput
+    const session = ctx.session
 
-  const canDelete =
-    comment.authorId === session.user.id || access.isOwner
-  if (!canDelete)
-    return { success: false as const, error: t("forbidden") }
+    const task = await getTaskContext(taskId)
+    if (!task) returnActionError("NOT_FOUND")
 
-  await db
-    .delete(taskCommentsTable)
-    .where(eq(taskCommentsTable.id, commentId))
+    const access = await verifyProjectAccess(
+      task!.projectId,
+      session.user.id,
+      session.user.role ?? null
+    )
+    const isAssignee = task!.assigneeId === session.user.id
+    if (!access.hasAccess && !isAssignee) returnActionError("NOT_FOUND")
 
-  return {
-    success: true as const,
-    data: {
+    const comment = await db
+      .select({ authorId: taskCommentsTable.authorId })
+      .from(taskCommentsTable)
+      .where(eq(taskCommentsTable.id, commentId))
+      .then((rows) => rows[0])
+
+    if (!comment) returnActionError("NOT_FOUND")
+
+    const canDelete =
+      comment.authorId === session.user.id || access.isOwner
+    if (!canDelete) returnActionError("FORBIDDEN")
+
+    await db
+      .delete(taskCommentsTable)
+      .where(eq(taskCommentsTable.id, commentId))
+
+    return {
       commentId,
-    },
-  }
-}
+    }
+  })

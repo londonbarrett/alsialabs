@@ -42,7 +42,7 @@ export type ProjectTaskAction =
       comments: TaskCommentWithAuthor[]
     }
   | {
-      type: "addComment"
+      type: "createComment"
       taskId: string
       comment: TaskCommentWithAuthor
     }
@@ -162,7 +162,7 @@ export function projectTasksReducer(
         },
       }
 
-    case "addComment":
+    case "createComment":
       return {
         tasks: bumpCommentCount(state.tasks, action.taskId, 1),
         commentsByTask: {

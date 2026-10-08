@@ -115,7 +115,7 @@ describe("createMyTasksStore", () => {
   it("bumps commentCount in the same action that appends a comment", () => {
     const store = createMyTasksStore([makeTask({ id: "a", commentCount: 1 })])
     store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "c1" }),
     })
@@ -127,7 +127,7 @@ describe("createMyTasksStore", () => {
   it("rolls commentCount back with the comment when the action is discarded", () => {
     const store = createMyTasksStore([makeTask({ id: "a", commentCount: 1 })])
     const id = store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "c1" }),
     })
@@ -153,7 +153,7 @@ describe("createMyTasksStore", () => {
   it("does not double-count when a temp comment is swapped for the real one", () => {
     const store = createMyTasksStore([makeTask({ id: "a" })])
     const id = store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "temp-1" }),
     })
@@ -259,7 +259,7 @@ describe("createMyTasksStore reseedFromServer", () => {
   it("keeps a pending comment on top of the refreshed count", () => {
     const store = createMyTasksStore([makeTask({ id: "a" })])
     store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "c1" }),
     })

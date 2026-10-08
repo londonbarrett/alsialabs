@@ -2,7 +2,7 @@
 
 import { useSettle } from "@/hooks/use-settle"
 import {
-  createComment,
+  createComment as createCommentAction,
   deleteComment as deleteCommentAction,
   getTaskComments,
   updateComment as updateCommentAction,
@@ -41,7 +41,8 @@ export function useMyTasksActions() {
   const loadComments = useCallback(
     async (taskId: string): Promise<void> => {
       try {
-        const comments = await getTaskComments(taskId)
+        const result = await getTaskComments({ taskId })
+        const comments = result.data ?? []
         const id = store
           .getState()
           .pend({ type: "setComments", taskId, comments })
@@ -82,7 +83,7 @@ export function useMyTasksActions() {
     }
   }
 
-  async function addComment(
+  async function createComment(
     taskId: string,
     content: string,
     authorId: string
@@ -106,11 +107,11 @@ export function useMyTasksActions() {
     }
 
     const result = await run(
-      { type: "addComment", taskId, comment: tempComment },
-      () => createComment(taskId, content),
+      { type: "createComment", taskId, comment: tempComment },
+      () => createCommentAction({ taskId, content }),
       {
         commitAction: (r) =>
-          r.success
+          r.data
             ? {
                 type: "replaceTempComment" as const,
                 taskId,
@@ -123,14 +124,14 @@ export function useMyTasksActions() {
     settle(result, t("projects.tasks.comments.commentAdded"))
   }
 
-  async function editComment(
+  async function updateComment(
     taskId: string,
     commentId: string,
     content: string
   ) {
     const result = await run(
       { type: "updateComment", taskId, commentId, content },
-      () => updateCommentAction(commentId, taskId, content)
+      () => updateCommentAction({ commentId, taskId, content })
     )
     settle(result, t("projects.tasks.comments.commentUpdated"))
   }
@@ -138,7 +139,7 @@ export function useMyTasksActions() {
   async function deleteComment(taskId: string, commentId: string) {
     const result = await run(
       { type: "deleteComment", taskId, commentId },
-      () => deleteCommentAction(commentId, taskId)
+      () => deleteCommentAction({ commentId, taskId })
     )
     settle(result, t("projects.tasks.comments.commentDeleted"))
   }
@@ -146,8 +147,8 @@ export function useMyTasksActions() {
   return {
     loadComments,
     updateTaskStatus,
-    addComment,
-    editComment,
+    createComment,
+    updateComment,
     deleteComment,
   }
 }
