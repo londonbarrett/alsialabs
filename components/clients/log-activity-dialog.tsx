@@ -3,7 +3,7 @@
 import { Dialog } from "@/components/common/dialog"
 import { Field } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
-import type { ActivityFormData } from "@/lib/actions/activities"
+import type { ActivityFormData } from "@/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
 import { cn } from "cn"
 import { useTranslations } from "next-intl"

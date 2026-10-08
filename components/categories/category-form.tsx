@@ -10,7 +10,7 @@ import {
   createCategory,
   updateCategory,
   checkSlugExists,
-} from "@/lib/actions/categories"
+} from "@/actions/categories"
 import { useActionError } from "@/lib/util/action-errors"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import type { Category } from "@/lib/drizzle/schema"

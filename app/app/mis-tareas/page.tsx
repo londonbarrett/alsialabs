@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import { auth, hasPermission, isSuperUser } from "@/lib/auth"
-import { getMyTasks } from "@/lib/actions/tasks"
+import { getMyTasks } from "@/actions/tasks"
 import { MyTasksView } from "@/components/my-tasks/my-tasks-view"
 import { MyTasksProvider } from "@/components/my-tasks/my-tasks-provider"
 import { forbidden } from "next/navigation"

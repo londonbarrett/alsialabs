@@ -5,11 +5,11 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/lib/actions/project-access", () => ({
+vi.mock("@/actions/project-access", () => ({
   verifyProjectAccess: vi.fn(),
 }))
 
-vi.mock("@/lib/actions/stores", () => ({
+vi.mock("@/actions/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -39,14 +39,14 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { verifyProjectAccess } from "@/lib/actions/project-access"
+import { verifyProjectAccess } from "@/actions/project-access"
 import {
   getExpenseCategories,
   getExpensesByProjectId,
   createExpense,
   updateExpense,
   deleteExpense,
-} from "@/lib/actions/expenses"
+} from "@/actions/expenses"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
@@ -86,7 +86,11 @@ describe("expenses actions", () => {
     it("returns expense taxonomy categories", async () => {
       const fakeCategories = [
         { id: CATEGORY_ID, slug: "supplies", name: "Supplies" },
-        { id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33", slug: "labor", name: "Labor" },
+        {
+          id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33",
+          slug: "labor",
+          name: "Labor",
+        },
       ]
       state.mock.onSelect(schema.categoryTable).respond(fakeCategories)
 
@@ -122,7 +126,9 @@ describe("expenses actions", () => {
       ]
       state.mock.onSelect(schema.expensesTable).respond(fakeExpenses)
 
-      const result = await getExpensesByProjectId({ projectId: PROJECT_ID })
+      const result = await getExpensesByProjectId({
+        projectId: PROJECT_ID,
+      })
 
       expect(result.data).toEqual(fakeExpenses)
       expect(mockHasPermission).toHaveBeenCalledWith(
@@ -135,7 +141,9 @@ describe("expenses actions", () => {
     it("returns FORBIDDEN when access is denied", async () => {
       denyAccess()
 
-      const result = await getExpensesByProjectId({ projectId: PROJECT_ID })
+      const result = await getExpensesByProjectId({
+        projectId: PROJECT_ID,
+      })
 
       expect(result.serverError).toEqual({ code: "FORBIDDEN" })
     })
@@ -195,7 +203,9 @@ describe("expenses actions", () => {
 
   describe("updateExpense", () => {
     it("updates an existing expense", async () => {
-      state.mock.onUpdate(schema.expensesTable).respond([{ id: EXPENSE_ID }])
+      state.mock
+        .onUpdate(schema.expensesTable)
+        .respond([{ id: EXPENSE_ID }])
 
       const result = await updateExpense({
         projectId: PROJECT_ID,

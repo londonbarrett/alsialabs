@@ -39,7 +39,7 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
-} from "@/lib/actions/categories"
+} from "@/actions/categories"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
@@ -86,7 +86,9 @@ describe("categories actions", () => {
       ]
       state.mock.onSelect(schema.categoryTable).respond(fakeCategories)
 
-      const result = await getCategoriesByTaxonomy({ taxonomySlug: "products" })
+      const result = await getCategoriesByTaxonomy({
+        taxonomySlug: "products",
+      })
 
       expect(result.data).toEqual(fakeCategories)
       expect(mockHasPermission).toHaveBeenCalledWith(
@@ -104,7 +106,9 @@ describe("categories actions", () => {
       ]
       state.mock.onSelect(schema.categoryTable).respond(fakeCategories)
 
-      const result = await getCategoriesByTaxonomyList({ taxonomySlug: "products" })
+      const result = await getCategoriesByTaxonomyList({
+        taxonomySlug: "products",
+      })
 
       expect(result.data).toEqual(fakeCategories)
       expect(mockHasPermission).toHaveBeenCalledWith(
@@ -128,7 +132,9 @@ describe("categories actions", () => {
     })
 
     it("returns exists: true when a category matches", async () => {
-      state.mock.onSelect(schema.categoryTable).respond([{ id: "cat-1" }])
+      state.mock
+        .onSelect(schema.categoryTable)
+        .respond([{ id: "cat-1" }])
 
       const result = await checkSlugExists({
         taxonomyId: "tax-1",
@@ -139,7 +145,9 @@ describe("categories actions", () => {
     })
 
     it("excludes specified ID from check", async () => {
-      state.mock.onSelect(schema.categoryTable).respond([{ id: "cat-1" }])
+      state.mock
+        .onSelect(schema.categoryTable)
+        .respond([{ id: "cat-1" }])
 
       const result = await checkSlugExists({
         taxonomyId: "tax-1",
@@ -229,9 +237,9 @@ describe("categories actions", () => {
 
   describe("deleteCategory", () => {
     it("deletes a category", async () => {
-      state.mock.onDelete(schema.categoryTable).respond([
-        { id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" },
-      ])
+      state.mock
+        .onDelete(schema.categoryTable)
+        .respond([{ id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }])
 
       const result = await deleteCategory({
         id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",

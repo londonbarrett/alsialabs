@@ -2,7 +2,7 @@ import type {
   ProjectContext,
   ProjectDetail,
   ProjectOwner,
-} from "@/lib/actions/projects"
+} from "@/actions/projects"
 import type { ProjectMember } from "@/lib/types"
 
 export type ProjectContextAction =

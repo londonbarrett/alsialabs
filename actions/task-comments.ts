@@ -1,6 +1,6 @@
 "use server"
 
-import { verifyProjectAccess } from "@/lib/actions/project-access"
+import { verifyProjectAccess } from "@/actions/project-access"
 import { db } from "@/lib/drizzle/client"
 import {
   taskCommentsTable,

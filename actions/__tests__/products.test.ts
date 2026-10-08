@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/lib/actions/stores", () => ({
+vi.mock("@/actions/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -35,14 +35,14 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/lib/actions/stores"
+import { getEffectiveStoreId } from "@/actions/stores"
 import {
   getProducts,
   createProduct,
   updateProduct,
   deleteProduct,
   checkSkuExists,
-} from "@/lib/actions/products"
+} from "@/actions/products"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
@@ -170,9 +170,9 @@ describe("products actions", () => {
 
   describe("deleteProduct", () => {
     it("deletes a product", async () => {
-      state.mock.onDelete(schema.productsTable).respond([
-        { id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" },
-      ])
+      state.mock
+        .onDelete(schema.productsTable)
+        .respond([{ id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }])
 
       const result = await deleteProduct({
         id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
@@ -206,7 +206,9 @@ describe("products actions", () => {
     })
 
     it("returns exists: true when SKU exists", async () => {
-      state.mock.onSelect(schema.productsTable).respond([{ id: "prod-1" }])
+      state.mock
+        .onSelect(schema.productsTable)
+        .respond([{ id: "prod-1" }])
 
       const result = await checkSkuExists({ sku: "WDG-001" })
 
@@ -214,9 +216,9 @@ describe("products actions", () => {
     })
 
     it("excludes specified ID from check", async () => {
-      state.mock.onSelect(schema.productsTable).respond([
-        { id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" },
-      ])
+      state.mock
+        .onSelect(schema.productsTable)
+        .respond([{ id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }])
 
       const result = await checkSkuExists({
         sku: "WDG-001",

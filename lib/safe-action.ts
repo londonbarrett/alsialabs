@@ -4,10 +4,10 @@ import {
 } from "next-safe-action"
 import { z } from "zod"
 import { auth, isSuperUser, hasPermission } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/lib/actions/stores"
-import { verifyProjectAccess } from "@/lib/actions/project-access"
+import { getEffectiveStoreId } from "@/actions/stores"
+import { verifyProjectAccess } from "@/actions/project-access"
 import { revalidatePath, updateTag } from "next/cache"
-import type { ActionErrorCode } from "@/lib/actions/error-codes"
+import type { ActionErrorCode } from "@/actions/error-codes"
 
 // ---------- Helpers ----------
 
@@ -64,44 +64,46 @@ function resolveRevalidatePaths(
 // and enforced separately (e.g. projectAction via verifyProjectAccess,
 // storeAction via store scoping).
 
-export const sessionAction = actionClient.use(async ({ next, metadata }) => {
-  const session = await auth()
-  if (!session?.user) {
-    returnActionError("UNAUTHORIZED")
-  }
-  if (metadata.permission) {
-    const permitted = await hasPermission(
-      session!.user.id,
-      metadata.permission.module,
-      metadata.permission.action
-    )
-    if (!permitted) {
-      returnActionError("FORBIDDEN")
+export const sessionAction = actionClient.use(
+  async ({ next, metadata }) => {
+    const session = await auth()
+    if (!session?.user) {
+      returnActionError("UNAUTHORIZED")
     }
-  }
-
-  const result = await next({ ctx: { session: session! } })
-
-  if (!result.validationErrors && !result.serverError) {
-    if (metadata.revalidate) {
-      let paths = metadata.revalidate
-      const input =
-        (result as { parsedInput?: unknown })?.parsedInput ??
-        (result as { clientInput?: unknown })?.clientInput
-      if (input) paths = resolveRevalidatePaths(paths, input)
-      const data = (result as { data?: unknown })?.data
-      if (data) paths = resolveRevalidatePaths(paths, data)
-      for (const path of paths) {
-        revalidatePath(path)
+    if (metadata.permission) {
+      const permitted = await hasPermission(
+        session!.user.id,
+        metadata.permission.module,
+        metadata.permission.action
+      )
+      if (!permitted) {
+        returnActionError("FORBIDDEN")
       }
     }
-    if (metadata.tag) {
-      updateTag(metadata.tag)
-    }
-  }
 
-  return result
-})
+    const result = await next({ ctx: { session: session! } })
+
+    if (!result.validationErrors && !result.serverError) {
+      if (metadata.revalidate) {
+        let paths = metadata.revalidate
+        const input =
+          (result as { parsedInput?: unknown })?.parsedInput ??
+          (result as { clientInput?: unknown })?.clientInput
+        if (input) paths = resolveRevalidatePaths(paths, input)
+        const data = (result as { data?: unknown })?.data
+        if (data) paths = resolveRevalidatePaths(paths, data)
+        for (const path of paths) {
+          revalidatePath(path)
+        }
+      }
+      if (metadata.tag) {
+        updateTag(metadata.tag)
+      }
+    }
+
+    return result
+  }
+)
 
 // ---------- storeAction ----------
 

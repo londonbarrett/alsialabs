@@ -1,6 +1,6 @@
 "use client"
 
-import type { ClientTimelineEntry } from "@/lib/actions/client-timeline"
+import type { ClientTimelineEntry } from "@/actions/client-timeline"
 import { ActivityEntryRow } from "@/components/activity/activity-entry-row"
 import { ReminderEntryRow } from "@/components/activity/reminder-entry-row"
 

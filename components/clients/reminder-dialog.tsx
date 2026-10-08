@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import type { Reminder } from "@/lib/actions/reminders"
+import type { Reminder } from "@/actions/reminders"
 import type { ClientReminder } from "@/lib/drizzle/schema"
 import type { ReminderSubmitData } from "@/lib/types"
 import { useTranslations } from "next-intl"

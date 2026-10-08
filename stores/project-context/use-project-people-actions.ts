@@ -6,9 +6,9 @@ import {
   addProjectOwner,
   removeProjectCollaborator,
   removeProjectOwner,
-} from "@/lib/actions/project-people"
-import type { ProjectOwner } from "@/lib/actions/projects"
-import type { UserOption } from "@/lib/actions/users"
+} from "@/actions/project-people"
+import type { ProjectOwner } from "@/actions/projects"
+import type { UserOption } from "@/actions/users"
 import type { ProjectMember } from "@/lib/types"
 import { useSettle } from "@/hooks/use-settle"
 import { useProjectContextStore } from "./project-context-store"

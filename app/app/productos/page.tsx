@@ -1,6 +1,6 @@
 import { ProductListView } from "@/components/products/product-list-view"
-import { getProducts } from "@/lib/actions/products"
-import { getUserStores } from "@/lib/actions/stores"
+import { getProducts } from "@/actions/products"
+import { getUserStores } from "@/actions/stores"
 import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { forbidden } from "next/navigation"
@@ -22,10 +22,5 @@ export default async function ProductsPage() {
 
   const products = unwrapResponse(productsResult)
 
-  return (
-    <ProductListView
-      products={products}
-      stores={stores}
-    />
-  )
+  return <ProductListView products={products} stores={stores} />
 }

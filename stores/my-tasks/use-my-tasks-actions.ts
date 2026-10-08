@@ -6,8 +6,8 @@ import {
   deleteComment as deleteCommentAction,
   getTaskComments,
   updateComment as updateCommentAction,
-} from "@/lib/actions/task-comments"
-import { updateTaskStatus as updateTaskStatusAction } from "@/lib/actions/tasks"
+} from "@/actions/task-comments"
+import { updateTaskStatus as updateTaskStatusAction } from "@/actions/tasks"
 import type { Task, TaskStatus } from "@/lib/drizzle/schema"
 import type { TaskCommentWithAuthor } from "@/lib/types"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
@@ -34,8 +34,9 @@ export function useMyTasksActions() {
   const store = useMyTasksStore()
   const { run } = useOptimisticAction(store)
 
-  const { executeAsync: executeStatus } =
-    useAction(updateTaskStatusAction)
+  const { executeAsync: executeStatus } = useAction(
+    updateTaskStatusAction
+  )
 
   /** Fetch, not mutation: pends and commits directly so no loading bar. */
   const loadComments = useCallback(
@@ -70,14 +71,16 @@ export function useMyTasksActions() {
       {
         // Completing a recurring task can spawn its next occurrence.
         commitAction: (r) => {
-          const nextTask = (r?.data as StatusResultData | undefined)?.nextTask
+          const nextTask = (r?.data as StatusResultData | undefined)
+            ?.nextTask
           if (!nextTask) return undefined
           return { type: "addNextTask", sourceTaskId: taskId, nextTask }
         },
       }
     )
     settle(result, t("projects.tasks.statusChanged"))
-    const nextTask = (result?.data as StatusResultData | undefined)?.nextTask
+    const nextTask = (result?.data as StatusResultData | undefined)
+      ?.nextTask
     if (nextTask) {
       toast.success(t("projects.routines.nextOccurrenceCreated"))
     }
@@ -92,8 +95,9 @@ export function useMyTasksActions() {
     // reuse it for the optimistic row rather than threading the user's profile.
     const existing = store
       .getState()
-      .optimistic.commentsByTask[taskId]
-      ?.find((c) => c.authorId === authorId)
+      .optimistic.commentsByTask[
+        taskId
+      ]?.find((c) => c.authorId === authorId)
 
     const tempComment: TaskCommentWithAuthor = {
       id: `temp-${Date.now()}`,

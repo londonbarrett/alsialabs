@@ -2,7 +2,7 @@ import { TaxonomyTabs } from "@/components/categories/taxonomy-tabs"
 import {
   getCategoriesByTaxonomy,
   getTaxonomies,
-} from "@/lib/actions/categories"
+} from "@/actions/categories"
 import { auth, getUserPermissions } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { forbidden } from "next/navigation"

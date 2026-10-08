@@ -5,7 +5,7 @@ import {
   createRoutine,
   deleteRoutine as deleteRoutineAction,
   updateRoutine,
-} from "@/lib/actions/routines"
+} from "@/actions/routines"
 import type { Routine } from "@/lib/drizzle/schema"
 import type {
   ProjectMember,

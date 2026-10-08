@@ -7,7 +7,7 @@ import {
   deleteInvoice,
   markInvoiceAsSent,
   reopenInvoice,
-} from "@/lib/actions/invoices"
+} from "@/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
 import { useHasPermission } from "@/components/common/permissions-provider"

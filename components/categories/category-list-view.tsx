@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { deleteCategory } from "@/lib/actions/categories"
+import { deleteCategory } from "@/actions/categories"
 import { useActionError } from "@/lib/util/action-errors"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Plus } from "lucide-react"

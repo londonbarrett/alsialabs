@@ -1,10 +1,10 @@
 "use client"
 
-import type { ProjectDetail } from "@/lib/actions/projects"
+import type { ProjectDetail } from "@/actions/projects"
 import {
   deleteProject as deleteProjectAction,
   updateProject as updateProjectAction,
-} from "@/lib/actions/projects"
+} from "@/actions/projects"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import { useSettle } from "@/hooks/use-settle"
 import type { UpdateProjectInput } from "@/lib/schemas/project"

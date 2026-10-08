@@ -7,14 +7,14 @@ import {
   deleteComment as deleteCommentAction,
   getTaskComments,
   updateComment as updateCommentAction,
-} from "@/lib/actions/task-comments"
+} from "@/actions/task-comments"
 import {
   createTask,
   deleteTask as deleteTaskAction,
   updateTask,
   updateTaskPriority as updateTaskPriorityAction,
   updateTaskStatus as updateTaskStatusAction,
-} from "@/lib/actions/tasks"
+} from "@/actions/tasks"
 import type {
   Task,
   TaskPriority,

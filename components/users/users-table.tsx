@@ -11,8 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { UserDialog } from "@/components/users/user-dialog"
-import type { UserWithRole } from "@/lib/actions/users"
-import { deleteUser } from "@/lib/actions/users"
+import type { UserWithRole } from "@/actions/users"
+import { deleteUser } from "@/actions/users"
 import { useActionError } from "@/lib/util/action-errors"
 import { Pen, Plus, Trash2 } from "lucide-react"
 import { useTranslations } from "next-intl"

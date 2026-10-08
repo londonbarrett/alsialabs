@@ -5,7 +5,7 @@ import {
   createExpense as createExpenseAction,
   deleteExpense as deleteExpenseAction,
   updateExpense as updateExpenseAction,
-} from "@/lib/actions/expenses"
+} from "@/actions/expenses"
 import type { Expense } from "@/lib/drizzle/schema"
 import type { ExpenseWithCategory } from "@/lib/types"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"

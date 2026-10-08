@@ -1,7 +1,4 @@
-import type {
-  ProjectOwner,
-  ProjectContext,
-} from "@/lib/actions/projects"
+import type { ProjectOwner, ProjectContext } from "@/actions/projects"
 import type { ProjectMember } from "@/lib/types"
 import { createProjectContextStore } from "./project-context-store"
 import { projectContextReducer } from "./project-context-reducer"
@@ -146,7 +143,9 @@ describe("projectContextReducer (via stores/project-context-store)", () => {
       userId: "user-3",
     })
     expect(result.owners.map((o) => o.userId)).toEqual(["user-1"])
-    expect(result.collaborators.map((c) => c.userId)).toEqual(["user-2"])
+    expect(result.collaborators.map((c) => c.userId)).toEqual([
+      "user-2",
+    ])
   })
 
   it("removeCollaborator drops the user from the collaborators list only", () => {

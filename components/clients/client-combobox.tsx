@@ -16,8 +16,8 @@ import {
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
 import { useDebounced } from "@/hooks/use-debounced"
-import type { ClientOption } from "@/lib/actions/clients"
-import { searchClients } from "@/lib/actions/clients"
+import type { ClientOption } from "@/actions/clients"
+import { searchClients } from "@/actions/clients"
 import { useTranslations } from "next-intl"
 import { useRef, useState, useTransition } from "react"
 

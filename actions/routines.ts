@@ -1,6 +1,6 @@
 "use server"
 
-import { verifyProjectAccess } from "@/lib/actions/project-access"
+import { verifyProjectAccess } from "@/actions/project-access"
 import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {

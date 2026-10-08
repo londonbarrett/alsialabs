@@ -10,7 +10,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { deleteClient, inviteClient } from "@/lib/actions/clients"
+import { deleteClient, inviteClient } from "@/actions/clients"
 import type { Client } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
 import { Plus, Search, Users } from "lucide-react"

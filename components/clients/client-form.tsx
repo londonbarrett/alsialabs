@@ -8,7 +8,7 @@ import {
   checkPhoneExists,
   createClient,
   updateClient,
-} from "@/lib/actions/clients"
+} from "@/actions/clients"
 import type { Client } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
 import { useTranslations } from "next-intl"

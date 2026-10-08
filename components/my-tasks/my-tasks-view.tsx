@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type { MyTask } from "@/lib/actions/tasks"
+import type { MyTask } from "@/actions/tasks"
 import {
   ALL_TASK_STATUSES,
   COLLABORATOR_TASK_STATUSES,

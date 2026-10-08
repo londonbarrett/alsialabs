@@ -1,7 +1,7 @@
 "use server"
 
 import { auth } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/lib/actions/stores"
+import { getEffectiveStoreId } from "@/actions/stores"
 import { db } from "@/lib/drizzle/client"
 import { clientsTable } from "@/lib/drizzle/schema"
 import { getActionT } from "@/lib/util/i18n-actions"

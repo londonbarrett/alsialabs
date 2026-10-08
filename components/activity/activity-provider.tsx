@@ -1,6 +1,6 @@
 "use client"
 
-import type { Reminder } from "@/lib/actions/reminders"
+import type { Reminder } from "@/actions/reminders"
 import {
   ActivityStoreContext,
   createActivityStore,

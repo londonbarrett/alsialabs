@@ -1,5 +1,5 @@
-import type { ClientTimelineEntry } from "@/lib/actions/client-timeline"
-import type { Reminder } from "@/lib/actions/reminders"
+import type { ClientTimelineEntry } from "@/actions/client-timeline"
+import type { Reminder } from "@/actions/reminders"
 import type {
   ClientActivity,
   ClientReminder,

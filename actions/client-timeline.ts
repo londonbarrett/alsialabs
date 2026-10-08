@@ -1,6 +1,6 @@
 "use server"
 
-import { getEffectiveStoreId } from "@/lib/actions/stores"
+import { getEffectiveStoreId } from "@/actions/stores"
 import { requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {

@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { createUser, updateUser } from "@/lib/actions/users"
+import { createUser, updateUser } from "@/actions/users"
 import { useActionError } from "@/lib/util/action-errors"
 import { useTranslations } from "next-intl"
 import { useFormStatus } from "react-dom"
