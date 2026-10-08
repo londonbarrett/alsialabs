@@ -39,7 +39,8 @@ export const RoutinesView = memo(function RoutinesView() {
   const canEdit = isOwner && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
   const { routines } = useRoutinesState()
-  const { saveRoutine, deleteRoutine } = useRoutinesActions()
+  const { createRoutine, updateRoutine, deleteRoutine } =
+    useRoutinesActions()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingRoutine, setEditingRoutine] = useState<
     RoutineWithAssignee | undefined
@@ -52,14 +53,18 @@ export const RoutinesView = memo(function RoutinesView() {
       const editing = editingRoutine
       setEditingRoutine(undefined)
       setDialogOpen(false)
-      await saveRoutine({
-        data,
-        projectId,
-        members,
-        editingRoutine: editing,
-      })
+      if (editing) {
+        await updateRoutine({
+          data,
+          projectId,
+          members,
+          editingRoutine: editing,
+        })
+      } else {
+        await createRoutine({ data, projectId, members })
+      }
     },
-    [projectId, members, editingRoutine, saveRoutine]
+    [projectId, members, editingRoutine, createRoutine, updateRoutine]
   )
 
   const openNew = useCallback(() => {
