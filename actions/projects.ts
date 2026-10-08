@@ -1,10 +1,10 @@
 "use server"
 
-import { getProjectCategories } from "@/lib/actions/categories"
+import { getProjectCategories } from "@/actions/categories"
 import {
   getProjectCollaborators,
   getProjectOwners,
-} from "@/lib/actions/project-people"
+} from "@/actions/project-people"
 import { getUserPermissions, isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {

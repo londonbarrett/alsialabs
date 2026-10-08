@@ -8,7 +8,7 @@ import {
   markInvoiceAsSent as markInvoiceAsSentAction,
   reopenInvoice as reopenInvoiceAction,
   updateInvoice as updateInvoiceAction,
-} from "@/lib/actions/invoices"
+} from "@/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { SettleResult } from "@/lib/types"

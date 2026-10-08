@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/lib/actions/stores", () => ({
+vi.mock("@/actions/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -35,7 +35,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/lib/actions/stores"
+import { getEffectiveStoreId } from "@/actions/stores"
 import {
   getClients,
   createClient,
@@ -43,7 +43,7 @@ import {
   deleteClient,
   inviteClient,
   checkPhoneExists,
-} from "@/lib/actions/clients"
+} from "@/actions/clients"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
@@ -86,7 +86,9 @@ describe("clients actions", () => {
   describe("createClient", () => {
     it("creates a client with valid data", async () => {
       state.mock.onSelect(schema.clientsTable).respond([])
-      state.mock.onInsert(schema.clientsTable).respond([{ id: "client-1" }])
+      state.mock
+        .onInsert(schema.clientsTable)
+        .respond([{ id: "client-1" }])
 
       const result = await createClient({
         name: "John",
@@ -101,7 +103,9 @@ describe("clients actions", () => {
     })
 
     it("returns PHONE_ALREADY_EXISTS when phone exists", async () => {
-      state.mock.onSelect(schema.clientsTable).respond([{ id: "client-1" }])
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: "client-1" }])
 
       const result = await createClient({
         name: "John",
@@ -111,7 +115,9 @@ describe("clients actions", () => {
         email: "",
       })
 
-      expect(result.serverError).toEqual({ code: "PHONE_ALREADY_EXISTS" })
+      expect(result.serverError).toEqual({
+        code: "PHONE_ALREADY_EXISTS",
+      })
     })
 
     it("rejects missing required fields", async () => {
@@ -130,8 +136,12 @@ describe("clients actions", () => {
   describe("updateClient", () => {
     it("updates an existing client", async () => {
       state.mock.onSelect(schema.clientsTable).respond([])
-      state.mock.onSelect(schema.clientsTable).respond([{ userId: null }])
-      state.mock.onUpdate(schema.clientsTable).respond([{ id: "client-1" }])
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ userId: null }])
+      state.mock
+        .onUpdate(schema.clientsTable)
+        .respond([{ id: "client-1" }])
 
       const result = await updateClient({
         id: "client-1",
@@ -146,7 +156,9 @@ describe("clients actions", () => {
     })
 
     it("returns PHONE_ALREADY_EXISTS when phone exists on other client", async () => {
-      state.mock.onSelect(schema.clientsTable).respond([{ id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22" }])
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22" }])
 
       const result = await updateClient({
         id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
@@ -157,13 +169,17 @@ describe("clients actions", () => {
         email: "",
       })
 
-      expect(result.serverError).toEqual({ code: "PHONE_ALREADY_EXISTS" })
+      expect(result.serverError).toEqual({
+        code: "PHONE_ALREADY_EXISTS",
+      })
     })
   })
 
   describe("deleteClient", () => {
     it("deletes a client", async () => {
-      state.mock.onDelete(schema.clientsTable).respond([{ id: "client-1" }])
+      state.mock
+        .onDelete(schema.clientsTable)
+        .respond([{ id: "client-1" }])
 
       const result = await deleteClient({ id: "client-1" })
 
@@ -179,7 +195,9 @@ describe("clients actions", () => {
     })
 
     it("returns exists true when phone exists", async () => {
-      state.mock.onSelect(schema.clientsTable).respond([{ id: "client-1" }])
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: "client-1" }])
 
       const result = await checkPhoneExists({ phone: "123" })
 

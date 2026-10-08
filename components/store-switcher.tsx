@@ -17,8 +17,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type { UserStore } from "@/lib/actions/stores"
-import { getUserStores, switchStore } from "@/lib/actions/stores"
+import type { UserStore } from "@/actions/stores"
+import { getUserStores, switchStore } from "@/actions/stores"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useState, useTransition } from "react"
@@ -68,7 +68,9 @@ export function StoreSwitcher({
   if (loading || stores.length === 0) return null
   if (role === "retailer" && stores.length <= 1) return null
 
-  const activeStore = stores.find((store) => store.id === selectedStoreId)
+  const activeStore = stores.find(
+    (store) => store.id === selectedStoreId
+  )
 
   return (
     <SidebarMenu>

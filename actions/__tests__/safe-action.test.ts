@@ -20,16 +20,16 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/lib/actions/stores", () => ({
+vi.mock("@/actions/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
-vi.mock("@/lib/actions/project-access", () => ({
+vi.mock("@/actions/project-access", () => ({
   verifyProjectAccess: vi.fn(),
 }))
 
 import { auth, isSuperUser, hasPermission } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/lib/actions/stores"
+import { getEffectiveStoreId } from "@/actions/stores"
 import { revalidatePath, updateTag } from "next/cache"
 import {
   storeAction,

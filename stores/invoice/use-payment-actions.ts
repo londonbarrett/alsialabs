@@ -1,12 +1,12 @@
 "use client"
 
 import type { PaymentFormValues } from "@/components/sales/payment-form"
-import { getInvoicePayments } from "@/lib/actions/invoices"
+import { getInvoicePayments } from "@/actions/invoices"
 import {
   deletePayment as deletePaymentAction,
   recordPayment as recordPaymentAction,
   updatePayment as updatePaymentAction,
-} from "@/lib/actions/payments"
+} from "@/actions/payments"
 import type { Invoice, InvoicePayment } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
 import { useSettle } from "@/hooks/use-settle"

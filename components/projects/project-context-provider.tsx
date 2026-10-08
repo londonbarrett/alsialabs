@@ -1,6 +1,6 @@
 "use client"
 
-import type { ProjectContext } from "@/lib/actions/projects"
+import type { ProjectContext } from "@/actions/projects"
 import {
   createProjectContextStore,
   ProjectContextStoreContext,

@@ -17,7 +17,7 @@ The system SHALL allow authenticated users with `sales:create` permission to rec
 - **WHEN** the user submits a valid payment with amount equal to the remaining balance
 - **THEN** the dialog closes immediately (`setPaymentDialog((s) => ({ ...s, open: false }))` `components/sales/invoices-card.tsx:57` inside `handleRecordPaymentSubmit`), which calls `recordPayment` from `usePaymentActions` `stores/invoice/use-payment-actions.ts` fire-and-forget
 - **AND** the invoices table updates optimistically to `paid`/`paidAmount` through `salesReducer` `stores/invoice/sales-reducer.ts`, and the pending action is committed on success or discarded on failure
-- **AND** the server call is `recordPayment` `lib/actions/payments.ts:10` (`sessionAction` `sales:create`, `paymentSchema` `lib/schemas/payment.ts:3`), whose `serverError` is toasted and whose `validationErrors` revert the optimistic update
+- **AND** the server call is `recordPayment` `actions/payments.ts:10` (`sessionAction` `sales:create`, `paymentSchema` `lib/schemas/payment.ts:3`), whose `serverError` is toasted and whose `validationErrors` revert the optimistic update
 
 #### Scenario: Record partial payment
 
@@ -34,7 +34,7 @@ The system SHALL allow authenticated users with `sales:create` permission to rec
 #### Scenario: Payment amount exceeds remaining balance
 
 - **WHEN** a user submits a payment with amount greater than the remaining balance
-- **THEN** the system rejects with a validation error `VALIDATION_FAILED` `lib/actions/payments.ts:10`
+- **THEN** the system rejects with a validation error `VALIDATION_FAILED` `actions/payments.ts:10`
 - **AND** no payment is recorded and the optimistic update is reverted
 
 #### Scenario: Unauthenticated payment recording rejected
@@ -46,7 +46,7 @@ The system SHALL allow authenticated users with `sales:create` permission to rec
 #### Scenario: Unauthorized payment recording rejected
 
 - **WHEN** a user without `sales:create` permission calls the record payment action
-- **THEN** the action returns `FORBIDDEN` `lib/actions/payments.ts:12`
+- **THEN** the action returns `FORBIDDEN` `actions/payments.ts:12`
 - **AND** no payment is recorded
 
 ### Requirement: User can view payment history for an invoice
@@ -56,7 +56,7 @@ The system SHALL display a list of payments recorded against an invoice, accessi
 #### Scenario: View payments from invoice row
 
 - **WHEN** a user with `sales:view` permission clicks "View Payments" on an invoice row
-- **THEN** a dialog shows all payments for that invoice fetched via `getInvoicePayments` `lib/actions/invoices.ts:460` (`sessionAction` `sales:view`)
+- **THEN** a dialog shows all payments for that invoice fetched via `getInvoicePayments` `actions/invoices.ts:460` (`sessionAction` `sales:view`)
 - **AND** each payment shows: amount, date, method, reference, and notes
 
 #### Scenario: Empty payment history
@@ -83,7 +83,7 @@ The system SHALL allow authenticated users with `sales:edit` permission to edit 
 - **WHEN** a user with `sales:edit` permission clicks "Edit {amount}" on a payment row
 - **THEN** a pre-filled dialog appears
 - **WHEN** the user submits
-- **THEN** `PaymentHistory` `components/sales/payment-history.tsx` closes the dialog and calls `updatePayment` from `usePaymentActions` `stores/invoice/use-payment-actions.ts` fire-and-forget; the `updatePayment` action patches the payment and the parent invoice's `paidAmount`/`status` optimistically through `salesReducer` `stores/invoice/sales-reducer.ts`, and the server call is `updatePayment` `lib/actions/payments.ts:123` (`sales:edit`, `paymentSchema` `lib/schemas/payment.ts:3`)
+- **THEN** `PaymentHistory` `components/sales/payment-history.tsx` closes the dialog and calls `updatePayment` from `usePaymentActions` `stores/invoice/use-payment-actions.ts` fire-and-forget; the `updatePayment` action patches the payment and the parent invoice's `paidAmount`/`status` optimistically through `salesReducer` `stores/invoice/sales-reducer.ts`, and the server call is `updatePayment` `actions/payments.ts:123` (`sales:edit`, `paymentSchema` `lib/schemas/payment.ts:3`)
 
 #### Scenario: Edited payment would exceed the invoice total
 
@@ -93,12 +93,12 @@ The system SHALL allow authenticated users with `sales:edit` permission to edit 
 #### Scenario: Editing a payment re-syncs invoice status
 
 - **WHEN** the last payment of a fully paid invoice is reduced below the grand total
-- **THEN** `syncInvoicePaymentState` `lib/actions/payments.ts:76` recomputes `paidAmount`/`status` via `sum(amount)`, and `InvoicesCard` `components/sales/invoices-card.tsx` reflects it without a `router.refresh`, because `salesReducer` patches the payment list and the parent invoice in the same pass
+- **THEN** `syncInvoicePaymentState` `actions/payments.ts:76` recomputes `paidAmount`/`status` via `sum(amount)`, and `InvoicesCard` `components/sales/invoices-card.tsx` reflects it without a `router.refresh`, because `salesReducer` patches the payment list and the parent invoice in the same pass
 
 #### Scenario: Unauthorized payment edit rejected
 
 - **WHEN** a user without `sales:edit` permission calls the update payment action
-- **THEN** the action returns `FORBIDDEN` `lib/actions/payments.ts:125`
+- **THEN** the action returns `FORBIDDEN` `actions/payments.ts:125`
 - **AND** no payment is modified
 
 ### Requirement: User can delete a payment
@@ -110,7 +110,7 @@ The system SHALL allow authenticated users with `sales:delete` permission to del
 - **WHEN** a user with `sales:delete` permission clicks "Delete {amount}" on a payment row
 - **THEN** a confirmation dialog appears
 - **WHEN** the user confirms
-- **THEN** `PaymentHistory` / `PaymentItem` call `deletePayment` from `usePaymentActions` `stores/invoice/use-payment-actions.ts` (sales page) or `useTimelineActions` `stores/timeline/use-timeline-actions.ts` (timeline) fire-and-forget; the `deletePayment` action removes the row and patches the parent invoice optimistically through `salesReducer`, and the server call is `deletePayment` `lib/actions/payments.ts:199` (`sales:delete`)
+- **THEN** `PaymentHistory` / `PaymentItem` call `deletePayment` from `usePaymentActions` `stores/invoice/use-payment-actions.ts` (sales page) or `useTimelineActions` `stores/timeline/use-timeline-actions.ts` (timeline) fire-and-forget; the `deletePayment` action removes the row and patches the parent invoice optimistically through `salesReducer`, and the server call is `deletePayment` `actions/payments.ts:199` (`sales:delete`)
 - **AND** `syncInvoicePaymentState` recomputes invoice `paidAmount`/`status`, and `InvoicesCard`'s invoice table reflects the change without a `router.refresh`
 
 #### Scenario: Deleting a payment re-syncs invoice status
@@ -121,7 +121,7 @@ The system SHALL allow authenticated users with `sales:delete` permission to del
 #### Scenario: Unauthorized payment deletion rejected
 
 - **WHEN** a user without `sales:delete` permission calls the delete payment action
-- **THEN** the action returns `FORBIDDEN` `lib/actions/payments.ts:201`
+- **THEN** the action returns `FORBIDDEN` `actions/payments.ts:201`
 - **AND** no payment is deleted
 
 ### Requirement: Invoice status is automatically determined

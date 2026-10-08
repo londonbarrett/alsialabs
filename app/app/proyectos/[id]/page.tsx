@@ -1,6 +1,6 @@
 import { ProjectTasksProvider } from "@/components/projects/project-tasks-provider"
 import { TasksCard } from "@/components/projects/tasks-card"
-import { getTasks } from "@/lib/actions/tasks"
+import { getTasks } from "@/actions/tasks"
 import { unwrapResponse } from "@/lib/util/unwrap"
 
 interface Props {

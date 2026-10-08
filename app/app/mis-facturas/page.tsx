@@ -1,7 +1,7 @@
 import { Page } from "@/components/common/page"
 import { PageHeader } from "@/components/common/page-header"
 import { MyInvoicesView } from "@/components/my-invoices/my-invoices-view"
-import { getMyInvoices } from "@/lib/actions/invoices"
+import { getMyInvoices } from "@/actions/invoices"
 import { auth } from "@/lib/auth"
 import { Receipt } from "lucide-react"
 import { getTranslations } from "next-intl/server"

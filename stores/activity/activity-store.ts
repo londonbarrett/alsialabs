@@ -1,4 +1,4 @@
-import type { Reminder } from "@/lib/actions/reminders"
+import type { Reminder } from "@/actions/reminders"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { activityReducer } from "./activity-reducer"
 import { createContext, useContext } from "react"

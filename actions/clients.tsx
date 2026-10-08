@@ -309,7 +309,7 @@ async function sendClientInvitationEmail({
   const { Resend } = await import("resend")
   const resend = new Resend(apiKey)
   const { ClientInvitationEmail } =
-    await import("@/emails/client-invitation")
+    await import("@/lib/emails/client-invitation")
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
   await resend.emails.send({

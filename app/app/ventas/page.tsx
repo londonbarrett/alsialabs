@@ -2,11 +2,11 @@ import { Page } from "@/components/common/page"
 import { PageHeader } from "@/components/common/page-header"
 import { InvoiceProvider } from "@/components/sales/invoice-provider"
 import { SalesView } from "@/components/sales/sales-view"
-import { getInvoices } from "@/lib/actions/invoices"
+import { getInvoices } from "@/actions/invoices"
 import {
   getMonthlyRevenue,
   getTopClientsByRevenue,
-} from "@/lib/actions/sales"
+} from "@/actions/sales"
 import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { ChartNoAxesCombined } from "lucide-react"

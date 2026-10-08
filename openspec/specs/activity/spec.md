@@ -57,7 +57,7 @@ The system SHALL display a table of clients who have not made a purchase within 
 
 ### Requirement: User can view reminders
 
-The system SHALL display a card (`RemindersCard` `components/activity/reminders-card.tsx`) listing all reminders (active and completed), with completed reminders listed last and active reminders ordered with expired dates first, then by nearest date. The card SHALL take no props and SHALL read reminders through `useActivityState()` `stores/activity/use-activity-state.ts` — the store's single state hook — rather than importing `useActivityStore` `stores/activity/activity-store.ts` directly — a store scoped to the whole activity page by `ActivityProvider` `components/activity/activity-provider.tsx`, which also holds one activity list per expanded inactive-client row. The provider is seeded from `getReminders` `lib/actions/reminders.ts`, which returns all reminders as `Reminder[]` sorted completed-last, and is mounted by `app/app/actividad/page.tsx`, so the store is built once per page visit and the card itself contains no store-creation logic. Completing a reminder is optimistic (`activityReducer` `stores/activity/activity-reducer.ts` `completeReminder` patches `{ completed: true }`) and SHALL keep the reminder in the list.
+The system SHALL display a card (`RemindersCard` `components/activity/reminders-card.tsx`) listing all reminders (active and completed), with completed reminders listed last and active reminders ordered with expired dates first, then by nearest date. The card SHALL take no props and SHALL read reminders through `useActivityState()` `stores/activity/use-activity-state.ts` — the store's single state hook — rather than importing `useActivityStore` `stores/activity/activity-store.ts` directly — a store scoped to the whole activity page by `ActivityProvider` `components/activity/activity-provider.tsx`, which also holds one activity list per expanded inactive-client row. The provider is seeded from `getReminders` `actions/reminders.ts`, which returns all reminders as `Reminder[]` sorted completed-last, and is mounted by `app/app/actividad/page.tsx`, so the store is built once per page visit and the card itself contains no store-creation logic. Completing a reminder is optimistic (`activityReducer` `stores/activity/activity-reducer.ts` `completeReminder` patches `{ completed: true }`) and SHALL keep the reminder in the list.
 
 #### Scenario: Reminders show client name, description, and date
 
@@ -121,7 +121,7 @@ Each call site SHALL select the handler matching the store live on its own route
 
 - **WHEN** a user creates a reminder from a client detail page
 - **THEN** the temp entry SHALL appear in the client timeline before the server responds
-- **AND** on success the entry SHALL be patched with the row returned by `upsertReminder` `lib/actions/reminders.ts`
+- **AND** on success the entry SHALL be patched with the row returned by `upsertReminder` `actions/reminders.ts`
 
 #### Scenario: Reminder card does not crash without a timeline store
 

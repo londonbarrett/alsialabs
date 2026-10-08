@@ -2,7 +2,7 @@
 
 import { MyInvoicesList } from "@/components/my-invoices/my-invoices-list"
 import { Card, CardContent } from "@/components/ui/card"
-import type { MyInvoice } from "@/lib/actions/invoices"
+import type { MyInvoice } from "@/actions/invoices"
 import { useTranslations } from "next-intl"
 import { use } from "react"
 

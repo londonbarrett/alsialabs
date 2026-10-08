@@ -2,7 +2,7 @@
 
 import type { ProjectFormValues } from "@/components/projects/project-form"
 import { useSettle } from "@/hooks/use-settle"
-import { createProject } from "@/lib/actions/projects"
+import { createProject } from "@/actions/projects"
 import type { Project } from "@/lib/types"
 import {
   nextOptimisticProjectId,

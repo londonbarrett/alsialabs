@@ -17,7 +17,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
-import type { Reminder } from "@/lib/actions/reminders"
+import type { Reminder } from "@/actions/reminders"
 import type { ReminderSubmitData } from "@/lib/types"
 import { useActivityState } from "@/stores/activity/use-activity-state"
 import { useActivityActions } from "@/stores/activity/use-activity-actions"

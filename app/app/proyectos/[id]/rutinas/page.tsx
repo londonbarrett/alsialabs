@@ -1,6 +1,6 @@
 import { RoutinesProvider } from "@/components/projects/routines/routines-provider"
 import { RoutinesView } from "@/components/projects/routines/routines-view"
-import { getProjectRoutines } from "@/lib/actions/routines"
+import { getProjectRoutines } from "@/actions/routines"
 
 interface Props {
   params: Promise<{ id: string }>

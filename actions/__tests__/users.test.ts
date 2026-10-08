@@ -40,7 +40,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
-} from "@/lib/actions/users"
+} from "@/actions/users"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
@@ -72,7 +72,12 @@ describe("users actions", () => {
   describe("getAssignableUsers", () => {
     it("returns users when authenticated", async () => {
       const fakeUsers = [
-        { id: "u1", name: "Alice", email: "alice@test.com", image: null },
+        {
+          id: "u1",
+          name: "Alice",
+          email: "alice@test.com",
+          image: null,
+        },
       ]
       state.mock.onSelect(schema.usersTable).respond(fakeUsers)
       const result = await getAssignableUsers()
@@ -117,10 +122,18 @@ describe("users actions", () => {
 
     it("accepts test-user- prefix ids via excludedIds", async () => {
       const fakeUsers = [
-        { id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d", name: "Test", email: "test@test.com", image: null },
+        {
+          id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d",
+          name: "Test",
+          email: "test@test.com",
+          image: null,
+        },
       ]
       state.mock.onSelect(schema.usersTable).respond(fakeUsers)
-      const result = await searchUsers({ query: "test", excludedIds: ["u2"] })
+      const result = await searchUsers({
+        query: "test",
+        excludedIds: ["u2"],
+      })
       expect(result.serverError).toBeUndefined()
       expect(result.data).toEqual(fakeUsers)
     })
@@ -140,7 +153,12 @@ describe("users actions", () => {
 
   describe("getUserById", () => {
     it("returns user when found", async () => {
-      const fakeUser = { id: "u1", name: "Alice", email: "alice@test.com", image: null }
+      const fakeUser = {
+        id: "u1",
+        name: "Alice",
+        email: "alice@test.com",
+        image: null,
+      }
       state.mock.onSelect(schema.usersTable).respond([fakeUser])
       const result = await getUserById({ userId: "u1" })
       expect(result.data).toEqual(fakeUser)
@@ -153,9 +171,16 @@ describe("users actions", () => {
     })
 
     it("accepts test-user- prefix ids", async () => {
-      const fakeUser = { id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d", name: "Test", email: "test@test.com", image: null }
+      const fakeUser = {
+        id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d",
+        name: "Test",
+        email: "test@test.com",
+        image: null,
+      }
       state.mock.onSelect(schema.usersTable).respond([fakeUser])
-      const result = await getUserById({ userId: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" })
+      const result = await getUserById({
+        userId: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d",
+      })
       expect(result.data).toEqual(fakeUser)
     })
 
@@ -174,7 +199,14 @@ describe("users actions", () => {
   describe("getUsers", () => {
     it("returns users when super", async () => {
       const fakeUsers = [
-        { id: "u1", name: "Alice", email: "alice@test.com", image: null, roleId: "r1", roleName: "super" },
+        {
+          id: "u1",
+          name: "Alice",
+          email: "alice@test.com",
+          image: null,
+          roleId: "r1",
+          roleName: "super",
+        },
       ]
       state.mock.onSelect(schema.usersTable).respond(fakeUsers)
       const result = await getUsers()
@@ -220,14 +252,18 @@ describe("users actions", () => {
     })
 
     it("returns EMAIL_ALREADY_EXISTS when email exists", async () => {
-      state.mock.onSelect(schema.usersTable).respond([{ id: "existing" }])
+      state.mock
+        .onSelect(schema.usersTable)
+        .respond([{ id: "existing" }])
 
       const result = await createUser({
         email: "dup@test.com",
         roleId: "role-1",
       })
 
-      expect(result.serverError).toEqual({ code: "EMAIL_ALREADY_EXISTS" })
+      expect(result.serverError).toEqual({
+        code: "EMAIL_ALREADY_EXISTS",
+      })
     })
 
     it("returns validation error for invalid email", async () => {
@@ -274,9 +310,13 @@ describe("users actions", () => {
     })
 
     it("updates a user with valid data", async () => {
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleName: "user", roleId: "role-user" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleName: "user", roleId: "role-user" }])
       state.mock.onUpdate(schema.usersTable).respond([{ id: "u1" }])
-      state.mock.onUpdate(schema.userRolesTable).respond([{ userId: "u1" }])
+      state.mock
+        .onUpdate(schema.userRolesTable)
+        .respond([{ userId: "u1" }])
       state.mock.onSelect(schema.rolesTable).respond([{ name: "user" }])
       state.mock.onSelect(schema.storesTable).respond([])
 
@@ -291,9 +331,19 @@ describe("users actions", () => {
     })
 
     it("accepts test-user- prefix ids", async () => {
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleName: "user", roleId: "role-user" }])
-      state.mock.onUpdate(schema.usersTable).respond([{ id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" }])
-      state.mock.onUpdate(schema.userRolesTable).respond([{ userId: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleName: "user", roleId: "role-user" }])
+      state.mock
+        .onUpdate(schema.usersTable)
+        .respond([
+          { id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" },
+        ])
+      state.mock
+        .onUpdate(schema.userRolesTable)
+        .respond([
+          { userId: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" },
+        ])
       state.mock.onSelect(schema.rolesTable).respond([{ name: "user" }])
       state.mock.onSelect(schema.storesTable).respond([])
 
@@ -319,8 +369,13 @@ describe("users actions", () => {
     })
 
     it("returns CANNOT_DEMOTE_SELF when super tries to demote self", async () => {
-      mockAuth.mockResolvedValue({ user: { id: "super-1", role: "super", name: "Super" }, expires: new Date(Date.now() + 86400000).toISOString() })
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleName: "super", roleId: "role-super" }])
+      mockAuth.mockResolvedValue({
+        user: { id: "super-1", role: "super", name: "Super" },
+        expires: new Date(Date.now() + 86400000).toISOString(),
+      })
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleName: "super", roleId: "role-super" }])
       state.mock.onSelect(schema.rolesTable).respond([{ name: "user" }])
 
       const result = await updateUser({
@@ -370,14 +425,20 @@ describe("users actions", () => {
     })
 
     it("deletes a user with valid id", async () => {
-      state.mock.onSelect(schema.rolesTable).respond([{ id: "role-super" }])
+      state.mock
+        .onSelect(schema.rolesTable)
+        .respond([{ id: "role-super" }])
       state.mock.onSelect(schema.usersTable).respond([{ id: "u1" }])
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleId: "role-user" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleId: "role-user" }])
       state.mock.onSelect(schema.projectsTable).respond([])
       state.mock.onSelect(schema.storesTable).respond([])
       state.mock.onSelect(schema.clientActivitiesTable).respond([])
       state.mock.onSelect(schema.clientRemindersTable).respond([])
-      state.mock.onDelete(schema.userRolesTable).respond([{ userId: "u1" }])
+      state.mock
+        .onDelete(schema.userRolesTable)
+        .respond([{ userId: "u1" }])
       state.mock.onDelete(schema.usersTable).respond([{ id: "u1" }])
 
       const result = await deleteUser({ userId: "u1" })
@@ -387,31 +448,55 @@ describe("users actions", () => {
     })
 
     it("accepts test-user- prefix ids", async () => {
-      state.mock.onSelect(schema.rolesTable).respond([{ id: "role-super" }])
-      state.mock.onSelect(schema.usersTable).respond([{ id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" }])
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleId: "role-user" }])
+      state.mock
+        .onSelect(schema.rolesTable)
+        .respond([{ id: "role-super" }])
+      state.mock
+        .onSelect(schema.usersTable)
+        .respond([
+          { id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" },
+        ])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleId: "role-user" }])
       state.mock.onSelect(schema.projectsTable).respond([])
       state.mock.onSelect(schema.storesTable).respond([])
       state.mock.onSelect(schema.clientActivitiesTable).respond([])
       state.mock.onSelect(schema.clientRemindersTable).respond([])
-      state.mock.onDelete(schema.userRolesTable).respond([{ userId: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" }])
-      state.mock.onDelete(schema.usersTable).respond([{ id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" }])
+      state.mock
+        .onDelete(schema.userRolesTable)
+        .respond([
+          { userId: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" },
+        ])
+      state.mock
+        .onDelete(schema.usersTable)
+        .respond([
+          { id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" },
+        ])
 
-      const result = await deleteUser({ userId: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d" })
+      const result = await deleteUser({
+        userId: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d",
+      })
 
       expect(result.serverError).toBeUndefined()
     })
 
     it("deletes orphan user with no userRoles row", async () => {
-      state.mock.onSelect(schema.rolesTable).respond([{ id: "role-super" }])
-      state.mock.onSelect(schema.usersTable).respond([{ id: "orphan-1" }])
+      state.mock
+        .onSelect(schema.rolesTable)
+        .respond([{ id: "role-super" }])
+      state.mock
+        .onSelect(schema.usersTable)
+        .respond([{ id: "orphan-1" }])
       state.mock.onSelect(schema.userRolesTable).respond([])
       state.mock.onSelect(schema.projectsTable).respond([])
       state.mock.onSelect(schema.storesTable).respond([])
       state.mock.onSelect(schema.clientActivitiesTable).respond([])
       state.mock.onSelect(schema.clientRemindersTable).respond([])
       state.mock.onDelete(schema.userRolesTable).respond([])
-      state.mock.onDelete(schema.usersTable).respond([{ id: "orphan-1" }])
+      state.mock
+        .onDelete(schema.usersTable)
+        .respond([{ id: "orphan-1" }])
 
       const result = await deleteUser({ userId: "orphan-1" })
 
@@ -419,7 +504,9 @@ describe("users actions", () => {
     })
 
     it("returns USER_NOT_FOUND when user not found", async () => {
-      state.mock.onSelect(schema.rolesTable).respond([{ id: "role-super" }])
+      state.mock
+        .onSelect(schema.rolesTable)
+        .respond([{ id: "role-super" }])
       state.mock.onSelect(schema.usersTable).respond([])
 
       const result = await deleteUser({ userId: "u1" })
@@ -428,7 +515,10 @@ describe("users actions", () => {
     })
 
     it("returns CANNOT_DELETE_SELF when trying to delete self", async () => {
-      mockAuth.mockResolvedValue({ user: { id: "super-1", role: "super", name: "Super" }, expires: new Date(Date.now() + 86400000).toISOString() })
+      mockAuth.mockResolvedValue({
+        user: { id: "super-1", role: "super", name: "Super" },
+        expires: new Date(Date.now() + 86400000).toISOString(),
+      })
 
       const result = await deleteUser({ userId: "super-1" })
 
@@ -436,11 +526,19 @@ describe("users actions", () => {
     })
 
     it("returns CANNOT_DELETE_LAST_SUPER when deleting last super", async () => {
-      state.mock.onSelect(schema.rolesTable).respond([{ id: "role-super" }])
-      state.mock.onSelect(schema.usersTable).respond([{ id: "super-1" }])
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleId: "role-super" }])
+      state.mock
+        .onSelect(schema.rolesTable)
+        .respond([{ id: "role-super" }])
+      state.mock
+        .onSelect(schema.usersTable)
+        .respond([{ id: "super-1" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleId: "role-super" }])
       // superCount = 1
-      state.mock.onSelect(schema.userRolesTable).respond([{ userId: "super-1" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ userId: "super-1" }])
 
       const result = await deleteUser({ userId: "super-1" })
       // This will hit CANNOT_DELETE_SELF first if same id, so use different super id
@@ -454,16 +552,28 @@ describe("users actions", () => {
     it("returns CANNOT_DELETE_LAST_SUPER for last super (different id)", async () => {
       // This scenario requires precise mock ordering for superCount; tested via integration
       // For unit test, verify that deleting a super when not last succeeds
-      state.mock.onSelect(schema.rolesTable).respond([{ id: "role-super" }])
-      state.mock.onSelect(schema.usersTable).respond([{ id: "super-2" }])
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleId: "role-super" }])
-      state.mock.onSelect(schema.userRolesTable).respond([{ userId: "super-1" }, { userId: "super-2" }]) // count =2
+      state.mock
+        .onSelect(schema.rolesTable)
+        .respond([{ id: "role-super" }])
+      state.mock
+        .onSelect(schema.usersTable)
+        .respond([{ id: "super-2" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleId: "role-super" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ userId: "super-1" }, { userId: "super-2" }]) // count =2
       state.mock.onSelect(schema.projectsTable).respond([])
       state.mock.onSelect(schema.storesTable).respond([])
       state.mock.onSelect(schema.clientActivitiesTable).respond([])
       state.mock.onSelect(schema.clientRemindersTable).respond([])
-      state.mock.onDelete(schema.userRolesTable).respond([{ userId: "super-2" }])
-      state.mock.onDelete(schema.usersTable).respond([{ id: "super-2" }])
+      state.mock
+        .onDelete(schema.userRolesTable)
+        .respond([{ userId: "super-2" }])
+      state.mock
+        .onDelete(schema.usersTable)
+        .respond([{ id: "super-2" }])
 
       const result = await deleteUser({ userId: "super-2" })
 
@@ -471,10 +581,16 @@ describe("users actions", () => {
     })
 
     it("returns REFERENCE_EXISTS when user owns projects", async () => {
-      state.mock.onSelect(schema.rolesTable).respond([{ id: "role-super" }])
+      state.mock
+        .onSelect(schema.rolesTable)
+        .respond([{ id: "role-super" }])
       state.mock.onSelect(schema.usersTable).respond([{ id: "u1" }])
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleId: "role-user" }])
-      state.mock.onSelect(schema.projectsTable).respond([{ id: "proj-1" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleId: "role-user" }])
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respond([{ id: "proj-1" }])
       state.mock.onSelect(schema.storesTable).respond([])
       state.mock.onSelect(schema.clientActivitiesTable).respond([])
       state.mock.onSelect(schema.clientRemindersTable).respond([])
@@ -485,11 +601,17 @@ describe("users actions", () => {
     })
 
     it("returns REFERENCE_EXISTS when user owns store", async () => {
-      state.mock.onSelect(schema.rolesTable).respond([{ id: "role-super" }])
+      state.mock
+        .onSelect(schema.rolesTable)
+        .respond([{ id: "role-super" }])
       state.mock.onSelect(schema.usersTable).respond([{ id: "u1" }])
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleId: "role-user" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleId: "role-user" }])
       state.mock.onSelect(schema.projectsTable).respond([])
-      state.mock.onSelect(schema.storesTable).respond([{ id: "store-1" }])
+      state.mock
+        .onSelect(schema.storesTable)
+        .respond([{ id: "store-1" }])
       state.mock.onSelect(schema.clientActivitiesTable).respond([])
       state.mock.onSelect(schema.clientRemindersTable).respond([])
 
@@ -499,12 +621,18 @@ describe("users actions", () => {
     })
 
     it("returns REFERENCE_EXISTS when user has activities", async () => {
-      state.mock.onSelect(schema.rolesTable).respond([{ id: "role-super" }])
+      state.mock
+        .onSelect(schema.rolesTable)
+        .respond([{ id: "role-super" }])
       state.mock.onSelect(schema.usersTable).respond([{ id: "u1" }])
-      state.mock.onSelect(schema.userRolesTable).respond([{ roleId: "role-user" }])
+      state.mock
+        .onSelect(schema.userRolesTable)
+        .respond([{ roleId: "role-user" }])
       state.mock.onSelect(schema.projectsTable).respond([])
       state.mock.onSelect(schema.storesTable).respond([])
-      state.mock.onSelect(schema.clientActivitiesTable).respond([{ id: "act-1" }])
+      state.mock
+        .onSelect(schema.clientActivitiesTable)
+        .respond([{ id: "act-1" }])
       state.mock.onSelect(schema.clientRemindersTable).respond([])
 
       const result = await deleteUser({ userId: "u1" })

@@ -150,7 +150,7 @@ describe("createProjectTasksStore", () => {
       makeTask({ id: "a", commentCount: 1 }),
     ])
     store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "c1" }),
     })
@@ -164,7 +164,7 @@ describe("createProjectTasksStore", () => {
       makeTask({ id: "a", commentCount: 1 }),
     ])
     const id = store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "c1" }),
     })
@@ -177,7 +177,7 @@ describe("createProjectTasksStore", () => {
   it("does not double-count when a temp comment is swapped for the real one", () => {
     const store = createProjectTasksStore([makeTask({ id: "a" })])
     const id = store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "temp-1" }),
     })
@@ -207,7 +207,7 @@ describe("createProjectTasksStore", () => {
     ])
     const failed = store.getState().pend({ type: "deleteTask", taskId: "a" })
     store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "b",
       comment: makeComment({ id: "c1", taskId: "b" }),
     })
@@ -251,7 +251,7 @@ describe("createProjectTasksStore reseedFromServer", () => {
   it("keeps a pending comment on top of the refreshed count", () => {
     const store = createProjectTasksStore([makeTask({ id: "a" })])
     store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "c1" }),
     })

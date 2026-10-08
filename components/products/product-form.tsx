@@ -15,7 +15,7 @@ import {
   createProduct,
   updateProduct,
   checkSkuExists,
-} from "@/lib/actions/products"
+} from "@/actions/products"
 import { useActionError } from "@/lib/util/action-errors"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import type { Product } from "@/lib/drizzle/schema"

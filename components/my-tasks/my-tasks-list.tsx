@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { MyTask } from "@/lib/actions/tasks"
+import type { MyTask } from "@/actions/tasks"
 import type { TaskStatus } from "@/lib/drizzle/schema"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { MessageSquare, RefreshCw } from "lucide-react"

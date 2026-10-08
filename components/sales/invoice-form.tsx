@@ -23,11 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import type { ClientOption } from "@/lib/actions/clients"
-import {
-  getInvoiceItems,
-  getInvoiceProducts,
-} from "@/lib/actions/invoices"
+import type { ClientOption } from "@/actions/clients"
+import { getInvoiceItems, getInvoiceProducts } from "@/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { SettleResult } from "@/lib/types"

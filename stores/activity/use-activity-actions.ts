@@ -1,15 +1,15 @@
 "use client"
 
 import { useSettle } from "@/hooks/use-settle"
-import type { ActivityFormData } from "@/lib/actions/activities"
-import { upsertActivity } from "@/lib/actions/activities"
-import { getClientTimelinePage } from "@/lib/actions/client-timeline"
-import type { Reminder } from "@/lib/actions/reminders"
+import type { ActivityFormData } from "@/actions/activities"
+import { upsertActivity } from "@/actions/activities"
+import { getClientTimelinePage } from "@/actions/client-timeline"
+import type { Reminder } from "@/actions/reminders"
 import {
   completeReminder as completeReminderAction,
   deleteReminder as deleteReminderAction,
   upsertReminder,
-} from "@/lib/actions/reminders"
+} from "@/actions/reminders"
 import type { ReminderSubmitData } from "@/lib/types"
 import {
   buildTempActivity,

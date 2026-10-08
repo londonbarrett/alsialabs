@@ -1,6 +1,6 @@
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
-import type { MyTask } from "@/lib/actions/tasks"
+import type { MyTask } from "@/actions/tasks"
 import { myTasksReducer } from "./my-tasks-reducer"
 
 export function createMyTasksStore(tasks: MyTask[]) {
@@ -20,12 +20,16 @@ export function createMyTasksStore(tasks: MyTask[]) {
 
 type MyTasksStore = ReturnType<typeof createMyTasksStore>
 
-export const MyTasksStoreContext = createContext<MyTasksStore | null>(null)
+export const MyTasksStoreContext = createContext<MyTasksStore | null>(
+  null
+)
 
 export function useMyTasksStore(): MyTasksStore {
   const store = useContext(MyTasksStoreContext)
   if (!store) {
-    throw new Error("useMyTasksStore must be used within a MyTasksProvider")
+    throw new Error(
+      "useMyTasksStore must be used within a MyTasksProvider"
+    )
   }
   return store
 }

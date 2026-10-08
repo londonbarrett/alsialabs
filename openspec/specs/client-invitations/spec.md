@@ -58,7 +58,7 @@ The system SHALL send a Spanish-language invitation email with a link for the cl
 - **WHEN** a client is invited successfully
 - **THEN** an email in Spanish is sent via Resend
 - **AND** the email contains a login link to the platform
-- **AND** the email template is editable at `emails/client-invitation.tsx`
+- **AND** the email template is editable at `lib/emails/client-invitation.tsx`
 
 ### Requirement: Failed email delivery does not block the invite
 

@@ -1,12 +1,12 @@
 import { ActivityTimeline } from "@/components/clients/activity-timeline"
 import { TimelineProvider } from "@/components/clients/timeline-provider"
-import { getClientByUserId } from "@/lib/actions/clients"
+import { getClientByUserId } from "@/actions/clients"
 import {
   getClientInvoices,
   getClientPayments,
   getMyInvoices,
   getMyPayments,
-} from "@/lib/actions/invoices"
+} from "@/actions/invoices"
 import { auth, getUserPermissions } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import type {

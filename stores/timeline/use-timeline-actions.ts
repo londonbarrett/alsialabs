@@ -1,24 +1,24 @@
 "use client"
 
 import type { PaymentFormValues } from "@/components/sales/payment-form"
-import type { ActivityFormData } from "@/lib/actions/activities"
+import type { ActivityFormData } from "@/actions/activities"
 import {
   deleteActivity as deleteActivityAction,
   upsertActivity,
-} from "@/lib/actions/activities"
+} from "@/actions/activities"
 import {
   createInvoice as createInvoiceAction,
   updateInvoice as updateInvoiceAction,
-} from "@/lib/actions/invoices"
+} from "@/actions/invoices"
 import {
   deletePayment as deletePaymentAction,
   updatePayment as updatePaymentAction,
-} from "@/lib/actions/payments"
+} from "@/actions/payments"
 import {
   completeReminder as completeReminderAction,
   deleteReminder as deleteReminderAction,
   upsertReminder,
-} from "@/lib/actions/reminders"
+} from "@/actions/reminders"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { ReminderSubmitData, SettleResult } from "@/lib/types"
@@ -131,9 +131,7 @@ export function useTimelineActions() {
     settle(result, t("reminders.reminderUpdated"))
   }
 
-  async function createActivity(
-    data: ActivityFormData
-  ): Promise<void> {
+  async function createActivity(data: ActivityFormData): Promise<void> {
     const entry = buildTempActivity(data)
     const result = await run(
       { type: "add", entry },

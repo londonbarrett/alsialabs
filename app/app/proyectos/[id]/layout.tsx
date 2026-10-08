@@ -1,6 +1,6 @@
 import { ProjectContextProvider } from "@/components/projects/project-context-provider"
 import { ProjectView } from "@/components/projects/project-view"
-import { getProjectContext } from "@/lib/actions/projects"
+import { getProjectContext } from "@/actions/projects"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { forbidden, notFound } from "next/navigation"
 
@@ -22,9 +22,7 @@ export default async function ProjectDetailLayout({
 
   return (
     <ProjectContextProvider context={context}>
-      <ProjectView>
-        {children}
-      </ProjectView>
+      <ProjectView>{children}</ProjectView>
     </ProjectContextProvider>
   )
 }

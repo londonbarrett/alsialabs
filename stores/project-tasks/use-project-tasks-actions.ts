@@ -3,28 +3,30 @@
 import type { TaskFormValues } from "@/components/projects/task-dialog"
 import { useSettle } from "@/hooks/use-settle"
 import {
-  createComment,
+  createComment as createCommentAction,
   deleteComment as deleteCommentAction,
   getTaskComments,
   updateComment as updateCommentAction,
-} from "@/lib/actions/task-comments"
+} from "@/actions/task-comments"
 import {
   createTask,
   deleteTask as deleteTaskAction,
   updateTask,
   updateTaskPriority as updateTaskPriorityAction,
   updateTaskStatus as updateTaskStatusAction,
-} from "@/lib/actions/tasks"
-import type { Task, TaskPriority, TaskStatus } from "@/lib/drizzle/schema"
+} from "@/actions/tasks"
+import type {
+  Task,
+  TaskPriority,
+  TaskStatus,
+} from "@/lib/drizzle/schema"
+import type { TaskCommentWithAuthor } from "@/lib/types"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
-import type { TaskCommentWithAuthor } from "@/lib/types"
 import { useAction } from "next-safe-action/hooks"
 import { useCallback } from "react"
 import { toast } from "sonner"
-import type {
-  TaskWithCommentCount,
-} from "./project-tasks-reducer"
+import type { TaskWithCommentCount } from "./project-tasks-reducer"
 import { useProjectTasksStore } from "./project-tasks-store"
 
 /** `updateTaskStatus` is built from `sessionAction`, so its data is untyped. */
@@ -50,15 +52,19 @@ export function useProjectTasksActions() {
   const { executeAsync: executeCreate } = useAction(createTask)
   const { executeAsync: executeUpdate } = useAction(updateTask)
   const { executeAsync: executeDelete } = useAction(deleteTaskAction)
-  const { executeAsync: executeStatus } = useAction(updateTaskStatusAction)
-  const { executeAsync: executePriority } =
-    useAction(updateTaskPriorityAction)
+  const { executeAsync: executeStatus } = useAction(
+    updateTaskStatusAction
+  )
+  const { executeAsync: executePriority } = useAction(
+    updateTaskPriorityAction
+  )
 
   /** Fetch, not mutation: pends and commits directly so no loading bar. */
   const loadComments = useCallback(
     async (taskId: string): Promise<void> => {
       try {
-        const comments = await getTaskComments(taskId)
+        const result = await getTaskComments({ taskId })
+        const comments = result.data ?? []
         const id = store
           .getState()
           .pend({ type: "setComments", taskId, comments })
@@ -163,7 +169,8 @@ export function useProjectTasksActions() {
       }
     )
     settle(result, t("projects.tasks.statusChanged"))
-    const nextTask = (result?.data as StatusResultData | undefined)?.nextTask
+    const nextTask = (result?.data as StatusResultData | undefined)
+      ?.nextTask
     if (nextTask) {
       toast.success(t("projects.routines.nextOccurrenceCreated"))
     }
@@ -181,7 +188,7 @@ export function useProjectTasksActions() {
     settle(result, t("projects.tasks.priorityChanged"))
   }
 
-  async function addComment(
+  async function createComment(
     taskId: string,
     content: string,
     authorId: string
@@ -190,8 +197,9 @@ export function useProjectTasksActions() {
     // reuse it for the optimistic row rather than threading the user's profile.
     const existing = store
       .getState()
-      .optimistic.commentsByTask[taskId]
-      ?.find((c) => c.authorId === authorId)
+      .optimistic.commentsByTask[
+        taskId
+      ]?.find((c) => c.authorId === authorId)
 
     const tempComment: TaskCommentWithAuthor = {
       id: `temp-${Date.now()}`,
@@ -205,11 +213,11 @@ export function useProjectTasksActions() {
     }
 
     const result = await run(
-      { type: "addComment", taskId, comment: tempComment },
-      () => createComment(taskId, content),
+      { type: "createComment", taskId, comment: tempComment },
+      () => createCommentAction({ taskId, content }),
       {
         commitAction: (r) =>
-          r.success
+          r.data
             ? {
                 type: "replaceTempComment" as const,
                 taskId,
@@ -222,14 +230,14 @@ export function useProjectTasksActions() {
     settle(result, t("projects.tasks.comments.commentAdded"))
   }
 
-  async function editComment(
+  async function updateComment(
     taskId: string,
     commentId: string,
     content: string
   ) {
     const result = await run(
       { type: "updateComment", taskId, commentId, content },
-      () => updateCommentAction(commentId, taskId, content)
+      () => updateCommentAction({ commentId, taskId, content })
     )
     settle(result, t("projects.tasks.comments.commentUpdated"))
   }
@@ -237,7 +245,7 @@ export function useProjectTasksActions() {
   async function deleteComment(taskId: string, commentId: string) {
     const result = await run(
       { type: "deleteComment", taskId, commentId },
-      () => deleteCommentAction(commentId, taskId)
+      () => deleteCommentAction({ commentId, taskId })
     )
     settle(result, t("projects.tasks.comments.commentDeleted"))
   }
@@ -248,8 +256,8 @@ export function useProjectTasksActions() {
     deleteTask,
     updateTaskStatus,
     updateTaskPriority,
-    addComment,
-    editComment,
+    createComment,
+    updateComment,
     deleteComment,
   }
 }

@@ -1,13 +1,13 @@
 "use client"
 
-import { TaskCommentsSheet } from "@/components/common/task-comments-sheet"
+import { TaskCommentPanel } from "@/components/common/task-comment-panel"
 import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 /**
- * Project-tasks controller for `TaskCommentsSheet`.
+ * Project-tasks controller for `TaskCommentPanel`.
  *
  * Comments live in the project tasks store, so a mutation both writes the
  * comment and adjusts the task's `commentCount` through the same pending
@@ -32,7 +32,7 @@ export function ProjectTaskCommentsPanel({
   isOwner: boolean
 }) {
   const { getComments } = useProjectTasksState()
-  const { loadComments, addComment, editComment, deleteComment } =
+  const { loadComments, createComment, updateComment, deleteComment } =
     useProjectTasksActions()
   const taskId = task?.id ?? ""
   const [loading, setLoading] = useState(false)
@@ -52,7 +52,7 @@ export function ProjectTaskCommentsPanel({
   }, [open, refresh])
 
   return (
-    <TaskCommentsSheet
+    <TaskCommentPanel
       taskName={task?.name ?? ""}
       description={task?.description}
       comments={getComments(taskId)}
@@ -62,11 +62,11 @@ export function ProjectTaskCommentsPanel({
       open={open}
       onOpenChange={onOpenChange}
       onRefresh={refresh}
-      onSend={(content) => {
-        if (taskId) addComment(taskId, content, currentUserId)
+      onCreate={(content) => {
+        if (taskId) createComment(taskId, content, currentUserId)
       }}
       onEdit={(commentId, content) => {
-        if (taskId) editComment(taskId, commentId, content)
+        if (taskId) updateComment(taskId, commentId, content)
       }}
       onDelete={(commentId) => {
         if (taskId) deleteComment(taskId, commentId)

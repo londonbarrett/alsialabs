@@ -3,8 +3,8 @@
 import { StatusBadge } from "@/components/sales/status-badge"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type { MyInvoice } from "@/lib/actions/invoices"
-import { getMyInvoiceDetails } from "@/lib/actions/invoices"
+import type { MyInvoice } from "@/actions/invoices"
+import { getMyInvoiceDetails } from "@/actions/invoices"
 import type { InvoiceItem, InvoicePayment } from "@/lib/drizzle/schema"
 import { formatCurrency } from "@/lib/util/money"
 import { formatISODate } from "@/lib/util/schedule"
@@ -35,18 +35,26 @@ function InvoiceDetailsRow({
     <TableRow>
       <TableCell colSpan={5} className="bg-muted/30 p-4">
         {loading ? (
-          <p className="text-xs text-muted-foreground">{t("common.loading")}</p>
+          <p className="text-xs text-muted-foreground">
+            {t("common.loading")}
+          </p>
         ) : (
           <div className="flex flex-col gap-6">
             <MyInvoiceDetails invoice={invoice} />
             <div className="flex flex-col gap-6 @[900px]:flex-row">
               <div className="flex-1">
-                <h4 className="mb-2 text-sm font-semibold">{t("myInvoices.lineItems")}</h4>
+                <h4 className="mb-2 text-sm font-semibold">
+                  {t("myInvoices.lineItems")}
+                </h4>
                 <MyInvoicesItemsTable items={details?.items ?? []} />
               </div>
               <div className="flex-1">
-                <h4 className="mb-2 text-sm font-semibold">{t("myInvoices.paymentHistory")}</h4>
-                <MyInvoicesPaymentsTable payments={details?.payments ?? []} />
+                <h4 className="mb-2 text-sm font-semibold">
+                  {t("myInvoices.paymentHistory")}
+                </h4>
+                <MyInvoicesPaymentsTable
+                  payments={details?.payments ?? []}
+                />
               </div>
             </div>
           </div>
@@ -60,7 +68,8 @@ export function MyInvoicesRow({ invoice }: { invoice: MyInvoice }) {
   const [expanded, setExpanded] = useState(false)
   const [details, setDetails] = useState<Details | null>(null)
   const [loading, setLoading] = useState(false)
-  const { start: startLoading, stop: stopLoading } = useLoadingIndicator()
+  const { start: startLoading, stop: stopLoading } =
+    useLoadingIndicator()
   const outstanding = invoice.outstandingBalance ?? "0"
 
   useEffect(() => {
@@ -97,7 +106,10 @@ export function MyInvoicesRow({ invoice }: { invoice: MyInvoice }) {
 
   return (
     <Fragment>
-      <TableRow className="cursor-pointer" onClick={() => setExpanded((v) => !v)}>
+      <TableRow
+        className="cursor-pointer"
+        onClick={() => setExpanded((v) => !v)}
+      >
         <TableCell className="font-mono text-xs font-medium">
           <span className="inline-flex items-center gap-2">
             {expanded ? (
@@ -108,15 +120,25 @@ export function MyInvoicesRow({ invoice }: { invoice: MyInvoice }) {
             {invoice.invoiceNumber}
           </span>
         </TableCell>
-        <TableCell className="text-xs">{formatISODate(invoice.issueDate)}</TableCell>
+        <TableCell className="text-xs">
+          {formatISODate(invoice.issueDate)}
+        </TableCell>
         <TableCell>
           <StatusBadge status={invoice.status} />
         </TableCell>
-        <TableCell className="text-right text-xs font-medium">{formatCurrency(outstanding)}</TableCell>
-        <TableCell className="text-right text-xs font-medium">{formatCurrency(invoice.grandTotal)}</TableCell>
+        <TableCell className="text-right text-xs font-medium">
+          {formatCurrency(outstanding)}
+        </TableCell>
+        <TableCell className="text-right text-xs font-medium">
+          {formatCurrency(invoice.grandTotal)}
+        </TableCell>
       </TableRow>
       <Activity mode={expanded ? "visible" : "hidden"}>
-        <InvoiceDetailsRow invoice={invoice} details={details} loading={loading} />
+        <InvoiceDetailsRow
+          invoice={invoice}
+          details={details}
+          loading={loading}
+        />
       </Activity>
     </Fragment>
   )

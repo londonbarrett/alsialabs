@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { MyInvoice } from "@/lib/actions/invoices"
+import type { MyInvoice } from "@/actions/invoices"
 import { useTranslations } from "next-intl"
 import { MyInvoicesRow } from "./my-invoices-row"
 
@@ -29,8 +29,12 @@ export function MyInvoicesList({ invoices }: Props) {
                 <TableHead>{t("myInvoices.invoiceHash")}</TableHead>
                 <TableHead>{t("myInvoices.date")}</TableHead>
                 <TableHead>{t("myInvoices.status")}</TableHead>
-                <TableHead className="text-right">{t("myInvoices.outstanding")}</TableHead>
-                <TableHead className="text-right">{t("myInvoices.total")}</TableHead>
+                <TableHead className="text-right">
+                  {t("myInvoices.outstanding")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("myInvoices.total")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

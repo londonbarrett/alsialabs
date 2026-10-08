@@ -1,5 +1,5 @@
 import { ClientListView } from "@/components/clients/clients-list-view"
-import { getClients } from "@/lib/actions/clients"
+import { getClients } from "@/actions/clients"
 import { auth } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 

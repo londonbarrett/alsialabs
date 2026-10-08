@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import { getProjectForEdit } from "@/lib/actions/projects"
+import { getProjectForEdit } from "@/actions/projects"
 import type { Project as DbProject } from "@/lib/drizzle/schema"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { useProjectActions } from "@/stores/project-context/use-project-actions"

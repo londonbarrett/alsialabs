@@ -178,7 +178,8 @@ export const createUser = sessionAction
     if (apiKey) {
       const { Resend } = await import("resend")
       const resend = new Resend(apiKey)
-      const { InvitationEmail } = await import("@/emails/invitation")
+      const { InvitationEmail } =
+        await import("@/lib/emails/invitation")
       const appUrl =
         process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
 

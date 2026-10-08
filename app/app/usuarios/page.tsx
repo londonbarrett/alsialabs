@@ -2,7 +2,7 @@ import { auth, isSuperUser } from "@/lib/auth"
 import { forbidden } from "next/navigation"
 import { db } from "@/lib/drizzle/client"
 import { rolesTable } from "@/lib/drizzle/schema"
-import { getUsers } from "@/lib/actions/users"
+import { getUsers } from "@/actions/users"
 import { UsersTable } from "@/components/users/users-table"
 import { unwrapResponse } from "@/lib/util/unwrap"
 

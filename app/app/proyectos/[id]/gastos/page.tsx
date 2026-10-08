@@ -4,8 +4,8 @@ import { ProjectTasksProvider } from "@/components/projects/project-tasks-provid
 import {
   getExpenseCategories,
   getExpensesByProjectId,
-} from "@/lib/actions/expenses"
-import { getTasks } from "@/lib/actions/tasks"
+} from "@/actions/expenses"
+import { getTasks } from "@/actions/tasks"
 import { unwrapResponse } from "@/lib/util/unwrap"
 
 type Props = {

@@ -6,7 +6,7 @@ vi.mock("@/lib/auth", () => ({
   isSuperUser: vi.fn(),
 }))
 
-vi.mock("@/lib/actions/project-access", () => ({
+vi.mock("@/actions/project-access", () => ({
   verifyProjectAccess: vi.fn(),
 }))
 
@@ -36,8 +36,8 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission, isSuperUser } from "@/lib/auth"
-import { verifyProjectAccess } from "@/lib/actions/project-access"
-import { createProject, updateProject } from "@/lib/actions/projects"
+import { verifyProjectAccess } from "@/actions/project-access"
+import { createProject, updateProject } from "@/actions/projects"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
@@ -69,7 +69,9 @@ describe("projects actions", () => {
 
   describe("createProject", () => {
     it("creates a project with valid data", async () => {
-      state.mock.onInsert(schema.projectsTable).respond([{ id: PROJECT_ID }])
+      state.mock
+        .onInsert(schema.projectsTable)
+        .respond([{ id: PROJECT_ID }])
       state.mock.onInsert(schema.projectOwnersTable).respond([])
 
       const result = await createProject({
@@ -107,7 +109,9 @@ describe("projects actions", () => {
 
   describe("updateProject", () => {
     it("updates an existing project as owner", async () => {
-      state.mock.onUpdate(schema.projectsTable).respond([{ id: PROJECT_ID }])
+      state.mock
+        .onUpdate(schema.projectsTable)
+        .respond([{ id: PROJECT_ID }])
 
       const result = await updateProject({
         projectId: PROJECT_ID,

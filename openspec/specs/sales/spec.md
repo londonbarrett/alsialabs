@@ -321,7 +321,7 @@ The sales page SHALL be a server component that fetches data and composes Page l
 #### Scenario: Sales page server fetches with unwrapResponse
 
 - **WHEN** `app/app/ventas/page.tsx` renders
-- **THEN** it calls `getInvoices()` `lib/actions/invoices.ts`, `getMonthlyRevenue` and `getTopClientsByRevenue` `lib/actions/sales.ts` and unwraps results via `unwrapResponse` `lib/util/unwrap.ts`
+- **THEN** it calls `getInvoices()` `actions/invoices.ts`, `getMonthlyRevenue` and `getTopClientsByRevenue` `actions/sales.ts` and unwraps results via `unwrapResponse` `lib/util/unwrap.ts`
 - **AND** it renders `Page` `components/common/page.tsx` with `PageHeader` `components/common/page-header.tsx` (title `sales.title`, subtitle `sales.subtitle`, icon `ChartNoAxesCombined`) fetched via `getTranslations("sales")` on the server
 
 #### Scenario: SalesView is client and delegates
@@ -379,15 +379,15 @@ The system SHALL keep invoice-related code separate from sales analytics.
 
 #### Scenario: Actions are separated
 
-- **WHEN** inspecting `lib/actions/invoices.ts` and `lib/actions/payments.ts` and `lib/actions/sales.ts`
-- **THEN** `getInvoices`/`getInvoiceProducts`/`getInvoiceItems`/`getInvoicePayments`/`createInvoice`/`updateInvoice`/`cancelInvoice`/`reopenInvoice`/`markInvoiceAsSent`/`deleteInvoice` live in `lib/actions/invoices.ts:471` with `sessionAction` `next-safe-action` and `zod` schemas `createInvoiceSchema`/`updateInvoiceSchema`, `recordPayment`/`updatePayment`/`deletePayment` live in `lib/actions/payments.ts:10` with `sales:create`/`edit`/`delete` permissions (no `record-payment`), and `getMonthlyRevenue`/`getTopClientsByRevenue` remain in `lib/actions/sales.ts:16`
+- **WHEN** inspecting `actions/invoices.ts` and `actions/payments.ts` and `actions/sales.ts`
+- **THEN** `getInvoices`/`getInvoiceProducts`/`getInvoiceItems`/`getInvoicePayments`/`createInvoice`/`updateInvoice`/`cancelInvoice`/`reopenInvoice`/`markInvoiceAsSent`/`deleteInvoice` live in `actions/invoices.ts:471` with `sessionAction` `next-safe-action` and `zod` schemas `createInvoiceSchema`/`updateInvoiceSchema`, `recordPayment`/`updatePayment`/`deletePayment` live in `actions/payments.ts:10` with `sales:create`/`edit`/`delete` permissions (no `record-payment`), and `getMonthlyRevenue`/`getTopClientsByRevenue` remain in `actions/sales.ts:16`
 
 #### Scenario: Permissions use existing sales actions
 
 - **WHEN** a user calls `recordPayment`
-- **THEN** it requires `sales:create` `lib/actions/payments.ts:12`, `updatePayment` requires `sales:edit` `lib/actions/payments.ts:125`, `deletePayment` requires `sales:delete` `lib/actions/payments.ts:201` (no `sales:record-payment` in `lib/drizzle/seed.ts:37`)
+- **THEN** it requires `sales:create` `actions/payments.ts:12`, `updatePayment` requires `sales:edit` `actions/payments.ts:125`, `deletePayment` requires `sales:delete` `actions/payments.ts:201` (no `sales:record-payment` in `lib/drizzle/seed.ts:37`)
 
 #### Scenario: Tests are co-located
 
-- **WHEN** inspecting `lib/actions/invoices.test.ts` `lib/actions/payments.test.ts`, `stores/invoice/invoice-store.test.ts`, `stores/invoice/payment-reducer.test.ts`, `lib/util/invoices.test.ts`
-- **THEN** each file lives next to its target (`stores/`, `reducers/`, `lib/actions/`, or `lib/util/`) and tests business logic (e.g. `computeInvoiceTotals` `lib/util/invoices.ts:26`, `overdue` derivation, `initialStatus` from `paidAmount`, `invoiceReducer` `stores/invoice/invoice-reducer.ts`, `paymentReducer` `add`/`update`/`delete`, `canRecordPayment` validation) without mocking action logic, with `vitest-drizzle-mock` only for `db` where needed
+- **WHEN** inspecting `actions/invoices.test.ts` `actions/payments.test.ts`, `stores/invoice/invoice-store.test.ts`, `stores/invoice/payment-reducer.test.ts`, `lib/util/invoices.test.ts`
+- **THEN** each file lives next to its target (`stores/`, `reducers/`, `actions/`, or `lib/util/`) and tests business logic (e.g. `computeInvoiceTotals` `lib/util/invoices.ts:26`, `overdue` derivation, `initialStatus` from `paidAmount`, `invoiceReducer` `stores/invoice/invoice-reducer.ts`, `paymentReducer` `add`/`update`/`delete`, `canRecordPayment` validation) without mocking action logic, with `vitest-drizzle-mock` only for `db` where needed

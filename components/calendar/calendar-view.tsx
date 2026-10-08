@@ -1,7 +1,7 @@
 "use client"
 
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import { getCalendarTasks } from "@/lib/actions/calendar"
+import { getCalendarTasks } from "@/actions/calendar"
 import type {
   CalendarLabels,
   CalendarVisibleRange,

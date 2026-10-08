@@ -1,11 +1,8 @@
 import type { Task } from "@/lib/drizzle/schema"
-import type { MyTask } from "@/lib/actions/tasks"
+import type { MyTask } from "@/actions/tasks"
 import type { TaskCommentWithAuthor } from "@/lib/types"
 import { describe, expect, it } from "vitest"
-import {
-  EMPTY_COMMENTS,
-  type MyTasksState,
-} from "./my-tasks-reducer"
+import { EMPTY_COMMENTS, type MyTasksState } from "./my-tasks-reducer"
 import { createMyTasksStore } from "./my-tasks-store"
 
 function makeTask(overrides: Partial<MyTask> = {}): MyTask {
@@ -106,16 +103,21 @@ describe("createMyTasksStore", () => {
       store.getState().pend({
         type: "setComments",
         taskId: "a",
-        comments: [makeComment({ id: "c1" }), makeComment({ id: "c2" })],
+        comments: [
+          makeComment({ id: "c1" }),
+          makeComment({ id: "c2" }),
+        ],
       })
     )
     expect(store.getState().optimistic.tasks[0].commentCount).toBe(2)
   })
 
   it("bumps commentCount in the same action that appends a comment", () => {
-    const store = createMyTasksStore([makeTask({ id: "a", commentCount: 1 })])
+    const store = createMyTasksStore([
+      makeTask({ id: "a", commentCount: 1 }),
+    ])
     store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "c1" }),
     })
@@ -125,9 +127,11 @@ describe("createMyTasksStore", () => {
   })
 
   it("rolls commentCount back with the comment when the action is discarded", () => {
-    const store = createMyTasksStore([makeTask({ id: "a", commentCount: 1 })])
+    const store = createMyTasksStore([
+      makeTask({ id: "a", commentCount: 1 }),
+    ])
     const id = store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "c1" }),
     })
@@ -138,7 +142,9 @@ describe("createMyTasksStore", () => {
   })
 
   it("rolls commentCount back with a discarded delete", () => {
-    const store = createMyTasksStore([makeTask({ id: "a", commentCount: 1 })])
+    const store = createMyTasksStore([
+      makeTask({ id: "a", commentCount: 1 }),
+    ])
     const id = store.getState().pend({
       type: "deleteComment",
       taskId: "a",
@@ -153,7 +159,7 @@ describe("createMyTasksStore", () => {
   it("does not double-count when a temp comment is swapped for the real one", () => {
     const store = createMyTasksStore([makeTask({ id: "a" })])
     const id = store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "temp-1" }),
     })
@@ -169,7 +175,9 @@ describe("createMyTasksStore", () => {
   })
 
   it("never drives commentCount below zero", () => {
-    const store = createMyTasksStore([makeTask({ id: "a", commentCount: 0 })])
+    const store = createMyTasksStore([
+      makeTask({ id: "a", commentCount: 0 }),
+    ])
     store
       .getState()
       .pend({ type: "deleteComment", taskId: "a", commentId: "c1" })
@@ -224,14 +232,18 @@ describe("createMyTasksStore addNextTask", () => {
         nextTask: makeNextTask(),
       })
     )
-    expect(store.getState().optimistic.tasks.map((t) => t.id)).toEqual(["a"])
+    expect(store.getState().optimistic.tasks.map((t) => t.id)).toEqual([
+      "a",
+    ])
   })
 })
 
 describe("createMyTasksStore reseedFromServer", () => {
   it("adopts refreshed tasks from the server", () => {
     const store = createMyTasksStore([makeTask({ id: "a" })])
-    store.getState().reseedFromServer([makeTask({ id: "a" }), makeTask({ id: "b" })])
+    store
+      .getState()
+      .reseedFromServer([makeTask({ id: "a" }), makeTask({ id: "b" })])
 
     expect(store.getState().committed.tasks.map((t) => t.id)).toEqual([
       "a",
@@ -248,7 +260,9 @@ describe("createMyTasksStore reseedFromServer", () => {
     })
     store.getState().commit(loaded)
 
-    store.getState().reseedFromServer([makeTask({ id: "a", commentCount: 9 })])
+    store
+      .getState()
+      .reseedFromServer([makeTask({ id: "a", commentCount: 9 })])
 
     // A wholesale state replace would have emptied this and made the open
     // panel refetch.
@@ -259,12 +273,14 @@ describe("createMyTasksStore reseedFromServer", () => {
   it("keeps a pending comment on top of the refreshed count", () => {
     const store = createMyTasksStore([makeTask({ id: "a" })])
     store.getState().pend({
-      type: "addComment",
+      type: "createComment",
       taskId: "a",
       comment: makeComment({ id: "c1" }),
     })
 
-    store.getState().reseedFromServer([makeTask({ id: "a", commentCount: 4 })])
+    store
+      .getState()
+      .reseedFromServer([makeTask({ id: "a", commentCount: 4 })])
 
     expect(store.getState().optimistic.tasks[0].commentCount).toBe(5)
   })
@@ -280,10 +296,12 @@ describe("createMyTasksStore reseedFromServer", () => {
       status: "done",
     })
 
-    store.getState().reseedFromServer([
-      makeTask({ id: "a", status: "todo" }),
-      makeTask({ id: "b" }),
-    ])
+    store
+      .getState()
+      .reseedFromServer([
+        makeTask({ id: "a", status: "todo" }),
+        makeTask({ id: "b" }),
+      ])
 
     expect(store.getState().optimistic.tasks[0].status).toBe("done")
   })

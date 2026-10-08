@@ -1,5 +1,5 @@
-import type { Reminder } from "@/lib/actions/reminders"
-import type { ClientTimelineEntry } from "@/lib/actions/client-timeline"
+import type { Reminder } from "@/actions/reminders"
+import type { ClientTimelineEntry } from "@/actions/client-timeline"
 import {
   activityReducer,
   type ClientActivityList,
@@ -376,7 +376,9 @@ describe("createActivityStore", () => {
       makeReminder({ id: "a" }),
     ])
     // This is how loadActivities reads a client's entries before appending.
-    expect(store.getState().optimistic.activities["client-1"]).toBeUndefined()
+    expect(
+      store.getState().optimistic.activities["client-1"]
+    ).toBeUndefined()
   })
 
   it("holds the stored list for an expanded client", () => {

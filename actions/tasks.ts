@@ -1,7 +1,7 @@
 "use server"
 
-import { verifyProjectAccess } from "@/lib/actions/project-access"
-import { createNextRoutineTask } from "@/lib/actions/routines"
+import { verifyProjectAccess } from "@/actions/project-access"
+import { createNextRoutineTask } from "@/actions/routines"
 import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import type { Task } from "@/lib/drizzle/schema"

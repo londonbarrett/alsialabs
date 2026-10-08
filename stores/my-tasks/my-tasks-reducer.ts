@@ -1,4 +1,4 @@
-import type { MyTask } from "@/lib/actions/tasks"
+import type { MyTask } from "@/actions/tasks"
 import type { Task, TaskStatus } from "@/lib/drizzle/schema"
 import type { TaskCommentWithAuthor } from "@/lib/types"
 
@@ -16,8 +16,16 @@ export type MyTasksState = {
 export type MyTaskAction =
   | { type: "updateTaskStatus"; taskId: string; status: TaskStatus }
   | { type: "addNextTask"; sourceTaskId: string; nextTask: Task }
-  | { type: "setComments"; taskId: string; comments: TaskCommentWithAuthor[] }
-  | { type: "addComment"; taskId: string; comment: TaskCommentWithAuthor }
+  | {
+      type: "setComments"
+      taskId: string
+      comments: TaskCommentWithAuthor[]
+    }
+  | {
+      type: "createComment"
+      taskId: string
+      comment: TaskCommentWithAuthor
+    }
   | {
       type: "replaceTempComment"
       taskId: string
@@ -84,7 +92,9 @@ export function myTasksReducer(
      * its own count, which only status touched.
      */
     case "addNextTask": {
-      const source = state.tasks.find((t) => t.id === action.sourceTaskId)
+      const source = state.tasks.find(
+        (t) => t.id === action.sourceTaskId
+      )
       if (!source) return state
       return {
         ...state,
@@ -106,14 +116,18 @@ export function myTasksReducer(
 
     case "setComments":
       return {
-        tasks: setCommentCount(state.tasks, action.taskId, action.comments.length),
+        tasks: setCommentCount(
+          state.tasks,
+          action.taskId,
+          action.comments.length
+        ),
         commentsByTask: {
           ...state.commentsByTask,
           [action.taskId]: action.comments,
         },
       }
 
-    case "addComment":
+    case "createComment":
       return {
         tasks: bumpCommentCount(state.tasks, action.taskId, 1),
         commentsByTask: {
@@ -130,9 +144,9 @@ export function myTasksReducer(
         ...state,
         commentsByTask: {
           ...state.commentsByTask,
-          [action.taskId]: (state.commentsByTask[action.taskId] ?? []).map(
-            (c) => (c.id === action.tempId ? action.comment : c)
-          ),
+          [action.taskId]: (
+            state.commentsByTask[action.taskId] ?? []
+          ).map((c) => (c.id === action.tempId ? action.comment : c)),
         },
       }
 
@@ -141,11 +155,12 @@ export function myTasksReducer(
         ...state,
         commentsByTask: {
           ...state.commentsByTask,
-          [action.taskId]: (state.commentsByTask[action.taskId] ?? []).map(
-            (c) =>
-              c.id === action.commentId
-                ? { ...c, content: action.content, updatedAt: new Date() }
-                : c
+          [action.taskId]: (
+            state.commentsByTask[action.taskId] ?? []
+          ).map((c) =>
+            c.id === action.commentId
+              ? { ...c, content: action.content, updatedAt: new Date() }
+              : c
           ),
         },
       }
@@ -155,9 +170,9 @@ export function myTasksReducer(
         tasks: bumpCommentCount(state.tasks, action.taskId, -1),
         commentsByTask: {
           ...state.commentsByTask,
-          [action.taskId]: (state.commentsByTask[action.taskId] ?? []).filter(
-            (c) => c.id !== action.commentId
-          ),
+          [action.taskId]: (
+            state.commentsByTask[action.taskId] ?? []
+          ).filter((c) => c.id !== action.commentId),
         },
       }
   }

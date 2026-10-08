@@ -1,12 +1,12 @@
 "use client"
 
-import { TaskCommentsSheet } from "@/components/common/task-comments-sheet"
+import { TaskCommentPanel } from "@/components/common/task-comment-panel"
 import { useMyTasksActions } from "@/stores/my-tasks/use-my-tasks-actions"
 import { useMyTasksState } from "@/stores/my-tasks/use-my-tasks-state"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 /**
- * my-tasks controller for `TaskCommentsSheet`.
+ * my-tasks controller for `TaskCommentPanel`.
  *
  * Comments live in the my tasks store, so a mutation both writes the comment
  * and adjusts the task's `commentCount` through the same pending action —
@@ -35,7 +35,7 @@ export function MyTaskCommentsPanel({
   isOwner: boolean
 }) {
   const { getComments } = useMyTasksState()
-  const { loadComments, addComment, editComment, deleteComment } =
+  const { loadComments, createComment, updateComment, deleteComment } =
     useMyTasksActions()
   const [loading, setLoading] = useState(false)
   const wasOpen = useRef(false)
@@ -54,7 +54,7 @@ export function MyTaskCommentsPanel({
   }, [open, refresh])
 
   return (
-    <TaskCommentsSheet
+    <TaskCommentPanel
       taskName={taskName}
       description={description}
       comments={getComments(taskId)}
@@ -64,11 +64,11 @@ export function MyTaskCommentsPanel({
       open={open}
       onOpenChange={onOpenChange}
       onRefresh={refresh}
-      onSend={(content) => {
-        if (taskId) addComment(taskId, content, currentUserId)
+      onCreate={(content) => {
+        if (taskId) createComment(taskId, content, currentUserId)
       }}
       onEdit={(commentId, content) => {
-        if (taskId) editComment(taskId, commentId, content)
+        if (taskId) updateComment(taskId, commentId, content)
       }}
       onDelete={(commentId) => {
         if (taskId) deleteComment(taskId, commentId)

@@ -1,7 +1,7 @@
 "use client"
 
 import { useServerReseed } from "@/hooks/use-server-reseed"
-import type { MyTask } from "@/lib/actions/tasks"
+import type { MyTask } from "@/actions/tasks"
 import { useState } from "react"
 import {
   createMyTasksStore,

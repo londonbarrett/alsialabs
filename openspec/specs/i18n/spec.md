@@ -69,7 +69,7 @@ All UI components SHALL display text in the resolved locale for all supported na
 - **GIVEN** a safe action returned `serverError` with code `ALREADY_OWNER`
 - **WHEN** the client renders it through `useActionError`
 - **THEN** the message is read from `errors.ALREADY_OWNER`
-- **AND** every code in `ActionError` (`lib/actions/error-codes.ts`) has a message in each supported locale
+- **AND** every code in `ActionError` (`actions/error-codes.ts`) has a message in each supported locale
 
 ### Requirement: Server action translation
 
@@ -77,7 +77,7 @@ Server actions SHALL use a shared helper to resolve the locale and provide trans
 
 #### Scenario: getActionT returns correct translation
 
-- **GIVEN** a server action imports `getActionT` from `lib/i18n-actions`
+- **GIVEN** a server action imports `getActionT` from `lib/util/i18n-actions.ts`
 - **WHEN** it calls `getActionT('actions.clients')`
 - **THEN** the returned function translates keys from the `actions.clients` namespace
 - **AND** the locale is resolved from the `NEXT_LOCALE` cookie
