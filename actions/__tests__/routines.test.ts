@@ -6,11 +6,11 @@ vi.mock("@/lib/auth", () => ({
   isSuperUser: vi.fn(),
 }))
 
-vi.mock("@/actions/project-access", () => ({
+vi.mock("@/actions/not-safe/project-access", () => ({
   verifyProjectAccess: vi.fn(),
 }))
 
-vi.mock("@/actions/stores", () => ({
+vi.mock("@/actions/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -40,7 +40,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { verifyProjectAccess } from "@/actions/project-access"
+import { verifyProjectAccess } from "@/actions/not-safe/project-access"
 import { revalidatePath } from "next/cache"
 import {
   createNextRoutineTask,

@@ -1,6 +1,6 @@
 import { ProductListView } from "@/components/products/product-list-view"
 import { getProducts } from "@/actions/products"
-import { getUserStores } from "@/actions/stores"
+import { getUserStores } from "@/actions/not-safe/stores"
 import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { forbidden } from "next/navigation"

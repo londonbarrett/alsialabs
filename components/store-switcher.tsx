@@ -17,8 +17,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type { UserStore } from "@/actions/stores"
-import { getUserStores, switchStore } from "@/actions/stores"
+import type { UserStore } from "@/actions/not-safe/stores"
+import { getUserStores, switchStore } from "@/actions/not-safe/stores"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useState, useTransition } from "react"

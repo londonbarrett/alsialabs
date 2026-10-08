@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { importClients } from "@/actions/import-clients"
+import { importClients } from "@/actions/not-safe/import-clients"
 
 interface ImportButtonProps {
   onSuccess?: () => void

@@ -1,5 +1,5 @@
-import type { Reminder } from "@/actions/reminders"
-import type { ClientTimelineEntry } from "@/actions/client-timeline"
+import type { Reminder } from "@/actions/not-safe/reminders"
+import type { ClientTimelineEntry } from "@/actions/not-safe/client-timeline"
 import {
   activityReducer,
   type ClientActivityList,

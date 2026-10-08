@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/actions/project-access", () => ({
+vi.mock("@/actions/not-safe/project-access", () => ({
   verifyProjectAccess: vi.fn(),
 }))
 
@@ -35,7 +35,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { verifyProjectAccess } from "@/actions/project-access"
+import { verifyProjectAccess } from "@/actions/not-safe/project-access"
 import {
   getTasks,
   createTask,

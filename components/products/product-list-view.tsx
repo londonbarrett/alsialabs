@@ -14,7 +14,7 @@ import {
 import { deleteProduct } from "@/actions/products"
 import { useActionError } from "@/lib/util/action-errors"
 import type { ProductWithStore } from "@/lib/types"
-import type { StoreOption } from "@/actions/stores"
+import type { StoreOption } from "@/actions/not-safe/stores"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"

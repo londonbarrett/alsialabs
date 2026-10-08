@@ -1,11 +1,11 @@
 "use client"
 
 import type { PaymentFormValues } from "@/components/sales/payment-form"
-import type { ActivityFormData } from "@/actions/activities"
+import type { ActivityFormData } from "@/actions/not-safe/activities"
 import {
   deleteActivity as deleteActivityAction,
   upsertActivity,
-} from "@/actions/activities"
+} from "@/actions/not-safe/activities"
 import {
   createInvoice as createInvoiceAction,
   updateInvoice as updateInvoiceAction,
@@ -18,7 +18,7 @@ import {
   completeReminder as completeReminderAction,
   deleteReminder as deleteReminderAction,
   upsertReminder,
-} from "@/actions/reminders"
+} from "@/actions/not-safe/reminders"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { ReminderSubmitData, SettleResult } from "@/lib/types"

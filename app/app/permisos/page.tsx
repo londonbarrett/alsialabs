@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server"
 import { auth, isSuperUser } from "@/lib/auth"
 import { forbidden } from "next/navigation"
-import { getPermissions } from "@/actions/permissions"
+import { getPermissions } from "@/actions/not-safe/permissions"
 import { PermissionMatrix } from "@/components/permission-matrix"
 
 export default async function PermissionsPage() {

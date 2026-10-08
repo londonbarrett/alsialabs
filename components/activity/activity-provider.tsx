@@ -1,6 +1,6 @@
 "use client"
 
-import type { Reminder } from "@/actions/reminders"
+import type { Reminder } from "@/actions/not-safe/reminders"
 import {
   ActivityStoreContext,
   createActivityStore,

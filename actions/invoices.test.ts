@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/actions/stores", () => ({
+vi.mock("@/actions/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -33,7 +33,7 @@ vi.mock("@/lib/drizzle/client", async () => {
   return { db }
 })
 
-import { getEffectiveStoreId } from "@/actions/stores"
+import { getEffectiveStoreId } from "@/actions/not-safe/stores"
 import { auth, hasPermission } from "@/lib/auth"
 import * as schema from "@/lib/drizzle/schema"
 import {

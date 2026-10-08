@@ -1,6 +1,6 @@
 import { CalendarView } from "@/components/calendar/calendar-view"
 import { PageHeader } from "@/components/common/page-header"
-import { getCalendarRoutines } from "@/actions/calendar"
+import { getCalendarRoutines } from "@/actions/not-safe/calendar"
 import { getMyTasks } from "@/actions/tasks"
 import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"

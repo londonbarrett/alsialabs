@@ -24,10 +24,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Plus, Trash2 } from "lucide-react"
-import { manageModule, togglePermission } from "@/actions/permissions"
+import { manageModule, togglePermission } from "@/actions/not-safe/permissions"
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { toast } from "sonner"
-import type { PermissionMatrixItem } from "@/actions/permissions"
+import type { PermissionMatrixItem } from "@/actions/not-safe/permissions"
 
 type Role = { id: string; name: string }
 

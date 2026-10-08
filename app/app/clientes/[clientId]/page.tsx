@@ -3,13 +3,13 @@ import { TimelineProvider } from "@/components/clients/timeline-provider"
 import { ClientInfoCard } from "@/components/clients/client-info-card"
 import { ClientSwitcher } from "@/components/clients/client-switcher"
 import { PageHeader } from "@/components/common/page-header"
-import { getClientActivities } from "@/actions/activities"
+import { getClientActivities } from "@/actions/not-safe/activities"
 import { getClientByClientId } from "@/actions/clients"
 import {
   getClientInvoices,
   getClientPayments,
 } from "@/actions/invoices"
-import { getClientReminders } from "@/actions/reminders"
+import { getClientReminders } from "@/actions/not-safe/reminders"
 import { auth, hasPermission } from "@/lib/auth"
 import type {
   ClientActivity,
