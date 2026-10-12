@@ -1,7 +1,11 @@
 "use client"
 
-import type { TaskFormValues } from "@/components/projects/task-dialog"
-import { useSettle } from "@/hooks/use-settle"
+import {
+  type TaskPriorityDTO,
+  type TaskStatus,
+  type TaskWithCommentCountDTO,
+} from "@/actions/schemas/task"
+import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 import {
   createComment as createCommentAction,
   deleteComment as deleteCommentAction,
@@ -9,28 +13,33 @@ import {
   updateComment as updateCommentAction,
 } from "@/actions/task-comments"
 import {
-  createTask,
+  createTask as createTaskAction,
   deleteTask as deleteTaskAction,
-  updateTask,
+  updateTask as updateTaskAction,
   updateTaskPriority as updateTaskPriorityAction,
   updateTaskStatus as updateTaskStatusAction,
 } from "@/actions/tasks"
-import type {
-  Task,
-  TaskPriority,
-  TaskStatus,
-} from "@/lib/drizzle/schema"
-import type { TaskCommentWithAuthor } from "@/lib/types"
+import type { TaskFormValues } from "@/components/projects/task-dialog"
+import { useSettle } from "@/hooks/use-settle"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
 import { useCallback } from "react"
 import { toast } from "sonner"
-import type { TaskWithCommentCount } from "./project-tasks-reducer"
 import { useProjectTasksStore } from "./project-tasks-store"
 
-/** `updateTaskStatus` is built from `sessionAction`, so its data is untyped. */
-type StatusResultData = { nextTask?: Task }
+function toTaskPayload(projectId: string, values: TaskFormValues) {
+  return {
+    projectId,
+    name: values.name,
+    description: values.description,
+    cost: values.cost,
+    status: values.status as TaskStatus,
+    priority: values.priority as TaskPriorityDTO,
+    dueDate: values.dueDate,
+    assigneeId: values.assigneeId,
+  }
+}
 
 /**
  * Every project-task and project-task-comment mutation, so `tasks-card` and
@@ -49,8 +58,8 @@ export function useProjectTasksActions() {
   const store = useProjectTasksStore()
   const { run } = useOptimisticAction(store)
 
-  const { executeAsync: executeCreate } = useAction(createTask)
-  const { executeAsync: executeUpdate } = useAction(updateTask)
+  const { executeAsync: executeCreate } = useAction(createTaskAction)
+  const { executeAsync: executeUpdate } = useAction(updateTaskAction)
   const { executeAsync: executeDelete } = useAction(deleteTaskAction)
   const { executeAsync: executeStatus } = useAction(
     updateTaskStatusAction
@@ -81,55 +90,65 @@ export function useProjectTasksActions() {
     [store, t]
   )
 
-  async function saveTask({
+  async function createTask({
     projectId,
     values,
     optimisticTask,
-    editingTaskId,
   }: {
     projectId: string
     values: TaskFormValues
-    optimisticTask: TaskWithCommentCount
-    editingTaskId: string | null
+    optimisticTask: TaskWithCommentCountDTO
   }) {
-    const isEdit = editingTaskId !== null
-    const payload = {
-      projectId,
-      name: values.name,
-      description: values.description,
-      cost: values.cost,
-      status: values.status as TaskStatus,
-      priority: values.priority as TaskPriority,
-      dueDate: values.dueDate,
-      assigneeId: values.assigneeId,
-    }
-
     const result = await run(
-      { type: isEdit ? "updateTask" : "addTask", task: optimisticTask },
-      () =>
-        isEdit
-          ? executeUpdate({ ...payload, taskId: editingTaskId })
-          : executeCreate(payload),
+      { type: "addTask", task: optimisticTask },
+      () => executeCreate(toTaskPayload(projectId, values)),
       {
         commitAction: (r) => ({
           type: "replaceTempTask",
           tempId: optimisticTask.id,
-          task: {
-            // `createTask`/`updateTask` destructure a single `.returning()`
-            // row, so the action's data type is not a complete task.
-            ...(r.data as Task),
-            assigneeName: optimisticTask.assigneeName,
-            commentCount: optimisticTask.commentCount,
-          },
+          task: r.data
+            ? {
+                ...r.data,
+                assigneeName: optimisticTask.assigneeName,
+                commentCount: optimisticTask.commentCount,
+              }
+            : optimisticTask,
         }),
       }
     )
-    settle(
-      result,
-      isEdit
-        ? t("projects.tasks.taskUpdated")
-        : t("projects.tasks.taskCreated")
+    settle(result, t("projects.tasks.taskCreated"))
+  }
+
+  async function updateTask({
+    projectId,
+    taskId,
+    values,
+    optimisticTask,
+  }: {
+    projectId: string
+    taskId: string
+    values: TaskFormValues
+    optimisticTask: TaskWithCommentCountDTO
+  }) {
+    const result = await run(
+      { type: "updateTask", task: optimisticTask },
+      () =>
+        executeUpdate({ ...toTaskPayload(projectId, values), taskId }),
+      {
+        commitAction: (r) => ({
+          type: "replaceTempTask",
+          tempId: optimisticTask.id,
+          task: r.data
+            ? {
+                ...r.data,
+                assigneeName: optimisticTask.assigneeName,
+                commentCount: optimisticTask.commentCount,
+              }
+            : optimisticTask,
+        }),
+      }
     )
+    settle(result, t("projects.tasks.taskUpdated"))
   }
 
   async function deleteTask(projectId: string, taskId: string) {
@@ -154,8 +173,7 @@ export function useProjectTasksActions() {
       {
         // Completing a recurring task can spawn its next occurrence.
         commitAction: (r) => {
-          const nextTask = (r?.data as StatusResultData | undefined)
-            ?.nextTask
+          const nextTask = r?.data?.nextTask
           if (!nextTask) return undefined
           return {
             type: "addTask" as const,
@@ -169,8 +187,7 @@ export function useProjectTasksActions() {
       }
     )
     settle(result, t("projects.tasks.statusChanged"))
-    const nextTask = (result?.data as StatusResultData | undefined)
-      ?.nextTask
+    const nextTask = result?.data?.nextTask
     if (nextTask) {
       toast.success(t("projects.routines.nextOccurrenceCreated"))
     }
@@ -179,7 +196,7 @@ export function useProjectTasksActions() {
   async function updateTaskPriority(
     projectId: string,
     taskId: string,
-    priority: TaskPriority
+    priority: TaskPriorityDTO
   ) {
     const result = await run(
       { type: "updateTaskPriority", taskId, priority },
@@ -201,7 +218,7 @@ export function useProjectTasksActions() {
         taskId
       ]?.find((c) => c.authorId === authorId)
 
-    const tempComment: TaskCommentWithAuthor = {
+    const tempComment: TaskCommentWithAuthorDTO = {
       id: `temp-${Date.now()}`,
       taskId,
       authorId,
@@ -252,7 +269,8 @@ export function useProjectTasksActions() {
 
   return {
     loadComments,
-    saveTask,
+    createTask,
+    updateTask,
     deleteTask,
     updateTaskStatus,
     updateTaskPriority,

@@ -10,16 +10,16 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import type {
-  Expense,
-  TaskPriority,
-  TaskStatus,
-} from "@/lib/drizzle/schema"
-import type { ExpenseWithCategory } from "@/lib/types"
+import type { Expense } from "@/lib/drizzle/schema"
+import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
+import {
+  type TaskPriorityDTO,
+  type TaskStatus,
+  type TaskWithCommentCountDTO,
+} from "@/actions/schemas/task"
 import { useExpensesActions } from "@/stores/expenses/use-expenses-actions"
 import { useExpensesState } from "@/stores/expenses/use-expenses-state"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
-import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
 import { cn } from "cn"
@@ -62,24 +62,25 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const { expenses } = useExpensesState()
   const { saveExpense, deleteExpense } = useExpensesActions()
   const { tasks } = useProjectTasksState()
-  const { saveTask, deleteTask } = useProjectTasksActions()
+  const { createTask, updateTask, deleteTask } =
+    useProjectTasksActions()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<
-    ExpenseWithCategory | undefined
+    ExpenseWithCategoryDTO | undefined
   >()
   const [editingTask, setEditingTask] = useState<
-    TaskWithCommentCount | undefined
+    TaskWithCommentCountDTO | undefined
   >()
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
 
-  async function handleTaskSubmit(data: TaskFormValues) {
+  function handleTaskSubmit(data: TaskFormValues) {
     setEditingTask(undefined)
     setTaskDialogOpen(false)
     const taskStatus = data.status as TaskStatus
-    const taskPriority = data.priority as TaskPriority
+    const taskPriority = data.priority as TaskPriorityDTO
 
-    const optimisticTask: TaskWithCommentCount = {
+    const optimisticTask: TaskWithCommentCountDTO = {
       id: editingTask?.id ?? `temp-${Date.now()}`,
       projectId,
       name: data.name,
@@ -102,12 +103,16 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
       updatedAt: new Date(),
     }
 
-    await saveTask({
-      projectId,
-      values: data,
-      optimisticTask,
-      editingTaskId: editingTask?.id ?? null,
-    })
+    if (editingTask) {
+      updateTask({
+        projectId,
+        taskId: editingTask.id,
+        values: data,
+        optimisticTask,
+      })
+    } else {
+      createTask({ projectId, values: data, optimisticTask })
+    }
   }
 
   function openNew() {
@@ -115,12 +120,12 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     setDialogOpen(true)
   }
 
-  function openEdit(expense: ExpenseWithCategory) {
+  function openEdit(expense: ExpenseWithCategoryDTO) {
     setEditingExpense(expense)
     setDialogOpen(true)
   }
 
-  function openEditTask(task: TaskWithCommentCount) {
+  function openEditTask(task: TaskWithCommentCountDTO) {
     setEditingTask(task)
     setTaskDialogOpen(true)
   }

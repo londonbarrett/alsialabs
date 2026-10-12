@@ -4,9 +4,10 @@ import { RemindersCard } from "@/components/activity/reminders-card"
 import { InactiveClientsCard } from "@/components/activity/inactive-clients-card"
 import { InactiveClientsCardFallback } from "@/components/activity/inactive-clients-card-fallback"
 import { PageHeader } from "@/components/common/page-header"
-import { getInactiveClients } from "@/actions/activity"
-import { getReminders } from "@/actions/reminders"
+import { getInactiveClients } from "@/actions/not-safe/activity"
+import { getReminders } from "@/actions/not-safe/reminders"
 import { auth, hasPermission } from "@/lib/auth"
+import { unwrapResponse } from "@/lib/util/unwrap"
 import { getTranslations } from "next-intl/server"
 import { BellRing } from "lucide-react"
 import { forbidden } from "next/navigation"
@@ -36,7 +37,7 @@ export default async function ActivityPage() {
         subtitle={t("subtitle")}
         icon={BellRing}
       />
-      <ActivityProvider reminders={reminders}>
+      <ActivityProvider reminders={unwrapResponse(reminders)}>
         <RemindersCard />
         <Suspense
           fallback={

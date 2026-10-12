@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest"
 import { createInvoiceStore } from "./invoice-store"
 import { invoiceReducer } from "./invoice-reducer"
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
+import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
 
 function makeInvoice(
-  overrides: Partial<InvoiceWithClientName> = {}
-): InvoiceWithClientName {
+  overrides: Partial<InvoiceWithClientNameDTO> = {}
+): InvoiceWithClientNameDTO {
   return {
     id: "inv-1",
     store_id: "store-1",
@@ -29,7 +29,7 @@ function makeInvoice(
     createdAt: new Date("2024-01-15"),
     updatedAt: new Date("2024-01-15"),
     ...overrides,
-  } as InvoiceWithClientName
+  } as InvoiceWithClientNameDTO
 }
 
 function makePayment(

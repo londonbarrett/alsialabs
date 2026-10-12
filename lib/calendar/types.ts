@@ -44,7 +44,9 @@ export interface CalendarProps {
   onDateClick?: (date: Date) => void
   onEventClick?: (event: CalendarEvent) => void
   /** Fired whenever the visible date range changes via navigation or view switch. */
-  onVisibleRangeChange?: (range: CalendarVisibleRange) => void
+  onVisibleRangeChange?: (
+    range: CalendarVisibleRange
+  ) => void
   className?: string
 }
 

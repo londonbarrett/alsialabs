@@ -1,8 +1,8 @@
-import type { Project } from "@/lib/types"
+import type { ProjectSummaryDTO } from "@/actions/schemas/project"
 
 export type ProjectsAction =
-  | { type: "add"; project: Project }
-  | { type: "replaceTemp"; tempId: string; project: Project }
+  | { type: "add"; project: ProjectSummaryDTO }
+  | { type: "replaceTemp"; tempId: string; project: ProjectSummaryDTO }
 
 let nextOptimisticId = 1
 
@@ -11,9 +11,9 @@ export function nextOptimisticProjectId(): string {
 }
 
 export function projectsReducer(
-  state: Project[],
+  state: ProjectSummaryDTO[],
   action: ProjectsAction
-): Project[] {
+): ProjectSummaryDTO[] {
   switch (action.type) {
     case "add":
       return [action.project, ...state]

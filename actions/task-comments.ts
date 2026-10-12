@@ -1,6 +1,14 @@
 "use server"
 
-import { verifyProjectAccess } from "@/actions/project-access"
+import { verifyProjectAccess } from "@/actions/not-safe/project-access"
+import {
+  CreateTaskCommentSchema,
+  DeleteTaskCommentResultSchema,
+  DeleteTaskCommentSchema,
+  TaskCommentResultSchema,
+  TaskCommentWithAuthorSchema,
+  UpdateTaskCommentSchema,
+} from "@/actions/schemas/task-comment"
 import { db } from "@/lib/drizzle/client"
 import {
   taskCommentsTable,
@@ -8,11 +16,6 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import { returnActionError, sessionAction } from "@/lib/safe-action"
-import {
-  createTaskCommentSchema,
-  deleteTaskCommentSchema,
-  updateTaskCommentSchema,
-} from "@/lib/schemas/task-comment"
 import { asc, eq } from "drizzle-orm"
 import { z } from "zod"
 
@@ -33,6 +36,7 @@ async function getTaskContext(
 export const getTaskComments = sessionAction
   .metadata({ permission: { module: "projects", action: "view" } })
   .inputSchema(z.object({ taskId: z.uuid() }))
+  .outputSchema(z.array(TaskCommentWithAuthorSchema))
   .action(async ({ parsedInput, ctx }) => {
     const { taskId } = parsedInput
     const session = ctx.session
@@ -69,10 +73,11 @@ export const getTaskComments = sessionAction
   })
 
 export const createComment = sessionAction
-  .inputSchema(createTaskCommentSchema)
+  .inputSchema(CreateTaskCommentSchema)
   .metadata({
     permission: { module: "projects", action: "view" },
   })
+  .outputSchema(TaskCommentResultSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { taskId, content } = parsedInput
     const session = ctx.session
@@ -118,10 +123,11 @@ export const createComment = sessionAction
   })
 
 export const updateComment = sessionAction
-  .inputSchema(updateTaskCommentSchema)
+  .inputSchema(UpdateTaskCommentSchema)
   .metadata({
     permission: { module: "projects", action: "view" },
   })
+  .outputSchema(TaskCommentResultSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { commentId, taskId, content } = parsedInput
     const session = ctx.session
@@ -177,10 +183,11 @@ export const updateComment = sessionAction
   })
 
 export const deleteComment = sessionAction
-  .inputSchema(deleteTaskCommentSchema)
+  .inputSchema(DeleteTaskCommentSchema)
   .metadata({
     permission: { module: "projects", action: "view" },
   })
+  .outputSchema(DeleteTaskCommentResultSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { commentId, taskId } = parsedInput
     const session = ctx.session

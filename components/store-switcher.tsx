@@ -17,8 +17,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type { UserStore } from "@/actions/stores"
-import { getUserStores, switchStore } from "@/actions/stores"
+import type { StoreOptionDTO } from "@/actions/schemas/store"
+import { getUserStores, switchStore } from "@/actions/not-safe/stores"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useState, useTransition } from "react"
@@ -35,7 +35,7 @@ export function StoreSwitcher({
   const t = useTranslations("store")
   const router = useRouter()
   const { isMobile } = useSidebar()
-  const [stores, setStores] = useState<UserStore[]>([])
+  const [stores, setStores] = useState<StoreOptionDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [isPending, startTransition] = useTransition()
   const { start: startLoading, stop: stopLoading } =
@@ -44,7 +44,7 @@ export function StoreSwitcher({
   useEffect(() => {
     async function load() {
       const result = await getUserStores()
-      setStores(result)
+      setStores(result.data ?? [])
       setLoading(false)
     }
     load()

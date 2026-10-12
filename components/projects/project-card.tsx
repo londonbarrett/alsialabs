@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
-import { type Project } from "@/lib/types"
+import type { ProjectSummaryDTO } from "@/actions/schemas/project"
 import { cn } from "cn"
 
 const statusConfig: Record<
@@ -83,7 +83,7 @@ function initials(name: string) {
 }
 
 type ProjectCardProps = {
-  project: Project
+  project: ProjectSummaryDTO
   isPending?: boolean
 }
 

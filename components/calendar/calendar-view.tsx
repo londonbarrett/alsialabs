@@ -1,7 +1,11 @@
 "use client"
 
+import { getCalendarTasks } from "@/actions/not-safe/calendar"
+import type {
+  CalendarRoutineDataDTO,
+  CalendarTaskDataDTO,
+} from "@/actions/schemas/calendar"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import { getCalendarTasks } from "@/actions/calendar"
 import type {
   CalendarLabels,
   CalendarVisibleRange,
@@ -9,13 +13,12 @@ import type {
 import { Calendar } from "@/lib/calendar"
 import { paddedRange } from "@/lib/calendar/util/date"
 import { buildCalendarEvents } from "@/lib/calendar/util/events"
-import type { CalendarRoutineData, CalendarTaskData } from "@/lib/types"
 import { toDateKey } from "@/lib/util/schedule"
 import { useCallback, useMemo, useRef, useState } from "react"
 
 export interface CalendarViewProps {
-  tasks: CalendarTaskData[]
-  routines: CalendarRoutineData[]
+  tasks: CalendarTaskDataDTO[]
+  routines: CalendarRoutineDataDTO[]
   locale: string
   labels: Partial<CalendarLabels>
 }
@@ -46,7 +49,7 @@ export function CalendarView({
     useLoadingIndicator()
 
   const handleVisibleRangeChange = useCallback(
-    (visible: CalendarVisibleRange) => {
+    async (visible: CalendarVisibleRange) => {
       const padded = paddedRange(visible)
       setRange((current) =>
         current.from.getTime() === padded.from.getTime() &&
@@ -64,19 +67,17 @@ export function CalendarView({
       const id = ++requestId.current
       startLoading()
       setIsFetching(true)
-      getCalendarTasks({
-        from: toDateKey(padded.from),
-        to: toDateKey(padded.to),
-      })
-        .then((next) => {
-          if (requestId.current !== id) return
-          setTasks(next)
+      try {
+        const result = await getCalendarTasks({
+          from: toDateKey(padded.from),
+          to: toDateKey(padded.to),
         })
-        .catch(() => {})
-        .finally(() => {
-          stopLoading()
-          if (requestId.current === id) setIsFetching(false)
-        })
+        if (requestId.current !== id) return
+        setTasks(result.data ?? [])
+      } finally {
+        stopLoading()
+        if (requestId.current === id) setIsFetching(false)
+      }
     },
     [startLoading, stopLoading]
   )

@@ -1,11 +1,11 @@
 "use client"
 
-import type { Project } from "@/lib/types"
+import type { ProjectSummaryDTO } from "@/actions/schemas/project"
+import { useServerReseed } from "@/hooks/use-server-reseed"
 import {
   createProjectsStore,
   ProjectsStoreContext,
 } from "@/stores/projects/projects-store"
-import { useServerReseed } from "@/hooks/use-server-reseed"
 import { useState } from "react"
 
 /**
@@ -16,7 +16,7 @@ export function ProjectsProvider({
   projects,
   children,
 }: {
-  projects: Project[]
+  projects: ProjectSummaryDTO[]
   children: React.ReactNode
 }) {
   const [store] = useState(() => createProjectsStore(projects))

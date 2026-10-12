@@ -1,5 +1,7 @@
 "use client"
 
+import { searchClients } from "@/actions/clients"
+import type { ClientOptionDTO } from "@/actions/schemas/client"
 import {
   Combobox,
   ComboboxContent,
@@ -16,14 +18,12 @@ import {
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
 import { useDebounced } from "@/hooks/use-debounced"
-import type { ClientOption } from "@/actions/clients"
-import { searchClients } from "@/actions/clients"
 import { useTranslations } from "next-intl"
 import { useRef, useState, useTransition } from "react"
 
 interface ClientComboboxProps {
-  value?: ClientOption | null
-  onValueChange: (client: ClientOption | null) => void
+  value?: ClientOptionDTO | null
+  onValueChange: (client: ClientOptionDTO | null) => void
   error?: string
   disabled?: boolean
   placeholder?: string
@@ -37,7 +37,9 @@ export function ClientCombobox({
   placeholder,
 }: ClientComboboxProps) {
   const t = useTranslations("clients")
-  const [searchResults, setSearchResults] = useState<ClientOption[]>([])
+  const [searchResults, setSearchResults] = useState<ClientOptionDTO[]>(
+    []
+  )
   const [isPending, startTransition] = useTransition()
   const abortRef = useRef<AbortController | null>(null)
 

@@ -8,25 +8,27 @@ import {
 } from "@/lib/drizzle/schema"
 import { returnActionError, storeAction } from "@/lib/safe-action"
 import {
-  createClientSchema,
-  inviteSchema,
-  phoneSchema,
-  updateClientSchema,
-} from "@/lib/schemas/client"
+  ClientOptionSchema,
+  ClientRecordSchema,
+  CreateClientSchema,
+  InviteSchema,
+  PhoneSchema,
+  UpdateClientSchema,
+} from "@/actions/schemas/client"
+import {
+  ExistsSchema,
+  IdSchema,
+  SuccessSchema,
+} from "@/actions/schemas/common"
 import { getRoleIdByName } from "@/lib/util/query-helpers"
 import crypto from "crypto"
 import { and, eq, ilike, or } from "drizzle-orm"
 import { z } from "zod"
 
-export type ClientOption = {
-  id: string
-  name: string
-  phone: string
-}
-
 export const getClientByClientId = storeAction
   .metadata({ permission: { module: "clients", action: "view" } })
-  .inputSchema(z.object({ id: z.uuid() }))
+  .inputSchema(IdSchema)
+  .outputSchema(ClientRecordSchema.nullable())
   .action(async ({ parsedInput, ctx }) => {
     return db
       .select()
@@ -43,6 +45,7 @@ export const getClientByClientId = storeAction
 export const getClientByUserId = storeAction
   .metadata({ permission: { module: "clients", action: "view" } })
   .inputSchema(z.object({ userId: z.uuid() }))
+  .outputSchema(ClientRecordSchema.nullable())
   .action(async ({ parsedInput, ctx }) => {
     return db
       .select()
@@ -58,6 +61,7 @@ export const getClientByUserId = storeAction
 
 export const getClients = storeAction
   .metadata({ permission: { module: "clients", action: "view" } })
+  .outputSchema(z.array(ClientRecordSchema))
   .action(async ({ ctx }) => {
     return db
       .select({
@@ -77,6 +81,7 @@ export const getClients = storeAction
 export const searchClients = storeAction
   .metadata({ permission: { module: "clients", action: "view" } })
   .inputSchema(z.object({ query: z.string() }))
+  .outputSchema(z.array(ClientOptionSchema))
   .action(async ({ parsedInput, ctx }) => {
     const query = parsedInput.query
     if (!query.trim()) return []
@@ -104,8 +109,9 @@ export const checkPhoneExists = storeAction
   .inputSchema(
     z.object({ phone: z.string(), excludeId: z.string().optional() })
   )
+  .outputSchema(ExistsSchema)
   .action(async ({ parsedInput, ctx }) => {
-    const phoneResult = phoneSchema.safeParse(parsedInput.phone)
+    const phoneResult = PhoneSchema.safeParse(parsedInput.phone)
     if (!phoneResult.success) return { exists: false }
     const existing = await db
       .select({ id: clientsTable.id })
@@ -127,7 +133,8 @@ export const createClient = storeAction
     permission: { module: "clients", action: "create" },
     revalidate: ["/app/clientes"],
   })
-  .inputSchema(createClientSchema)
+  .inputSchema(CreateClientSchema)
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { name, phone, location, comments, email } = parsedInput
     const existing = await db
@@ -149,7 +156,7 @@ export const createClient = storeAction
       email: email || null,
       store_id: ctx.storeId,
     })
-    return { success: true as const }
+    return { success: true }
   })
 
 export const updateClient = storeAction
@@ -157,7 +164,8 @@ export const updateClient = storeAction
     permission: { module: "clients", action: "edit" },
     revalidate: ["/app/clientes"],
   })
-  .inputSchema(updateClientSchema)
+  .inputSchema(UpdateClientSchema)
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { id, name, phone, location, comments, email } = parsedInput
     const [existing, existingClient] = await Promise.all([
@@ -206,7 +214,7 @@ export const updateClient = storeAction
         .set({ email })
         .where(eq(usersTable.id, existingClient.userId))
     }
-    return { success: true as const }
+    return { success: true }
   })
 
 export const deleteClient = storeAction
@@ -214,7 +222,8 @@ export const deleteClient = storeAction
     permission: { module: "clients", action: "delete" },
     revalidate: ["/app/clientes"],
   })
-  .inputSchema(z.object({ id: z.uuid() }))
+  .inputSchema(IdSchema)
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     await db
       .delete(clientsTable)
@@ -224,7 +233,7 @@ export const deleteClient = storeAction
           eq(clientsTable.store_id, ctx.storeId)
         )
       )
-    return { success: true as const }
+    return { success: true }
   })
 
 export const inviteClient = storeAction
@@ -232,7 +241,8 @@ export const inviteClient = storeAction
     permission: { module: "clients", action: "invite" },
     revalidate: ["/app/clientes"],
   })
-  .inputSchema(inviteSchema)
+  .inputSchema(InviteSchema)
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { clientId, email: providedEmail } = parsedInput
     const client = await db
@@ -277,7 +287,7 @@ export const inviteClient = storeAction
         email: email!,
         name: client.name,
       })
-      return { success: true as const }
+      return { success: true }
     }
     const userId = crypto.randomUUID()
     await db
@@ -294,7 +304,7 @@ export const inviteClient = storeAction
       email: email!,
       name: client.name,
     })
-    return { success: true as const }
+    return { success: true }
   })
 
 async function sendClientInvitationEmail({

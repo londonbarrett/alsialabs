@@ -1,6 +1,7 @@
 "use client"
 
-import { useSettle } from "@/hooks/use-settle"
+import type { TaskStatus } from "@/actions/schemas/task"
+import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 import {
   createComment as createCommentAction,
   deleteComment as deleteCommentAction,
@@ -8,17 +9,13 @@ import {
   updateComment as updateCommentAction,
 } from "@/actions/task-comments"
 import { updateTaskStatus as updateTaskStatusAction } from "@/actions/tasks"
-import type { Task, TaskStatus } from "@/lib/drizzle/schema"
-import type { TaskCommentWithAuthor } from "@/lib/types"
+import { useSettle } from "@/hooks/use-settle"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
-import { useAction } from "next-safe-action/hooks"
 import { useTranslations } from "next-intl"
+import { useAction } from "next-safe-action/hooks"
 import { useCallback } from "react"
 import { toast } from "sonner"
 import { useMyTasksStore } from "./my-tasks-store"
-
-/** `updateTaskStatus` is built from `sessionAction`, so its data is untyped. */
-type StatusResultData = { nextTask?: Task }
 
 /**
  * Every my-task and my-task-comment mutation, so `MyTasksList` and
@@ -71,16 +68,14 @@ export function useMyTasksActions() {
       {
         // Completing a recurring task can spawn its next occurrence.
         commitAction: (r) => {
-          const nextTask = (r?.data as StatusResultData | undefined)
-            ?.nextTask
+          const nextTask = r?.data?.nextTask
           if (!nextTask) return undefined
           return { type: "addNextTask", sourceTaskId: taskId, nextTask }
         },
       }
     )
     settle(result, t("projects.tasks.statusChanged"))
-    const nextTask = (result?.data as StatusResultData | undefined)
-      ?.nextTask
+    const nextTask = result?.data?.nextTask
     if (nextTask) {
       toast.success(t("projects.routines.nextOccurrenceCreated"))
     }
@@ -99,7 +94,7 @@ export function useMyTasksActions() {
         taskId
       ]?.find((c) => c.authorId === authorId)
 
-    const tempComment: TaskCommentWithAuthor = {
+    const tempComment: TaskCommentWithAuthorDTO = {
       id: `temp-${Date.now()}`,
       taskId,
       authorId,

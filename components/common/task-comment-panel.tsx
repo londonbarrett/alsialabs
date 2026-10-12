@@ -1,5 +1,6 @@
 "use client"
 
+import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 import { TaskCommentBubble } from "@/components/common/task-comment-bubble"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,7 +11,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
-import type { TaskCommentWithAuthor } from "@/lib/types"
 import { RefreshCw, Send } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useEffect, useRef, useState } from "react"
@@ -32,7 +32,7 @@ import { useEffect, useRef, useState } from "react"
 interface TaskCommentPanelProps {
   taskName: string
   description?: string | null
-  comments: TaskCommentWithAuthor[]
+  comments: TaskCommentWithAuthorDTO[]
   loading: boolean
   currentUserId: string
   /** Whether the viewer may delete any comment on the task. */

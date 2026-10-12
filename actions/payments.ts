@@ -3,7 +3,8 @@
 import { db } from "@/lib/drizzle/client"
 import { invoicePaymentsTable, invoicesTable } from "@/lib/drizzle/schema"
 import { returnActionError, sessionAction } from "@/lib/safe-action"
-import { paymentSchema } from "@/lib/schemas/payment"
+import { SuccessSchema } from "@/actions/schemas/common"
+import { PaymentSchema } from "@/actions/schemas/payment"
 import { and, eq, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 
@@ -12,7 +13,8 @@ export const recordPayment = sessionAction
     permission: { module: "sales", action: "create" },
     revalidate: ["/app/ventas"],
   })
-  .inputSchema(paymentSchema.extend({ invoiceId: z.uuid() }))
+  .inputSchema(PaymentSchema.extend({ invoiceId: z.uuid() }))
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { invoiceId, ...data } = parsedInput
     const amount = parseFloat(data.amount) || 0
@@ -70,7 +72,7 @@ export const recordPayment = sessionAction
       })
     })
 
-    return { success: true as const }
+    return { success: true }
   })
 
 // Transaction client injected by `db.transaction` – inferred from the `db` instance
@@ -130,7 +132,8 @@ export const updatePayment = sessionAction
     permission: { module: "sales", action: "edit" },
     revalidate: ["/app/ventas"],
   })
-  .inputSchema(paymentSchema.extend({ paymentId: z.uuid() }))
+  .inputSchema(PaymentSchema.extend({ paymentId: z.uuid() }))
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput }) => {
     const { paymentId, ...data } = parsedInput
     const newAmount = parseFloat(data.amount) || 0
@@ -198,7 +201,7 @@ export const updatePayment = sessionAction
 
     if (!ok) returnActionError("VALIDATION_FAILED")
 
-    return { success: true as const }
+    return { success: true }
   })
 
 export const deletePayment = sessionAction
@@ -207,6 +210,7 @@ export const deletePayment = sessionAction
     revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ paymentId: z.uuid() }))
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput }) => {
     const { paymentId } = parsedInput
     const [payment] = await db
@@ -226,5 +230,5 @@ export const deletePayment = sessionAction
       await syncInvoicePaymentState(tx, payment.invoiceId)
     })
 
-    return { success: true as const }
+    return { success: true }
   })

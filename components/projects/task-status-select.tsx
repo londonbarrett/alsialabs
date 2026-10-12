@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useTranslations } from "next-intl"
-import type { TaskStatus } from "@/lib/drizzle/schema"
+import type { TaskStatus } from "@/actions/schemas/task"
 
 const taskStatusColors: Record<string, string> = {
   todo: "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400",
@@ -45,7 +45,8 @@ export function TaskStatusSelect({
     <Select
       value={status}
       onValueChange={(value: unknown) => {
-        if (typeof value === 'string' && value) onStatusChange(value as TaskStatus)
+        if (typeof value === "string" && value)
+          onStatusChange(value as TaskStatus)
       }}
       items={allowedStatuses.map((s) => ({
         value: s,

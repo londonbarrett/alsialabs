@@ -6,11 +6,11 @@ vi.mock("@/lib/auth", () => ({
   isSuperUser: vi.fn(),
 }))
 
-vi.mock("@/actions/project-access", () => ({
+vi.mock("@/actions/not-safe/project-access", () => ({
   verifyProjectAccess: vi.fn(),
 }))
 
-vi.mock("@/actions/stores", () => ({
+vi.mock("@/actions/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -40,7 +40,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { verifyProjectAccess } from "@/actions/project-access"
+import { verifyProjectAccess } from "@/actions/not-safe/project-access"
 import { revalidatePath } from "next/cache"
 import {
   createNextRoutineTask,
@@ -134,11 +134,12 @@ describe("routines actions", () => {
 
   describe("getProjectRoutines", () => {
     it("returns the routines of an accessible project", async () => {
-      state.mock.onSelect(schema.routinesTable).respond([ROUTINE])
+      const withAssignee = { ...ROUTINE, assigneeName: null }
+      state.mock.onSelect(schema.routinesTable).respond([withAssignee])
 
       const result = await getProjectRoutines({ projectId: PROJECT_ID })
 
-      expect(result.data).toEqual([ROUTINE])
+      expect(result.data).toEqual([withAssignee])
       expect(mockHasPermission).toHaveBeenCalledWith(
         "user-1",
         "projects",

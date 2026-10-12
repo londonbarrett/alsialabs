@@ -1,5 +1,5 @@
-import type { ClientTimelineEntry } from "@/actions/client-timeline"
-import type { Reminder } from "@/actions/reminders"
+import type { ClientTimelineEntryDTO } from "@/actions/schemas/client-timeline"
+import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
 import type {
   ClientActivity,
   ClientReminder,
@@ -7,14 +7,14 @@ import type {
 
 /** One expanded inactive-client row: its own slice of the client's timeline. */
 export interface ClientActivityList {
-  entries: ClientTimelineEntry[]
+  entries: ClientTimelineEntryDTO[]
   hasMore: boolean
   loaded: boolean
 }
 
 export interface ActivityState {
   /** Every reminder across every client, active and completed. */
-  reminders: Reminder[]
+  reminders: ReminderRecordDTO[]
   /** Keyed by clientId, and only for rows that have been expanded. */
   activities: Record<string, ClientActivityList>
 }
@@ -22,7 +22,7 @@ export interface ActivityState {
 export type ActivityAction =
   | {
       type: "addReminder"
-      reminder: Reminder
+      reminder: ReminderRecordDTO
       /**
        * Set when the reminder was created from an expanded row, whose activity
        * list shows the same client's reminders and would otherwise not show it.
@@ -30,7 +30,11 @@ export type ActivityAction =
       activityClientId?: string
     }
   | { type: "completeReminder"; id: string }
-  | { type: "patchReminder"; id: string; patch: Partial<Reminder> }
+  | {
+      type: "patchReminder"
+      id: string
+      patch: Partial<ReminderRecordDTO>
+    }
   | { type: "deleteReminder"; id: string }
   /**
    * Swaps the temp row for the real one the server saved. Activities have no
@@ -43,19 +47,19 @@ export type ActivityAction =
   | {
       type: "replaceTempReminder"
       tempId: string
-      reminder: Reminder
+      reminder: ReminderRecordDTO
       activityClientId?: string
     }
   | {
       type: "setClientActivity"
       clientId: string
-      entries: ClientTimelineEntry[]
+      entries: ClientTimelineEntryDTO[]
       hasMore: boolean
     }
   | {
       type: "addClientActivity"
       clientId: string
-      entry: ClientTimelineEntry
+      entry: ClientTimelineEntryDTO
     }
   | {
       type: "patchClientActivity"
@@ -102,7 +106,9 @@ function patchClientActivities(
  */
 function patchAllClientActivities(
   state: ActivityState,
-  patch: (entry: ClientTimelineEntry) => ClientTimelineEntry | null
+  patch: (
+    entry: ClientTimelineEntryDTO
+  ) => ClientTimelineEntryDTO | null
 ): ActivityState {
   return {
     ...state,
@@ -113,7 +119,7 @@ function patchAllClientActivities(
           ...activities,
           entries: activities.entries
             .map(patch)
-            .filter((e): e is ClientTimelineEntry => e !== null),
+            .filter((e): e is ClientTimelineEntryDTO => e !== null),
         },
       ])
     ),
@@ -126,8 +132,8 @@ function patchAllClientActivities(
  * carry are synthesized so the shared row component can render either shape.
  */
 function toClientActivityReminder(
-  reminder: Reminder
-): ClientTimelineEntry {
+  reminder: ReminderRecordDTO
+): ClientTimelineEntryDTO {
   const now = new Date()
   return {
     kind: "reminder",
@@ -148,7 +154,7 @@ function toClientActivityReminder(
  * Pure reducer — the store applies it to derive optimistic state.
  *
  * The reminders list completes by marking the row done rather than removing it.
- * Entries in a client activity list are the narrower `ClientTimelineEntry` shape
+ * Entries in a client activity list are the narrower `ClientTimelineEntryDTO` shape
  * (activities and reminders only, no invoices or payments) that the activity
  * page shows inline for a single client.
  */
@@ -254,24 +260,26 @@ export function activityReducer(
         action.clientId,
         (activities) => ({
           ...activities,
-          entries: activities.entries.map((e): ClientTimelineEntry => {
-            if (e.id !== action.id) return e
-            // `kind` discriminates the union, so each branch spreads onto a row
-            // of the matching shape.
-            if (e.kind === "activity" && action.kind === "activity") {
-              return {
-                ...e,
-                ...(action.patch as Partial<ClientActivity>),
+          entries: activities.entries.map(
+            (e): ClientTimelineEntryDTO => {
+              if (e.id !== action.id) return e
+              // `kind` discriminates the union, so each branch spreads onto a row
+              // of the matching shape.
+              if (e.kind === "activity" && action.kind === "activity") {
+                return {
+                  ...e,
+                  ...(action.patch as Partial<ClientActivity>),
+                }
               }
-            }
-            if (e.kind === "reminder" && action.kind === "reminder") {
-              return {
-                ...e,
-                ...(action.patch as Partial<ClientReminder>),
+              if (e.kind === "reminder" && action.kind === "reminder") {
+                return {
+                  ...e,
+                  ...(action.patch as Partial<ClientReminder>),
+                }
               }
+              return e
             }
-            return e
-          }),
+          ),
         })
       )
     case "deleteClientActivity":

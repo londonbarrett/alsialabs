@@ -3,7 +3,7 @@
 import { StatusBadge } from "@/components/sales/status-badge"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type { MyInvoice } from "@/actions/invoices"
+import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
 import { getMyInvoiceDetails } from "@/actions/invoices"
 import type { InvoiceItem, InvoicePayment } from "@/lib/drizzle/schema"
 import { formatCurrency } from "@/lib/util/money"
@@ -25,7 +25,7 @@ function InvoiceDetailsRow({
   details,
   loading,
 }: {
-  invoice: MyInvoice
+  invoice: MyInvoiceDTO
   details: Details | null
   loading: boolean
 }) {
@@ -64,7 +64,7 @@ function InvoiceDetailsRow({
   )
 }
 
-export function MyInvoicesRow({ invoice }: { invoice: MyInvoice }) {
+export function MyInvoicesRow({ invoice }: { invoice: MyInvoiceDTO }) {
   const [expanded, setExpanded] = useState(false)
   const [details, setDetails] = useState<Details | null>(null)
   const [loading, setLoading] = useState(false)

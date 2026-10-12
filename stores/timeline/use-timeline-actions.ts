@@ -1,26 +1,27 @@
 "use client"
 
-import type { PaymentFormValues } from "@/components/sales/payment-form"
-import type { ActivityFormData } from "@/actions/activities"
-import {
-  deleteActivity as deleteActivityAction,
-  upsertActivity,
-} from "@/actions/activities"
 import {
   createInvoice as createInvoiceAction,
   updateInvoice as updateInvoiceAction,
 } from "@/actions/invoices"
 import {
-  deletePayment as deletePaymentAction,
-  updatePayment as updatePaymentAction,
-} from "@/actions/payments"
+  deleteActivity as deleteActivityAction,
+  upsertActivity,
+} from "@/actions/not-safe/activities"
 import {
   completeReminder as completeReminderAction,
   deleteReminder as deleteReminderAction,
   upsertReminder,
-} from "@/actions/reminders"
+} from "@/actions/not-safe/reminders"
+import {
+  deletePayment as deletePaymentAction,
+  updatePayment as updatePaymentAction,
+} from "@/actions/payments"
+import type { ActivityFormDTO } from "@/actions/schemas/activity"
+import type { InvoiceDTO } from "@/actions/schemas/invoice"
+import type { PaymentFormValues } from "@/components/sales/payment-form"
+import { useSettle } from "@/hooks/use-settle"
 import type { Invoice } from "@/lib/drizzle/schema"
-import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { ReminderSubmitData, SettleResult } from "@/lib/types"
 import { computeInvoiceTotals } from "@/lib/util/invoices"
 import {
@@ -28,11 +29,10 @@ import {
   buildTempInvoice,
   buildTempReminder,
 } from "@/lib/util/temp-entries"
-import { useTimelineStore } from "./timeline-store"
-import { type TimelineEntryAction } from "./timeline-reducer"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
-import { useSettle } from "@/hooks/use-settle"
 import { useTranslations } from "next-intl"
+import { type TimelineEntryAction } from "./timeline-reducer"
+import { useTimelineStore } from "./timeline-store"
 
 /**
  * Mutations for the client detail page, where the timeline is the list on
@@ -47,7 +47,7 @@ export function useTimelineActions() {
   const { run } = useOptimisticAction(useTimelineStore())
 
   async function createInvoice(
-    data: InvoiceFormData
+    data: InvoiceDTO
   ): Promise<SettleResult> {
     const entry = buildTempInvoice(data)
     const result = await run(
@@ -67,7 +67,7 @@ export function useTimelineActions() {
   }
 
   async function updateInvoice(
-    data: InvoiceFormData,
+    data: InvoiceDTO,
     invoiceId: string
   ): Promise<SettleResult> {
     const totals = computeInvoiceTotals(data.items)
@@ -105,7 +105,7 @@ export function useTimelineActions() {
           type: "patch",
           kind: "reminder",
           id: entry.id,
-          patch: r.reminder ?? {},
+          patch: r.data ?? {},
         }),
       }
     )
@@ -131,18 +131,17 @@ export function useTimelineActions() {
     settle(result, t("reminders.reminderUpdated"))
   }
 
-  async function createActivity(data: ActivityFormData): Promise<void> {
+  async function createActivity(data: ActivityFormDTO): Promise<void> {
     const entry = buildTempActivity(data)
     const result = await run(
       { type: "add", entry },
-      // TODO: migrate to safe actions
       () => upsertActivity(data),
       {
         commitAction: (r): TimelineEntryAction => ({
           type: "patch",
           kind: "activity",
           id: entry.id,
-          patch: r.success ? r.activity : {},
+          patch: r.data ?? {},
         }),
       }
     )
@@ -150,7 +149,7 @@ export function useTimelineActions() {
   }
 
   async function updateActivity(
-    data: ActivityFormData,
+    data: ActivityFormDTO,
     editingId: string
   ): Promise<void> {
     const result = await run(

@@ -1,14 +1,12 @@
-import type { TaskCommentWithAuthor } from "@/lib/types"
+import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import type { TaskWithCommentCountDTO } from "@/actions/schemas/task"
 import { describe, expect, it } from "vitest"
-import {
-  EMPTY_COMMENTS,
-  type TaskWithCommentCount,
-} from "./project-tasks-reducer"
+import { EMPTY_COMMENTS } from "./project-tasks-reducer"
 import { createProjectTasksStore } from "./project-tasks-store"
 
 function makeTask(
-  overrides: Partial<TaskWithCommentCount> = {}
-): TaskWithCommentCount {
+  overrides: Partial<TaskWithCommentCountDTO> = {}
+): TaskWithCommentCountDTO {
   return {
     id: "task-1",
     projectId: "project-1",
@@ -25,12 +23,12 @@ function makeTask(
     commentCount: 0,
     assigneeName: null,
     ...overrides,
-  } satisfies TaskWithCommentCount
+  } satisfies TaskWithCommentCountDTO
 }
 
 function makeComment(
-  overrides: Partial<TaskCommentWithAuthor> = {}
-): TaskCommentWithAuthor {
+  overrides: Partial<TaskCommentWithAuthorDTO> = {}
+): TaskCommentWithAuthorDTO {
   return {
     id: "comment-1",
     taskId: "task-1",
@@ -41,7 +39,7 @@ function makeComment(
     createdAt: new Date("2024-01-02"),
     updatedAt: new Date("2024-01-02"),
     ...overrides,
-  } satisfies TaskCommentWithAuthor
+  } satisfies TaskCommentWithAuthorDTO
 }
 
 describe("createProjectTasksStore", () => {

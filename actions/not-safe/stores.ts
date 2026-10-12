@@ -2,73 +2,75 @@
 
 import { db } from "@/lib/drizzle/client"
 import { storesTable } from "@/lib/drizzle/schema"
+import type { StoreOptionDTO } from "@/actions/schemas/store"
 import { auth, isRetailer, requirePermission } from "@/lib/auth"
-import { getActionT } from "@/lib/util/i18n-actions"
+import { runAction, throwActionError } from "@/lib/action-result"
 import { eq } from "drizzle-orm"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 
 export async function getStores() {
-  const t = await getActionT("actions.stores")
-  try {
-    await requirePermission("products", "view")
-  } catch {
-    throw new Error(t("forbidden"))
-  }
-  return db
-    .select({
-      id: storesTable.id,
-      name: storesTable.name,
-    })
-    .from(storesTable)
-}
-
-export type StoreOption = Awaited<ReturnType<typeof getStores>>[number]
-
-export async function getUserStores() {
-  const session = await auth()
-  if (!session?.user?.id) return []
-
-  if (session.user.role === "retailer") {
-    return db
+  return runAction<StoreOptionDTO[]>(async () => {
+    try {
+      await requirePermission("products", "view")
+    } catch {
+      throwActionError("FORBIDDEN")
+    }
+    return await db
       .select({
         id: storesTable.id,
         name: storesTable.name,
       })
       .from(storesTable)
-      .where(eq(storesTable.owner_id, session.user.id))
-  }
-
-  return db
-    .select({
-      id: storesTable.id,
-      name: storesTable.name,
-    })
-    .from(storesTable)
+  })
 }
 
-export type UserStore = Awaited<
-  ReturnType<typeof getUserStores>
->[number]
+export async function getUserStores() {
+  return runAction<StoreOptionDTO[]>(async () => {
+    const session = await auth()
+    if (!session?.user?.id) return []
+
+    if (session.user.role === "retailer") {
+      return await db
+        .select({
+          id: storesTable.id,
+          name: storesTable.name,
+        })
+        .from(storesTable)
+        .where(eq(storesTable.owner_id, session.user.id))
+    }
+
+    return await db
+      .select({
+        id: storesTable.id,
+        name: storesTable.name,
+      })
+      .from(storesTable)
+  })
+}
 
 export async function switchStore(storeId: string | null) {
-  const session = await auth()
-  if (!session?.user?.id) return
+  return runAction(async () => {
+    const session = await auth()
+    if (!session?.user?.id) throwActionError("UNAUTHORIZED")
 
-  if (storeId === null) {
-    const c = await cookies()
-    c.delete("store_id")
-  } else {
-    const c = await cookies()
-    c.set("store_id", storeId, {
-      path: "/app",
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30,
-    })
-  }
+    if (storeId === null) {
+      const c = await cookies()
+      c.delete("store_id")
+    } else {
+      const c = await cookies()
+      c.set("store_id", storeId, {
+        path: "/app",
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 30,
+      })
+    }
 
-  revalidatePath("/app", "layout")
+    revalidatePath("/app", "layout")
+
+    return { success: true }
+  })
 }
 
 export async function getScopedStoreId(): Promise<string | null> {

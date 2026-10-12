@@ -1,25 +1,23 @@
 "use client"
 
 import { InvoicesCard } from "@/components/sales/invoices-card"
-import {
-  MonthlyRevenueChart,
-  type MonthlyRevenue,
-} from "@/components/sales/monthly-revenue-chart"
-import {
-  TopClientsChart,
-  type TopClient,
-} from "@/components/sales/top-clients-chart"
+import { MonthlyRevenueChart } from "@/components/sales/monthly-revenue-chart"
+import { TopClientsChart } from "@/components/sales/top-clients-chart"
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import type {
+  MonthlyRevenueDTO,
+  TopClientByRevenueDTO,
+} from "@/actions/schemas/sales"
 import { useTranslations } from "next-intl"
 
 interface SalesViewProps {
-  monthlyRevenue?: MonthlyRevenue[]
-  topClients?: TopClient[]
+  monthlyRevenue?: MonthlyRevenueDTO[]
+  topClients?: TopClientByRevenueDTO[]
 }
 
 export function SalesView({

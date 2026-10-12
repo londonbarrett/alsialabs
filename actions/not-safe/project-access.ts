@@ -8,11 +8,13 @@ import {
 } from "@/lib/drizzle/schema"
 import { and, eq } from "drizzle-orm"
 
+import type { ProjectAccessResultDTO } from "@/actions/schemas/project"
+
 export async function verifyProjectAccess(
   projectId: string,
   sessionUserId: string,
   sessionRole: string | null
-): Promise<{ hasAccess: boolean; isOwner: boolean }> {
+): Promise<ProjectAccessResultDTO> {
   const session = { user: { role: sessionRole } }
   if (isSuperUser(session)) return { hasAccess: true, isOwner: true }
 

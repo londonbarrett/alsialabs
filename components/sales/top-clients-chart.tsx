@@ -13,17 +13,11 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import type { TopClientByRevenueDTO } from "@/actions/schemas/sales"
 import { useTranslations } from 'next-intl'
 
-export interface TopClient {
-  clientId: string
-  clientName: string
-  totalRevenue: string
-  invoiceCount: number
-}
-
 interface TopClientsChartProps {
-  data: TopClient[]
+  data: TopClientByRevenueDTO[]
 }
 
 function formatCurrency(value: number) {

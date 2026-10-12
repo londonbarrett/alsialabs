@@ -1,11 +1,11 @@
 import type { Task } from "@/lib/drizzle/schema"
-import type { MyTask } from "@/actions/tasks"
-import type { TaskCommentWithAuthor } from "@/lib/types"
+import type { MyTaskDTO } from "@/actions/schemas/task"
+import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 import { describe, expect, it } from "vitest"
 import { EMPTY_COMMENTS, type MyTasksState } from "./my-tasks-reducer"
 import { createMyTasksStore } from "./my-tasks-store"
 
-function makeTask(overrides: Partial<MyTask> = {}): MyTask {
+function makeTask(overrides: Partial<MyTaskDTO> = {}): MyTaskDTO {
   return {
     id: "task-1",
     projectId: "project-1",
@@ -26,7 +26,7 @@ function makeTask(overrides: Partial<MyTask> = {}): MyTask {
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     ...overrides,
-  } satisfies MyTask
+  } satisfies MyTaskDTO
 }
 
 /** A bare task row, as `updateTaskStatus` returns inside `nextTask`. */
@@ -49,8 +49,8 @@ function makeNextTask(overrides: Partial<Task> = {}): Task {
 }
 
 function makeComment(
-  overrides: Partial<TaskCommentWithAuthor> = {}
-): TaskCommentWithAuthor {
+  overrides: Partial<TaskCommentWithAuthorDTO> = {}
+): TaskCommentWithAuthorDTO {
   return {
     id: "comment-1",
     taskId: "task-1",
@@ -61,7 +61,7 @@ function makeComment(
     createdAt: new Date("2024-01-02"),
     updatedAt: new Date("2024-01-02"),
     ...overrides,
-  } satisfies TaskCommentWithAuthor
+  } satisfies TaskCommentWithAuthorDTO
 }
 
 describe("createMyTasksStore", () => {

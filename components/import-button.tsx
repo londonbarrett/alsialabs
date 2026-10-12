@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { importClients } from "@/actions/import-clients"
+import { importClients } from "@/actions/not-safe/import-clients"
+import { useActionError } from "@/lib/util/action-errors"
 
 interface ImportButtonProps {
   onSuccess?: () => void
@@ -13,6 +14,7 @@ interface ImportButtonProps {
 
 export function ImportButton({ onSuccess }: ImportButtonProps) {
   const t = useTranslations("import")
+  const translateError = useActionError()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
 
@@ -29,13 +31,17 @@ export function ImportButton({ onSuccess }: ImportButtonProps) {
     try {
       const result = await importClients(formData)
 
-      if (result.success) {
+      if (result.serverError || result.validationErrors) {
+        toast.error(
+          result.serverError
+            ? translateError(result.serverError.code)
+            : t("importFailed")
+        )
+      } else {
         toast.success(
-          t("imported", { count: result.importedCount ?? 0 })
+          t("imported", { count: result.data?.importedCount ?? 0 })
         )
         onSuccess?.()
-      } else {
-        toast.error(result.error || t("importFailed"))
       }
     } catch {
       toast.error(t("importFailedUnexpected"))

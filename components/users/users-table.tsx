@@ -11,8 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { UserDialog } from "@/components/users/user-dialog"
-import type { UserWithRole } from "@/actions/users"
 import { deleteUser } from "@/actions/users"
+import type { UserWithRoleDTO } from "@/actions/schemas/user"
 import { useActionError } from "@/lib/util/action-errors"
 import { Pen, Plus, Trash2 } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -23,7 +23,7 @@ import { toast } from "sonner"
 type Role = { id: string; name: string }
 
 type Props = {
-  users: UserWithRole[]
+  users: UserWithRoleDTO[]
   roles: Role[]
   currentUserId: string
 }
@@ -33,10 +33,10 @@ export function UsersTable({ users, roles }: Props) {
   const t = useTranslations()
   const translateError = useActionError()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [editingUser, setEditingUser] = useState<UserWithRole | null>(
+  const [editingUser, setEditingUser] = useState<UserWithRoleDTO | null>(
     null
   )
-  const [deletingUser, setDeletingUser] = useState<UserWithRole | null>(
+  const [deletingUser, setDeletingUser] = useState<UserWithRoleDTO | null>(
     null
   )
   const [deleting, setDeleting] = useState(false)

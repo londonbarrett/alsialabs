@@ -1,20 +1,31 @@
 import {
+  ActionOutputDataValidationError,
   createSafeActionClient,
-  returnServerError,
 } from "next-safe-action"
 import { z } from "zod"
 import { auth, isSuperUser, hasPermission } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/actions/stores"
-import { verifyProjectAccess } from "@/actions/project-access"
+import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { verifyProjectAccess } from "@/actions/not-safe/project-access"
 import { revalidatePath, updateTag } from "next/cache"
 import type { ActionErrorCode } from "@/actions/error-codes"
+import { ActionError as ActionErrorCodes } from "@/actions/error-codes"
+import {
+  ActionError,
+  type ServerError,
+  throwActionError,
+} from "@/lib/action-result"
 
 // ---------- Helpers ----------
 
-type ServerError = { code: ActionErrorCode }
-
 export const returnActionError = (code: ActionErrorCode): never =>
-  returnServerError({ code })
+  throwActionError(code)
+
+function toServerError(error: unknown): ServerError {
+  if (error instanceof ActionError) {
+    return { code: error.code }
+  }
+  return { code: ActionErrorCodes.INTERNAL_SERVER_ERROR }
+}
 
 // ---------- Base client ----------
 
@@ -29,8 +40,17 @@ export const actionClient = createSafeActionClient({
     })
   },
   handleServerError(e): ServerError {
-    console.error("[safe-action]", e)
-    return { code: "FORBIDDEN" }
+    if (e instanceof ActionOutputDataValidationError) {
+      console.error(
+        "[safe-action] output validation failed: action return does not match its .outputSchema",
+        e.validationErrors
+      )
+      return { code: ActionErrorCodes.INTERNAL_SERVER_ERROR }
+    }
+    if (!(e instanceof ActionError)) {
+      console.error("[safe-action]", e)
+    }
+    return toServerError(e)
   },
 }).use(async ({ next, metadata }) => {
   const start = Date.now()

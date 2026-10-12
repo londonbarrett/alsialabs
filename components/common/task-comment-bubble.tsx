@@ -1,5 +1,6 @@
 "use client"
 
+import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 import {
   Avatar,
   AvatarFallback,
@@ -7,7 +8,6 @@ import {
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import type { TaskCommentWithAuthor } from "@/lib/types"
 import { Pencil, Trash2 } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -18,7 +18,7 @@ import { useState } from "react"
  * which draft text is being edited belongs to the row, not the panel.
  */
 interface TaskCommentBubbleProps {
-  comment: TaskCommentWithAuthor
+  comment: TaskCommentWithAuthorDTO
   currentUserId: string
   /** Whether the viewer may delete any comment on the task. */
   canModerate: boolean

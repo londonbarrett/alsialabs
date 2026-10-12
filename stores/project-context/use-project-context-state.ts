@@ -1,12 +1,12 @@
 "use client"
 
-import type { ProjectContext } from "@/actions/projects"
+import type { ProjectContextDTO } from "@/actions/schemas/project"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 import { useStore } from "zustand"
 import type { ProjectContextAction } from "./project-context-reducer"
 import { useProjectContextStore } from "./project-context-store"
 
-type StoreType = OptimisticStore<ProjectContext, ProjectContextAction>
+type StoreType = OptimisticStore<ProjectContextDTO, ProjectContextAction>
 
 export function useProjectContextState() {
   const store = useProjectContextStore()

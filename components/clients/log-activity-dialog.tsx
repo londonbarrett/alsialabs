@@ -1,9 +1,9 @@
 "use client"
 
+import type { ActivityFormDTO } from "@/actions/schemas/activity"
 import { Dialog } from "@/components/common/dialog"
 import { Field } from "@/components/form-field"
 import { Button } from "@/components/ui/button"
-import type { ActivityFormData } from "@/actions/activities"
 import type { ClientActivity } from "@/lib/drizzle/schema"
 import { cn } from "cn"
 import { useTranslations } from "next-intl"
@@ -16,10 +16,7 @@ interface LogActivityDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   activity?: ClientActivity
-  onSubmit: (
-    data: ActivityFormData,
-    editingId?: string
-  ) => Promise<void>
+  onSubmit: (data: ActivityFormDTO, editingId?: string) => Promise<void>
 }
 
 export function LogActivityDialog({
@@ -66,10 +63,7 @@ function LogActivityForm({
   clientId: string
   activity?: ClientActivity
   onOpenChange: (open: boolean) => void
-  onSubmit: (
-    data: ActivityFormData,
-    editingId?: string
-  ) => Promise<void>
+  onSubmit: (data: ActivityFormDTO, editingId?: string) => Promise<void>
 }) {
   const t = useTranslations()
 

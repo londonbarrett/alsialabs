@@ -1,5 +1,5 @@
-import type { ActivityFormData } from "@/actions/activities"
-import type { InvoiceFormData } from "@/lib/schemas/invoice"
+import type { ActivityFormDTO } from "@/actions/schemas/activity"
+import type { InvoiceDTO } from "@/actions/schemas/invoice"
 import type {
   ClientActivity,
   ClientReminder,
@@ -12,7 +12,7 @@ export type TempReminderEntry = { kind: "reminder" } & ClientReminder
 export type TempInvoiceEntry = { kind: "invoice" } & Invoice
 
 export function buildTempActivity(
-  data: ActivityFormData
+  data: ActivityFormDTO
 ): TempActivityEntry {
   return {
     kind: "activity",
@@ -50,7 +50,7 @@ export function buildTempReminder(data: {
 }
 
 export function buildTempInvoice(
-  data: InvoiceFormData
+  data: InvoiceDTO
 ): TempInvoiceEntry {
   const totals = computeInvoiceTotals(data.items)
   const paid = Math.max(0, parseFloat(data.paidAmount || "0") || 0)

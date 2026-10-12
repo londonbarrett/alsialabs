@@ -17,14 +17,14 @@ import {
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
 import { useDebounced } from "@/hooks/use-debounced"
-import type { UserOption } from "@/actions/users"
 import { searchUsers } from "@/actions/users"
+import type { UserOptionDTO } from "@/actions/schemas/user"
 import { UserPlus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRef, useState, useTransition } from "react"
 
 interface UserInviteInputProps {
-  onSelect: (user: UserOption) => void
+  onSelect: (user: UserOptionDTO) => void
   placeholder?: string
   excludedIds?: string[]
 }
@@ -35,10 +35,11 @@ export function UserInviteInput({
   excludedIds,
 }: UserInviteInputProps) {
   const t = useTranslations("projects")
-  const [searchResults, setSearchResults] = useState<UserOption[]>([])
-  const [selectedValue, setSelectedValue] = useState<UserOption | null>(
-    null
+  const [searchResults, setSearchResults] = useState<UserOptionDTO[]>(
+    []
   )
+  const [selectedValue, setSelectedValue] =
+    useState<UserOptionDTO | null>(null)
   const [isSearching, startSearchTransition] = useTransition()
   const abortRef = useRef<AbortController | null>(null)
 
@@ -54,7 +55,7 @@ export function UserInviteInput({
 
     startSearchTransition(async () => {
       const result = await searchUsers({ query, excludedIds })
-      const results = (result.data ?? []) as UserOption[]
+      const results = result.data ?? []
       const filtered = excludedIds?.length
         ? results.filter((u) => !excludedIds.includes(u.id))
         : results

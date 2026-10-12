@@ -26,11 +26,4 @@ describe("defaultIsSuccess", () => {
       defaultIsSuccess({ validationErrors: { name: ["required"] } })
     ).toBe(false)
   })
-
-  it("honours the store-action success envelope", () => {
-    expect(defaultIsSuccess({ success: true })).toBe(true)
-    expect(
-      defaultIsSuccess({ success: false, error: "nope" })
-    ).toBe(false)
-  })
 })

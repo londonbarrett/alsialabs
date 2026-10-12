@@ -1,21 +1,23 @@
 import type {
-  ProjectContext,
-  ProjectDetail,
-  ProjectOwner,
-} from "@/actions/projects"
-import type { ProjectMember } from "@/lib/types"
+  ProjectContextDTO,
+  ProjectDetailDTO,
+} from "@/actions/schemas/project"
+import type {
+  ProjectMemberDTO,
+  ProjectOwnerDTO,
+} from "@/actions/schemas/project-people"
 
 export type ProjectContextAction =
-  | { type: "patchProject"; patch: Partial<ProjectDetail> }
-  | { type: "addOwner"; member: ProjectOwner }
-  | { type: "addCollaborator"; member: ProjectMember }
+  | { type: "patchProject"; patch: Partial<ProjectDetailDTO> }
+  | { type: "addOwner"; member: ProjectOwnerDTO }
+  | { type: "addCollaborator"; member: ProjectMemberDTO }
   | { type: "removeOwner"; userId: string }
   | { type: "removeCollaborator"; userId: string }
 
 export function projectContextReducer(
-  state: ProjectContext,
+  state: ProjectContextDTO,
   action: ProjectContextAction
-): ProjectContext {
+): ProjectContextDTO {
   switch (action.type) {
     case "patchProject":
       return {

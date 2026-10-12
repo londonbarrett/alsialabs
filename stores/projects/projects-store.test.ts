@@ -1,4 +1,4 @@
-import type { Project } from "@/lib/types"
+import type { ProjectSummaryDTO } from "@/actions/schemas/project"
 import { createProjectsStore } from "./projects-store"
 import {
   nextOptimisticProjectId,
@@ -10,7 +10,9 @@ const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a00"
 const OTHER_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const TEMP_ID = "optimistic-1"
 
-function makeProject(overrides: Partial<Project> = {}): Project {
+function makeProject(
+  overrides: Partial<ProjectSummaryDTO> = {}
+): ProjectSummaryDTO {
   return {
     id: PROJECT_ID,
     primaryOwnerId: "user-1",

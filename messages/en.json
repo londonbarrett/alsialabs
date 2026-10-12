@@ -893,6 +893,7 @@
     "UNAUTHORIZED": "You must be signed in to perform this action",
     "NOT_FOUND": "The requested resource was not found",
     "VALIDATION_FAILED": "Please check the form for errors",
+    "INTERNAL_SERVER_ERROR": "Something went wrong. Please try again.",
     "PHONE_ALREADY_EXISTS": "A client with this phone number already exists",
     "CLIENT_NOT_FOUND": "Client not found",
     "NO_EMAIL_TO_INVITE": "Client has no email. Provide an email to invite.",

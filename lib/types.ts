@@ -1,16 +1,10 @@
-import type { Routine } from "@/lib/drizzle/schema"
-
-export type ProjectMember = {
-  userId: string
-  userName: string | null
-  userEmail: string | null
-  userImage: string | null
-}
-
-/** A routine row joined with its assignee's display name, as the list renders it. */
-export type RoutineWithAssignee = Routine & {
-  assigneeName: string | null
-}
+/**
+ * Client-only contracts.
+ *
+ * Server response shapes live next to their actions in `actions/schemas/*`;
+ * only types that exist purely for client UI state (submit contracts, event
+ * metadata, settle results) belong here.
+ */
 
 /**
  * The submit contract `RoutineDialog` `components/projects/routines/routine-dialog.tsx`
@@ -28,29 +22,6 @@ export type RoutineSubmitData = {
   startDate: string
   endDate: string
   assigneeId: string | null
-}
-
-export type ExpenseWithCategory = {
-  id: string
-  projectId: string
-  categoryId: string
-  description: string
-  amount: string
-  expenseDate: string
-  createdAt: Date
-  updatedAt: Date
-  categoryName: string | null
-  categorySlug: string | null
-}
-
-export type ProductWithStore = {
-  id: string
-  name: string
-  description: string | null
-  store_id: string
-  store_name: string | null
-  sku: string | null
-  unit: string | null
 }
 
 /** App-level metadata carried by calendar events. */
@@ -74,68 +45,6 @@ export type CalendarEventMeta = {
   time?: string | null
   startDate?: string | null
   endDate?: string | null
-}
-
-export type Project = {
-  id: string
-  primaryOwnerId: string
-  name: string
-  description: string | null
-  status: "active" | "completed" | "cancelled" | "archived"
-  color: string
-  categorySlug: string | null
-  startDate: string
-  endDate: string
-  location: string | null
-  budget: number
-  expenses: number
-  tasksTotal: number
-  tasksCompleted: number
-  inProgressTasks: {
-    id: string
-    title: string
-    assignee: string
-    assigneeImage: string | null
-  }[]
-  owners: { id: string; name: string; image: string | null }[]
-  collaborators: { id: string; name: string; image: string | null }[]
-}
-
-/** Minimal task row needed to build calendar task events. */
-export type CalendarTaskData = {
-  id: string
-  name: string
-  projectId: string
-  projectName: string
-  projectColor: string
-  projectOwnerName: string | null
-  description: string | null
-  cost: string | null
-  status: string
-  priority: string | null
-  routineId: string | null
-  dueDate: Date | null
-  assigneeName: string | null
-  commentCount: number
-}
-
-/** Minimal routine row needed to expand recurring events on the client. */
-export type CalendarRoutineData = {
-  id: string
-  name: string
-  description: string | null
-  cost: string | null
-  projectId: string
-  projectName: string
-  projectColor: string
-  projectOwnerName: string | null
-  assigneeName: string | null
-  recurrence: "daily" | "weekly"
-  interval: number
-  daysOfWeek: string[] | null
-  time: string | null
-  startDate: string | null
-  endDate: string | null
 }
 
 /**
@@ -167,20 +76,4 @@ export type SettleResult = {
   success: boolean
   error?: string
   fieldErrors?: Record<string, string[] | undefined>
-}
-
-/**
- * A task comment joined with its author's profile, as `getTaskComments` returns.
- * Shared by the project tasks store and the `my-tasks` comments controller,
- * since both render the same comment row.
- */
-export type TaskCommentWithAuthor = {
-  id: string
-  taskId: string
-  authorId: string
-  authorName: string | null
-  authorImage: string | null
-  content: string
-  createdAt: Date
-  updatedAt: Date
 }

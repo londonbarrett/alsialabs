@@ -1,7 +1,7 @@
 "use client"
 
 import { useServerReseed } from "@/hooks/use-server-reseed"
-import type { ExpenseWithCategory } from "@/lib/types"
+import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
 import {
   createExpensesStore,
   ExpensesStoreContext,
@@ -12,7 +12,7 @@ export function ExpensesProvider({
   expenses,
   children,
 }: {
-  expenses: ExpenseWithCategory[]
+  expenses: ExpenseWithCategoryDTO[]
   children: React.ReactNode
 }) {
   const [store] = useState(() => createExpensesStore(expenses))

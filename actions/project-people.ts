@@ -1,5 +1,12 @@
 "use server"
 
+import {
+  MemberInputSchema,
+  ProjectMemberSchema,
+  ProjectMembershipSchema,
+  ProjectOwnerSchema,
+  ProjectPrimaryOwnerSchema,
+} from "@/actions/schemas/project-people"
 import { db } from "@/lib/drizzle/client"
 import {
   projectCollaboratorsTable,
@@ -14,11 +21,6 @@ import {
 } from "@/lib/safe-action"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-
-const memberInputSchema = z.object({
-  projectId: z.uuid(),
-  userId: z.string().min(1),
-})
 
 // ---------- Helpers ----------
 
@@ -92,6 +94,7 @@ async function requireOwnerMember(
 export const getProjectOwners = sessionAction
   .metadata({ permission: { module: "projects", action: "view" } })
   .inputSchema(z.object({ projectId: z.uuid() }))
+  .outputSchema(z.array(ProjectOwnerSchema))
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
 
@@ -118,6 +121,7 @@ export const getProjectOwners = sessionAction
 export const getProjectCollaborators = sessionAction
   .metadata({ permission: { module: "projects", action: "view" } })
   .inputSchema(z.object({ projectId: z.uuid() }))
+  .outputSchema(z.array(ProjectMemberSchema))
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
 
@@ -138,8 +142,9 @@ export const getProjectCollaborators = sessionAction
 
 // ---------- Mutations ----------
 
-export const addProjectOwner = projectScopedAction(memberInputSchema)
+export const addProjectOwner = projectScopedAction(MemberInputSchema)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
+  .outputSchema(ProjectMembershipSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId, userId } = parsedInput
 
@@ -159,8 +164,9 @@ export const addProjectOwner = projectScopedAction(memberInputSchema)
     return owner
   })
 
-export const removeProjectOwner = projectScopedAction(memberInputSchema)
+export const removeProjectOwner = projectScopedAction(MemberInputSchema)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
+  .outputSchema(ProjectMembershipSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId, userId } = parsedInput
 
@@ -192,6 +198,7 @@ export const transferPrimaryOwner = projectScopedAction(
   })
 )
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
+  .outputSchema(ProjectPrimaryOwnerSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId, newOwnerId } = parsedInput
 
@@ -213,9 +220,10 @@ export const transferPrimaryOwner = projectScopedAction(
   })
 
 export const addProjectCollaborator = projectScopedAction(
-  memberInputSchema
+  MemberInputSchema
 )
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
+  .outputSchema(ProjectMembershipSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId, userId } = parsedInput
 
@@ -236,9 +244,10 @@ export const addProjectCollaborator = projectScopedAction(
   })
 
 export const removeProjectCollaborator = projectScopedAction(
-  memberInputSchema
+  MemberInputSchema
 )
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
+  .outputSchema(ProjectMembershipSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId, userId } = parsedInput
 

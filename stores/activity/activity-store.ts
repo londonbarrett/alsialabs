@@ -1,9 +1,9 @@
-import type { Reminder } from "@/actions/reminders"
+import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
 import { createOptimisticStore } from "@/lib/optimistic-store"
-import { activityReducer } from "./activity-reducer"
 import { createContext, useContext } from "react"
+import { activityReducer } from "./activity-reducer"
 
-export function createActivityStore(reminders: Reminder[]) {
+export function createActivityStore(reminders: ReminderRecordDTO[]) {
   /**
    * `reminders` is the server's slice. `activities` holds the per-client
    * lists loaded when a row is expanded, so a reseed keeps them — otherwise

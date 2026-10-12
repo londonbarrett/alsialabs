@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/actions/stores", () => ({
+vi.mock("@/actions/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -35,7 +35,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/actions/stores"
+import { getEffectiveStoreId } from "@/actions/not-safe/stores"
 import {
   getProducts,
   createProduct,
@@ -178,7 +178,7 @@ describe("products actions", () => {
         id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
       })
 
-      expect(result.data).toBeUndefined()
+      expect(result.data).toEqual({ success: true })
       expect(result.serverError).toBeUndefined()
       expect(mockHasPermission).toHaveBeenCalledWith(
         "user-1",

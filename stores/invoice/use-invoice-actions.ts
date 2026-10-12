@@ -1,6 +1,5 @@
 "use client"
 
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
 import {
   cancelInvoice as cancelInvoiceAction,
   createInvoice as createInvoiceAction,
@@ -9,16 +8,16 @@ import {
   reopenInvoice as reopenInvoiceAction,
   updateInvoice as updateInvoiceAction,
 } from "@/actions/invoices"
+import type { InvoiceDTO } from "@/actions/schemas/invoice"
+import { useSettle } from "@/hooks/use-settle"
 import type { Invoice } from "@/lib/drizzle/schema"
-import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { SettleResult } from "@/lib/types"
 import { buildOptimisticInvoice } from "@/lib/util/invoices"
-import { useSettle } from "@/hooks/use-settle"
-import { type InvoiceAction } from "./invoice-reducer"
-import { useInvoiceStore } from "./invoice-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
+import { type InvoiceAction } from "./invoice-reducer"
+import { useInvoiceStore } from "./invoice-store"
 
 /** Optimistic-only context; never sent to the action. */
 interface UpdateInvoiceContext {
@@ -50,7 +49,7 @@ export function useInvoiceActions() {
   )
 
   async function createInvoice(
-    data: InvoiceFormData,
+    data: InvoiceDTO,
     clientName: string | null = null
   ): Promise<SettleResult> {
     const optimistic = buildOptimisticInvoice({
@@ -61,22 +60,24 @@ export function useInvoiceActions() {
       { type: "add", invoice: optimistic },
       () => createInvoiceAction(data),
       {
-        commitAction: (res): InvoiceAction => ({
-          type: "replaceTemp",
-          tempId: optimistic.id,
-          invoice: {
-            ...((res as { data?: unknown })
-              .data as InvoiceWithClientName),
-            clientName: optimistic.clientName,
-          },
-        }),
+        commitAction: (res): InvoiceAction | undefined => {
+          if (!res.data) return undefined
+          return {
+            type: "replaceTemp",
+            tempId: optimistic.id,
+            invoice: {
+              ...res.data,
+              clientName: optimistic.clientName,
+            },
+          }
+        },
       }
     )
     return settle(result, t("sales.invoiceCreated"))
   }
 
   async function updateInvoice(
-    data: InvoiceFormData,
+    data: InvoiceDTO,
     context: UpdateInvoiceContext
   ): Promise<SettleResult> {
     const { invoiceId, editingInvoice, clientName = null } = context
@@ -90,14 +91,16 @@ export function useInvoiceActions() {
       { type: "update", invoice: optimistic },
       () => updateInvoiceAction({ ...data, invoiceId }),
       {
-        commitAction: (res): InvoiceAction => ({
-          type: "update",
-          invoice: {
-            ...((res as { data?: unknown })
-              .data as InvoiceWithClientName),
-            clientName: optimistic.clientName,
-          },
-        }),
+        commitAction: (res): InvoiceAction | undefined => {
+          if (!res.data) return undefined
+          return {
+            type: "update",
+            invoice: {
+              ...res.data,
+              clientName: optimistic.clientName,
+            },
+          }
+        },
       }
     )
     return settle(result, t("sales.invoiceUpdated"))

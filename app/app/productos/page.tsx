@@ -1,6 +1,6 @@
-import { ProductListView } from "@/components/products/product-list-view"
+import { getUserStores } from "@/actions/not-safe/stores"
 import { getProducts } from "@/actions/products"
-import { getUserStores } from "@/actions/stores"
+import { ProductListView } from "@/components/products/product-list-view"
 import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { forbidden } from "next/navigation"
@@ -15,12 +15,13 @@ export default async function ProductsPage() {
     forbidden()
   }
 
-  const [productsResult, stores] = await Promise.all([
+  const [productsResult, storesResult] = await Promise.all([
     getProducts(),
     getUserStores(),
   ])
 
   const products = unwrapResponse(productsResult)
+  const stores = storesResult.data ?? []
 
   return <ProductListView products={products} stores={stores} />
 }

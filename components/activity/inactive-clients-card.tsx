@@ -21,7 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { getInactiveClients } from "@/actions/activity"
+import { getInactiveClients } from "@/actions/not-safe/activity"
+import type { ActionResult } from "@/lib/action-result"
+import { unwrapResponse } from "@/lib/util/unwrap"
 import { useTranslations } from "next-intl"
 import { use, useState } from "react"
 import {
@@ -43,7 +45,7 @@ function fetchClients(periodValue: string) {
 }
 
 interface InactiveClientsCardProps {
-  initialClients: Promise<InactiveClient[]>
+  initialClients: Promise<ActionResult<InactiveClient[]>>
   defaultPeriod: string
 }
 
@@ -52,7 +54,7 @@ export function InactiveClientsCard({
   defaultPeriod,
 }: InactiveClientsCardProps) {
   const t = useTranslations()
-  const initialData = use(initialClients)
+  const initialData = unwrapResponse(use(initialClients))
   const [period, setPeriod] = useState(defaultPeriod)
   const [clients, setClients] = useState<InactiveClient[]>(initialData)
   const [loading, setLoading] = useState(false)
@@ -63,7 +65,7 @@ export function InactiveClientsCard({
     setLoading(true)
     try {
       const result = await fetchClients(value)
-      setClients(result)
+      setClients(unwrapResponse(result))
     } finally {
       setLoading(false)
     }

@@ -58,7 +58,12 @@ describe("categories actions", () => {
   describe("getTaxonomies", () => {
     it("returns the list of taxonomies", async () => {
       const fakeTaxonomies = [
-        { id: "tax-1", name: "Product Line", slug: "product-line" },
+        {
+          id: "tax-1",
+          name: "Product Line",
+          slug: "product-line",
+          description: null,
+        },
       ]
       state.mock.onSelect(schema.taxonomyTable).respond(fakeTaxonomies)
 
@@ -245,7 +250,7 @@ describe("categories actions", () => {
         id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
       })
 
-      expect(result.data).toBeUndefined()
+      expect(result.data).toEqual({ success: true })
       expect(result.serverError).toBeUndefined()
       expect(mockHasPermission).toHaveBeenCalledWith(
         "user-1",

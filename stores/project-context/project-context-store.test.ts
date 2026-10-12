@@ -1,5 +1,6 @@
-import type { ProjectOwner, ProjectContext } from "@/actions/projects"
-import type { ProjectMember } from "@/lib/types"
+import type { ProjectOwnerDTO } from "@/actions/schemas/project-people"
+import type { ProjectContextDTO } from "@/actions/schemas/project"
+import type { ProjectMemberDTO } from "@/actions/schemas/project-people"
 import { createProjectContextStore } from "./project-context-store"
 import { projectContextReducer } from "./project-context-reducer"
 import { describe, expect, it } from "vitest"
@@ -8,8 +9,8 @@ const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a00"
 const OTHER_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 
 function makeMember(
-  overrides: Partial<ProjectMember> = {}
-): ProjectMember {
+  overrides: Partial<ProjectMemberDTO> = {}
+): ProjectMemberDTO {
   return {
     userId: "user-2",
     userName: "Luis",
@@ -20,8 +21,8 @@ function makeMember(
 }
 
 function makeOwner(
-  overrides: Partial<ProjectOwner> = {}
-): ProjectOwner {
+  overrides: Partial<ProjectOwnerDTO> = {}
+): ProjectOwnerDTO {
   return {
     ...makeMember({ userId: "user-1", userName: "Ana" }),
     primaryOwnerId: "user-1",
@@ -30,13 +31,13 @@ function makeOwner(
 }
 
 /** An owner row for a user who is not the primary owner. */
-function makeOwnerMember(userId: string): ProjectOwner {
+function makeOwnerMember(userId: string): ProjectOwnerDTO {
   return { ...makeMember({ userId }), primaryOwnerId: "user-1" }
 }
 
 function makeContext(
-  overrides: Partial<ProjectContext> = {}
-): ProjectContext {
+  overrides: Partial<ProjectContextDTO> = {}
+): ProjectContextDTO {
   return {
     project: {
       id: PROJECT_ID,
@@ -61,7 +62,7 @@ function makeContext(
     session: {
       user: { id: "user-1", role: "user" },
       expires: "2026-09-01T00:00:00.000Z",
-    } as unknown as ProjectContext["session"],
+    } as unknown as ProjectContextDTO["session"],
     isCurrentUserAdmin: false,
     categories: [
       { id: "cat-1", slug: "remodel", name: "Remodel" },

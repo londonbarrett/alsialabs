@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Taxonomy/category CRUD with translated category names and read access for non-admin users.
+TaxonomyDTO/category CRUD with translated category names and read access for non-admin users.
 
 ## Requirements
 
@@ -62,7 +62,7 @@ The system SHALL provide a unified category system organized by taxonomy. Each t
 
 ### Requirement: Category name translations
 
-Category names SHALL be translated via i18n using the `categoryNames` namespace, keyed by category slug. Taxonomy names SHALL be translated via the `taxonomyNames` namespace, keyed by taxonomy slug. Components SHALL use `t.has()` to check for translation existence and fall back to the DB-stored name for custom categories without i18n keys.
+Category names SHALL be translated via i18n using the `categoryNames` namespace, keyed by category slug. TaxonomyDTO names SHALL be translated via the `taxonomyNames` namespace, keyed by taxonomy slug. Components SHALL use `t.has()` to check for translation existence and fall back to the DB-stored name for custom categories without i18n keys.
 
 #### Scenario: Display translated category name
 

@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest"
-import type { RoutineWithAssignee } from "@/lib/types"
+import type { RoutineWithAssigneeDTO } from "@/actions/schemas/routine"
 import { routinesReducer } from "./routines-reducer"
 import { createRoutinesStore } from "./routines-store"
 
 function makeRoutine(
-  overrides: Partial<RoutineWithAssignee> = {}
-): RoutineWithAssignee {
+  overrides: Partial<RoutineWithAssigneeDTO> = {}
+): RoutineWithAssigneeDTO {
   return {
     id: "routine-1",
     projectId: "project-1",

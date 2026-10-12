@@ -1,6 +1,6 @@
 "use client"
 
-import type { ClientTimelineEntry } from "@/actions/client-timeline"
+import type { ClientTimelineEntryDTO } from "@/actions/schemas/client-timeline"
 import { ActivityEntryRow } from "@/components/activity/activity-entry-row"
 import { ReminderEntryRow } from "@/components/activity/reminder-entry-row"
 
@@ -13,7 +13,7 @@ import { ReminderEntryRow } from "@/components/activity/reminder-entry-row"
 export function ActivityPageEntry({
   entry,
 }: {
-  entry: ClientTimelineEntry
+  entry: ClientTimelineEntryDTO
 }) {
   return entry.kind === "activity" ? (
     <ActivityEntryRow activity={entry} />

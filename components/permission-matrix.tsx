@@ -24,27 +24,30 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Plus, Trash2 } from "lucide-react"
-import { manageModule, togglePermission } from "@/actions/permissions"
+import { manageModule, togglePermission } from "@/actions/not-safe/permissions"
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { toast } from "sonner"
-import type { PermissionMatrixItem } from "@/actions/permissions"
+import { useActionError } from "@/lib/util/action-errors"
+import { defaultIsSuccess } from "@/lib/util/action-result"
+import type { PermissionMatrixItemDTO } from "@/actions/schemas/permission"
 
 type Role = { id: string; name: string }
 
 type Props = {
-  matrix: PermissionMatrixItem[]
+  matrix: PermissionMatrixItemDTO[]
   roles: Role[]
 }
 
 export function PermissionMatrix({ matrix, roles }: Props) {
   const t = useTranslations("permissions")
+  const translateError = useActionError()
   const [addOpen, setAddOpen] = useState(false)
   const [moduleName, setModuleName] = useState("")
   const [actionsStr, setActionsStr] = useState("")
   const [deleteModule, setDeleteModule] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const modules = new Map<string, PermissionMatrixItem[]>()
+  const modules = new Map<string, PermissionMatrixItemDTO[]>()
   for (const item of matrix) {
     const existing = modules.get(item.module) ?? []
     existing.push(item)
@@ -61,8 +64,12 @@ export function PermissionMatrix({ matrix, roles }: Props) {
       name: moduleName,
       actions,
     })
-    if (!result.success) {
-      toast.error(result.error || t("failedToCreate"))
+    if (!defaultIsSuccess(result)) {
+      toast.error(
+        result.serverError
+          ? translateError(result.serverError.code)
+          : t("failedToCreate")
+      )
     } else {
       toast.success(t("moduleCreated"))
       setAddOpen(false)
@@ -82,8 +89,12 @@ export function PermissionMatrix({ matrix, roles }: Props) {
       action: "delete",
       name: deleteModule,
     })
-    if (!result.success) {
-      toast.error(result.error || t("failedToDelete"))
+    if (!defaultIsSuccess(result)) {
+      toast.error(
+        result.serverError
+          ? translateError(result.serverError.code)
+          : t("failedToDelete")
+      )
     } else {
       toast.success(t("moduleDeleted"))
     }
@@ -101,8 +112,12 @@ export function PermissionMatrix({ matrix, roles }: Props) {
       permissionId,
       enabled: !currentEnabled,
     })
-    if (!result.success) {
-      toast.error(result.error || t("failedToToggle"))
+    if (!defaultIsSuccess(result)) {
+      toast.error(
+        result.serverError
+          ? translateError(result.serverError.code)
+          : t("failedToToggle")
+      )
     }
   }
 

@@ -5,11 +5,11 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/actions/project-access", () => ({
+vi.mock("@/actions/not-safe/project-access", () => ({
   verifyProjectAccess: vi.fn(),
 }))
 
-vi.mock("@/actions/stores", () => ({
+vi.mock("@/actions/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -39,7 +39,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { verifyProjectAccess } from "@/actions/project-access"
+import { verifyProjectAccess } from "@/actions/not-safe/project-access"
 import {
   getExpenseCategories,
   getExpensesByProjectId,
@@ -151,7 +151,17 @@ describe("expenses actions", () => {
 
   describe("createExpense", () => {
     it("creates an expense with valid data", async () => {
-      state.mock.onInsert(schema.expensesTable).respond([])
+      const fakeExpense = {
+        id: EXPENSE_ID,
+        projectId: PROJECT_ID,
+        categoryId: CATEGORY_ID,
+        description: "Fertilizer",
+        amount: "120.00",
+        expenseDate: "2026-08-01",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      state.mock.onInsert(schema.expensesTable).respond([fakeExpense])
 
       const result = await createExpense({
         projectId: PROJECT_ID,
@@ -162,6 +172,7 @@ describe("expenses actions", () => {
       })
 
       expect(result.serverError).toBeUndefined()
+      expect(result.data).toEqual(fakeExpense)
       expect(mockVerifyProjectAccess).toHaveBeenCalledWith(
         PROJECT_ID,
         "user-1",
@@ -203,9 +214,19 @@ describe("expenses actions", () => {
 
   describe("updateExpense", () => {
     it("updates an existing expense", async () => {
+      const fakeExpense = {
+        id: EXPENSE_ID,
+        projectId: PROJECT_ID,
+        categoryId: CATEGORY_ID,
+        description: "Updated",
+        amount: "140.00",
+        expenseDate: "2026-08-02",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
       state.mock
         .onUpdate(schema.expensesTable)
-        .respond([{ id: EXPENSE_ID }])
+        .respond([fakeExpense])
 
       const result = await updateExpense({
         projectId: PROJECT_ID,
@@ -217,6 +238,7 @@ describe("expenses actions", () => {
       })
 
       expect(result.serverError).toBeUndefined()
+      expect(result.data).toEqual(fakeExpense)
       expect(mockHasPermission).toHaveBeenCalledWith(
         "user-1",
         "expenses",

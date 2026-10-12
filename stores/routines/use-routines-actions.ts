@@ -1,17 +1,15 @@
 "use client"
 
-import { useSettle } from "@/hooks/use-settle"
 import {
   createRoutine as createRoutineAction,
   deleteRoutine as deleteRoutineAction,
   updateRoutine as updateRoutineAction,
 } from "@/actions/routines"
+import type { ProjectMemberDTO } from "@/actions/schemas/project-people"
+import type { RoutineWithAssigneeDTO } from "@/actions/schemas/routine"
+import { useSettle } from "@/hooks/use-settle"
 import type { Routine } from "@/lib/drizzle/schema"
-import type {
-  ProjectMember,
-  RoutineSubmitData,
-  RoutineWithAssignee,
-} from "@/lib/types"
+import type { RoutineSubmitData } from "@/lib/types"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
@@ -20,7 +18,7 @@ import { useRoutinesStore } from "./routines-store"
 interface SaveRoutineParams {
   data: RoutineSubmitData
   projectId: string
-  members: ProjectMember[]
+  members: ProjectMemberDTO[]
 }
 
 /** The form hands `recurrence`/`interval` over as plain strings. */
@@ -37,7 +35,9 @@ function buildOptimisticRoutine({
   projectId,
   members,
   editingRoutine,
-}: SaveRoutineParams & { editingRoutine?: RoutineWithAssignee }): RoutineWithAssignee {
+}: SaveRoutineParams & {
+  editingRoutine?: RoutineWithAssigneeDTO
+}): RoutineWithAssigneeDTO {
   const { recurrence, interval } = routinePayload(data)
   return {
     id: editingRoutine?.id ?? `temp-${Date.now()}`,
@@ -78,8 +78,16 @@ export function useRoutinesActions() {
   const { executeAsync: executeUpdate } = useAction(updateRoutineAction)
   const { executeAsync: executeDelete } = useAction(deleteRoutineAction)
 
-  async function createRoutine({ data, projectId, members }: SaveRoutineParams) {
-    const optimistic = buildOptimisticRoutine({ data, projectId, members })
+  async function createRoutine({
+    data,
+    projectId,
+    members,
+  }: SaveRoutineParams) {
+    const optimistic = buildOptimisticRoutine({
+      data,
+      projectId,
+      members,
+    })
     const result = await run(
       { type: "add", routine: optimistic },
       () => executeCreate({ ...routinePayload(data), projectId }),
@@ -108,7 +116,7 @@ export function useRoutinesActions() {
     members,
     editingRoutine,
   }: SaveRoutineParams & {
-    editingRoutine: RoutineWithAssignee
+    editingRoutine: RoutineWithAssigneeDTO
   }) {
     const optimistic = buildOptimisticRoutine({
       data,

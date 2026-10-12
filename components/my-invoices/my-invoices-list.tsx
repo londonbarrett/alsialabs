@@ -1,5 +1,6 @@
 "use client"
 
+import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
@@ -8,12 +9,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { MyInvoice } from "@/actions/invoices"
 import { useTranslations } from "next-intl"
 import { MyInvoicesRow } from "./my-invoices-row"
 
 interface Props {
-  invoices: MyInvoice[]
+  invoices: MyInvoiceDTO[]
 }
 
 export function MyInvoicesList({ invoices }: Props) {

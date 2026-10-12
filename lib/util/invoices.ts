@@ -1,6 +1,8 @@
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
+import type {
+  InvoiceDTO,
+  InvoiceWithClientNameDTO,
+} from "@/actions/schemas/invoice"
 import type { Invoice, InvoiceStatus } from "@/lib/drizzle/schema"
-import type { InvoiceFormData } from "@/lib/schemas/invoice"
 
 export function computeLineTotal(
   qty: number,
@@ -59,7 +61,7 @@ export function computeInvoiceTotals(items: InvoiceLineTotalsInput[]) {
 }
 
 export interface BuildOptimisticInvoiceInput {
-  data: InvoiceFormData
+  data: InvoiceDTO
   invoiceId?: string
   editingInvoice?: Invoice
   clientName: string | null
@@ -70,7 +72,7 @@ export function buildOptimisticInvoice({
   invoiceId,
   editingInvoice,
   clientName,
-}: BuildOptimisticInvoiceInput): InvoiceWithClientName {
+}: BuildOptimisticInvoiceInput): InvoiceWithClientNameDTO {
   const isEdit = !!invoiceId
   const tempId = `temp-${Date.now()}`
   const totals = computeInvoiceTotals(data.items)
@@ -82,14 +84,12 @@ export function buildOptimisticInvoice({
       : !isEdit && paid > 0
         ? "partially_paid"
         : isEdit
-          ? (editingInvoice?.status as InvoiceStatus) ?? "draft"
+          ? ((editingInvoice?.status as InvoiceStatus) ?? "draft")
           : "draft"
 
   return {
     id: isEdit ? invoiceId! : tempId,
-    store_id:
-      (editingInvoice as unknown as { store_id?: string | null })
-        ?.store_id ?? null,
+    store_id: editingInvoice?.store_id ?? null,
     type: data.type,
     invoiceNumber: isEdit
       ? (editingInvoice?.invoiceNumber ?? "…")
@@ -111,5 +111,5 @@ export function buildOptimisticInvoice({
     createdAt: editingInvoice?.createdAt ?? new Date(),
     updatedAt: new Date(),
     clientName,
-  } as InvoiceWithClientName
+  }
 }

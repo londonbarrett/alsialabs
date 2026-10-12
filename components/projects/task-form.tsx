@@ -17,11 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import type { Task } from "@/lib/drizzle/schema"
 import type {
-  Task,
-  TaskPriority,
+  TaskPriorityDTO,
   TaskStatus,
-} from "@/lib/drizzle/schema"
+} from "@/actions/schemas/task"
 import { combineDateTime } from "@/lib/util/schedule"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
@@ -75,7 +75,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [status, setStatus] = useState<TaskStatus>(
     task?.status ?? "todo"
   )
-  const [priority, setPriority] = useState<TaskPriority>(
+  const [priority, setPriority] = useState<TaskPriorityDTO>(
     task?.priority ?? null
   )
   const [dueDate, setDueDate] = useState(
@@ -208,10 +208,16 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
             }}
             items={[
               { value: "", label: t("projects.tasks.unassigned") },
-              ...members.map((m: { userId: string; userName: string | null; userEmail: string | null }) => ({
-                value: m.userId,
-                label: m.userName || m.userEmail || m.userId,
-              })),
+              ...members.map(
+                (m: {
+                  userId: string
+                  userName: string | null
+                  userEmail: string | null
+                }) => ({
+                  value: m.userId,
+                  label: m.userName || m.userEmail || m.userId,
+                })
+              ),
             ]}
           >
             <SelectTrigger id="assignee" className="w-full">
@@ -223,11 +229,17 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
               <SelectItem value="">
                 {t("projects.tasks.unassigned")}
               </SelectItem>
-              {members.map((m: { userId: string; userName: string | null; userEmail: string | null }) => (
-                <SelectItem key={m.userId} value={m.userId}>
-                  {m.userName || m.userEmail || m.userId}
-                </SelectItem>
-              ))}
+              {members.map(
+                (m: {
+                  userId: string
+                  userName: string | null
+                  userEmail: string | null
+                }) => (
+                  <SelectItem key={m.userId} value={m.userId}>
+                    {m.userName || m.userEmail || m.userId}
+                  </SelectItem>
+                )
+              )}
             </SelectContent>
           </Select>
         </Field>

@@ -1,9 +1,9 @@
 "use client"
 
+import type { InvoiceDTO } from "@/actions/schemas/invoice"
 import { Dialog } from "@/components/common/dialog"
 import { InvoiceForm } from "@/components/sales/invoice-form"
 import type { Invoice } from "@/lib/drizzle/schema"
-import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { SettleResult } from "@/lib/types"
 import { useTimelineActions } from "@/stores/timeline/use-timeline-actions"
 import { useTranslations } from "next-intl"
@@ -25,7 +25,7 @@ export function TimelineInvoiceDialog({
   const { createInvoice, updateInvoice } = useTimelineActions()
 
   async function handleSubmit(
-    data: InvoiceFormData,
+    data: InvoiceDTO,
     invoiceId?: string
   ): Promise<SettleResult> {
     onOpenChange(false)

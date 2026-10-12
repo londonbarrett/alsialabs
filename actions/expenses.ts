@@ -12,9 +12,13 @@ import {
   sessionAction,
 } from "@/lib/safe-action"
 import {
-  createExpenseSchema,
-  updateExpenseSchema,
-} from "@/lib/schemas/expense"
+  CreateExpenseSchema,
+  ExpenseCategoryOptionSchema,
+  ExpenseRecordSchema,
+  ExpenseWithCategorySchema,
+  UpdateExpenseSchema,
+} from "@/actions/schemas/expense"
+import { SuccessSchema } from "@/actions/schemas/common"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 
@@ -22,6 +26,7 @@ import { z } from "zod"
 
 export const getExpenseCategories = sessionAction
   .metadata({})
+  .outputSchema(z.array(ExpenseCategoryOptionSchema))
   .action(async () => {
     return db
       .select({
@@ -44,6 +49,7 @@ export const getExpensesByProjectId = projectScopedAction(
   .metadata({
     permission: { module: "expenses", action: "view" },
   })
+  .outputSchema(z.array(ExpenseWithCategorySchema))
   .action(async ({ parsedInput }) => {
     return db
       .select({
@@ -69,10 +75,11 @@ export const getExpensesByProjectId = projectScopedAction(
 
 // ---------- Mutation actions ----------
 
-export const createExpense = projectScopedAction(createExpenseSchema)
+export const createExpense = projectScopedAction(CreateExpenseSchema)
   .metadata({
     permission: { module: "expenses", action: "create" },
   })
+  .outputSchema(ExpenseRecordSchema)
   .action(async ({ parsedInput }) => {
     const { description, categoryId, amount, expenseDate } = parsedInput
 
@@ -90,10 +97,11 @@ export const createExpense = projectScopedAction(createExpenseSchema)
     return created
   })
 
-export const updateExpense = projectScopedAction(updateExpenseSchema)
+export const updateExpense = projectScopedAction(UpdateExpenseSchema)
   .metadata({
     permission: { module: "expenses", action: "edit" },
   })
+  .outputSchema(ExpenseRecordSchema)
   .action(async ({ parsedInput }) => {
     const { id, description, categoryId, amount, expenseDate } =
       parsedInput
@@ -125,6 +133,7 @@ export const deleteExpense = projectScopedAction(
   .metadata({
     permission: { module: "expenses", action: "delete" },
   })
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput }) => {
     const [deleted] = await db
       .delete(expensesTable)
@@ -139,4 +148,6 @@ export const deleteExpense = projectScopedAction(
     if (!deleted) {
       returnActionError("NOT_FOUND")
     }
+
+    return { success: true }
   })

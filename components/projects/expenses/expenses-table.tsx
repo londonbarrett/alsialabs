@@ -1,5 +1,7 @@
 "use client"
 
+import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
+import type { TaskWithCommentCountDTO } from "@/actions/schemas/task"
 import { ActionMenu } from "@/components/common/action-menu"
 import { Money } from "@/components/common/money"
 import { Badge } from "@/components/ui/badge"
@@ -11,30 +13,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { ExpenseWithCategory } from "@/lib/types"
-import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
 import { useTranslations } from "next-intl"
 
-type ExpenseRow =
+type CombinedExpenseRow =
   | {
       key: string
       type: "task"
-      task: TaskWithCommentCount
+      task: TaskWithCommentCountDTO
       date: string
     }
   | {
       key: string
       type: "expense"
-      expense: ExpenseWithCategory
+      expense: ExpenseWithCategoryDTO
       date: string
     }
 
 interface ExpensesTableProps {
-  rows: ExpenseRow[]
+  rows: CombinedExpenseRow[]
   canEdit: boolean
   canDelete: boolean
-  onEditExpense: (expense: ExpenseWithCategory) => void
-  onEditTask: (task: TaskWithCommentCount) => void
+  onEditExpense: (expense: ExpenseWithCategoryDTO) => void
+  onEditTask: (task: TaskWithCommentCountDTO) => void
   onDeleteExpense: (expenseId: string) => Promise<void>
   onDeleteTask: (taskId: string) => Promise<void>
 }

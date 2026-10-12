@@ -1,56 +1,51 @@
-import type { TaskCommentWithAuthor } from "@/lib/types"
 import type {
-  Task,
-  TaskPriority,
+  TaskPriorityDTO,
   TaskStatus,
-} from "@/lib/drizzle/schema"
-
-export type TaskWithCommentCount = Task & {
-  commentCount: number
-  assigneeName: string | null
-}
+  TaskWithCommentCountDTO,
+} from "@/actions/schemas/task"
+import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 
 /**
  * Stable empty list for a task whose comments have never been loaded, so
  * unopened rows share one identity and never trigger a re-render.
  */
-export const EMPTY_COMMENTS: TaskCommentWithAuthor[] = []
+export const EMPTY_COMMENTS: TaskCommentWithAuthorDTO[] = []
 
 export type ProjectTasksState = {
-  tasks: TaskWithCommentCount[]
-  commentsByTask: Record<string, TaskCommentWithAuthor[]>
+  tasks: TaskWithCommentCountDTO[]
+  commentsByTask: Record<string, TaskCommentWithAuthorDTO[]>
 }
 
 export type ProjectTaskAction =
-  | { type: "addTask"; task: TaskWithCommentCount }
-  | { type: "updateTask"; task: TaskWithCommentCount }
+  | { type: "addTask"; task: TaskWithCommentCountDTO }
+  | { type: "updateTask"; task: TaskWithCommentCountDTO }
   | {
       type: "replaceTempTask"
       tempId: string
-      task: TaskWithCommentCount
+      task: TaskWithCommentCountDTO
     }
   | { type: "deleteTask"; taskId: string }
   | { type: "updateTaskStatus"; taskId: string; status: TaskStatus }
   | {
       type: "updateTaskPriority"
       taskId: string
-      priority: TaskPriority
+      priority: TaskPriorityDTO
     }
   | {
       type: "setComments"
       taskId: string
-      comments: TaskCommentWithAuthor[]
+      comments: TaskCommentWithAuthorDTO[]
     }
   | {
       type: "createComment"
       taskId: string
-      comment: TaskCommentWithAuthor
+      comment: TaskCommentWithAuthorDTO
     }
   | {
       type: "replaceTempComment"
       taskId: string
       tempId: string
-      comment: TaskCommentWithAuthor
+      comment: TaskCommentWithAuthorDTO
     }
   | {
       type: "updateComment"
@@ -69,10 +64,10 @@ export type ProjectTaskAction =
  * where the count disagreed with the list.
  */
 function bumpCommentCount(
-  tasks: TaskWithCommentCount[],
+  tasks: TaskWithCommentCountDTO[],
   taskId: string,
   delta: number
-): TaskWithCommentCount[] {
+): TaskWithCommentCountDTO[] {
   return tasks.map((t) =>
     t.id === taskId
       ? { ...t, commentCount: Math.max(0, t.commentCount + delta) }
@@ -82,10 +77,10 @@ function bumpCommentCount(
 
 /** Reconciles the seeded count with an authoritative fetch. */
 function setCommentCount(
-  tasks: TaskWithCommentCount[],
+  tasks: TaskWithCommentCountDTO[],
   taskId: string,
   count: number
-): TaskWithCommentCount[] {
+): TaskWithCommentCountDTO[] {
   return tasks.map((t) =>
     t.id === taskId ? { ...t, commentCount: count } : t
   )

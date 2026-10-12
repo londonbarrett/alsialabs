@@ -1,19 +1,19 @@
-import type { RoutineWithAssignee } from "@/lib/types"
+import type { RoutineWithAssigneeDTO } from "@/actions/schemas/routine"
 
 export type RoutinesAction =
-  | { type: "add"; routine: RoutineWithAssignee }
-  | { type: "update"; routine: RoutineWithAssignee }
+  | { type: "add"; routine: RoutineWithAssigneeDTO }
+  | { type: "update"; routine: RoutineWithAssigneeDTO }
   | {
       type: "replaceTemp"
       tempId: string
-      routine: RoutineWithAssignee
+      routine: RoutineWithAssigneeDTO
     }
   | { type: "delete"; routineId: string }
 
 export function routinesReducer(
-  state: RoutineWithAssignee[],
+  state: RoutineWithAssigneeDTO[],
   action: RoutinesAction
-): RoutineWithAssignee[] {
+): RoutineWithAssigneeDTO[] {
   switch (action.type) {
     case "add":
       return [action.routine, ...state]

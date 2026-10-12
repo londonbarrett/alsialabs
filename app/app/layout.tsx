@@ -7,7 +7,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { getScopedStoreId } from "@/actions/stores"
+import { getScopedStoreId } from "@/actions/not-safe/stores"
 import { getUserPermissions, requireAuth } from "@/lib/auth"
 
 export default async function DashboardLayout({

@@ -1,13 +1,13 @@
 "use client"
 
 import { PageHeader } from "@/components/common/page-header"
-import { Button } from "@/components/ui/button"
-import { useProjectsState } from "@/stores/projects/use-projects-state"
 import { useHasPermission } from "@/components/common/permissions-provider"
+import { Button } from "@/components/ui/button"
 import {
-  type ProjectOwner,
+  type ProjectOwnerDTO,
   useProjectsActions,
 } from "@/stores/projects/use-projects-actions"
+import { useProjectsState } from "@/stores/projects/use-projects-state"
 import { FolderKanban, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -16,13 +16,10 @@ import { ProjectDialog } from "./project-dialog"
 
 interface ProjectsViewProps {
   categories: { id: string; slug: string; name: string }[]
-  owner: ProjectOwner
+  owner: ProjectOwnerDTO
 }
 
-export function ProjectsView({
-  categories,
-  owner,
-}: ProjectsViewProps) {
+export function ProjectsView({ categories, owner }: ProjectsViewProps) {
   const t = useTranslations()
   const canCreate = useHasPermission("projects:create")
   const [dialogOpen, setDialogOpen] = useState(false)

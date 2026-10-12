@@ -17,7 +17,7 @@ The system SHALL allow authenticated users with `sales:create` permission to rec
 - **WHEN** the user submits a valid payment with amount equal to the remaining balance
 - **THEN** the dialog closes immediately (`setPaymentDialog((s) => ({ ...s, open: false }))` `components/sales/invoices-card.tsx:57` inside `handleRecordPaymentSubmit`), which calls `recordPayment` from `usePaymentActions` `stores/invoice/use-payment-actions.ts` fire-and-forget
 - **AND** the invoices table updates optimistically to `paid`/`paidAmount` through `salesReducer` `stores/invoice/sales-reducer.ts`, and the pending action is committed on success or discarded on failure
-- **AND** the server call is `recordPayment` `actions/payments.ts:10` (`sessionAction` `sales:create`, `paymentSchema` `lib/schemas/payment.ts:3`), whose `serverError` is toasted and whose `validationErrors` revert the optimistic update
+- **AND** the server call is `recordPayment` `actions/payments.ts:10` (`sessionAction` `sales:create`, `PaymentSchema` `actions/schemas/payment.ts:3`), whose `serverError` is toasted and whose `validationErrors` revert the optimistic update
 
 #### Scenario: Record partial payment
 
@@ -83,7 +83,7 @@ The system SHALL allow authenticated users with `sales:edit` permission to edit 
 - **WHEN** a user with `sales:edit` permission clicks "Edit {amount}" on a payment row
 - **THEN** a pre-filled dialog appears
 - **WHEN** the user submits
-- **THEN** `PaymentHistory` `components/sales/payment-history.tsx` closes the dialog and calls `updatePayment` from `usePaymentActions` `stores/invoice/use-payment-actions.ts` fire-and-forget; the `updatePayment` action patches the payment and the parent invoice's `paidAmount`/`status` optimistically through `salesReducer` `stores/invoice/sales-reducer.ts`, and the server call is `updatePayment` `actions/payments.ts:123` (`sales:edit`, `paymentSchema` `lib/schemas/payment.ts:3`)
+- **THEN** `PaymentHistory` `components/sales/payment-history.tsx` closes the dialog and calls `updatePayment` from `usePaymentActions` `stores/invoice/use-payment-actions.ts` fire-and-forget; the `updatePayment` action patches the payment and the parent invoice's `paidAmount`/`status` optimistically through `salesReducer` `stores/invoice/sales-reducer.ts`, and the server call is `updatePayment` `actions/payments.ts:123` (`sales:edit`, `PaymentSchema` `actions/schemas/payment.ts:3`)
 
 #### Scenario: Edited payment would exceed the invoice total
 

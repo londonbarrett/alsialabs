@@ -18,7 +18,7 @@ The system SHALL allow super users to view a table of all users with their roles
 
 ### Requirement: Super can create a user
 
-The system SHALL allow super users to create new users via safe action `createUser` (`sessionAction` `permission: users:manage`, schema `createUserSchema: {email, roleId}`, `isSuperUser` guard) by providing an email and selecting a role. The default role SHALL be "admin". An invitation email SHALL be sent to the new user via Resend and `revalidatePath("/app/usuarios")` + `updateTag("permissions")` SHALL be called.
+The system SHALL allow super users to create new users via safe action `createUser` (`sessionAction` `permission: users:manage`, schema `CreateUserSchema: {email, roleId}`, `isSuperUser` guard) by providing an email and selecting a role. The default role SHALL be "admin". An invitation email SHALL be sent to the new user via Resend and `revalidatePath("/app/usuarios")` + `updateTag("permissions")` SHALL be called.
 
 #### Scenario: Super creates a user
 
@@ -35,7 +35,7 @@ The system SHALL allow super users to create new users via safe action `createUs
 
 ### Requirement: Super can edit a user
 
-The system SHALL allow super users to edit a user's role and details via safe action `updateUser` (`sessionAction` `permission: users:manage`, schema `updateUserSchema: {userId: string.min(1), email, roleId}`, `isSuperUser` guard).
+The system SHALL allow super users to edit a user's role and details via safe action `updateUser` (`sessionAction` `permission: users:manage`, schema `UpdateUserSchema: {userId: string.min(1), email, roleId}`, `isSuperUser` guard).
 
 #### Scenario: Super edits a user
 
@@ -50,7 +50,7 @@ The system SHALL allow super users to edit a user's role and details via safe ac
 
 ### Requirement: Super can delete a user
 
-The system SHALL allow super users to delete users via safe actions (`sessionAction` with `permission: users:manage` and `isSuperUser` guard, schemas `deleteUserSchema: {userId: string.min(1)}`). Deletion SHALL be transactional (`db.transaction` delete `userRoles` then `users`) and SHALL block when the user owns projects (`projects.primaryOwnerId`), stores (`stores.owner_id`), or has `clientActivities`/`clientReminders` (return `REFERENCE_EXISTS`). Orphan users with no `userRoles` row SHALL still be deletable (checked via `usersTable` existence, not `userRoles`). A super user SHALL NOT be able to delete themselves. The system SHALL enforce at least one super user exists at all times. `test-user-*` prefixed IDs (non-UUID) SHALL be accepted.
+The system SHALL allow super users to delete users via safe actions (`sessionAction` with `permission: users:manage` and `isSuperUser` guard, schemas `DeleteUserSchema: {userId: string.min(1)}`). Deletion SHALL be transactional (`db.transaction` delete `userRoles` then `users`) and SHALL block when the user owns projects (`projects.primaryOwnerId`), stores (`stores.owner_id`), or has `clientActivities`/`clientReminders` (return `REFERENCE_EXISTS`). Orphan users with no `userRoles` row SHALL still be deletable (checked via `usersTable` existence, not `userRoles`). A super user SHALL NOT be able to delete themselves. The system SHALL enforce at least one super user exists at all times. `test-user-*` prefixed IDs (non-UUID) SHALL be accepted.
 
 #### Scenario: Super deletes a user
 
