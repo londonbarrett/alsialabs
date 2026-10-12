@@ -2,16 +2,16 @@ import type {
   CalendarEvent,
 } from "../types"
 import type {
-  CalendarRoutineData,
-  CalendarTaskData,
-} from "@/lib/types"
+  CalendarRoutineDataDTO,
+  CalendarTaskDataDTO,
+} from "@/actions/schemas/calendar"
 import { startOfDay, type ScheduleConfig } from "@/lib/util/schedule"
 import { occurrencesInRange } from "./schedule"
 
 const HOUR_MS = 60 * 60 * 1000
 
 function buildTaskEvents(
-  tasks: CalendarTaskData[],
+  tasks: CalendarTaskDataDTO[],
   from: Date,
   to: Date
 ): CalendarEvent[] {
@@ -56,7 +56,7 @@ function buildTaskEvents(
 }
 
 function buildRoutineEvents(
-  routines: CalendarRoutineData[],
+  routines: CalendarRoutineDataDTO[],
   from: Date,
   to: Date
 ): CalendarEvent[] {
@@ -114,8 +114,8 @@ function buildRoutineEvents(
  * routine already has a due date.
  */
 export function buildCalendarEvents(
-  tasks: CalendarTaskData[],
-  routines: CalendarRoutineData[],
+  tasks: CalendarTaskDataDTO[],
+  routines: CalendarRoutineDataDTO[],
   from: Date,
   to: Date
 ): CalendarEvent[] {

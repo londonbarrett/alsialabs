@@ -1,3 +1,4 @@
+import { TaskRecordSchema } from "@/actions/schemas/task"
 import { parseISODate, startOfDay } from "@/lib/util/schedule"
 import { z } from "zod"
 
@@ -35,7 +36,7 @@ const endFutureRefine = (data: z.infer<typeof routineFields>) =>
     startOfDay(new Date()).getTime()
 
 /** Create validation: the create-only date refines included. */
-export const routineSchema = routineFields
+export const RoutineSchema = routineFields
   .refine(endAfterStartRefine, {
     message: "End date must be after start date",
     path: ["endDate"],
@@ -56,23 +57,62 @@ const routineUpdateFields = routineFields.refine(endAfterStartRefine, {
   path: ["endDate"],
 })
 
-export const createRoutineSchema = routineSchema.extend({
+export const CreateRoutineSchema = RoutineSchema.extend({
   projectId: z.uuid(),
 })
 
-export const updateRoutineSchema = routineUpdateFields.extend({
-  projectId: z.uuid(),
-  routineId: z.uuid(),
-})
-
-export const deleteRoutineSchema = z.object({
+export const UpdateRoutineSchema = routineUpdateFields.extend({
   projectId: z.uuid(),
   routineId: z.uuid(),
 })
 
-export const spawnRoutineTaskSchema = z.object({
+export const DeleteRoutineSchema = z.object({
+  projectId: z.uuid(),
+  routineId: z.uuid(),
+})
+
+export const SpawnRoutineTaskSchema = z.object({
   routineId: z.uuid(),
   after: z.coerce.date().nullable().optional(),
 })
 
-export type RoutineFormData = z.infer<typeof routineSchema>
+export type RoutineDTO = z.infer<typeof RoutineSchema>
+
+// ---------- Response schemas ----------
+
+export const RoutineRecordSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  cost: z.string().nullable(),
+  recurrence: z.enum(["daily", "weekly"]),
+  interval: z.number(),
+  daysOfWeek: z.array(z.string()).nullable(),
+  time: z.string().nullable(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+  assigneeId: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+export const RoutineWithAssigneeSchema = RoutineRecordSchema.extend({
+  assigneeName: z.string().nullable(),
+})
+
+export const SpawnRoutineTaskResultSchema = z.discriminatedUnion(
+  "spawned",
+  [
+    z.object({ spawned: z.literal(false) }),
+    z.object({ spawned: z.literal(true), task: TaskRecordSchema }),
+  ]
+)
+
+export type RoutineRecordDTO = z.infer<typeof RoutineRecordSchema>
+export type RoutineWithAssigneeDTO = z.infer<
+  typeof RoutineWithAssigneeSchema
+>
+export type SpawnRoutineTaskResultDTO = z.infer<
+  typeof SpawnRoutineTaskResultSchema
+>

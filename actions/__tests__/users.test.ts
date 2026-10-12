@@ -35,7 +35,6 @@ import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import {
   getAssignableUsers,
   searchUsers,
-  getUserById,
   getUsers,
   createUser,
   updateUser,
@@ -147,51 +146,6 @@ describe("users actions", () => {
     it("returns UNAUTHORIZED when not authenticated", async () => {
       mockAuth.mockResolvedValue(null)
       const result = await searchUsers({ query: "bob" })
-      expect(result.serverError).toEqual({ code: "UNAUTHORIZED" })
-    })
-  })
-
-  describe("getUserById", () => {
-    it("returns user when found", async () => {
-      const fakeUser = {
-        id: "u1",
-        name: "Alice",
-        email: "alice@test.com",
-        image: null,
-      }
-      state.mock.onSelect(schema.usersTable).respond([fakeUser])
-      const result = await getUserById({ userId: "u1" })
-      expect(result.data).toEqual(fakeUser)
-    })
-
-    it("returns null when not found", async () => {
-      state.mock.onSelect(schema.usersTable).respond([])
-      const result = await getUserById({ userId: "u1" })
-      expect(result.data).toBeNull()
-    })
-
-    it("accepts test-user- prefix ids", async () => {
-      const fakeUser = {
-        id: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d",
-        name: "Test",
-        email: "test@test.com",
-        image: null,
-      }
-      state.mock.onSelect(schema.usersTable).respond([fakeUser])
-      const result = await getUserById({
-        userId: "test-user-f3570d4c-8878-46c1-91ef-62401c0f5d5d",
-      })
-      expect(result.data).toEqual(fakeUser)
-    })
-
-    it("returns validation error for empty userId", async () => {
-      const result = await getUserById({ userId: "" })
-      expect(result.validationErrors).toBeDefined()
-    })
-
-    it("returns UNAUTHORIZED when not authenticated", async () => {
-      mockAuth.mockResolvedValue(null)
-      const result = await getUserById({ userId: "u1" })
       expect(result.serverError).toEqual({ code: "UNAUTHORIZED" })
     })
   })

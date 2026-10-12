@@ -47,6 +47,25 @@ const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a00"
 const CATEGORY_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22"
 
+function makeProjectRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: PROJECT_ID,
+    primaryOwnerId: "user-1",
+    categoryId: CATEGORY_ID,
+    name: "New Project",
+    description: null,
+    status: "active",
+    startDate: "2026-08-01",
+    endDate: null,
+    location: "Test Location",
+    budget: null,
+    color: "#3b82f6",
+    createdAt: new Date("2026-08-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    ...overrides,
+  }
+}
+
 function grantAccess(isOwner = true) {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: true,
@@ -71,7 +90,7 @@ describe("projects actions", () => {
     it("creates a project with valid data", async () => {
       state.mock
         .onInsert(schema.projectsTable)
-        .respond([{ id: PROJECT_ID }])
+        .respond([makeProjectRow()])
       state.mock.onInsert(schema.projectOwnersTable).respond([])
 
       const result = await createProject({
@@ -111,7 +130,7 @@ describe("projects actions", () => {
     it("updates an existing project as owner", async () => {
       state.mock
         .onUpdate(schema.projectsTable)
-        .respond([{ id: PROJECT_ID }])
+        .respond([makeProjectRow({ name: "Updated" })])
 
       const result = await updateProject({
         projectId: PROJECT_ID,

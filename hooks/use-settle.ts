@@ -6,9 +6,8 @@ import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 
 /**
- * The two result envelopes every mutation produces:
- * - next-safe-action actions: `{ data, serverError, validationErrors }`
- * - store actions (`upsertReminder`, ...): `{ success, error }`
+ * The standard result every action produces: `{ data }` on success and
+ * `{ serverError: { code } }` or `{ validationErrors }` on failure.
  */
 export interface ActionResult {
   data?: unknown
@@ -19,16 +18,13 @@ export interface ActionResult {
    */
   serverError?: unknown
   validationErrors?: unknown
-  success?: boolean
-  error?: string
 }
 
 /**
- * Standardises the `settle`/`settleToast`/`settleInvoice` helpers that were
- * duplicated across the action hooks: toasts the outcome and returns a
- * `SettleResult`. `validationErrors` are returned for the form to render and
- * are intentionally not toasted. `errorMessage` overrides the generic failure
- * copy for store actions that carry domain-specific wording.
+ * Toasts a mutation result and returns a `SettleResult`. Failure copy is
+ * translated from the server error's code, falling back to `errorMessage` only
+ * when a server error arrives without a code. `validationErrors` are returned
+ * for the form to render and are intentionally not toasted.
  */
 export function useSettle() {
   const t = useTranslations()
@@ -51,30 +47,14 @@ export function useSettle() {
       return { success: false, error }
     }
     if (result?.validationErrors) {
-      // Rendered as field errors by the form; no toast.
       return {
         success: false,
-        error: errorMessage ?? t("common.somethingWentWrong"),
         fieldErrors: result.validationErrors as Record<
           string,
           string[] | undefined
         >,
       }
     }
-    if (typeof result?.success === "boolean") {
-      if (result.success) {
-        toast.success(successMessage)
-        return { success: true }
-      }
-      const error =
-        result.error ?? errorMessage ?? t("common.somethingWentWrong")
-      toast.error(error)
-      return { success: false, error }
-    }
-    // A next-safe-action mutation resolves to `{ data }` when it returns a
-    // value and to `{}` when it returns nothing; every failure envelope
-    // (`serverError`/`validationErrors`) was handled above, so reaching here
-    // means the mutation succeeded.
     toast.success(successMessage)
     return { success: true }
   }

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/tabs"
 import { PageHeader } from "@/components/common/page-header"
 import { CategoryListView } from "./category-list-view"
-import type { Taxonomy } from "@/lib/drizzle/schema"
+import type { TaxonomyDTO } from "@/actions/schemas/category"
 
 type CategoryItem = {
   id: string
@@ -21,7 +21,7 @@ type CategoryItem = {
 }
 
 interface TaxonomyTabsProps {
-  taxonomies: Taxonomy[]
+  taxonomies: TaxonomyDTO[]
   categoriesByTaxonomy: Record<string, CategoryItem[]>
 }
 

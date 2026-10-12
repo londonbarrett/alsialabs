@@ -3,11 +3,17 @@
 import { db } from "@/lib/drizzle/client"
 import { categoryTable, taxonomyTable } from "@/lib/drizzle/schema"
 import { returnActionError, sessionAction } from "@/lib/safe-action"
-import { categorySchema } from "@/lib/schemas/category"
+import {
+  CategoryDetailSchema,
+  CategoryOptionSchema,
+  CreateCategorySchema,
+  SlugSchema,
+  TaxonomySchema,
+  UpdateCategorySchema,
+} from "@/actions/schemas/category"
+import { ExistsSchema, IdSchema, SuccessSchema } from "@/actions/schemas/common"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-
-const slugSchema = z.string().transform((v) => v.trim().toLowerCase())
 
 // ---------- Query actions ----------
 
@@ -15,6 +21,7 @@ export const getTaxonomies = sessionAction
   .metadata({
     permission: { module: "categories", action: "view" },
   })
+  .outputSchema(z.array(TaxonomySchema))
   .action(async () => {
     return db.select().from(taxonomyTable).orderBy(taxonomyTable.slug)
   })
@@ -24,8 +31,9 @@ export const getCategoriesByTaxonomy = sessionAction
     permission: { module: "categories", action: "view" },
   })
   .inputSchema(z.object({ taxonomySlug: z.string() }))
+  .outputSchema(z.array(CategoryDetailSchema))
   .action(async ({ parsedInput }) => {
-    const slug = slugSchema.parse(parsedInput.taxonomySlug)
+    const slug = SlugSchema.parse(parsedInput.taxonomySlug)
 
     return db
       .select({
@@ -49,8 +57,9 @@ export const getCategoriesByTaxonomyList = sessionAction
     permission: { module: "categories", action: "view" },
   })
   .inputSchema(z.object({ taxonomySlug: z.string() }))
+  .outputSchema(z.array(CategoryOptionSchema))
   .action(async ({ parsedInput }) => {
-    const slug = slugSchema.parse(parsedInput.taxonomySlug)
+    const slug = SlugSchema.parse(parsedInput.taxonomySlug)
 
     return db
       .select({
@@ -69,6 +78,7 @@ export const getCategoriesByTaxonomyList = sessionAction
 
 export const getProjectCategories = sessionAction
   .metadata({})
+  .outputSchema(z.array(CategoryOptionSchema))
   .action(async () => {
     return db
       .select({
@@ -96,9 +106,10 @@ export const checkSlugExists = sessionAction
       excludeId: z.string().optional(),
     })
   )
+  .outputSchema(ExistsSchema)
   .action(async ({ parsedInput }) => {
     const { taxonomyId, slug, excludeId } = parsedInput
-    const slugResult = slugSchema.safeParse(slug)
+    const slugResult = SlugSchema.safeParse(slug)
     if (!slugResult.success || !slugResult.data)
       return { exists: false }
 
@@ -124,11 +135,8 @@ export const createCategory = sessionAction
     permission: { module: "categories", action: "create" },
     revalidate: ["/app/categorias"],
   })
-  .inputSchema(
-    categorySchema.extend({
-      taxonomyId: z.string().min(1),
-    })
-  )
+  .inputSchema(CreateCategorySchema)
+  .outputSchema(CategoryDetailSchema)
   .action(async ({ parsedInput }) => {
     const { name, slug, description, taxonomyId } = parsedInput
 
@@ -151,11 +159,8 @@ export const updateCategory = sessionAction
     permission: { module: "categories", action: "edit" },
     revalidate: ["/app/categorias"],
   })
-  .inputSchema(
-    categorySchema.extend({
-      id: z.uuid(),
-    })
-  )
+  .inputSchema(UpdateCategorySchema)
+  .outputSchema(CategoryDetailSchema)
   .action(async ({ parsedInput }) => {
     const { name, slug, description, id } = parsedInput
 
@@ -183,7 +188,8 @@ export const deleteCategory = sessionAction
     permission: { module: "categories", action: "delete" },
     revalidate: ["/app/categorias"],
   })
-  .inputSchema(z.object({ id: z.uuid() }))
+  .inputSchema(IdSchema)
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput }) => {
     const [deleted] = await db
       .delete(categoryTable)
@@ -193,4 +199,6 @@ export const deleteCategory = sessionAction
     if (!deleted) {
       returnActionError("NOT_FOUND")
     }
+
+    return { success: true }
   })

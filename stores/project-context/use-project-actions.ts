@@ -1,13 +1,13 @@
 "use client"
 
-import type { ProjectDetail } from "@/actions/projects"
+import type { ProjectDetailDTO } from "@/actions/schemas/project"
 import {
   deleteProject as deleteProjectAction,
   updateProject as updateProjectAction,
 } from "@/actions/projects"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import { useSettle } from "@/hooks/use-settle"
-import type { UpdateProjectInput } from "@/lib/schemas/project"
+import type { UpdateProjectDTO } from "@/actions/schemas/project"
 import { useProjectContextStore } from "./project-context-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useProjectContextState } from "./use-project-context-state"
@@ -15,7 +15,7 @@ import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
 import { useRouter } from "next/navigation"
 
-type ProjectUpdateValues = Omit<UpdateProjectInput, "projectId">
+type ProjectUpdateValues = Omit<UpdateProjectDTO, "projectId">
 
 /**
  * The action normalises empty strings to null (see `updateProject`), so the
@@ -24,7 +24,7 @@ type ProjectUpdateValues = Omit<UpdateProjectInput, "projectId">
  */
 function toOptimisticPatch(
   values: ProjectUpdateValues
-): Partial<ProjectDetail> {
+): Partial<ProjectDetailDTO> {
   return {
     name: values.name,
     categoryId: values.categoryId,
@@ -63,7 +63,7 @@ export function useProjectActions() {
         // Layer the authoritative row on top so server-side normalisation wins.
         commitAction: (r) => ({
           type: "patchProject",
-          patch: (r.data ?? {}) as Partial<ProjectDetail>,
+          patch: (r.data ?? {}) as Partial<ProjectDetailDTO>,
         }),
       }
     )

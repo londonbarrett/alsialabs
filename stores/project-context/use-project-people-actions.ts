@@ -1,22 +1,24 @@
 "use client"
 
-import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import {
   addProjectCollaborator,
   addProjectOwner,
   removeProjectCollaborator,
   removeProjectOwner,
 } from "@/actions/project-people"
-import type { ProjectOwner } from "@/actions/projects"
-import type { UserOption } from "@/actions/users"
-import type { ProjectMember } from "@/lib/types"
+import type {
+  ProjectMemberDTO,
+  ProjectOwnerDTO,
+} from "@/actions/schemas/project-people"
+import type { UserOptionDTO } from "@/actions/schemas/user"
 import { useSettle } from "@/hooks/use-settle"
-import { useProjectContextStore } from "./project-context-store"
-import { useProjectContextState } from "./use-project-context-state"
+import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
+import { useProjectContextStore } from "./project-context-store"
+import { useProjectContextState } from "./use-project-context-state"
 
-function toMember(user: UserOption): ProjectMember {
+function toMember(user: UserOptionDTO): ProjectMemberDTO {
   return {
     userId: user.id,
     userName: user.name,
@@ -28,9 +30,9 @@ function toMember(user: UserOption): ProjectMember {
 /** A newly added owner is never the primary one, so the row points at whoever
  * already holds it. */
 function toOwner(
-  user: UserOption,
+  user: UserOptionDTO,
   primaryOwnerId: string
-): ProjectOwner {
+): ProjectOwnerDTO {
   return { ...toMember(user), primaryOwnerId }
 }
 
@@ -60,7 +62,7 @@ export function useProjectPeopleActions() {
     removeProjectCollaborator
   )
 
-  async function addOwner(user: UserOption) {
+  async function addOwner(user: UserOptionDTO) {
     const result = await run(
       {
         type: "addOwner",
@@ -78,7 +80,7 @@ export function useProjectPeopleActions() {
     settle(result, t("ownerRemoved"))
   }
 
-  async function addCollaborator(user: UserOption) {
+  async function addCollaborator(user: UserOptionDTO) {
     const result = await run(
       { type: "addCollaborator", member: toMember(user) },
       () => executeAddCollaborator({ projectId, userId: user.id })

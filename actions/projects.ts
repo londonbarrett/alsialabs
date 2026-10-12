@@ -5,6 +5,16 @@ import {
   getProjectCollaborators,
   getProjectOwners,
 } from "@/actions/project-people"
+import { SuccessSchema } from "@/actions/schemas/common"
+import {
+  CreateProjectSchema,
+  ProjectContextSchema,
+  ProjectDetailSchema,
+  ProjectRecordSchema,
+  ProjectSummarySchema,
+  UpdateProjectSchema,
+  type ProjectDetailDTO,
+} from "@/actions/schemas/project"
 import { getUserPermissions, isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
@@ -21,18 +31,13 @@ import {
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
-import {
-  createProjectSchema,
-  updateProjectSchema,
-} from "@/lib/schemas/project"
-import type { ProjectMember } from "@/lib/types"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
-import type { Session } from "next-auth"
 import { z } from "zod"
 
 export const getProjects = sessionAction
   .metadata({ permission: { module: "projects", action: "view" } })
+  .outputSchema(z.array(ProjectDetailSchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
     if (isSuperUser(session as { user: { role: string | null } })) {
@@ -90,17 +95,12 @@ export const getProjects = sessionAction
       .orderBy(desc(projectsTable.createdAt))
   })
 
-export type ProjectWithCategory = NonNullable<
-  Awaited<ReturnType<typeof getProjects>>["data"]
->[number]
-
 export const getProjectsWithDetails = sessionAction
   .metadata({ permission: { module: "projects", action: "view" } })
+  .outputSchema(z.array(ProjectSummarySchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
-    let filteredProjects: NonNullable<
-      Awaited<ReturnType<typeof getProjects>>["data"]
-    >
+    let filteredProjects: ProjectDetailDTO[]
 
     if (isSuperUser(session as { user: { role: string | null } })) {
       filteredProjects = await db
@@ -177,8 +177,8 @@ export const getProjectsWithDetails = sessionAction
       db
         .select({
           projectId: tasksTable.projectId,
-          total: sql<number>`count(*) filter (where ${tasksTable.status} <> 'cancelled')`,
-          completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'done')`,
+          total: sql<number>`(count(*) filter (where ${tasksTable.status} <> 'cancelled'))::int`,
+          completed: sql<number>`(count(*) filter (where ${tasksTable.status} = 'done'))::int`,
         })
         .from(tasksTable)
         .where(inArray(tasksTable.projectId, projectIds))
@@ -338,6 +338,7 @@ export const getProjectById = projectScopedAction(
   z.object({ projectId: z.uuid() })
 )
   .metadata({ permission: { module: "projects", action: "view" } })
+  .outputSchema(ProjectDetailSchema)
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
     const project = await db
@@ -369,16 +370,13 @@ export const getProjectById = projectScopedAction(
     return project
   })
 
-export type ProjectDetail = NonNullable<
-  Awaited<ReturnType<typeof getProjectById>>["data"]
->
-
 export const createProject = sessionAction
   .metadata({
     permission: { module: "projects", action: "create" },
     revalidate: ["/app/proyectos"],
   })
-  .inputSchema(createProjectSchema)
+  .inputSchema(CreateProjectSchema)
+  .outputSchema(ProjectRecordSchema)
   .action(async ({ parsedInput, ctx }) => {
     const session = ctx.session
     const {
@@ -413,12 +411,13 @@ export const createProject = sessionAction
     return created
   })
 
-export const updateProject = projectScopedAction(updateProjectSchema)
+export const updateProject = projectScopedAction(UpdateProjectSchema)
   .metadata({
     permission: { module: "projects", action: "edit" },
     // :projectId interpolated from input AFTER the action commits
     revalidate: ["/app/proyectos", "/app/proyectos/:projectId"],
   })
+  .outputSchema(ProjectRecordSchema)
   .action(async ({ parsedInput, ctx }) => {
     const {
       projectId,
@@ -456,6 +455,7 @@ export const getProjectForEdit = projectScopedAction(
   z.object({ projectId: z.uuid() })
 )
   .metadata({ permission: { module: "projects", action: "view" } })
+  .outputSchema(ProjectRecordSchema)
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
     const project = await db
@@ -488,6 +488,7 @@ export const deleteProject = projectScopedAction(
     permission: { module: "projects", action: "delete" },
     revalidate: ["/app/proyectos"],
   })
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId } = parsedInput
     const project = await db
@@ -505,43 +506,14 @@ export const deleteProject = projectScopedAction(
     await db
       .delete(projectsTable)
       .where(eq(projectsTable.id, projectId))
-    return { success: true as const }
+    return { success: true }
   })
-
-/** A project owner as returned by `getProjectOwners`, which also selects the
- * project's `primaryOwnerId` so the client can resolve the primary owner
- * without a second lookup. */
-export type ProjectOwner = ProjectMember & {
-  primaryOwnerId: string
-}
-
-/** A project category, as returned by `getProjectCategories`. */
-export type ProjectCategoryOption = {
-  id: string
-  slug: string
-  name: string
-}
-
-export interface ProjectContext {
-  project: ProjectDetail
-  owners: ProjectOwner[]
-  collaborators: ProjectMember[]
-  permissions: string[]
-  session: Session
-  isCurrentUserAdmin: boolean
-  /**
-   * The global project taxonomy, used to populate the category select in the
-   * project form. Note this is not project-scoped data — it is identical for
-   * every project — but it is carried here so the detail page does not need a
-   * second query. See `stores/project-context-store.ts`.
-   */
-  categories: ProjectCategoryOption[]
-}
 
 export const getProjectContext = sessionAction
   .metadata({ permission: { module: "projects", action: "view" } })
   .inputSchema(z.object({ projectId: z.uuid() }))
-  .action(async ({ parsedInput, ctx }): Promise<ProjectContext> => {
+  .outputSchema(ProjectContextSchema)
+  .action(async ({ parsedInput, ctx }) => {
     const { projectId } = parsedInput
     const session = ctx.session
     const projectResult = await getProjectById({ projectId })

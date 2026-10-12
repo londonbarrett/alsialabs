@@ -1,16 +1,10 @@
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
+import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
-import {
-  invoiceReducer,
-  type InvoiceAction,
-} from "./invoice-reducer"
-import {
-  paymentReducer,
-  type PaymentAction,
-} from "./payment-reducer"
+import { invoiceReducer, type InvoiceAction } from "./invoice-reducer"
+import { paymentReducer, type PaymentAction } from "./payment-reducer"
 
 export type SalesState = {
-  invoices: InvoiceWithClientName[]
+  invoices: InvoiceWithClientNameDTO[]
   paymentsByInvoiceId: Record<string, InvoicePayment[]>
 }
 
@@ -57,6 +51,9 @@ export function salesReducer(
       }
     }
     default:
-      return { ...state, invoices: invoiceReducer(state.invoices, action) }
+      return {
+        ...state,
+        invoices: invoiceReducer(state.invoices, action),
+      }
   }
 }

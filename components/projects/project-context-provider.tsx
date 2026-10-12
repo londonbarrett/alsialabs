@@ -1,11 +1,11 @@
 "use client"
 
-import type { ProjectContext } from "@/actions/projects"
+import type { ProjectContextDTO } from "@/actions/schemas/project"
+import { useServerReseed } from "@/hooks/use-server-reseed"
 import {
   createProjectContextStore,
   ProjectContextStoreContext,
 } from "@/stores/project-context/project-context-store"
-import { useServerReseed } from "@/hooks/use-server-reseed"
 import { useState } from "react"
 
 /**
@@ -22,7 +22,7 @@ export function ProjectContextProvider({
   context,
   children,
 }: {
-  context: ProjectContext
+  context: ProjectContextDTO
   children: React.ReactNode
 }) {
   const [store] = useState(() => createProjectContextStore(context))

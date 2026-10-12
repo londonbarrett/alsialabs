@@ -134,11 +134,12 @@ describe("routines actions", () => {
 
   describe("getProjectRoutines", () => {
     it("returns the routines of an accessible project", async () => {
-      state.mock.onSelect(schema.routinesTable).respond([ROUTINE])
+      const withAssignee = { ...ROUTINE, assigneeName: null }
+      state.mock.onSelect(schema.routinesTable).respond([withAssignee])
 
       const result = await getProjectRoutines({ projectId: PROJECT_ID })
 
-      expect(result.data).toEqual([ROUTINE])
+      expect(result.data).toEqual([withAssignee])
       expect(mockHasPermission).toHaveBeenCalledWith(
         "user-1",
         "projects",

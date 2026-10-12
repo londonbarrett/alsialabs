@@ -1,13 +1,13 @@
 "use client"
 
+import type { ProjectSummaryDTO } from "@/actions/schemas/project"
 import type { OptimisticStore } from "@/lib/optimistic-store"
-import type { Project } from "@/lib/types"
 import { useMemo } from "react"
 import { useStore } from "zustand"
 import type { ProjectsAction } from "./projects-reducer"
 import { useProjectsStore } from "./projects-store"
 
-type StoreType = OptimisticStore<Project[], ProjectsAction>
+type StoreType = OptimisticStore<ProjectSummaryDTO[], ProjectsAction>
 
 export function useProjectsState() {
   const store = useProjectsStore()

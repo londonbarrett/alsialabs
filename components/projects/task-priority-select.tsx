@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { useTranslations } from "next-intl"
-import type { TaskPriority } from "@/lib/drizzle/schema"
+import type { TaskPriorityDTO } from "@/actions/schemas/task"
 
 const taskPriorityColors: Record<string, string> = {
   urgent:
@@ -19,8 +19,8 @@ const taskPriorityColors: Record<string, string> = {
 
 interface TaskPrioritySelectProps {
   id?: string
-  priority: TaskPriority
-  onPriorityChange: (priority: TaskPriority) => void
+  priority: TaskPriorityDTO
+  onPriorityChange: (priority: TaskPriorityDTO) => void
   disabled?: boolean
   fullWidth?: boolean
 }
@@ -40,7 +40,7 @@ export function TaskPrioritySelect({
     <Select
       value={value}
       onValueChange={(v) =>
-        onPriorityChange(v === "none" ? null : (v as TaskPriority))
+        onPriorityChange(v === "none" ? null : (v as TaskPriorityDTO))
       }
       disabled={disabled}
     >

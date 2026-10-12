@@ -242,3 +242,44 @@ describe("validation errors", () => {
     expect(result.data).toBeUndefined()
   })
 })
+
+describe("output validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuth.mockResolvedValue(
+      buildSession({ id: "user-1", role: "user", name: "Test" })
+    )
+    mockHasPermission.mockResolvedValue(true)
+  })
+
+  it("logs a mismatch and returns a generic error without throwing", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {})
+    const badOutput = sessionAction
+      .metadata({})
+      .outputSchema(z.object({ greeting: z.string() }))
+      .action(
+        async () =>
+          ({ greeting: 123 }) as unknown as { greeting: string }
+      )
+    const result = await badOutput()
+    expect(result.serverError).toEqual({
+      code: "INTERNAL_SERVER_ERROR",
+    })
+    expect(result.data).toBeUndefined()
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining("output validation failed"),
+      expect.anything()
+    )
+    spy.mockRestore()
+  })
+
+  it("returns parsed data when output matches its schema", async () => {
+    const goodOutput = sessionAction
+      .metadata({})
+      .outputSchema(z.object({ greeting: z.string() }))
+      .action(async () => ({ greeting: "hi" }))
+    const result = await goodOutput()
+    expect(result.data).toEqual({ greeting: "hi" })
+    expect(result.serverError).toBeUndefined()
+  })
+})

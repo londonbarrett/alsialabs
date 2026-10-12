@@ -893,6 +893,7 @@
     "UNAUTHORIZED": "Debes iniciar sesión para realizar esta acción",
     "NOT_FOUND": "El recurso solicitado no fue encontrado",
     "VALIDATION_FAILED": "Por favor revisa el formulario en busca de errores",
+    "INTERNAL_SERVER_ERROR": "Algo salió mal. Inténtalo de nuevo.",
     "PHONE_ALREADY_EXISTS": "Ya existe un cliente con este número de teléfono",
     "CLIENT_NOT_FOUND": "Cliente no encontrado",
     "NO_EMAIL_TO_INVITE": "El cliente no tiene correo. Proporciona un correo para invitarlo.",

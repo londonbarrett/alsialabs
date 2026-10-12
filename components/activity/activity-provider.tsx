@@ -1,6 +1,6 @@
 "use client"
 
-import type { Reminder } from "@/actions/not-safe/reminders"
+import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
 import {
   ActivityStoreContext,
   createActivityStore,
@@ -17,7 +17,7 @@ export function ActivityProvider({
   reminders,
   children,
 }: {
-  reminders: Reminder[]
+  reminders: ReminderRecordDTO[]
   children: React.ReactNode
 }) {
   const [store] = useState(() => createActivityStore(reminders))

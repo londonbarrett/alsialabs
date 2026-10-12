@@ -1,11 +1,15 @@
 "use client"
 
-import type { MyInvoice } from "@/actions/invoices"
+import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
 import { formatCurrency } from "@/lib/util/money"
 import { formatISODate } from "@/lib/util/schedule"
 import { useTranslations } from "next-intl"
 
-export function MyInvoiceDetails({ invoice }: { invoice: MyInvoice }) {
+export function MyInvoiceDetails({
+  invoice,
+}: {
+  invoice: MyInvoiceDTO
+}) {
   const t = useTranslations()
   const outstanding = parseFloat(
     invoice.outstandingBalance ?? "0"

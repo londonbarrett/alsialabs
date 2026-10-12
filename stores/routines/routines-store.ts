@@ -1,10 +1,10 @@
+import type { RoutineWithAssigneeDTO } from "@/actions/schemas/routine"
 import { createOptimisticStore } from "@/lib/optimistic-store"
-import type { RoutineWithAssignee } from "@/lib/types"
 import { createContext, useContext } from "react"
 import { routinesReducer } from "./routines-reducer"
 
 export function createRoutinesStore(
-  routines: RoutineWithAssignee[]
+  routines: RoutineWithAssigneeDTO[]
 ) {
   /** The whole state is the server's slice, so a reseed replaces it. */
   return createOptimisticStore({

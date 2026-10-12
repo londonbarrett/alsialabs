@@ -1,16 +1,16 @@
-import type { MyTask } from "@/actions/tasks"
-import type { Task, TaskStatus } from "@/lib/drizzle/schema"
-import type { TaskCommentWithAuthor } from "@/lib/types"
+import type { MyTaskDTO, TaskStatus } from "@/actions/schemas/task"
+import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import type { Task } from "@/lib/drizzle/schema"
 
 /**
  * Stable empty list for a task whose comments have never been loaded, so
  * unopened rows share one identity and never trigger a re-render.
  */
-export const EMPTY_COMMENTS: TaskCommentWithAuthor[] = []
+export const EMPTY_COMMENTS: TaskCommentWithAuthorDTO[] = []
 
 export type MyTasksState = {
-  tasks: MyTask[]
-  commentsByTask: Record<string, TaskCommentWithAuthor[]>
+  tasks: MyTaskDTO[]
+  commentsByTask: Record<string, TaskCommentWithAuthorDTO[]>
 }
 
 export type MyTaskAction =
@@ -19,18 +19,18 @@ export type MyTaskAction =
   | {
       type: "setComments"
       taskId: string
-      comments: TaskCommentWithAuthor[]
+      comments: TaskCommentWithAuthorDTO[]
     }
   | {
       type: "createComment"
       taskId: string
-      comment: TaskCommentWithAuthor
+      comment: TaskCommentWithAuthorDTO
     }
   | {
       type: "replaceTempComment"
       taskId: string
       tempId: string
-      comment: TaskCommentWithAuthor
+      comment: TaskCommentWithAuthorDTO
     }
   | {
       type: "updateComment"
@@ -49,10 +49,10 @@ export type MyTaskAction =
  * a window where the count disagreed with the list.
  */
 function bumpCommentCount(
-  tasks: MyTask[],
+  tasks: MyTaskDTO[],
   taskId: string,
   delta: number
-): MyTask[] {
+): MyTaskDTO[] {
   return tasks.map((t) =>
     t.id === taskId
       ? { ...t, commentCount: Math.max(0, t.commentCount + delta) }
@@ -62,10 +62,10 @@ function bumpCommentCount(
 
 /** Reconciles the seeded count with an authoritative fetch. */
 function setCommentCount(
-  tasks: MyTask[],
+  tasks: MyTaskDTO[],
   taskId: string,
   count: number
-): MyTask[] {
+): MyTaskDTO[] {
   return tasks.map((t) =>
     t.id === taskId ? { ...t, commentCount: count } : t
   )

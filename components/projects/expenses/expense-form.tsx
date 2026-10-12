@@ -11,12 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Expense } from "@/lib/drizzle/schema"
-import type { ExpenseWithCategory } from "@/lib/types"
+import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 
 interface ExpenseFormProps {
-  expense?: ExpenseWithCategory
+  expense?: ExpenseWithCategoryDTO
   projectId: string
   categories: { id: string; slug: string; name: string }[]
   onSubmit: (data: Expense) => void

@@ -1,5 +1,6 @@
 "use client"
 
+import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -15,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
 import type { InvoiceStatus } from "@/lib/drizzle/schema"
 import { Search, X } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -31,8 +31,8 @@ const invoiceStatuses: InvoiceStatus[] = [
 ]
 
 interface InvoiceFiltersProps {
-  invoices: InvoiceWithClientName[]
-  children?: (filteredInvoices: InvoiceWithClientName[]) => ReactNode
+  invoices: InvoiceWithClientNameDTO[]
+  children?: (filteredInvoices: InvoiceWithClientNameDTO[]) => ReactNode
 }
 
 export function InvoiceFilters({
@@ -98,7 +98,10 @@ export function InvoiceFilters({
           </Button>
         )}
         <div className="grid gap-2">
-          <Label htmlFor="invoice-search" className="text-xs text-muted-foreground">
+          <Label
+            htmlFor="invoice-search"
+            className="text-xs text-muted-foreground"
+          >
             {t("common.search")}
           </Label>
           <InputGroup className="w-64">
@@ -130,7 +133,10 @@ export function InvoiceFilters({
             items={{
               all: t("sales.allStatuses"),
               ...Object.fromEntries(
-                invoiceStatuses.map((s) => [s, t(`sales.statuses.${s}`)])
+                invoiceStatuses.map((s) => [
+                  s,
+                  t(`sales.statuses.${s}`),
+                ])
               ),
             }}
           >
@@ -142,7 +148,9 @@ export function InvoiceFilters({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("sales.allStatuses")}</SelectItem>
+              <SelectItem value="all">
+                {t("sales.allStatuses")}
+              </SelectItem>
               {invoiceStatuses.map((status) => (
                 <SelectItem key={status} value={status}>
                   {t(`sales.statuses.${status}`)}
@@ -152,7 +160,10 @@ export function InvoiceFilters({
           </Select>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="date-from" className="text-xs text-muted-foreground">
+          <Label
+            htmlFor="date-from"
+            className="text-xs text-muted-foreground"
+          >
             {t("sales.dateFrom")}
           </Label>
           <Input
@@ -164,7 +175,10 @@ export function InvoiceFilters({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="date-to" className="text-xs text-muted-foreground">
+          <Label
+            htmlFor="date-to"
+            className="text-xs text-muted-foreground"
+          >
             {t("sales.dateTo")}
           </Label>
           <Input

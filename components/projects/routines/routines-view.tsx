@@ -1,8 +1,9 @@
 "use client"
 
+import type { RoutineWithAssigneeDTO } from "@/actions/schemas/routine"
 import { ActionMenu } from "@/components/common/action-menu"
-import { useHasPermission } from "@/components/common/permissions-provider"
 import { Money } from "@/components/common/money"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,10 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type {
-  RoutineSubmitData,
-  RoutineWithAssignee,
-} from "@/lib/types"
+import type { RoutineSubmitData } from "@/lib/types"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useRoutinesActions } from "@/stores/routines/use-routines-actions"
 import { useRoutinesState } from "@/stores/routines/use-routines-state"
@@ -43,7 +41,7 @@ export const RoutinesView = memo(function RoutinesView() {
     useRoutinesActions()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingRoutine, setEditingRoutine] = useState<
-    RoutineWithAssignee | undefined
+    RoutineWithAssigneeDTO | undefined
   >()
 
   const canMutate = isOwner && (canEdit || canDeleteProject)
@@ -72,7 +70,7 @@ export const RoutinesView = memo(function RoutinesView() {
     setDialogOpen(true)
   }, [])
 
-  const openEdit = useCallback((routine: RoutineWithAssignee) => {
+  const openEdit = useCallback((routine: RoutineWithAssigneeDTO) => {
     setEditingRoutine(routine)
     setDialogOpen(true)
   }, [])
@@ -90,7 +88,7 @@ export const RoutinesView = memo(function RoutinesView() {
   )
 
   const getAssigneeName = useCallback(
-    (routine: RoutineWithAssignee) => {
+    (routine: RoutineWithAssigneeDTO) => {
       if (routine.assigneeName) return routine.assigneeName
       const member = members.find(
         (m) => m.userId === routine.assigneeId

@@ -17,7 +17,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
-import type { Reminder } from "@/actions/not-safe/reminders"
+import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
 import type { ReminderSubmitData } from "@/lib/types"
 import { useActivityState } from "@/stores/activity/use-activity-state"
 import { useActivityActions } from "@/stores/activity/use-activity-actions"
@@ -31,7 +31,7 @@ export function RemindersCard() {
   const t = useTranslations()
   const [reminderDialog, setReminderDialog] = useState<{
     open: boolean
-    editing?: Reminder
+    editing?: ReminderRecordDTO
   }>({ open: false })
 
   const { reminders } = useActivityState()
@@ -44,7 +44,7 @@ export function RemindersCard() {
   ) =>
     editingId ? updateReminder(data, editingId) : createReminder(data)
 
-  function handleEdit(reminder: Reminder) {
+  function handleEdit(reminder: ReminderRecordDTO) {
     setReminderDialog({ open: true, editing: reminder })
   }
 

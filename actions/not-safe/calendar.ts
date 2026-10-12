@@ -1,5 +1,14 @@
 "use server"
 
+import type {
+  CalendarRoutineDataDTO,
+  CalendarTaskDataDTO,
+} from "@/actions/schemas/calendar"
+import {
+  CalendarRoutineDataSchema,
+  CalendarTaskDataSchema,
+} from "@/actions/schemas/calendar"
+import { runAction, throwActionError } from "@/lib/action-result"
 import { auth, isSuperUser, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
@@ -10,8 +19,6 @@ import {
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import type { CalendarRoutineData, CalendarTaskData } from "@/lib/types"
-import { getActionT } from "@/lib/util/i18n-actions"
 import { endOfDay, parseISODate, startOfDay } from "@/lib/util/schedule"
 import { and, eq, exists, or, sql } from "drizzle-orm"
 
@@ -30,32 +37,34 @@ function parseRangeDate(value: string | undefined): Date | null {
 export async function getCalendarTasks(range?: {
   from?: string
   to?: string
-}): Promise<CalendarTaskData[]> {
-  const t = await getActionT("actions.projects")
+}) {
+  return runAction<CalendarTaskDataDTO[]>(async () => {
+    try {
+      await requirePermission("projects", "view")
+    } catch {
+      throwActionError("FORBIDDEN")
+    }
 
-  try {
-    await requirePermission("projects", "view")
-  } catch {
-    throw new Error(t("forbidden"))
-  }
+    const session = await auth()
+    const userId = session?.user?.id
+    if (!userId) throwActionError("UNAUTHORIZED")
 
-  const session = await auth()
-  if (!session?.user) throw new Error(t("unauthorized"))
+    const defaultFrom = startOfDay(new Date())
+    defaultFrom.setDate(defaultFrom.getDate() - RANGE_DAYS)
+    const defaultTo = endOfDay(new Date())
+    defaultTo.setDate(defaultTo.getDate() + RANGE_DAYS)
 
-  const defaultFrom = startOfDay(new Date())
-  defaultFrom.setDate(defaultFrom.getDate() - RANGE_DAYS)
-  const defaultTo = endOfDay(new Date())
-  defaultTo.setDate(defaultTo.getDate() + RANGE_DAYS)
+    const from = parseRangeDate(range?.from) ?? defaultFrom
+    const parsedTo = parseRangeDate(range?.to)
+    const to = parsedTo ? endOfDay(parsedTo) : defaultTo
 
-  const from = parseRangeDate(range?.from) ?? defaultFrom
-  const parsedTo = parseRangeDate(range?.to)
-  const to = parsedTo ? endOfDay(parsedTo) : defaultTo
-
-  const tasks = await getVisibleTasks(session.user.id)
-  return tasks.filter((task) => {
-    if (!task.dueDate) return false
-    const time = task.dueDate.getTime()
-    return time >= from.getTime() && time <= to.getTime()
+    const tasks = await getVisibleTasks(userId)
+    const filtered = tasks.filter((task) => {
+      if (!task.dueDate) return false
+      const time = task.dueDate.getTime()
+      return time >= from.getTime() && time <= to.getTime()
+    })
+    return filtered.map((t) => CalendarTaskDataSchema.parse(t))
   })
 }
 
@@ -157,21 +166,21 @@ async function getVisibleTasks(userId: string) {
  * Returns the raw routine rows visible to the current user. Occurrence
  * expansion happens on the client so navigation never hits the server.
  */
-export async function getCalendarRoutines(): Promise<
-  CalendarRoutineData[]
-> {
-  const t = await getActionT("actions.projects")
+export async function getCalendarRoutines() {
+  return runAction<CalendarRoutineDataDTO[]>(async () => {
+    try {
+      await requirePermission("projects", "view")
+    } catch {
+      throwActionError("FORBIDDEN")
+    }
 
-  try {
-    await requirePermission("projects", "view")
-  } catch {
-    throw new Error(t("forbidden"))
-  }
+    const session = await auth()
+    const userId = session?.user?.id
+    if (!userId) throwActionError("UNAUTHORIZED")
 
-  const session = await auth()
-  if (!session?.user) throw new Error(t("unauthorized"))
-
-  return getVisibleRoutines(session.user.id)
+    const routines = await getVisibleRoutines(userId)
+    return routines.map((r) => CalendarRoutineDataSchema.parse(r))
+  })
 }
 
 async function getVisibleRoutines(userId: string) {

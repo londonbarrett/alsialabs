@@ -1,159 +1,131 @@
 "use server"
 
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import {
+  type ActivityFormDTO,
+  ActivityFormSchema,
+  type ClientActivityRecordDTO,
+  ClientActivityRecordSchema,
+} from "@/actions/schemas/activity"
+import {
+  runAction,
+  throwActionError,
+  throwActionValidationError,
+} from "@/lib/action-result"
 import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
-import {
-  clientActivitiesTable,
-  type ClientActivity,
-} from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/util/i18n-actions"
+import { clientActivitiesTable } from "@/lib/drizzle/schema"
 import { and, desc, eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import { z } from "zod"
-
-const activityType = z.enum(["call", "email", "meeting", "note"])
-
-const activitySchema = z.object({
-  clientId: z.uuid("Invalid client ID"),
-  type: activityType,
-  subject: z
-    .string()
-    .min(1, { message: "Subject is required" })
-    .transform((v) => v.trim()),
-  description: z
-    .string()
-    .transform((v) => v.trim())
-    .optional()
-    .default(""),
-  activityDate: z.string().refine((v) => {
-    const d = new Date(v + "T00:00:00")
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return !isNaN(d.getTime()) && d <= today
-  }, "Date cannot be in the future"),
-})
-
-export type ActivityFormData = z.infer<typeof activitySchema>
-
-export type UpsertActivityResult =
-  | {
-      success: true
-      activity: ClientActivity
-    }
-  | {
-      success: false
-      error: string
-      fieldErrors?: Record<string, string[] | undefined>
-    }
 
 export async function getClientActivities(clientId: string) {
-  try {
-    await requirePermission("client-activity", "view")
-  } catch {
-    return []
-  }
+  return runAction<ClientActivityRecordDTO[]>(async () => {
+    try {
+      await requirePermission("client-activity", "view")
+    } catch {
+      return []
+    }
 
-  const session = await auth()
-  if (session?.user?.role === "user") return []
+    const session = await auth()
+    if (session?.user?.role === "user") return []
 
-  return db
-    .select()
-    .from(clientActivitiesTable)
-    .where(eq(clientActivitiesTable.clientId, clientId))
-    .orderBy(desc(clientActivitiesTable.activityDate))
+    const rows = await db
+      .select()
+      .from(clientActivitiesTable)
+      .where(eq(clientActivitiesTable.clientId, clientId))
+      .orderBy(desc(clientActivitiesTable.activityDate))
+    return rows.map((r) => ClientActivityRecordSchema.parse(r))
+  })
 }
 
 export async function upsertActivity(
-  data: ActivityFormData,
+  data: ActivityFormDTO,
   activityId?: string
-): Promise<UpsertActivityResult> {
-  const t = await getActionT("actions.activities")
-  try {
-    await requirePermission(
-      "client-activity",
-      activityId ? "edit" : "create"
-    )
-  } catch {
-    return { success: false, error: t("forbidden") }
-  }
-
-  const parsed = activitySchema.safeParse(data)
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: t("validationFailed"),
-      fieldErrors: parsed.error.flatten().fieldErrors,
+) {
+  return runAction<ClientActivityRecordDTO>(async () => {
+    try {
+      await requirePermission(
+        "client-activity",
+        activityId ? "edit" : "create"
+      )
+    } catch {
+      throwActionError("FORBIDDEN")
     }
-  }
 
-  const fields = parsed.data
-  const session = await auth()
-  if (!session?.user?.id)
-    return { success: false, error: t("unauthorized") }
-
-  const storeId = await getEffectiveStoreId()
-
-  const sanitized = {
-    clientId: fields.clientId,
-    type: fields.type,
-    subject: fields.subject,
-    description: fields.description || null,
-    activityDate: fields.activityDate,
-    performedBy: session.user.id,
-    store_id: storeId,
-  }
-
-  let activity: ClientActivity
-  if (activityId) {
-    const conditions = [eq(clientActivitiesTable.id, activityId)]
-    if (storeId) {
-      conditions.push(eq(clientActivitiesTable.store_id, storeId))
+    const parsed = ActivityFormSchema.safeParse(data)
+    if (!parsed.success) {
+      throwActionValidationError(parsed.error.flatten().fieldErrors)
     }
-    const [updated] = await db
-      .update(clientActivitiesTable)
-      .set({
-        type: sanitized.type,
-        subject: sanitized.subject,
-        description: sanitized.description,
-        activityDate: sanitized.activityDate,
-      })
-      .where(and(...conditions))
-      .returning()
-    if (!updated)
-      return { success: false, error: t("invalidActivityId") }
-    activity = updated
-  } else {
+
+    const fields = parsed.data
+    const session = await auth()
+    const userId = session?.user?.id
+    if (!userId) throwActionError("UNAUTHORIZED")
+
+    const storeId = await getEffectiveStoreId()
+
+    const sanitized = {
+      clientId: fields.clientId,
+      type: fields.type,
+      subject: fields.subject,
+      description: fields.description || null,
+      activityDate: fields.activityDate,
+      performedBy: userId,
+      store_id: storeId,
+    }
+
+    if (activityId) {
+      const conditions = [eq(clientActivitiesTable.id, activityId)]
+      if (storeId) {
+        conditions.push(eq(clientActivitiesTable.store_id, storeId))
+      }
+      const [updated] = await db
+        .update(clientActivitiesTable)
+        .set({
+          type: sanitized.type,
+          subject: sanitized.subject,
+          description: sanitized.description,
+          activityDate: sanitized.activityDate,
+        })
+        .where(and(...conditions))
+        .returning()
+      if (!updated) throwActionError("INVALID_ACTIVITY_ID")
+
+      revalidatePath("/app/clientes")
+      revalidatePath("/app/actividad")
+      return ClientActivityRecordSchema.parse(updated)
+    }
+
     const [inserted] = await db
       .insert(clientActivitiesTable)
       .values(sanitized)
       .returning()
-    if (!inserted)
-      return { success: false, error: t("validationFailed") }
-    activity = inserted
-  }
+    if (!inserted) throwActionError("VALIDATION_FAILED")
 
-  revalidatePath("/app/clientes")
-  revalidatePath("/app/actividad")
-  return { success: true, activity }
+    revalidatePath("/app/clientes")
+    revalidatePath("/app/actividad")
+    return ClientActivityRecordSchema.parse(inserted)
+  })
 }
 
 export async function deleteActivity(activityId: string) {
-  const t = await getActionT("actions.activities")
-  try {
-    await requirePermission("client-activity", "delete")
-  } catch {
-    return { success: false as const, error: t("forbidden") }
-  }
+  return runAction(async () => {
+    try {
+      await requirePermission("client-activity", "delete")
+    } catch {
+      throwActionError("FORBIDDEN")
+    }
 
-  const storeId = await getEffectiveStoreId()
-  const conditions = [eq(clientActivitiesTable.id, activityId)]
-  if (storeId) {
-    conditions.push(eq(clientActivitiesTable.store_id, storeId))
-  }
-  await db.delete(clientActivitiesTable).where(and(...conditions))
+    const storeId = await getEffectiveStoreId()
+    const conditions = [eq(clientActivitiesTable.id, activityId)]
+    if (storeId) {
+      conditions.push(eq(clientActivitiesTable.store_id, storeId))
+    }
+    await db.delete(clientActivitiesTable).where(and(...conditions))
 
-  revalidatePath("/app/clientes")
-  revalidatePath("/app/actividad")
-  return { success: true as const }
+    revalidatePath("/app/clientes")
+    revalidatePath("/app/actividad")
+
+    return { success: true }
+  })
 }

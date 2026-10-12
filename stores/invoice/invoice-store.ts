@@ -1,9 +1,11 @@
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
+import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
 import { salesReducer } from "./sales-reducer"
 
-export function createInvoiceStore(invoices: InvoiceWithClientName[]) {
+export function createInvoiceStore(
+  invoices: InvoiceWithClientNameDTO[]
+) {
   /**
    * `invoices` is the server's slice. `paymentsByInvoiceId` is fetched when
    * the payments sheet opens, so a reseed keeps it and the sheet does not

@@ -1,5 +1,3 @@
-import type { TaskPriority, TaskStatus } from "@/lib/schemas/task"
-export type { TaskPriority, TaskStatus }
 import {
   boolean,
   date,
@@ -130,14 +128,12 @@ export type Product = typeof productsTable.$inferSelect
 export type Invoice = typeof invoicesTable.$inferSelect
 export type InvoiceItem = typeof invoiceItemsTable.$inferSelect
 export type InvoicePayment = typeof invoicePaymentsTable.$inferSelect
-export type Taxonomy = typeof taxonomyTable.$inferSelect
 export type Category = typeof categoryTable.$inferSelect
 export type Project = typeof projectsTable.$inferSelect
 export type Task = typeof tasksTable.$inferSelect
 export type Routine = typeof routinesTable.$inferSelect
 export type TaskComment = typeof taskCommentsTable.$inferSelect
 export type Expense = typeof expensesTable.$inferSelect
-export type ProjectOwner = typeof projectOwnersTable.$inferSelect
 export type ProjectCollaborator =
   typeof projectCollaboratorsTable.$inferSelect
 
@@ -378,6 +374,12 @@ export const categoryTable = pgTable(
   ]
 )
 
+export type ProjectStatus =
+  | "active"
+  | "completed"
+  | "cancelled"
+  | "archived"
+
 export const projectsTable = pgTable("project", {
   id: text()
     .primaryKey()
@@ -390,10 +392,7 @@ export const projectsTable = pgTable("project", {
     .references(() => categoryTable.id),
   name: text().notNull(),
   description: text(),
-  status: text()
-    .notNull()
-    .default("active")
-    .$type<"active" | "completed" | "cancelled" | "archived">(),
+  status: text().notNull().default("active").$type<ProjectStatus>(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   location: text(),
@@ -408,6 +407,19 @@ export const projectsTable = pgTable("project", {
     .$onUpdate(() => new Date()),
 })
 
+export const TASK_STATUSES = [
+  "todo",
+  "in_progress",
+  "in_review",
+  "blocked",
+  "done",
+  "cancelled",
+] as const
+export type TaskStatus = (typeof TASK_STATUSES)[number]
+
+export const TASK_PRIORITIES = ["urgent", "high"] as const
+export type TaskPriority = (typeof TASK_PRIORITIES)[number]
+
 export const tasksTable = pgTable("task", {
   id: text()
     .primaryKey()
@@ -418,8 +430,11 @@ export const tasksTable = pgTable("task", {
   name: text().notNull(),
   description: text(),
   cost: decimal("cost", { precision: 10, scale: 2 }),
-  status: text().notNull().default("todo").$type<TaskStatus>(),
-  priority: text("priority").$type<TaskPriority>(),
+  status: text()
+    .notNull()
+    .default("todo")
+    .$type<TaskStatus>(),
+  priority: text("priority").$type<TaskPriority | null>(),
   routineId: text("routine_id").references(() => routinesTable.id, {
     onDelete: "set null",
   }),

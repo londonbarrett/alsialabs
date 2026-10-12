@@ -1,5 +1,3 @@
-import { ActivityTimeline } from "@/components/clients/activity-timeline"
-import { TimelineProvider } from "@/components/clients/timeline-provider"
 import { getClientByUserId } from "@/actions/clients"
 import {
   getClientInvoices,
@@ -7,6 +5,8 @@ import {
   getMyInvoices,
   getMyPayments,
 } from "@/actions/invoices"
+import { ActivityTimeline } from "@/components/clients/activity-timeline"
+import { TimelineProvider } from "@/components/clients/timeline-provider"
 import { auth, getUserPermissions } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import type {
@@ -46,18 +46,15 @@ export default async function ProfilePage() {
         .select()
         .from(clientsTable)
         .where(eq(clientsTable.id, myData.clientId))
-      client = (rows[0] as Client | undefined) ?? null
-      invoices = (myData.invoices as Invoice[]) ?? []
-      payments =
-        (myPaymentsResult.data as Array<
-          InvoicePayment & { invoiceNumber: string }
-        >) ?? []
+      client = rows[0] ?? null
+      invoices = myData.invoices
+      payments = myPaymentsResult.data ?? []
     }
   } else {
     const clientResult = await getClientByUserId({
       userId: session.user.id,
     })
-    client = (clientResult.data as Client | null) ?? null
+    client = clientResult.data ?? null
 
     if (client && canView) {
       const [invoiceResult, paymentResult] = await Promise.all([
@@ -65,7 +62,7 @@ export default async function ProfilePage() {
         getClientPayments({ clientId: client.id }),
       ])
       if (invoiceResult.data) {
-        invoices = invoiceResult.data as Invoice[]
+        invoices = invoiceResult.data
       }
       if (paymentResult.data) {
         payments = paymentResult.data

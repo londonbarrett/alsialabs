@@ -4,11 +4,11 @@ import { auth } from "@/lib/auth"
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
 import { db } from "@/lib/drizzle/client"
 import { clientsTable } from "@/lib/drizzle/schema"
-import { getActionT } from "@/lib/util/i18n-actions"
+import { runAction, throwActionError } from "@/lib/action-result"
+import { CsvRecordSchema } from "@/actions/schemas/import"
 import { inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import Papa from "papaparse"
-import { z } from "zod"
 
 const REQUIRED_COLUMNS = [
   "NAME",
@@ -18,120 +18,76 @@ const REQUIRED_COLUMNS = [
   "EMAIL",
 ]
 
-const csvRecordSchema = z.object({
-  name: z
-    .string()
-    .min(1)
-    .max(500)
-    .transform((v) => v.trim()),
-  phone: z
-    .string()
-    .min(1)
-    .max(100)
-    .transform((v) => v.trim()),
-  location: z
-    .string()
-    .max(1000)
-    .transform((v) => v.trim())
-    .optional()
-    .default(""),
-  comments: z
-    .string()
-    .max(5000)
-    .transform((v) => v.trim())
-    .optional()
-    .default(""),
-  email: z
-    .string()
-    .max(500)
-    .transform((v) => v.trim())
-    .optional()
-    .default(""),
-})
-
 export async function importClients(formData: FormData) {
-  const t = await getActionT("actions.import")
-  const session = await auth()
-  if (!session?.user)
-    return { success: false, error: t("unauthorized") }
+  return runAction<{ importedCount: number }>(async () => {
+    const session = await auth()
+    if (!session?.user) throwActionError("UNAUTHORIZED")
 
-  const file = formData.get("file") as File | null
-  if (!file) return { success: false, error: t("noFileProvided") }
+    const file = formData.get("file")
+    if (!(file instanceof File)) throwActionError("NO_FILE_PROVIDED")
 
-  const text = await file.text()
+    const text = await file.text()
 
-  const parsed = Papa.parse<Record<string, string>>(text, {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (h) => h.trim().toUpperCase(),
-  })
+    const parsed = Papa.parse<Record<string, string>>(text, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (h) => h.trim().toUpperCase(),
+    })
 
-  if (parsed.errors.length > 0) {
-    return { success: false, error: parsed.errors[0].message }
-  }
+    if (parsed.errors.length > 0) throwActionError("VALIDATION_FAILED")
 
-  if (parsed.data.length === 0) {
-    return { success: false, error: t("csvEmpty") }
-  }
+    if (parsed.data.length === 0) throwActionError("CSV_EMPTY")
 
-  const headers = Object.keys(parsed.data[0])
-  const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c))
-  if (missing.length > 0) {
-    return {
-      success: false,
-      error: t("missingRequiredColumns", {
-        columns: missing.join(", "),
-      }),
+    const headers = Object.keys(parsed.data[0])
+    const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c))
+    if (missing.length > 0) throwActionError("MISSING_REQUIRED_COLUMNS")
+
+    const phones = [
+      ...new Set(parsed.data.map((r) => r.PHONE).filter(Boolean)),
+    ]
+    if (phones.length === 0) throwActionError("NO_VALID_ROWS")
+
+    const existing = await db
+      .select({ phone: clientsTable.phone })
+      .from(clientsTable)
+      .where(inArray(clientsTable.phone, phones))
+
+    const existingPhones = new Set(existing.map((r) => r.phone))
+    const effectiveStoreId = await getEffectiveStoreId()
+
+    const toInsert: Array<{
+      name: string
+      phone: string
+      location: string | null
+      comments: string | null
+      email: string | null
+      store_id: string | null
+    }> = []
+    for (const row of parsed.data) {
+      if (!row.PHONE || existingPhones.has(row.PHONE)) continue
+      const result = CsvRecordSchema.safeParse({
+        name: row.NAME,
+        phone: row.PHONE,
+        location: row.LOCATION,
+        comments: row.COMMENTS,
+        email: row.EMAIL,
+      })
+      if (!result.success) continue
+      toInsert.push({
+        name: result.data.name,
+        phone: result.data.phone,
+        location: result.data.location || null,
+        comments: result.data.comments || null,
+        email: result.data.email || null,
+        store_id: effectiveStoreId,
+      })
     }
-  }
 
-  const phones = [
-    ...new Set(parsed.data.map((r) => r.PHONE).filter(Boolean)),
-  ]
-  if (phones.length === 0) {
-    return { success: false, error: t("noValidRows") }
-  }
+    if (toInsert.length === 0) return { importedCount: 0 }
 
-  const existing = await db
-    .select({ phone: clientsTable.phone })
-    .from(clientsTable)
-    .where(inArray(clientsTable.phone, phones))
+    await db.insert(clientsTable).values(toInsert)
 
-  const existingPhones = new Set(existing.map((r) => r.phone))
-  const effectiveStoreId = await getEffectiveStoreId()
-
-  const toInsert: Array<{
-    name: string
-    phone: string
-    location: string | null
-    comments: string | null
-    email: string | null
-    store_id: string | null
-  }> = []
-  for (const row of parsed.data) {
-    if (!row.PHONE || existingPhones.has(row.PHONE)) continue
-    const result = csvRecordSchema.safeParse({
-      name: row.NAME,
-      phone: row.PHONE,
-      location: row.LOCATION,
-      comments: row.COMMENTS,
-      email: row.EMAIL,
-    })
-    if (!result.success) continue
-    toInsert.push({
-      name: result.data.name,
-      phone: result.data.phone,
-      location: result.data.location || null,
-      comments: result.data.comments || null,
-      email: result.data.email || null,
-      store_id: effectiveStoreId,
-    })
-  }
-
-  if (toInsert.length === 0) return { success: true, importedCount: 0 }
-
-  await db.insert(clientsTable).values(toInsert)
-
-  revalidatePath("/app/clientes")
-  return { success: true, importedCount: toInsert.length }
+    revalidatePath("/app/clientes")
+    return { importedCount: toInsert.length }
+  })
 }

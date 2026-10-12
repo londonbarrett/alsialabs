@@ -1,8 +1,8 @@
 "use client"
 
+import type { MyTaskDTO, TaskStatus } from "@/actions/schemas/task"
 import { Money } from "@/components/common/money"
 import { DueDate } from "@/components/projects/due-date"
-import { MyTaskCommentsPanel } from "./my-task-comments-panel"
 import { taskPriorityColors } from "@/components/projects/task-priority-select"
 import {
   TaskStatusSelect,
@@ -19,15 +19,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { MyTask } from "@/actions/tasks"
-import type { TaskStatus } from "@/lib/drizzle/schema"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
+import { MyTaskCommentsPanel } from "./my-task-comments-panel"
 
 interface MyTasksListProps {
-  tasks: MyTask[]
+  tasks: MyTaskDTO[]
   statuses: Record<string, readonly TaskStatus[] | null>
   isPending: boolean
   currentUserId: string
@@ -48,7 +47,9 @@ export function MyTasksList({
   onStatusChange,
 }: MyTasksListProps) {
   const t = useTranslations()
-  const [commentsTask, setCommentsTask] = useState<MyTask | undefined>()
+  const [commentsTask, setCommentsTask] = useState<
+    MyTaskDTO | undefined
+  >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
 
   return (

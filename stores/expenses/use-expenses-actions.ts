@@ -1,19 +1,20 @@
 "use client"
 
-import { useSettle } from "@/hooks/use-settle"
 import {
   createExpense as createExpenseAction,
   deleteExpense as deleteExpenseAction,
   updateExpense as updateExpenseAction,
 } from "@/actions/expenses"
+import { useSettle } from "@/hooks/use-settle"
 import type { Expense } from "@/lib/drizzle/schema"
-import type { ExpenseWithCategory } from "@/lib/types"
+import type {
+  ExpenseCategoryOptionDTO,
+  ExpenseWithCategoryDTO,
+} from "@/actions/schemas/expense"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
 import { useExpensesStore } from "./expense-store"
-
-type ExpenseCategoryOption = { id: string; slug: string; name: string }
 
 /**
  * Every project-expense mutation, so `project-expenses` never imports the
@@ -39,14 +40,14 @@ export function useExpensesActions() {
     editingExpense,
   }: {
     data: Expense
-    categories: ExpenseCategoryOption[]
-    editingExpense?: ExpenseWithCategory
+    categories: ExpenseCategoryOptionDTO[]
+    editingExpense?: ExpenseWithCategoryDTO
   }) {
     const isEdit = !!editingExpense
     const tempId = editingExpense?.id ?? `temp-${Date.now()}`
     const category = categories.find((c) => c.id === data.categoryId)
 
-    const optimistic: ExpenseWithCategory = {
+    const optimistic: ExpenseWithCategoryDTO = {
       id: data.id || tempId,
       projectId: data.projectId,
       categoryId: data.categoryId,
@@ -73,7 +74,7 @@ export function useExpensesActions() {
           tempId,
           expense: {
             ...optimistic,
-            id: (r.data as Expense | undefined)?.id ?? tempId,
+            id: r.data?.id ?? tempId,
           },
         }),
       }

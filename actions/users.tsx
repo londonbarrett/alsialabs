@@ -1,5 +1,14 @@
 "use server"
 
+import {
+  CreateUserSchema,
+  DeleteUserSchema,
+  SearchUsersSchema,
+  UpdateUserSchema,
+  UserIdResultSchema,
+  UserOptionSchema,
+  UserWithRoleSchema,
+} from "@/actions/schemas/user"
 import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
@@ -12,34 +21,14 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import { returnActionError, sessionAction } from "@/lib/safe-action"
-import {
-  createUserSchema,
-  deleteUserSchema,
-  getUserByIdSchema,
-  searchUsersSchema,
-  updateUserSchema,
-} from "@/lib/schemas/user"
 import { eq, ilike, or } from "drizzle-orm"
-
-export type UserWithRole = {
-  id: string
-  name: string | null
-  email: string | null
-  roleId: string
-  roleName: string
-}
-
-export type UserOption = {
-  id: string
-  name: string | null
-  email: string | null
-  image: string | null
-}
+import { z } from "zod"
 
 // ---------- Query actions ----------
 
 export const getAssignableUsers = sessionAction
   .metadata({})
+  .outputSchema(z.array(UserOptionSchema))
   .action(async () => {
     const users = await db
       .select({
@@ -55,11 +44,12 @@ export const getAssignableUsers = sessionAction
 
 export const searchUsers = sessionAction
   .metadata({ permission: { module: "projects", action: "view" } })
-  .inputSchema(searchUsersSchema)
+  .inputSchema(SearchUsersSchema)
+  .outputSchema(z.array(UserOptionSchema))
   .action(async ({ parsedInput }) => {
     const { query } = parsedInput
 
-    if (!query.trim()) return [] as UserOption[]
+    if (!query.trim()) return []
 
     // excludedIds filtering is handled client-side in UserInviteInput
     // to avoid NOT IN edge cases; kept in schema for backward compat
@@ -81,26 +71,9 @@ export const searchUsers = sessionAction
       .limit(20)
   })
 
-export const getUserById = sessionAction
-  .metadata({})
-  .inputSchema(getUserByIdSchema)
-  .action(async ({ parsedInput }) => {
-    const user = await db
-      .select({
-        id: usersTable.id,
-        name: usersTable.name,
-        email: usersTable.email,
-        image: usersTable.image,
-      })
-      .from(usersTable)
-      .where(eq(usersTable.id, parsedInput.userId))
-      .then((rows) => rows[0] ?? null)
-
-    return user as UserOption | null
-  })
-
 export const getUsers = sessionAction
   .metadata({ permission: { module: "users", action: "manage" } })
+  .outputSchema(z.array(UserWithRoleSchema))
   .action(async ({ ctx }) => {
     if (!isSuperUser(ctx.session)) {
       returnActionError("FORBIDDEN")
@@ -121,7 +94,7 @@ export const getUsers = sessionAction
       )
       .innerJoin(rolesTable, eq(userRolesTable.roleId, rolesTable.id))
 
-    return users as UserWithRole[]
+    return users
   })
 
 // ---------- Mutation actions ----------
@@ -132,7 +105,8 @@ export const createUser = sessionAction
     revalidate: ["/app/usuarios"],
     tag: "permissions",
   })
-  .inputSchema(createUserSchema)
+  .inputSchema(CreateUserSchema)
+  .outputSchema(UserIdResultSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!isSuperUser(ctx.session)) {
       returnActionError("FORBIDDEN")
@@ -200,7 +174,8 @@ export const updateUser = sessionAction
     revalidate: ["/app/usuarios"],
     tag: "permissions",
   })
-  .inputSchema(updateUserSchema)
+  .inputSchema(UpdateUserSchema)
+  .outputSchema(UserIdResultSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!isSuperUser(ctx.session)) {
       returnActionError("FORBIDDEN")
@@ -272,7 +247,8 @@ export const deleteUser = sessionAction
     revalidate: ["/app/usuarios"],
     tag: "permissions",
   })
-  .inputSchema(deleteUserSchema)
+  .inputSchema(DeleteUserSchema)
+  .outputSchema(UserIdResultSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!isSuperUser(ctx.session)) {
       returnActionError("FORBIDDEN")

@@ -1,15 +1,15 @@
 "use client"
 
-import { useSettle } from "@/hooks/use-settle"
-import type { ActivityFormData } from "@/actions/not-safe/activities"
 import { upsertActivity } from "@/actions/not-safe/activities"
 import { getClientTimelinePage } from "@/actions/not-safe/client-timeline"
-import type { Reminder } from "@/actions/not-safe/reminders"
 import {
   completeReminder as completeReminderAction,
   deleteReminder as deleteReminderAction,
   upsertReminder,
 } from "@/actions/not-safe/reminders"
+import type { ActivityFormDTO } from "@/actions/schemas/activity"
+import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
+import { useSettle } from "@/hooks/use-settle"
 import type { ReminderSubmitData } from "@/lib/types"
 import {
   buildTempActivity,
@@ -52,13 +52,14 @@ export function useActivityActions() {
     offset: number
   ): Promise<void> {
     try {
-      const { entries, hasMore } = await getClientTimelinePage(
-        clientId,
-        {
-          offset,
-          limit: ACTIVITY_PAGE_SIZE,
-        }
-      )
+      const page = await getClientTimelinePage(clientId, {
+        offset,
+        limit: ACTIVITY_PAGE_SIZE,
+      })
+      const { entries, hasMore } = page.data ?? {
+        entries: [],
+        hasMore: false,
+      }
       // Imperative read of the entries already loaded for this client, off the
       // render path: `store.getState()` rather than a selector, because the
       // store is a vanilla store and the state creator owns no read method.
@@ -88,7 +89,7 @@ export function useActivityActions() {
     activityClientId?: string
   ): Promise<void> {
     const temp = buildTempReminder(data)
-    const optimistic: Reminder = {
+    const optimistic: ReminderRecordDTO = {
       id: temp.id,
       clientId: temp.clientId,
       clientName: data.clientName ?? "",
@@ -107,7 +108,7 @@ export function useActivityActions() {
           activityClientId,
           // The saved row carries no client join, so clientName is kept.
           // `.returning()` can come back empty, so keep the optimistic row.
-          reminder: { ...optimistic, ...r.reminder },
+          reminder: { ...optimistic, ...r.data },
         }),
       }
     )
@@ -160,7 +161,7 @@ export function useActivityActions() {
    * Logs an activity from an expanded row's dialog. It lands in that row's
    * list only — the reminders card lists reminders, not activities.
    */
-  async function createActivity(data: ActivityFormData): Promise<void> {
+  async function createActivity(data: ActivityFormDTO): Promise<void> {
     const clientId = data.clientId
     const temp = buildTempActivity(data)
     const result = await run(
@@ -172,7 +173,7 @@ export function useActivityActions() {
           clientId,
           kind: "activity",
           id: temp.id,
-          patch: r.success ? r.activity : {},
+          patch: r.data ?? {},
         }),
       }
     )
@@ -180,7 +181,7 @@ export function useActivityActions() {
   }
 
   async function updateActivity(
-    data: ActivityFormData,
+    data: ActivityFormDTO,
     editingId: string
   ): Promise<void> {
     const clientId = data.clientId

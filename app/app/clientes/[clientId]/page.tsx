@@ -11,6 +11,7 @@ import {
 } from "@/actions/invoices"
 import { getClientReminders } from "@/actions/not-safe/reminders"
 import { auth, hasPermission } from "@/lib/auth"
+import { unwrapResponse } from "@/lib/util/unwrap"
 import type {
   ClientActivity,
   ClientReminder,
@@ -73,14 +74,10 @@ export default async function ClientProfilePage({
       getClientActivities(clientId),
       getClientReminders(clientId),
     ])
-    if (invoiceResult.data) {
-      invoices = invoiceResult.data as Invoice[]
-    }
-    if (paymentResult.data) {
-      payments = paymentResult.data
-    }
-    activities = clientActivities
-    reminders = clientReminders
+    invoices = unwrapResponse(invoiceResult)
+    payments = unwrapResponse(paymentResult)
+    activities = unwrapResponse(clientActivities)
+    reminders = unwrapResponse(clientReminders)
   }
 
   return (

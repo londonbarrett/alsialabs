@@ -8,11 +8,16 @@ import {
   invoicesTable,
 } from "@/lib/drizzle/schema"
 import { sessionAction } from "@/lib/safe-action"
+import {
+  MonthlyRevenueSchema,
+  TopClientByRevenueSchema,
+} from "@/actions/schemas/sales"
 import { and, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 
 export const getMonthlyRevenue = sessionAction
   .metadata({ permission: { module: "sales", action: "view" } })
+  .outputSchema(z.array(MonthlyRevenueSchema))
   .action(async () => {
     const storeId = await getEffectiveStoreId()
 
@@ -78,6 +83,7 @@ export const getTopClientsByRevenue = sessionAction
       limit: z.number().int().positive().max(100).default(10),
     })
   )
+  .outputSchema(z.array(TopClientByRevenueSchema))
   .action(async ({ parsedInput }) => {
     const limit = parsedInput.limit ?? 10
     const storeId = await getEffectiveStoreId()
@@ -86,7 +92,7 @@ export const getTopClientsByRevenue = sessionAction
         clientId: clientsTable.id,
         clientName: clientsTable.name,
         totalRevenue: sql<string>`sum(${invoicesTable.grandTotal})`,
-        invoiceCount: sql<number>`count(${invoicesTable.id})`,
+        invoiceCount: sql<number>`count(${invoicesTable.id})::int`,
       })
       .from(invoicesTable)
       .innerJoin(

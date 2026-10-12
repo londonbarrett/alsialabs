@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/table"
 import { deleteProduct } from "@/actions/products"
 import { useActionError } from "@/lib/util/action-errors"
-import type { ProductWithStore } from "@/lib/types"
-import type { StoreOption } from "@/actions/not-safe/stores"
+import type { ProductWithStoreDTO } from "@/actions/schemas/product"
+import type { StoreOptionDTO } from "@/actions/schemas/store"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -24,8 +24,8 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 interface ProductListViewProps {
-  products: ProductWithStore[]
-  stores: StoreOption[]
+  products: ProductWithStoreDTO[]
+  stores: StoreOptionDTO[]
 }
 
 export function ProductListView({
@@ -38,7 +38,7 @@ export function ProductListView({
   const canDelete = useHasPermission("products:delete")
   const [dialog, setDialog] = useState<{
     open: boolean
-    product?: ProductWithStore
+    product?: ProductWithStoreDTO
   }>({ open: false })
 
   const { executeAsync, optimisticState } = useOptimisticAction(
@@ -69,7 +69,7 @@ export function ProductListView({
     setDialog({ open: true })
   }
 
-  function openEdit(product: ProductWithStore) {
+  function openEdit(product: ProductWithStoreDTO) {
     setDialog({ open: true, product })
   }
 

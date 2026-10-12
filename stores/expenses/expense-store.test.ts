@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest"
-import type { ExpenseWithCategory } from "@/lib/types"
+import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
 import { expenseReducer } from "./expense-reducer"
 import { createExpensesStore } from "./expense-store"
 
 function makeExpense(
-  overrides: Partial<ExpenseWithCategory> = {}
-): ExpenseWithCategory {
+  overrides: Partial<ExpenseWithCategoryDTO> = {}
+): ExpenseWithCategoryDTO {
   return {
     id: "exp-1",
     projectId: "project-1",

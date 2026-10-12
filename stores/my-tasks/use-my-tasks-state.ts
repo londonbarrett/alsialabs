@@ -1,7 +1,7 @@
 "use client"
 
+import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 import type { OptimisticStore } from "@/lib/optimistic-store"
-import type { TaskCommentWithAuthor } from "@/lib/types"
 import { useStore } from "zustand"
 import {
   EMPTY_COMMENTS,
@@ -21,7 +21,7 @@ export function useMyTasksState() {
   )
 
   /** Stable empty list for a task whose comments have never been loaded. */
-  function getComments(taskId: string): TaskCommentWithAuthor[] {
+  function getComments(taskId: string): TaskCommentWithAuthorDTO[] {
     return commentsByTask[taskId] ?? EMPTY_COMMENTS
   }
 

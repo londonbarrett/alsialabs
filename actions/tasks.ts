@@ -17,15 +17,19 @@ import {
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
-import type { TaskStatus } from "@/lib/schemas/task"
+import { SuccessSchema } from "@/actions/schemas/common"
 import {
   ALL_TASK_STATUSES,
-  collaboratorStatusSchema,
-  createTaskSchema,
-  ownerStatusSchema,
-  taskPrioritySchema,
-  updateTaskSchema,
-} from "@/lib/schemas/task"
+  CollaboratorStatusSchema,
+  CreateTaskSchema,
+  MyTaskSchema,
+  OwnerStatusSchema,
+  TaskPrioritySchema,
+  TaskStatusResultSchema,
+  TaskWithCommentCountSchema,
+  type TaskStatus,
+  UpdateTaskSchema,
+} from "@/actions/schemas/task"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 
@@ -35,6 +39,7 @@ export const getTasks = projectScopedAction(
   z.object({ projectId: z.uuid() })
 )
   .metadata({ permission: { module: "projects", action: "view" } })
+  .outputSchema(z.array(TaskWithCommentCountSchema))
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
 
@@ -79,6 +84,7 @@ export const getMyTasks = sessionAction
     })
   )
   .metadata({ permission: { module: "projects", action: "view" } })
+  .outputSchema(z.array(MyTaskSchema))
   .action(async ({ parsedInput, ctx }) => {
     const { statusFilter, projectIdFilter } = parsedInput
     const session = ctx.session
@@ -178,17 +184,14 @@ export const getMyTasks = sessionAction
       .orderBy(desc(tasksTable.createdAt))
   })
 
-export type MyTask = NonNullable<
-  Awaited<ReturnType<typeof getMyTasks>>["data"]
->[number]
-
 // ---------- Mutations ----------
 
-export const createTask = projectScopedAction(createTaskSchema)
+export const createTask = projectScopedAction(CreateTaskSchema)
   .metadata({
     permission: { module: "projects", action: "edit" },
     revalidate: ["/app/proyectos/:projectId"],
   })
+  .outputSchema(TaskWithCommentCountSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
       returnActionError("FORBIDDEN")
@@ -226,11 +229,12 @@ export const createTask = projectScopedAction(createTaskSchema)
     }
   })
 
-export const updateTask = projectScopedAction(updateTaskSchema)
+export const updateTask = projectScopedAction(UpdateTaskSchema)
   .metadata({
     permission: { module: "projects", action: "edit" },
     revalidate: ["/app/proyectos/:projectId"],
   })
+  .outputSchema(TaskWithCommentCountSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
       returnActionError("FORBIDDEN")
@@ -285,6 +289,7 @@ export const updateTaskStatus = sessionAction
     })
   )
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
+  .outputSchema(TaskStatusResultSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId, taskId, status } = parsedInput
     const session = ctx.session
@@ -330,7 +335,7 @@ export const updateTaskStatus = sessionAction
         returnActionError("FORBIDDEN")
       }
 
-      const parsed = collaboratorStatusSchema.safeParse(status)
+      const parsed = CollaboratorStatusSchema.safeParse(status)
       if (!parsed.success) {
         returnActionError("VALIDATION_FAILED")
       }
@@ -344,7 +349,7 @@ export const updateTaskStatus = sessionAction
           )
         )
     } else {
-      const parsed = ownerStatusSchema.safeParse(status)
+      const parsed = OwnerStatusSchema.safeParse(status)
       if (!parsed.success) {
         returnActionError("VALIDATION_FAILED")
       }
@@ -385,13 +390,14 @@ export const updateTaskPriority = projectScopedAction(
     permission: { module: "projects", action: "edit" },
     revalidate: ["/app/proyectos/:projectId"],
   })
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
       returnActionError("FORBIDDEN")
     }
 
     const { projectId, taskId, priority } = parsedInput
-    const parsed = taskPrioritySchema.safeParse(priority)
+    const parsed = TaskPrioritySchema.safeParse(priority)
     if (!parsed.success) {
       returnActionError("VALIDATION_FAILED")
     }
@@ -405,6 +411,8 @@ export const updateTaskPriority = projectScopedAction(
           eq(tasksTable.projectId, projectId)
         )
       )
+
+    return { success: true }
   })
 
 export const deleteTask = projectScopedAction(
@@ -417,6 +425,7 @@ export const deleteTask = projectScopedAction(
     permission: { module: "projects", action: "delete" },
     revalidate: ["/app/proyectos/:projectId"],
   })
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
       returnActionError("FORBIDDEN")
@@ -432,4 +441,6 @@ export const deleteTask = projectScopedAction(
           eq(tasksTable.projectId, projectId)
         )
       )
+
+    return { success: true }
   })

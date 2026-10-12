@@ -374,13 +374,13 @@ The system SHALL keep invoice-related code separate from sales analytics.
 
 #### Scenario: Schemas are separated
 
-- **WHEN** inspecting `lib/schemas/invoice.ts` and `lib/schemas/payment.ts`
-- **THEN** `invoiceSchema`/`createInvoiceSchema`/`updateInvoiceSchema`/`lineItemSchema` live in `lib/schemas/invoice.ts:16`, and `paymentSchema` lives in `lib/schemas/payment.ts:3`. No `upsertInvoiceSchema` exists, and no `lib/schemas/sales.ts` re-export barrel exists
+- **WHEN** inspecting `actions/schemas/invoice.ts` and `actions/schemas/payment.ts`
+- **THEN** `InvoiceSchema`/`CreateInvoiceSchema`/`UpdateInvoiceSchema`/`LineItemSchema` live in `actions/schemas/invoice.ts:16`, and `PaymentSchema` lives in `actions/schemas/payment.ts:3`. No `UpsertInvoiceSchema` exists, and no `actions/schemas/sales.ts` re-export barrel exists
 
 #### Scenario: Actions are separated
 
 - **WHEN** inspecting `actions/invoices.ts` and `actions/payments.ts` and `actions/sales.ts`
-- **THEN** `getInvoices`/`getInvoiceProducts`/`getInvoiceItems`/`getInvoicePayments`/`createInvoice`/`updateInvoice`/`cancelInvoice`/`reopenInvoice`/`markInvoiceAsSent`/`deleteInvoice` live in `actions/invoices.ts:471` with `sessionAction` `next-safe-action` and `zod` schemas `createInvoiceSchema`/`updateInvoiceSchema`, `recordPayment`/`updatePayment`/`deletePayment` live in `actions/payments.ts:10` with `sales:create`/`edit`/`delete` permissions (no `record-payment`), and `getMonthlyRevenue`/`getTopClientsByRevenue` remain in `actions/sales.ts:16`
+- **THEN** `getInvoices`/`getInvoiceProducts`/`getInvoiceItems`/`getInvoicePayments`/`createInvoice`/`updateInvoice`/`cancelInvoice`/`reopenInvoice`/`markInvoiceAsSent`/`deleteInvoice` live in `actions/invoices.ts:471` with `sessionAction` `next-safe-action` and `zod` schemas `CreateInvoiceSchema`/`UpdateInvoiceSchema`, `recordPayment`/`updatePayment`/`deletePayment` live in `actions/payments.ts:10` with `sales:create`/`edit`/`delete` permissions (no `record-payment`), and `getMonthlyRevenue`/`getTopClientsByRevenue` remain in `actions/sales.ts:16`
 
 #### Scenario: Permissions use existing sales actions
 

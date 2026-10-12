@@ -8,9 +8,12 @@ import {
   storeAction,
 } from "@/lib/safe-action"
 import {
-  createProductSchema,
-  updateProductSchema,
-} from "@/lib/schemas/product"
+  CreateProductSchema,
+  ProductRecordSchema,
+  ProductWithStoreSchema,
+  UpdateProductSchema,
+} from "@/actions/schemas/product"
+import { ExistsSchema, IdSchema, SuccessSchema } from "@/actions/schemas/common"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 
@@ -20,6 +23,7 @@ export const getProducts = storeAction
   .metadata({
     permission: { module: "products", action: "view" },
   })
+  .outputSchema(z.array(ProductWithStoreSchema))
   .action(async ({ ctx }) => {
     return db
       .select({
@@ -46,6 +50,7 @@ export const checkSkuExists = sessionAction
       excludeId: z.string().optional(),
     })
   )
+  .outputSchema(ExistsSchema)
   .action(async ({ parsedInput }) => {
     const { sku, excludeId } = parsedInput
     if (!sku) return { exists: false }
@@ -67,7 +72,8 @@ export const createProduct = storeAction
     permission: { module: "products", action: "create" },
     revalidate: ["/app/productos"],
   })
-  .inputSchema(createProductSchema)
+  .inputSchema(CreateProductSchema)
+  .outputSchema(ProductRecordSchema)
   .action(async ({ parsedInput }) => {
     const { name, description, store_id, sku, unit } = parsedInput
 
@@ -97,7 +103,8 @@ export const updateProduct = storeAction
     permission: { module: "products", action: "edit" },
     revalidate: ["/app/productos"],
   })
-  .inputSchema(updateProductSchema)
+  .inputSchema(UpdateProductSchema)
+  .outputSchema(ProductRecordSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { id, name, description, store_id, sku, unit } = parsedInput
 
@@ -137,7 +144,8 @@ export const deleteProduct = storeAction
     permission: { module: "products", action: "delete" },
     revalidate: ["/app/productos"],
   })
-  .inputSchema(z.object({ id: z.uuid() }))
+  .inputSchema(IdSchema)
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     let deleted: { id: string } | undefined
     try {
@@ -159,4 +167,6 @@ export const deleteProduct = storeAction
     if (!deleted) {
       returnActionError("NOT_FOUND")
     }
+
+    return { success: true }
   })

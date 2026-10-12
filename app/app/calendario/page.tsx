@@ -40,7 +40,7 @@ export default async function CalendarPage() {
       >
         <CalendarView
           tasks={tasks}
-          routines={routines}
+          routines={unwrapResponse(routines)}
           locale={locale}
           labels={{
             today: t("today"),

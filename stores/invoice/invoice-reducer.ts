@@ -1,13 +1,13 @@
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
+import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
 import type { Invoice } from "@/lib/drizzle/schema"
 
 export type InvoiceAction =
-  | { type: "add"; invoice: InvoiceWithClientName }
-  | { type: "update"; invoice: InvoiceWithClientName }
+  | { type: "add"; invoice: InvoiceWithClientNameDTO }
+  | { type: "update"; invoice: InvoiceWithClientNameDTO }
   | {
       type: "replaceTemp"
       tempId: string
-      invoice: InvoiceWithClientName
+      invoice: InvoiceWithClientNameDTO
     }
   | { type: "delete"; invoiceId: string }
   | {
@@ -26,9 +26,9 @@ export type InvoiceAction =
  * Pure reducer — the store applies it to derive optimistic state.
  */
 export function invoiceReducer(
-  state: InvoiceWithClientName[],
+  state: InvoiceWithClientNameDTO[],
   action: InvoiceAction
-): InvoiceWithClientName[] {
+): InvoiceWithClientNameDTO[] {
   switch (action.type) {
     case "add":
       return [action.invoice, ...state]

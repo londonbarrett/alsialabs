@@ -1,6 +1,6 @@
 "use client"
 
-import type { InvoiceWithClientName } from "@/components/sales/sales-invoice-table"
+import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
 import {
   createInvoiceStore,
   InvoiceStoreContext,
@@ -12,7 +12,7 @@ export function InvoiceProvider({
   invoices,
   children,
 }: {
-  invoices: InvoiceWithClientName[]
+  invoices: InvoiceWithClientNameDTO[]
   children: React.ReactNode
 }) {
   const [store] = useState(() => createInvoiceStore(invoices))

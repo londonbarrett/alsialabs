@@ -1,9 +1,11 @@
+import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
 import { createOptimisticStore } from "@/lib/optimistic-store"
-import type { ExpenseWithCategory } from "@/lib/types"
 import { createContext, useContext } from "react"
 import { expenseReducer } from "./expense-reducer"
 
-export function createExpensesStore(expenses: ExpenseWithCategory[]) {
+export function createExpensesStore(
+  expenses: ExpenseWithCategoryDTO[]
+) {
   /** The whole state is the server's slice, so a reseed replaces it. */
   return createOptimisticStore({
     initialState: expenses,

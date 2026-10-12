@@ -1,11 +1,11 @@
+import type { TaskWithCommentCountDTO } from "@/actions/schemas/task"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
-import {
-  projectTasksReducer,
-  type TaskWithCommentCount,
-} from "./project-tasks-reducer"
+import { projectTasksReducer } from "./project-tasks-reducer"
 
-export function createProjectTasksStore(tasks: TaskWithCommentCount[]) {
+export function createProjectTasksStore(
+  tasks: TaskWithCommentCountDTO[]
+) {
   /**
    * `tasks` is the server's slice. `commentsByTask` is not: comments load per
    * task when the panel opens, so a reseed keeps them rather than making the

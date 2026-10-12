@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
 import { Dialog } from "@/components/common/dialog"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,7 +11,6 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import type { Reminder } from "@/actions/not-safe/reminders"
 import type { ClientReminder } from "@/lib/drizzle/schema"
 import type { ReminderSubmitData } from "@/lib/types"
 import { useTranslations } from "next-intl"
@@ -18,7 +18,7 @@ import { useState } from "react"
 
 /** The dialog is used from the client page (timeline rows) and the activity
  *  page (reminder rows), so it accepts either reminder shape. */
-type ReminderDialogTarget = ClientReminder | Reminder
+type ReminderDialogTarget = ClientReminder | ReminderRecordDTO
 
 interface ReminderDialogProps {
   clientId: string

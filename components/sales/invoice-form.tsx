@@ -1,5 +1,8 @@
 "use client"
 
+import { getInvoiceItems, getInvoiceProducts } from "@/actions/invoices"
+import type { ClientOptionDTO } from "@/actions/schemas/client"
+import type { InvoiceDTO } from "@/actions/schemas/invoice"
 import { ClientCombobox } from "@/components/clients/client-combobox"
 import { MoneyInput } from "@/components/common/money-input"
 import {
@@ -23,10 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import type { ClientOption } from "@/actions/clients"
-import { getInvoiceItems, getInvoiceProducts } from "@/actions/invoices"
 import type { Invoice } from "@/lib/drizzle/schema"
-import type { InvoiceFormData } from "@/lib/schemas/invoice"
 import type { SettleResult } from "@/lib/types"
 import { formatCurrency } from "@/lib/util/money"
 import { Plus } from "lucide-react"
@@ -38,7 +38,7 @@ interface InvoiceFormProps {
   invoice?: Invoice & { clientName?: string | null }
   selectedClientId?: string
   onSubmit: (
-    data: InvoiceFormData,
+    data: InvoiceDTO,
     invoiceId?: string,
     clientName?: string | null
   ) => Promise<SettleResult>
@@ -78,7 +78,7 @@ export function InvoiceForm({
   const [type, setType] = useState<"product" | "service">(
     (invoice?.type as "product" | "service") ?? "product"
   )
-  const [client, setClient] = useState<ClientOption | null>(() => {
+  const [client, setClient] = useState<ClientOptionDTO | null>(() => {
     if (invoice?.clientId) {
       return {
         id: invoice.clientId,

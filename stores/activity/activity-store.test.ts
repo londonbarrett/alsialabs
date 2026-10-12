@@ -1,5 +1,5 @@
-import type { Reminder } from "@/actions/not-safe/reminders"
-import type { ClientTimelineEntry } from "@/actions/not-safe/client-timeline"
+import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
+import type { ClientTimelineEntryDTO } from "@/actions/schemas/client-timeline"
 import {
   activityReducer,
   type ClientActivityList,
@@ -8,7 +8,7 @@ import {
 import { createActivityStore } from "./activity-store"
 import { describe, expect, it } from "vitest"
 
-function makeReminder(overrides: Partial<Reminder> = {}): Reminder {
+function makeReminder(overrides: Partial<ReminderRecordDTO> = {}): ReminderRecordDTO {
   return {
     id: "rem-1",
     clientId: "client-1",
@@ -17,14 +17,14 @@ function makeReminder(overrides: Partial<Reminder> = {}): Reminder {
     remindAt: "2024-06-01",
     completed: false,
     ...overrides,
-  } as Reminder
+  } as ReminderRecordDTO
 }
 
 function makeEntry(
   overrides: Partial<
-    Extract<ClientTimelineEntry, { kind: "reminder" }>
+    Extract<ClientTimelineEntryDTO, { kind: "reminder" }>
   > = {}
-): ClientTimelineEntry {
+): ClientTimelineEntryDTO {
   return {
     kind: "reminder",
     id: "rem-1",
@@ -33,10 +33,10 @@ function makeEntry(
     remindAt: "2024-06-01",
     completed: false,
     ...overrides,
-  } as ClientTimelineEntry
+  } as ClientTimelineEntryDTO
 }
 
-function seeded(reminders: Reminder[] = []): ActivityState {
+function seeded(reminders: ReminderRecordDTO[] = []): ActivityState {
   return { reminders, activities: {} }
 }
 

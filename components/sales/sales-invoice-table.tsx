@@ -1,5 +1,7 @@
 "use client"
 
+import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { SalesActionMenu } from "@/components/sales/sales-action-menu"
 import { StatusBadge } from "@/components/sales/status-badge"
 import {
@@ -10,14 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { Invoice } from "@/lib/drizzle/schema"
-import { useHasPermission } from "@/components/common/permissions-provider"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-
-export type InvoiceWithClientName = Invoice & {
-  clientName: string | null
-}
 
 export function getOutstanding(invoice: {
   grandTotal: string
@@ -29,14 +25,14 @@ export function getOutstanding(invoice: {
 }
 
 interface SalesInvoiceTableProps {
-  invoices: InvoiceWithClientName[]
-  onEdit: (invoice: InvoiceWithClientName) => void
-  onViewPayments: (invoice: InvoiceWithClientName) => void
-  onRecordPayment: (invoice: InvoiceWithClientName) => void
-  onDelete?: (invoice: InvoiceWithClientName) => void
-  onCancel?: (invoice: InvoiceWithClientName) => void
-  onReopen?: (invoice: InvoiceWithClientName) => void
-  onSend?: (invoice: InvoiceWithClientName) => void
+  invoices: InvoiceWithClientNameDTO[]
+  onEdit: (invoice: InvoiceWithClientNameDTO) => void
+  onViewPayments: (invoice: InvoiceWithClientNameDTO) => void
+  onRecordPayment: (invoice: InvoiceWithClientNameDTO) => void
+  onDelete?: (invoice: InvoiceWithClientNameDTO) => void
+  onCancel?: (invoice: InvoiceWithClientNameDTO) => void
+  onReopen?: (invoice: InvoiceWithClientNameDTO) => void
+  onSend?: (invoice: InvoiceWithClientNameDTO) => void
 }
 
 export function SalesInvoiceTable({

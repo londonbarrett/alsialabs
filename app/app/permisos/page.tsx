@@ -10,9 +10,9 @@ export default async function PermissionsPage() {
 
   const result = await getPermissions()
   const t = await getTranslations("permissions")
-  if (!result.success) return <div>{t("failedToLoad")}</div>
+  if (!result.data) return <div>{t("failedToLoad")}</div>
 
   return (
-    <PermissionMatrix matrix={result.matrix} roles={result.roles} />
+    <PermissionMatrix matrix={result.data.matrix} roles={result.data.roles} />
   )
 }

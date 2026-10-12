@@ -1,9 +1,9 @@
 "use client"
 
-import type { ProjectContext } from "@/actions/projects"
+import type { ProjectContextDTO } from "@/actions/schemas/project"
 import { createOptimisticStore } from "@/lib/optimistic-store"
-import { projectContextReducer } from "./project-context-reducer"
 import { createContext, useContext } from "react"
+import { projectContextReducer } from "./project-context-reducer"
 
 /**
  * The project currently open. Always present: the store is created by
@@ -18,7 +18,7 @@ import { createContext, useContext } from "react"
  * action survives that, so an in-flight optimistic edit is not lost when the
  * context is refreshed.
  */
-export function createProjectContextStore(context: ProjectContext) {
+export function createProjectContextStore(context: ProjectContextDTO) {
   /**
    * The whole state is the server's slice, so a reseed replaces it.
    */

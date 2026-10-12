@@ -4,10 +4,10 @@ import { Dialog } from "@/components/common/dialog"
 import { useTranslations } from "next-intl"
 import { ExpenseForm } from "./expense-form"
 import type { Expense } from "@/lib/drizzle/schema"
-import type { ExpenseWithCategory } from "@/lib/types"
+import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
 
 interface ExpenseDialogProps {
-  expense?: ExpenseWithCategory
+  expense?: ExpenseWithCategoryDTO
   projectId: string
   categories: { id: string; slug: string; name: string }[]
   open: boolean

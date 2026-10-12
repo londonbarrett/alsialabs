@@ -9,16 +9,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import type { Product } from "@/lib/drizzle/schema"
+import type { StoreOptionDTO } from "@/actions/schemas/store"
 import { useTranslations } from "next-intl"
-
-interface StoreOption {
-  id: string
-  name: string
-}
 
 interface ProductDialogProps {
   product?: Product
-  stores: StoreOption[]
+  stores: StoreOptionDTO[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void

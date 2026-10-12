@@ -1,5 +1,10 @@
 "use client"
 
+import type { MyTaskDTO } from "@/actions/schemas/task"
+import {
+  ALL_TASK_STATUSES,
+  COLLABORATOR_TASK_STATUSES,
+} from "@/actions/schemas/task"
 import { PageHeader } from "@/components/common/page-header"
 import { MyTasksList } from "@/components/my-tasks/my-tasks-list"
 import { taskStatusColors } from "@/components/projects/task-status-select"
@@ -12,11 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type { MyTask } from "@/actions/tasks"
-import {
-  ALL_TASK_STATUSES,
-  COLLABORATOR_TASK_STATUSES,
-} from "@/lib/schemas/task"
 import { useMyTasksActions } from "@/stores/my-tasks/use-my-tasks-actions"
 import { useMyTasksState } from "@/stores/my-tasks/use-my-tasks-state"
 import { ListTodo } from "lucide-react"
@@ -75,7 +75,7 @@ export function MyTasksView({
     if (value) setProjectFilter(value)
   }
 
-  function getTaskAllowedStatuses(task: MyTask) {
+  function getTaskAllowedStatuses(task: MyTaskDTO) {
     if (isSuperUser || task.isOwner) return ALL_TASK_STATUSES
     if (task.status === "done" || task.status === "cancelled")
       return null

@@ -101,11 +101,15 @@ describe("invoices actions", () => {
       state.mock.onSelect(schema.invoicesTable).respond([
         {
           id: INVOICE_ID,
+          store_id: STORE_ID,
           type: "product",
           invoiceNumber: INVOICE_NUMBER,
           clientId: CLIENT_ID,
+          userId: USER_ID,
           status: "draft",
           issueDate: "2024-01-15",
+          dueDate: null,
+          paidAmount: "0",
           notes: null,
           subtotal: "200.00",
           discountTotal: "0",

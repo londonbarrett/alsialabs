@@ -1,12 +1,20 @@
 "use server"
 
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { SuccessSchema } from "@/actions/schemas/common"
+import {
+  CreateInvoiceSchema,
+  InvoiceItemSchema,
+  InvoicePaymentSchema,
+  InvoicePaymentWithNumberSchema,
+  InvoiceProductOptionSchema,
+  InvoiceRecordSchema,
+  InvoiceWithClientNameSchema,
+  MyInvoiceDetailsSchema,
+  MyInvoicesResultSchema,
+  UpdateInvoiceSchema,
+} from "@/actions/schemas/invoice"
 import { db } from "@/lib/drizzle/client"
-import type {
-  Invoice,
-  InvoiceItem,
-  InvoicePayment,
-} from "@/lib/drizzle/schema"
 import {
   clientsTable,
   invoiceItemsTable,
@@ -16,34 +24,11 @@ import {
 } from "@/lib/drizzle/schema"
 import { returnActionError, sessionAction } from "@/lib/safe-action"
 import {
-  createInvoiceSchema,
-  updateInvoiceSchema,
-} from "@/lib/schemas/invoice"
-import {
   computeInvoiceTotals,
   computeLineTotal,
 } from "@/lib/util/invoices"
 import { and, eq, inArray, or, sql } from "drizzle-orm"
 import { z } from "zod"
-
-export interface ClientInvoice {
-  id: string
-  type: string
-  invoiceNumber: string
-  clientId: string
-  status: string
-  issueDate: string
-  notes: string | null
-  subtotal: string
-  discountTotal: string
-  taxTotal: string
-  grandTotal: string
-  projectId: string | null
-  createdAt: Date
-  updatedAt: Date
-}
-
-export type MyInvoice = Invoice & { outstandingBalance: string }
 
 function deriveOverdueStatus<
   T extends {
@@ -75,6 +60,7 @@ export const getClientInvoices = sessionAction
   .metadata({
     permission: { module: "client-activity", action: "view" },
   })
+  .outputSchema(z.array(InvoiceRecordSchema))
   .action(async ({ parsedInput, ctx }) => {
     const { clientId } = parsedInput
     const session = ctx.session
@@ -95,27 +81,12 @@ export const getClientInvoices = sessionAction
     }
 
     const invoices = await db
-      .select({
-        id: invoicesTable.id,
-        type: invoicesTable.type,
-        invoiceNumber: invoicesTable.invoiceNumber,
-        clientId: invoicesTable.clientId,
-        status: invoicesTable.status,
-        issueDate: invoicesTable.issueDate,
-        notes: invoicesTable.notes,
-        subtotal: invoicesTable.subtotal,
-        discountTotal: invoicesTable.discountTotal,
-        taxTotal: invoicesTable.taxTotal,
-        grandTotal: invoicesTable.grandTotal,
-        projectId: invoicesTable.projectId,
-        createdAt: invoicesTable.createdAt,
-        updatedAt: invoicesTable.updatedAt,
-      })
+      .select()
       .from(invoicesTable)
       .where(eq(invoicesTable.clientId, clientId))
       .orderBy(sql`${invoicesTable.issueDate} desc`)
 
-    return invoices as ClientInvoice[]
+    return invoices
   })
 
 export const getClientPayments = sessionAction
@@ -123,6 +94,7 @@ export const getClientPayments = sessionAction
   .metadata({
     permission: { module: "client-activity", action: "view" },
   })
+  .outputSchema(z.array(InvoicePaymentWithNumberSchema))
   .action(async ({ parsedInput, ctx }) => {
     const { clientId } = parsedInput
     const session = ctx.session
@@ -163,11 +135,12 @@ export const getClientPayments = sessionAction
       .where(eq(invoicesTable.clientId, clientId))
       .orderBy(sql`${invoicePaymentsTable.paymentDate} desc`)
 
-    return payments as Array<InvoicePayment & { invoiceNumber: string }>
+    return payments
   })
 
 export const getMyInvoices = sessionAction
   .metadata({})
+  .outputSchema(MyInvoicesResultSchema)
   .action(async ({ ctx }) => {
     const session = ctx.session
     const email = session.user.email ?? null
@@ -187,8 +160,8 @@ export const getMyInvoices = sessionAction
     const uniqueIds = [...new Set(clientRows.map((r) => r.id))]
     if (uniqueIds.length === 0) {
       return {
-        clientId: null as string | null,
-        invoices: [] as MyInvoice[],
+        clientId: null,
+        invoices: [],
       }
     }
 
@@ -222,19 +195,16 @@ export const getMyInvoices = sessionAction
 
     const today = new Date().toISOString().slice(0, 10)
 
-    const derived = invoices.map(
-      (inv) => deriveOverdueStatus(inv as MyInvoice, today) as MyInvoice
+    const derived = invoices.map((inv) =>
+      deriveOverdueStatus(inv, today)
     )
 
     return { clientId: primaryId, invoices: derived }
   })
 
-export type MyInvoicesResult = Awaited<
-  ReturnType<typeof getMyInvoices>
->["data"]
-
 export const getMyPayments = sessionAction
   .metadata({})
+  .outputSchema(z.array(InvoicePaymentWithNumberSchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
     const email = session.user.email ?? null
@@ -252,8 +222,7 @@ export const getMyPayments = sessionAction
       )
 
     const uniqueIds = [...new Set(clientRows.map((r) => r.id))]
-    if (uniqueIds.length === 0)
-      return [] as Array<InvoicePayment & { invoiceNumber: string }>
+    if (uniqueIds.length === 0) return []
 
     const payments = await db
       .select({
@@ -276,12 +245,13 @@ export const getMyPayments = sessionAction
       .where(inArray(invoicesTable.clientId, uniqueIds))
       .orderBy(sql`${invoicePaymentsTable.paymentDate} desc`)
 
-    return payments as Array<InvoicePayment & { invoiceNumber: string }>
+    return payments
   })
 
 export const getMyInvoiceDetails = sessionAction
   .inputSchema(z.object({ invoiceId: z.uuid() }))
   .metadata({})
+  .outputSchema(MyInvoiceDetailsSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { invoiceId } = parsedInput
     const session = ctx.session
@@ -333,11 +303,11 @@ export const getMyInvoiceDetails = sessionAction
       )
       .limit(1)
 
-    const invoice = invoiceRows[0] as MyInvoice | undefined
+    const invoice = invoiceRows[0]
     if (!invoice) returnActionError("FORBIDDEN")
 
     const today = new Date().toISOString().slice(0, 10)
-    const derived = deriveOverdueStatus(invoice as MyInvoice, today)
+    const derived = deriveOverdueStatus(invoice, today)
 
     const [items, payments] = await Promise.all([
       db
@@ -351,22 +321,14 @@ export const getMyInvoiceDetails = sessionAction
         .orderBy(sql`${invoicePaymentsTable.paymentDate} desc`),
     ])
 
-    return { invoice: derived, items, payments } as {
-      invoice: MyInvoice
-      items: InvoiceItem[]
-      payments: InvoicePayment[]
-    }
+    return { invoice: derived, items, payments }
   })
-
-export type InvoiceWithClient = Invoice & {
-  clientName: string | null
-  outstandingBalance: string
-}
 
 // ---------- Sales invoice actions (migrated from sales) ----------
 
 export const getInvoices = sessionAction
   .metadata({ permission: { module: "sales", action: "view" } })
+  .outputSchema(z.array(InvoiceWithClientNameSchema))
   .action(async () => {
     const storeId = await getEffectiveStoreId()
 
@@ -427,6 +389,7 @@ export const getInvoices = sessionAction
 
 export const getInvoiceProducts = sessionAction
   .metadata({ permission: { module: "sales", action: "view" } })
+  .outputSchema(z.array(InvoiceProductOptionSchema))
   .action(async () => {
     const storeId = await getEffectiveStoreId()
     const base = db
@@ -441,15 +404,10 @@ export const getInvoiceProducts = sessionAction
       : await base
   })
 
-export type InvoiceProductOption = Awaited<
-  ReturnType<typeof getInvoiceProducts>
->["data"] extends (infer U)[]
-  ? U
-  : never
-
 export const getInvoiceItems = sessionAction
   .metadata({ permission: { module: "sales", action: "view" } })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
+  .outputSchema(z.array(InvoiceItemSchema))
   .action(async ({ parsedInput }) => {
     return db
       .select()
@@ -460,6 +418,7 @@ export const getInvoiceItems = sessionAction
 export const getInvoicePayments = sessionAction
   .metadata({ permission: { module: "sales", action: "view" } })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
+  .outputSchema(z.array(InvoicePaymentSchema))
   .action(async ({ parsedInput }) => {
     return db
       .select()
@@ -473,7 +432,8 @@ export const createInvoice = sessionAction
     permission: { module: "sales", action: "create" },
     revalidate: ["/app/ventas"],
   })
-  .inputSchema(createInvoiceSchema)
+  .inputSchema(CreateInvoiceSchema)
+  .outputSchema(InvoiceRecordSchema)
   .action(async ({ parsedInput, ctx }) => {
     const fields = parsedInput
     const totals = computeInvoiceTotals(fields.items)
@@ -549,7 +509,8 @@ export const updateInvoice = sessionAction
     permission: { module: "sales", action: "edit" },
     revalidate: ["/app/ventas"],
   })
-  .inputSchema(updateInvoiceSchema)
+  .inputSchema(UpdateInvoiceSchema)
+  .outputSchema(InvoiceRecordSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { invoiceId, ...fields } = parsedInput
     const totals = computeInvoiceTotals(fields.items)
@@ -625,6 +586,7 @@ export const cancelInvoice = sessionAction
     revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput }) => {
     const storeId = await getEffectiveStoreId()
     const conditions = [eq(invoicesTable.id, parsedInput.invoiceId)]
@@ -637,7 +599,7 @@ export const cancelInvoice = sessionAction
       .set({ status: "cancelled" })
       .where(and(...conditions))
 
-    return { success: true as const }
+    return { success: true }
   })
 
 export const reopenInvoice = sessionAction
@@ -646,6 +608,7 @@ export const reopenInvoice = sessionAction
     revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput }) => {
     const storeId = await getEffectiveStoreId()
     const conditions = [eq(invoicesTable.id, parsedInput.invoiceId)]
@@ -658,7 +621,7 @@ export const reopenInvoice = sessionAction
       .set({ status: "draft" })
       .where(and(...conditions))
 
-    return { success: true as const }
+    return { success: true }
   })
 
 export const markInvoiceAsSent = sessionAction
@@ -667,6 +630,7 @@ export const markInvoiceAsSent = sessionAction
     revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput }) => {
     const storeId = await getEffectiveStoreId()
     const conditions = [eq(invoicesTable.id, parsedInput.invoiceId)]
@@ -679,7 +643,7 @@ export const markInvoiceAsSent = sessionAction
       .set({ status: "sent" })
       .where(and(...conditions))
 
-    return { success: true as const }
+    return { success: true }
   })
 
 export const deleteInvoice = sessionAction
@@ -688,6 +652,7 @@ export const deleteInvoice = sessionAction
     revalidate: ["/app/ventas"],
   })
   .inputSchema(z.object({ invoiceId: z.uuid() }))
+  .outputSchema(SuccessSchema)
   .action(async ({ parsedInput }) => {
     const storeId = await getEffectiveStoreId()
     const deleteConditions = [
@@ -703,5 +668,5 @@ export const deleteInvoice = sessionAction
       returnActionError("CANNOT_DELETE_INVOICE")
     }
 
-    return { success: true as const }
+    return { success: true }
   })

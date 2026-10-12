@@ -9,10 +9,13 @@ import {
 } from "@/components/ui/card"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
-import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
+import type {
+  TaskPriorityDTO,
+  TaskStatus,
+  TaskWithCommentCountDTO,
+} from "@/actions/schemas/task"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
-import type { TaskPriority, TaskStatus } from "@/lib/drizzle/schema"
 import { ListTodo, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -27,14 +30,14 @@ export function TasksCard() {
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = isOwner && canEditProject
   const { tasks } = useProjectTasksState()
-  const { saveTask, deleteTask, updateTaskStatus, updateTaskPriority } =
+  const { createTask, updateTask, deleteTask, updateTaskStatus, updateTaskPriority } =
     useProjectTasksActions()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<
-    TaskWithCommentCount | undefined
+    TaskWithCommentCountDTO | undefined
   >()
   const [commentsTask, setCommentsTask] = useState<
-    TaskWithCommentCount | undefined
+    TaskWithCommentCountDTO | undefined
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
 
@@ -43,7 +46,7 @@ export function TasksCard() {
     setDialogOpen(true)
   }
 
-  const openEdit = (task: TaskWithCommentCount) => {
+  const openEdit = (task: TaskWithCommentCountDTO) => {
     setEditingTask(task)
     setDialogOpen(true)
   }
@@ -53,7 +56,7 @@ export function TasksCard() {
     if (!open) setEditingTask(undefined)
   }
 
-  async function handleTaskSubmit(data: {
+  function handleTaskSubmit(data: {
     name: string
     description: string
     cost: string
@@ -65,9 +68,9 @@ export function TasksCard() {
     setEditingTask(undefined)
     setDialogOpen(false)
     const taskStatus = data.status as TaskStatus
-    const taskPriority = data.priority as TaskPriority
+    const taskPriority = data.priority as TaskPriorityDTO
 
-    const optimisticTask: TaskWithCommentCount = {
+    const optimisticTask: TaskWithCommentCountDTO = {
       id: editingTask?.id ?? `temp-${Date.now()}`,
       projectId,
       name: data.name,
@@ -90,12 +93,16 @@ export function TasksCard() {
       updatedAt: new Date(),
     }
 
-    await saveTask({
-      projectId,
-      values: data,
-      optimisticTask,
-      editingTaskId: editingTask?.id ?? null,
-    })
+    if (editingTask) {
+      updateTask({
+        projectId,
+        taskId: editingTask.id,
+        values: data,
+        optimisticTask,
+      })
+    } else {
+      createTask({ projectId, values: data, optimisticTask })
+    }
   }
 
   return (

@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-export const paymentSchema = z.object({
+export const PaymentSchema = z.object({
   amount: z.string().min(1, { message: "Amount is required" }),
   paymentDate: z.string().min(1, { message: "Payment date is required" }),
   method: z.string().optional().default(""),
@@ -8,4 +8,4 @@ export const paymentSchema = z.object({
   notes: z.string().optional().default(""),
 })
 
-export type PaymentInput = z.infer<typeof paymentSchema>
+export type PaymentDTO = z.infer<typeof PaymentSchema>

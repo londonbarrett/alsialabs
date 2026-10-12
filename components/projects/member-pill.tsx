@@ -3,7 +3,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
-import type { ProjectMember } from "@/lib/types"
+import type { ProjectMemberDTO } from "@/actions/schemas/project-people"
 import { X } from "lucide-react"
 
 function initials(name: string) {
@@ -19,7 +19,7 @@ export function MemberPill({
   member,
   onRemove,
 }: {
-  member: ProjectMember
+  member: ProjectMemberDTO
   onRemove?: () => void
 }) {
   return (

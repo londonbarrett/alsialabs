@@ -1,19 +1,19 @@
-import type { ExpenseWithCategory } from "@/lib/types"
+import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
 
 export type ExpenseAction =
-  | { type: "add"; expense: ExpenseWithCategory }
-  | { type: "update"; expense: ExpenseWithCategory }
+  | { type: "add"; expense: ExpenseWithCategoryDTO }
+  | { type: "update"; expense: ExpenseWithCategoryDTO }
   | {
       type: "replaceTemp"
       tempId: string
-      expense: ExpenseWithCategory
+      expense: ExpenseWithCategoryDTO
     }
   | { type: "delete"; expenseId: string }
 
 export function expenseReducer(
-  state: ExpenseWithCategory[],
+  state: ExpenseWithCategoryDTO[],
   action: ExpenseAction
-): ExpenseWithCategory[] {
+): ExpenseWithCategoryDTO[] {
   switch (action.type) {
     case "add":
       return [action.expense, ...state]

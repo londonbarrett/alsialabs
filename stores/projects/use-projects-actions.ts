@@ -3,7 +3,7 @@
 import type { ProjectFormValues } from "@/components/projects/project-form"
 import { useSettle } from "@/hooks/use-settle"
 import { createProject } from "@/actions/projects"
-import type { Project } from "@/lib/types"
+import type { ProjectSummaryDTO } from "@/actions/schemas/project"
 import {
   nextOptimisticProjectId,
   type ProjectsAction,
@@ -15,13 +15,13 @@ import { useTranslations } from "next-intl"
 /** The signed-in user as a `Project` owner row, seeded server-side so the
  *  optimistic row renders with its real owner instead of waiting on
  *  `useSession` to hydrate. */
-export type ProjectOwner = Project["owners"][number]
+export type ProjectOwnerDTO = ProjectSummaryDTO["owners"][number]
 
 function buildOptimisticProject(
   values: ProjectFormValues,
-  owner: ProjectOwner,
+  owner: ProjectOwnerDTO,
   categorySlug: string | null
-): Project {
+): ProjectSummaryDTO {
   return {
     id: nextOptimisticProjectId(),
     primaryOwnerId: owner.id,
@@ -45,7 +45,7 @@ function buildOptimisticProject(
 
 export function useProjectsActions(
   categories: { id: string; slug: string }[],
-  owner: ProjectOwner
+  owner: ProjectOwnerDTO
 ) {
   const t = useTranslations()
   const settle = useSettle()

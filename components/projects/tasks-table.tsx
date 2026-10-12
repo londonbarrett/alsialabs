@@ -13,18 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type {
-  Task,
-  TaskPriority,
-  TaskStatus,
-} from "@/lib/drizzle/schema"
+import type { Task } from "@/lib/drizzle/schema"
 import {
   ALL_TASK_STATUSES,
   COLLABORATOR_TASK_STATUSES,
-} from "@/lib/schemas/task"
+  type TaskPriorityDTO,
+  type TaskStatus,
+  type TaskWithCommentCountDTO,
+} from "@/actions/schemas/task"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
-import type { TaskWithCommentCount } from "@/stores/project-tasks/project-tasks-reducer"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { DueDate } from "./due-date"
@@ -35,12 +33,12 @@ import {
 } from "./task-status-select"
 
 interface TasksTableProps {
-  tasks: TaskWithCommentCount[]
+  tasks: TaskWithCommentCountDTO[]
   onStatusChange: (taskId: string, status: TaskStatus) => void
-  onPriorityChange: (taskId: string, priority: TaskPriority) => void
+  onPriorityChange: (taskId: string, priority: TaskPriorityDTO) => void
   onDelete: (taskId: string) => Promise<void>
-  onEdit: (task: TaskWithCommentCount) => void
-  onComments: (task: TaskWithCommentCount) => void
+  onEdit: (task: TaskWithCommentCountDTO) => void
+  onComments: (task: TaskWithCommentCountDTO) => void
 }
 
 export function TasksTable({
@@ -68,7 +66,7 @@ export function TasksTable({
     return null
   }
 
-  function getAssigneeName(task: TaskWithCommentCount) {
+  function getAssigneeName(task: TaskWithCommentCountDTO) {
     if (task.assigneeName) return task.assigneeName
     const member = members.find((m) => m.userId === task.assigneeId)
     return member?.userEmail ?? task.assigneeId
