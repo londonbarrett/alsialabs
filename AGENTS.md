@@ -10,7 +10,7 @@ Common triggers:
 - **UI components** → load `shadcn`, `tailwind-css-patterns`, `frontend-design`
 - **Next.js pages/routes** → load `next-best-practices`, `vercel-react-best-practices`
 - **React components** → load `vercel-react-best-practices`, `vercel-composition-patterns`
-- **Database/SQL** → load `supabase-postgres-best-practices`
+- **Database/SQL** → load `drizzle-orm`, `supabase-postgres-best-practices`
 - **Testing** → load `playwright-best-practices`
 - **TypeScript types** → load `typescript-advanced-types`
 - **Accessibility** → load `accessibility`
@@ -19,7 +19,7 @@ Common triggers:
 
 ## Project Conventions
 
-- **Server actions** in `lib/actions/` — auth-guarded, Zod validation, `revalidatePath` after mutations
+- **Server actions** in `actions/` (safe actions via next-safe-action) and `actions/not-safe/` (plain server actions without next-safe-action) — auth-guarded, Zod validation via `actions/schemas/`, `revalidatePath` after mutations
 - **Components** follow shadcn/ui patterns: `FieldGroup`/`Field` for forms, `data-invalid`/`aria-invalid` for validation, `cn()` for class merging
 - **Database** via Drizzle ORM with PostgreSQL — schema in `lib/drizzle/schema.ts`
 - **State** — page-scoped optimistic stores in `stores/<domain>/` — see the Optimistic Stores section
@@ -27,6 +27,17 @@ Common triggers:
 - **Icons** from `lucide-react`
 - **Toasts** via `sonner`
 - **Styling** Tailwind CSS v4 with semantic tokens — no raw colors or manual `dark:` overrides
+
+## Verification
+
+Run in order after finishing a change; fix failures before completing the task:
+
+1. `npx tsc --noEmit` — types
+2. `npx eslint` — lint (targeted: `npx eslint <paths>`)
+3. `npx vitest run` — unit tests
+4. `npx openspec validate --specs` — spec compliance
+
+Or use the `/verify` command, which runs the full suite.
 
 ## Drizzle Migration Workflow
 
@@ -84,4 +95,4 @@ Drizzle tracks migration state via snapshot files that must form a chain (`prevI
 Pending actions render instantly and auto-revert on failure: `pend`/`commit`/`discard` keep `optimistic` = committed + pending, applied in order. `useOptimisticAction` runs the mutation, commits or discards, drives the global loading bar, and calls `router.refresh()` — the fresh server props reach the store through `useServerReseed`, which replays still-pending actions over the new data, so a focus refresh never discards an in-flight write. A test beside each store locks the commit/discard/reseed semantics.
 
 ### Adding or migrating a store
-reducer → store → state hook → actions hook → test → provider → mount in the page → rewrite the view to use the hooks → verify with `npx tsc --noEmit`, targeted `npx eslint`, `npx vitest run`, `npx openspec validate --specs`.
+reducer → store → state hook → actions hook → test → provider → mount in the page → rewrite the view to use the hooks → verify with `/verify`.

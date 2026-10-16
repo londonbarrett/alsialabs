@@ -2,12 +2,22 @@ schema: spec-driven
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Tech stack: TypeScript, Next.js 16 (App Router, RSC), React 19, Tailwind CSS v4 + shadcn/ui,
+  Zustand optimistic stores, Drizzle ORM + PostgreSQL, NextAuth v5, next-safe-action + Zod,
+  Playwright (e2e), Vitest (unit), Prettier + ESLint.
+
+  Conventions:
+  - Safe server actions in `actions/` (auth-guarded, Zod-validated, revalidatePath after mutations);
+    plain server actions without next-safe-action in `actions/not-safe/`; shared schemas in `actions/schemas/`.
+  - All list/mutation UI state lives in page-scoped Zustand stores under `stores/<domain>/`
+    (see openspec/specs/optimistic-state/spec.md).
+  - Styling uses semantic tokens only — no raw colors, no manual `dark:` overrides.
+  - Schema changes only via `drizzle-kit generate` then `drizzle-kit migrate`;
+    never hand-edit files in `drizzle/`.
+  - Verification order: `npx tsc --noEmit`, `npx eslint`, `npx vitest run`,
+    `npx openspec validate --specs` (or the `/verify` command).
+  - Never commit or push without explicit user permission.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
