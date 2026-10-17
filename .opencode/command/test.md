@@ -41,8 +41,6 @@ Then [outcome]
 
 **On `fix/*` branches only:** also read `## Description` to understand the bug being fixed. Generate a **regression test** that validates the fix — a test that would have failed before the fix was applied. Prefix it with a comment referencing the bug. Add it as the first test in the suite.
 
-Also look for OpenSpec artifacts at `openspec/changes/<slug>/specs/`. If they exist, read any additional scenarios from the spec files.
-
 If no Gherkin scenarios are found and the issue has no description, prompt the user: "No test scenarios found in this issue. Want to describe what should be tested?" Capture their answer and turn it into Gherkin scenarios.
 
 ### 3. Determine target page

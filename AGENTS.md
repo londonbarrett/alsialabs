@@ -7,6 +7,7 @@
 **Always check for available related skills first.** Load the relevant skill using the `skill` tool before beginning work. This ensures you follow project-specific patterns and best practices.
 
 Common triggers:
+
 - **UI components** → load `shadcn`, `tailwind-css-patterns`, `frontend-design`
 - **Next.js pages/routes** → load `next-best-practices`, `vercel-react-best-practices`
 - **React components** → load `vercel-react-best-practices`, `vercel-composition-patterns`
@@ -35,7 +36,6 @@ Run in order after finishing a change; fix failures before completing the task:
 1. `npx tsc --noEmit` — types
 2. `npx eslint` — lint (targeted: `npx eslint <paths>`)
 3. `npx vitest run` — unit tests
-4. `npx openspec validate --specs` — spec compliance
 
 Or use the `/verify` command, which runs the full suite.
 
@@ -44,6 +44,7 @@ Or use the `/verify` command, which runs the full suite.
 **Always use `drizzle-kit generate`** to create migrations. Never manually edit migration files.
 
 ### Rules
+
 1. Make schema changes in `lib/drizzle/schema.ts`
 2. Run `npx drizzle-kit generate` — creates SQL + snapshot together
 3. Review the generated SQL for issues (NOT NULL without defaults, etc.)
@@ -51,12 +52,14 @@ Or use the `/verify` command, which runs the full suite.
 5. Run any data migration scripts if needed
 
 ### Never
+
 - Manually edit `drizzle/meta/_journal.json`
 - Manually create `.sql` files in `drizzle/`
 - Manually create `_snapshot.json` files in `drizzle/meta/`
 - Change schema after generating (regenerate if you do)
 
 ### Why
+
 Drizzle tracks migration state via snapshot files that must form a chain (`prevId` → `id`). Manual edits break this chain and cause silent failures.
 
 ## Optimistic Stores
@@ -76,6 +79,7 @@ Drizzle tracks migration state via snapshot files that must form a chain (`prevI
     app/app/<route>/page.tsx                            ← mounts the provider (never the view)
 
 ### Rules
+
 1. **Reducer** — pure `switch` over a discriminated union; actions named by intent (`add`, `update`, `replaceTemp`, `delete`). No `reset`: failed mutations revert through `discard`, and whole-list replacement is `reseedFromServer`'s job.
 2. **Store** — `createOptimisticStore({ initialState, reducer, serverSlice? })`. Omit `serverSlice` when state IS the server's list (a reseed replaces it wholesale); declare the key when state also holds client-only slices (loaded comments, fetched payments). Export the context and a `useXStore()` that throws a provider-named error.
 3. **State hook** — one no-arg hook, the file's only export, selecting `s.optimistic` with `useStore`. Name values by domain (`routines`, never `optimistic`); put defaults and derivations here (`EMPTY_*`, `pendingIds`). No permissions — components compose `useProjectContextState()` facts with `useHasPermission()`.
@@ -85,6 +89,7 @@ Drizzle tracks migration state via snapshot files that must form a chain (`prevI
 7. **Imports** — relative (`./x-reducer`) inside the folder, absolute (`@/stores/x/x-store`) outside. Shared infra stays at `stores/use-optimistic-action.ts` and `hooks/` (`use-server-reseed`, `use-settle`, `use-loading-indicator`).
 
 ### Never
+
 - `useReducer` or a list in `useState` inside a component (routines was the last one; keep it that way)
 - `create` from `zustand` (it returns a bound hook) or calling a store as a function — stores are vanilla `StoreApi`, read with `useStore` in render and `getState()` in async handlers
 - `reset`/`hydrate` actions, or attaching methods with `Object.assign` after construction
@@ -92,7 +97,9 @@ Drizzle tracks migration state via snapshot files that must form a chain (`prevI
 - conditional permission hooks (`isOwner && useHasPermission(...)`) or permission flags in a state hook
 
 ### Why
+
 Pending actions render instantly and auto-revert on failure: `pend`/`commit`/`discard` keep `optimistic` = committed + pending, applied in order. `useOptimisticAction` runs the mutation, commits or discards, drives the global loading bar, and calls `router.refresh()` — the fresh server props reach the store through `useServerReseed`, which replays still-pending actions over the new data, so a focus refresh never discards an in-flight write. A test beside each store locks the commit/discard/reseed semantics.
 
 ### Adding or migrating a store
+
 reducer → store → state hook → actions hook → test → provider → mount in the page → rewrite the view to use the hooks → verify with `/verify`.
