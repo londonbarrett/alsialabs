@@ -64,7 +64,7 @@ Drizzle tracks migration state via snapshot files that must form a chain (`prevI
 
 ## Optimistic Stores
 
-**All list and mutation UI state lives in a page-scoped Zustand store — never in component `useReducer` or list `useState`.** The full contract is `openspec/specs/optimistic-state/spec.md`. When building or migrating a store, copy the closest existing domain: `stores/expenses/` (whole-state list) or `stores/my-tasks/` (partial store with client-only slices).
+**All list and mutation UI state lives in a page-scoped Zustand store — never in component `useReducer` or list `useState`.** The full contract is `docs/superpowers/specs/2026-10-16-optimistic-state-design.md`. When building or migrating a store, copy the closest existing domain: `stores/expenses/` (whole-state list) or `stores/my-tasks/` (partial store with client-only slices).
 
 ### File layout
 
