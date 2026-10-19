@@ -2,6 +2,7 @@
   "name": "webapp",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.25.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +13,9 @@
     "db:generate": "drizzle-kit generate",
     "db:seed": "tsx lib/drizzle/seed.ts",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify": "pnpm typecheck && pnpm lint --max-warnings=0 && pnpm test:run --coverage"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

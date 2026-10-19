@@ -1,6 +1,8 @@
 **NEVER commit or push changes without explicit user permission. Always ask first.**
 
-# Development Workflow
+# Alsia — Agent Guide
+
+Invoicing and business-management web app: clients, sales/invoices, projects, products, activity, and reports. Next.js 16 App Router, React 19, TypeScript, PostgreSQL via Drizzle ORM, NextAuth v5, Tailwind CSS v4 + shadcn/ui, `next-intl`, `next-safe-action`, and Zod. Package manager: **pnpm**.
 
 ## Before Starting Any Task
 
@@ -18,6 +20,31 @@ Common triggers:
 - **SEO** → load `seo`
 - **Node.js backend** → load `nodejs-best-practices`, `nodejs-backend-patterns`
 
+## Commands
+
+- Dev server: `pnpm dev`
+- Build: `pnpm build`
+- Lint (targeted): `pnpm eslint <paths>` — full: `pnpm eslint --max-warnings=0`
+- Types: `pnpm typecheck`
+- Unit tests (watch): `pnpm test` — once: `pnpm test:run` — focused: `pnpm vitest run -t "<test name>"`
+- E2E tests: `pnpm test:e2e`
+- Full verification: `pnpm verify` (typecheck + lint + tests with coverage)
+- Generate migration: `pnpm db:generate` — apply: `pnpm db:migrate` — seed: `pnpm db:seed`
+
+## Repository map
+
+- `app/` — Next.js App Router routes; authenticated app lives under `app/app/`
+- `actions/` — server actions (`actions/not-safe/` for plain actions without next-safe-action); Zod schemas in `actions/schemas/`
+- `components/` — UI, grouped by route/domain; shadcn/ui primitives in `components/ui/`
+- `stores/` — page-scoped optimistic Zustand stores, one folder per domain
+- `hooks/` — shared React hooks and store infrastructure
+- `lib/` — auth, Drizzle schema/client/migrations, utilities, types
+- `messages/` — `next-intl` translations (`en.json`, `es.json`)
+- `drizzle/` — generated SQL migrations (never hand-edit)
+- `e2e/` — Playwright specs
+- `docs/superpowers/specs/` — design docs, one per capability; `docs/superpowers/plans/` — implementation plans
+- `.githooks/` — native git hooks (pre-commit runs `pnpm verify`); `.github/workflows/` — CI
+
 ## Project Conventions
 
 - **Server actions** in `actions/` (safe actions via next-safe-action) and `actions/not-safe/` (plain server actions without next-safe-action) — auth-guarded, Zod validation via `actions/schemas/`, `revalidatePath` after mutations
@@ -29,13 +56,51 @@ Common triggers:
 - **Toasts** via `sonner`
 - **Styling** Tailwind CSS v4 with semantic tokens — no raw colors or manual `dark:` overrides
 
+## Boundaries
+
+Allowed without asking:
+
+- Read, search, and edit files
+- Run lint, type-check, and tests
+
+Ask first:
+
+- Anything that commits, pushes, or opens a PR (always)
+- Installing or removing dependencies
+- Deleting files or directories
+
+Never:
+
+- Commit secrets or `.env*` files — `.env.local` is gitignored; commit only `.env.example`
+- Hand-edit `drizzle/` output: `drizzle/meta/_journal.json`, `drizzle/*.sql`, or `drizzle/meta/*_snapshot.json`
+- Add `any` to work around type errors — fix the type instead
+- Bypass the quality gate (`git commit --no-verify`) or weaken lint/coverage thresholds to make a change pass
+
+## Workflow
+
+Superpowers-driven development: brainstorm → design doc → plan → execute → verify → commit.
+
+1. **Brainstorm** — clarify intent before building; produce a design doc in `docs/superpowers/specs/`
+2. **Plan** — write an implementation plan in `docs/superpowers/plans/` with bite-sized tasks
+3. **Execute** — inline via `executing-pls` (preferred) or subagent-driven via `subagent-driven-development`
+4. **Verify** — `pnpm verify` must pass
+5. **Commit** — the pre-commit hook runs `pnpm verify`; CI re-runs it on push/PR
+
+### Quality gate
+
+Automated guardrails are the quality gate — not manual code review:
+
+- **Pre-commit hook** (`.githooks/pre-commit`) runs `pnpm verify` before every commit
+- **CI** (`.github/workflows/ci.yml`) runs `pnpm verify` on every push and PR
+- `pnpm verify` = `tsc --noEmit` + `eslint --max-warnings=0` + `vitest run --coverage` (floor: 60% lines/functions/statements, 50% branches)
+
+The `requesting-code-review` / `receiving-code-review` skills and per-task review subagents are **not** run unless explicitly requested. `executing-pls` (one end-of-branch review) is preferred over `subagent-driven-development`'s per-task reviews.
+
 ## Verification
 
-Run in order after finishing a change; fix failures before completing the task:
+Run after finishing a change; fix failures before completing the task:
 
-1. `npx tsc --noEmit` — types
-2. `npx eslint` — lint (targeted: `npx eslint <paths>`)
-3. `npx vitest run` — unit tests
+1. `pnpm verify` — types + lint (warnings fail) + unit tests with coverage
 
 Or use the `/verify` command, which runs the full suite.
 
@@ -46,17 +111,10 @@ Or use the `/verify` command, which runs the full suite.
 ### Rules
 
 1. Make schema changes in `lib/drizzle/schema.ts`
-2. Run `npx drizzle-kit generate` — creates SQL + snapshot together
+2. Run `pnpm db:generate` — creates SQL + snapshot together
 3. Review the generated SQL for issues (NOT NULL without defaults, etc.)
-4. Run `npx drizzle-kit migrate` — applies to database
+4. Run `pnpm db:migrate` — applies to database
 5. Run any data migration scripts if needed
-
-### Never
-
-- Manually edit `drizzle/meta/_journal.json`
-- Manually create `.sql` files in `drizzle/`
-- Manually create `_snapshot.json` files in `drizzle/meta/`
-- Change schema after generating (regenerate if you do)
 
 ### Why
 
@@ -64,7 +122,7 @@ Drizzle tracks migration state via snapshot files that must form a chain (`prevI
 
 ## Optimistic Stores
 
-**All list and mutation UI state lives in a page-scoped Zustand store — never in component `useReducer` or list `useState`.** The full contract is `docs/superpowers/specs/2026-10-16-optimistic-state-design.md`. When building or migrating a store, copy the closest existing domain: `stores/expenses/` (whole-state list) or `stores/my-tasks/` (partial store with client-only slices).
+**All list and mutation UI state lives in a page-scoped Zustand store — never in component `useReducer` or list `useState`.** The full contract is `docs/superpowers/specs/2026-10-16-optimistic-state-design.md`; read it before building or migrating a store. Copy the closest existing domain: `stores/expenses/` (whole-state list) or `stores/my-tasks/` (partial store with client-only slices).
 
 ### File layout
 
@@ -95,10 +153,7 @@ Drizzle tracks migration state via snapshot files that must form a chain (`prevI
 - `reset`/`hydrate` actions, or attaching methods with `Object.assign` after construction
 - module-level singleton stores — one instance per provider per route visit
 - conditional permission hooks (`isOwner && useHasPermission(...)`) or permission flags in a state hook
-
-### Why
-
-Pending actions render instantly and auto-revert on failure: `pend`/`commit`/`discard` keep `optimistic` = committed + pending, applied in order. `useOptimisticAction` runs the mutation, commits or discards, drives the global loading bar, and calls `router.refresh()` — the fresh server props reach the store through `useServerReseed`, which replays still-pending actions over the new data, so a focus refresh never discards an in-flight write. A test beside each store locks the commit/discard/reseed semantics.
+- a store folder importing a sibling store folder
 
 ### Adding or migrating a store
 

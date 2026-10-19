@@ -26,9 +26,6 @@ vi.mock("@/lib/drizzle/client", async () => {
   const schema = await import("@/lib/drizzle/schema")
   const db = drizzle.mock({ schema })
   state.mock = mockDatabase(db)
-  const originalTransaction = (
-    db as unknown as { transaction: unknown }
-  ).transaction
   ;(db as unknown as { transaction: unknown }).transaction = vi.fn(
     async (cb: (tx: unknown) => Promise<unknown>) => {
       return cb(db)
@@ -96,15 +93,13 @@ describe("payments actions", () => {
     })
 
     it("returns VALIDATION_FAILED when amount exceeds remaining", async () => {
-      state.mock
-        .onSelect(schema.invoicesTable)
-        .respond([
-          {
-            grandTotal: "100.00",
-            paidAmount: "80.00",
-            status: "draft",
-          },
-        ])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          grandTotal: "100.00",
+          paidAmount: "80.00",
+          status: "draft",
+        },
+      ])
 
       const result = await recordPayment({
         invoiceId: INVOICE_ID,
@@ -130,15 +125,13 @@ describe("payments actions", () => {
     })
 
     it("returns VALIDATION_FAILED when invoice is cancelled", async () => {
-      state.mock
-        .onSelect(schema.invoicesTable)
-        .respond([
-          {
-            grandTotal: "100.00",
-            paidAmount: "0",
-            status: "cancelled",
-          },
-        ])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          grandTotal: "100.00",
+          paidAmount: "0",
+          status: "cancelled",
+        },
+      ])
 
       const result = await recordPayment({
         invoiceId: INVOICE_ID,

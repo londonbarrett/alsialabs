@@ -1,16 +1,4 @@
-import { expect, test, type Page } from "@playwright/test"
-
-async function blockOAuthRedirects(page: Page) {
-  await page.route("**/accounts.google.com/**", (route) =>
-    route.fulfill({ status: 200, body: "<html></html>" })
-  )
-  await page.route("**/facebook.com/**", (route) =>
-    route.fulfill({ status: 200, body: "<html></html>" })
-  )
-  await page.route("**/www.facebook.com/**", (route) =>
-    route.fulfill({ status: 200, body: "<html></html>" })
-  )
-}
+import { expect, test } from "@playwright/test"
 
 test.describe("Auth", () => {
   test.beforeEach(async ({ page }) => {

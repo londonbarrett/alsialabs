@@ -6,6 +6,15 @@ export default defineConfig({
     globals: true,
     environment: "node",
     exclude: [...configDefaults.exclude, "e2e/**"],
+    coverage: {
+      provider: "v8",
+      thresholds: {
+        lines: 60,
+        branches: 50,
+        functions: 60,
+        statements: 60,
+      },
+    },
   },
   resolve: {
     alias: {
