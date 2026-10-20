@@ -52,20 +52,20 @@ export function SalesInvoiceTable({
     <div
       className="**:data-[slot=table-container]:max-h-[calc(100vh-16rem)]"
       role="region"
-      aria-label={t("sales.title")}
+      aria-label={t("nav.ventas")}
     >
       <Table>
         <TableHeader className="sticky top-0 z-10 [&_th]:bg-card">
           <TableRow>
-            <TableHead scope="col">{t("sales.invoiceHash")}</TableHead>
+            <TableHead scope="col">{t("invoice.invoiceNumber")}</TableHead>
             <TableHead scope="col">{t("sales.client")}</TableHead>
-            <TableHead scope="col">{t("sales.type")}</TableHead>
-            <TableHead scope="col">{t("sales.date")}</TableHead>
-            <TableHead scope="col">{t("sales.dueDate")}</TableHead>
-            <TableHead scope="col">{t("sales.total")}</TableHead>
-            <TableHead scope="col">{t("sales.outstanding")}</TableHead>
-            <TableHead scope="col">{t("sales.status")}</TableHead>
-            <TableHead scope="col">{t("sales.actions")}</TableHead>
+            <TableHead scope="col">{t("common.type")}</TableHead>
+            <TableHead scope="col">{t("common.date")}</TableHead>
+            <TableHead scope="col">{t("common.dueDate")}</TableHead>
+            <TableHead scope="col">{t("common.total")}</TableHead>
+            <TableHead scope="col">{t("invoice.outstanding")}</TableHead>
+            <TableHead scope="col">{t("common.status")}</TableHead>
+            <TableHead scope="col">{t("common.actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

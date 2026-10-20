@@ -35,7 +35,7 @@ export function LogActivityDialog({
       title={
         activity
           ? t("activities.editActivity")
-          : t("activities.logActivity")
+          : t("common.logActivity")
       }
       description={
         activity
@@ -84,13 +84,13 @@ function LogActivityForm({
     if (!subject.trim())
       fieldErrors.subject = t("activities.subjectRequired")
     if (!activityDate)
-      fieldErrors.activityDate = t("activities.dateRequired")
+      fieldErrors.activityDate = t("common.dateRequired")
     else {
       const d = new Date(activityDate + "T00:00:00")
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       if (d > today)
-        fieldErrors.activityDate = t("activities.dateCannotBeFuture")
+        fieldErrors.activityDate = t("common.dateCannotBeFuture")
     }
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
@@ -119,7 +119,7 @@ function LogActivityForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">
-          {t("activities.type")}
+          {t("common.type")}
         </label>
         <div className="flex gap-2">
           {activityTypes.map((at) => (
@@ -141,21 +141,21 @@ function LogActivityForm({
       </div>
       <Field
         name="subject"
-        label={t("activities.subject")}
+        label={t("common.subject")}
         value={subject}
         onChange={setSubject}
         error={errors.subject}
       />
       <Field
         name="description"
-        label={t("activities.description")}
+        label={t("common.description")}
         value={description}
         onChange={setDescription}
         type="textarea"
       />
       <Field
         name="activityDate"
-        label={t("activities.date")}
+        label={t("common.date")}
         value={activityDate}
         onChange={setActivityDate}
         error={errors.activityDate}
@@ -167,12 +167,10 @@ function LogActivityForm({
           variant="outline"
           onClick={() => onOpenChange(false)}
         >
-          {t("activities.cancel")}
+          {t("common.cancel")}
         </Button>
         <Button type="submit">
-          {activity
-            ? t("activities.saveChanges")
-            : t("activities.logActivityBtn")}
+          {activity ? t("common.saveChanges") : t("common.logActivity")}
         </Button>
       </div>
     </form>

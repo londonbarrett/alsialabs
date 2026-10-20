@@ -78,7 +78,7 @@ export function ClientForm({
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!name.trim()) fieldErrors.name = t("clients.nameRequired")
+    if (!name.trim()) fieldErrors.name = t("common.nameRequired")
     if (!phone.trim()) fieldErrors.phone = t("clients.phoneRequired")
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       fieldErrors.email = t("clients.invalidEmail")
@@ -161,14 +161,14 @@ export function ClientForm({
       />
       <Field
         name="location"
-        label={t("clients.location")}
+        label={t("common.location")}
         value={location}
         onChange={setLocation}
         error={errors.location}
       />
       <Field
         name="comments"
-        label={t("clients.comments")}
+        label={t("common.comments")}
         value={comments}
         onChange={setComments}
         error={errors.comments}

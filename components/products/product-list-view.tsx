@@ -96,7 +96,7 @@ export function ProductListView({
         <div className="flex flex-1 flex-col gap-4 p-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold tracking-tight">
-              {t("products.title")}
+              {t("nav.productos")}
             </h1>
             <Button
               onClick={openNew}
@@ -110,23 +110,23 @@ export function ProductListView({
           <div
             className="max-h-[calc(100vh-10rem)] overflow-auto rounded-md border"
             role="region"
-            aria-label={t("products.title")}
+            aria-label={t("nav.productos")}
           >
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead scope="col">
-                    {t("products.name")}
+                    {t("common.name")}
                   </TableHead>
                   <TableHead scope="col">
-                    {t("products.store")}
+                    {t("common.store")}
                   </TableHead>
                   <TableHead scope="col">{t("products.sku")}</TableHead>
                   <TableHead scope="col">
                     {t("products.unit")}
                   </TableHead>
                   <TableHead scope="col">
-                    {t("products.actions")}
+                    {t("common.actions")}
                   </TableHead>
                 </TableRow>
               </TableHeader>

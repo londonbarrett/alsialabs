@@ -55,18 +55,10 @@ export function ExpensesTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead scope="col">
-              {t("projects.expenses.description")}
-            </TableHead>
-            <TableHead scope="col">
-              {t("projects.expenses.type")}
-            </TableHead>
-            <TableHead scope="col">
-              {t("projects.expenses.amount")}
-            </TableHead>
-            <TableHead scope="col">
-              {t("projects.expenses.date")}
-            </TableHead>
+            <TableHead scope="col">{t("common.description")}</TableHead>
+            <TableHead scope="col">{t("common.type")}</TableHead>
+            <TableHead scope="col">{t("common.amount")}</TableHead>
+            <TableHead scope="col">{t("common.date")}</TableHead>
             {(canEdit || canDelete) && (
               <TableHead scope="col">{t("common.actions")}</TableHead>
             )}
@@ -83,7 +75,7 @@ export function ExpensesTable({
               <TableCell>
                 {row.type === "task" ? (
                   <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                    {t("projects.expenses.task")}
+                    {t("common.task")}
                   </Badge>
                 ) : row.expense.categorySlug ? (
                   <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400">

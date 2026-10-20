@@ -244,7 +244,7 @@ export function InvoiceForm({
     for (const item of items) {
       const ie: LineItemErrors = {}
       if (!item.description.trim()) {
-        ie.description = t("actions.sales.descriptionRequired")
+        ie.description = t("common.descriptionRequired")
       }
       if (!item.quantity.trim()) {
         ie.quantity = t("actions.sales.quantityRequired")
@@ -391,7 +391,7 @@ export function InvoiceForm({
       <FieldGroup>
         <div className="grid grid-cols-2 gap-4">
           <Field data-invalid={!!errors.type || undefined}>
-            <FieldLabel htmlFor="type">{t("sales.type")}</FieldLabel>
+            <FieldLabel htmlFor="type">{t("common.type")}</FieldLabel>
             <Select
               value={type}
               onValueChange={(value: unknown) => {
@@ -402,8 +402,8 @@ export function InvoiceForm({
                   setType(value)
               }}
               items={[
-                { value: "product", label: t("sales.product") },
-                { value: "service", label: t("sales.service") },
+                { value: "product", label: t("invoice.product") },
+                { value: "service", label: t("invoice.service") },
               ]}
             >
               <SelectTrigger
@@ -415,10 +415,10 @@ export function InvoiceForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="product">
-                  {t("sales.product")}
+                  {t("invoice.product")}
                 </SelectItem>
                 <SelectItem value="service">
-                  {t("sales.service")}
+                  {t("invoice.service")}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -452,7 +452,7 @@ export function InvoiceForm({
 
           <Field data-invalid={!!errors.issueDate || undefined}>
             <FieldLabel htmlFor="issueDate">
-              {t("sales.issueDate")}
+              {t("invoice.issueDate")}
             </FieldLabel>
             <Input
               id="issueDate"
@@ -476,7 +476,7 @@ export function InvoiceForm({
           </Field>
           <Field data-invalid={!!errors.dueDate || undefined}>
             <FieldLabel htmlFor="dueDate">
-              {t("sales.dueDate")}
+              {t("common.dueDate")}
             </FieldLabel>
             <Input
               id="dueDate"
@@ -529,7 +529,7 @@ export function InvoiceForm({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">
-            {t("sales.lineItems")}
+            {t("invoice.lineItems")}
           </span>
           <Button
             type="button"
@@ -600,12 +600,12 @@ export function InvoiceForm({
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>
-          {t("sales.cancel")}
+          {t("common.cancel")}
         </Button>
         <Button type="submit">
           {invoice
-            ? t("sales.saveChanges")
-            : t("sales.createInvoiceBtn")}
+            ? t("common.saveChanges")
+            : t("common.createInvoice")}
         </Button>
       </div>
     </form>

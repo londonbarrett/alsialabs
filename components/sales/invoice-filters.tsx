@@ -84,7 +84,7 @@ export function InvoiceFilters({
           className="mr-auto self-center text-sm text-muted-foreground"
           aria-live="polite"
         >
-          {t("sales.resultCount", { count: filteredInvoices.length })}
+          {t("common.resultCount", { count: filteredInvoices.length })}
         </p>
         {isFiltered && (
           <Button
@@ -123,7 +123,7 @@ export function InvoiceFilters({
             htmlFor="status-filter"
             className="text-xs text-muted-foreground"
           >
-            {t("sales.status")}
+            {t("common.status")}
           </Label>
           <Select
             value={statusFilter}
@@ -131,7 +131,7 @@ export function InvoiceFilters({
               if (value !== null) setStatusFilter(value)
             }}
             items={{
-              all: t("sales.allStatuses"),
+              all: t("common.allStatuses"),
               ...Object.fromEntries(
                 invoiceStatuses.map((s) => [
                   s,
@@ -143,13 +143,13 @@ export function InvoiceFilters({
             <SelectTrigger
               id="status-filter"
               className="w-44"
-              aria-label={t("sales.status")}
+              aria-label={t("common.status")}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">
-                {t("sales.allStatuses")}
+                {t("common.allStatuses")}
               </SelectItem>
               {invoiceStatuses.map((status) => (
                 <SelectItem key={status} value={status}>

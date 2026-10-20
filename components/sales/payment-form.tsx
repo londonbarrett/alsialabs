@@ -59,7 +59,7 @@ export function PaymentForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="amount">{t("sales.amount")}</Label>
+        <Label htmlFor="amount">{t("common.amount")}</Label>
         <MoneyInput
           id="amount"
           value={amount}
@@ -68,7 +68,7 @@ export function PaymentForm({
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="paymentDate">{t("sales.paymentDate")}</Label>
+        <Label htmlFor="paymentDate">{t("invoice.paymentDate")}</Label>
         <Input
           id="paymentDate"
           type="date"
@@ -87,7 +87,7 @@ export function PaymentForm({
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="reference">{t("sales.reference")}</Label>
+        <Label htmlFor="reference">{t("invoice.reference")}</Label>
         <Input
           id="reference"
           value={reference}
@@ -105,7 +105,7 @@ export function PaymentForm({
       </div>
       <DialogFooter className="pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>
-          {t("sales.cancel")}
+          {t("common.cancel")}
         </Button>
         <Button type="submit">{submitLabel}</Button>
       </DialogFooter>

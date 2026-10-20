@@ -42,7 +42,7 @@ export function ProjectPeople() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="h-4 w-4" />
-          {t("projects.detail.tabs.people")}
+          {t("common.people")}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">

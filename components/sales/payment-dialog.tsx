@@ -43,7 +43,7 @@ export function PaymentDialog({
             reference: payment.reference ?? "",
             notes: payment.notes ?? "",
           }}
-          submitLabel={t("sales.saveChanges")}
+          submitLabel={t("common.saveChanges")}
           onSubmit={onSubmit}
           onCancel={() => onOpenChange(false)}
         />

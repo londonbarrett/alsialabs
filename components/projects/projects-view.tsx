@@ -47,7 +47,7 @@ export function ProjectsView({ categories, owner }: ProjectsViewProps) {
       ) : (
         <div className="flex flex-1 flex-col gap-6 p-6">
           <PageHeader
-            title={t("projects.title")}
+            title={t("nav.proyectos")}
             subtitle={t("projects.subtitle")}
             icon={FolderKanban}
           >

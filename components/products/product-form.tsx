@@ -113,7 +113,7 @@ export function ProductForm({
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!name.trim()) fieldErrors.name = t("products.nameRequired")
+    if (!name.trim()) fieldErrors.name = t("common.nameRequired")
     if (!storeId) fieldErrors.store_id = t("products.storeRequired")
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
@@ -147,7 +147,7 @@ export function ProductForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Field
         name="name"
-        label={t("products.name")}
+        label={t("common.name")}
         value={name}
         onChange={setName}
         error={errors.name}
@@ -156,7 +156,7 @@ export function ProductForm({
         className="flex flex-col gap-2"
         data-invalid={!!errors.store_id || undefined}
       >
-        <Label htmlFor="store_id">{t("products.store")}</Label>
+        <Label htmlFor="store_id">{t("common.store")}</Label>
         <Select
           value={storeId}
           onValueChange={(value) => {
@@ -209,7 +209,7 @@ export function ProductForm({
       />
       <Field
         name="description"
-        label={t("products.description")}
+        label={t("common.description")}
         value={description}
         onChange={setDescription}
         error={errors.description}

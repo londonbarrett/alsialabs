@@ -21,7 +21,7 @@ export function CreateInvoiceButton({
   return (
     <>
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-        <Plus /> {t("activities.createInvoice")}
+        <Plus /> {t("common.createInvoice")}
       </Button>
       <TimelineInvoiceDialog
         clientId={clientId}

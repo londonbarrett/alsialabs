@@ -202,7 +202,7 @@ export function ProjectCard({ project, isPending }: ProjectCardProps) {
             <MapPin className="size-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
               <dt className="text-xs text-muted-foreground">
-                {t("projects.card.location")}
+                {t("common.location")}
               </dt>
               <dd className="truncate font-medium">
                 {project.location || "—"}
@@ -218,7 +218,7 @@ export function ProjectCard({ project, isPending }: ProjectCardProps) {
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 font-medium">
               <Wallet className="size-4 text-muted-foreground" />
-              {t("projects.card.budget")}
+              {t("common.budget")}
             </span>
             <span
               className={cn(
@@ -257,7 +257,7 @@ export function ProjectCard({ project, isPending }: ProjectCardProps) {
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 font-medium">
               <ListTodo className="size-4 text-muted-foreground" />
-              {t("projects.card.tasks")}
+              {t("common.tasks")}
             </span>
             <span className="text-muted-foreground tabular-nums">
               {t("projects.card.doneLeft", {
@@ -301,8 +301,7 @@ export function ProjectCard({ project, isPending }: ProjectCardProps) {
         <div className="flex items-center gap-1.5">
           {isPending ? (
             <Button size="sm" disabled>
-              {t("projects.card.view")}{" "}
-              <ArrowRight className="size-4" />
+              {t("common.view")} <ArrowRight className="size-4" />
             </Button>
           ) : (
             <Button
@@ -310,8 +309,7 @@ export function ProjectCard({ project, isPending }: ProjectCardProps) {
               nativeButton={false}
               render={<Link href={`/app/proyectos/${project.id}`} />}
             >
-              {t("projects.card.view")}{" "}
-              <ArrowRight className="size-4" />
+              {t("common.view")} <ArrowRight className="size-4" />
             </Button>
           )}
         </div>

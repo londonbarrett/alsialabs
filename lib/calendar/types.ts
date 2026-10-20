@@ -28,8 +28,6 @@ export interface CalendarProps {
   events: CalendarEvent[]
   initialView?: CalendarView
   initialDate?: Date
-  /** BCP-47 locale used for dates and weekday names. Defaults to "en-US". */
-  locale?: string
   /** First day of the week: 0 = Sunday, 1 = Monday, ... 6 = Saturday. */
   weekStartsOn?: number
   /** Pixel height of one hour in the time grid. Defaults to 64. */
@@ -44,9 +42,7 @@ export interface CalendarProps {
   onDateClick?: (date: Date) => void
   onEventClick?: (event: CalendarEvent) => void
   /** Fired whenever the visible date range changes via navigation or view switch. */
-  onVisibleRangeChange?: (
-    range: CalendarVisibleRange
-  ) => void
+  onVisibleRangeChange?: (range: CalendarVisibleRange) => void
   className?: string
 }
 

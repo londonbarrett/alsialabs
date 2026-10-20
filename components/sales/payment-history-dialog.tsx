@@ -28,7 +28,7 @@ export function PaymentHistoryDialog({
 
   return (
     <Dialog
-      title={t("sales.paymentHistory")}
+      title={t("invoice.paymentHistory")}
       description={t("sales.paymentHistoryDesc", {
         number: invoice.invoiceNumber,
       })}

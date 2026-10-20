@@ -56,6 +56,12 @@ Common triggers:
 - **Toasts** via `sonner`
 - **Styling** Tailwind CSS v4 with semantic tokens — no raw colors or manual `dark:` overrides
 
+### Translations
+
+- `messages/en.json` and `messages/es.json` stay structurally identical — every key exists in both.
+- **Before adding a key, check whether the term already exists.** Search `messages/` first and reuse the shared namespace: `common.*` for generic UI labels, `invoice.*` for invoice terms shared by `sales` and `myInvoices`, `nav.*` for route labels. Add a domain-specific key only when the label genuinely differs by context.
+- Dynamic key-maps (`errors.*`, `sales.statuses.*`, `projects.status.*`, `projects.tasks.status.*`, `projects.tasks.priority.*`, `projects.colors.*`, `activity.*`, `activities.types.*`, `projects.routines.*`, `categoryNames.*`, `taxonomyNames.*`, `theme.*`) are looked up by value — never rename or merge their keys.
+
 ## Boundaries
 
 Allowed without asking:

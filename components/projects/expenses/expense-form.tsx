@@ -46,15 +46,12 @@ export function ExpenseForm({
   function validate() {
     const fieldErrors: Record<string, string> = {}
     if (!description.trim())
-      fieldErrors.description = t(
-        "projects.expenses.descriptionRequired"
-      )
+      fieldErrors.description = t("common.descriptionRequired")
     if (!categoryId)
-      fieldErrors.categoryId = t("projects.expenses.categoryRequired")
+      fieldErrors.categoryId = t("common.categoryRequired")
     if (!amount.trim())
       fieldErrors.amount = t("projects.expenses.amountRequired")
-    if (!expenseDate)
-      fieldErrors.expenseDate = t("projects.expenses.dateRequired")
+    if (!expenseDate) fieldErrors.expenseDate = t("common.dateRequired")
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
   }
@@ -83,7 +80,7 @@ export function ExpenseForm({
     >
       <Field
         name="description"
-        label={t("projects.expenses.description")}
+        label={t("common.description")}
         value={description}
         onChange={setDescription}
         error={errors.description}
@@ -91,9 +88,7 @@ export function ExpenseForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="categoryId">
-            {t("projects.expenses.category")}
-          </Label>
+          <Label htmlFor="categoryId">{t("common.category")}</Label>
           <Select
             value={categoryId}
             onValueChange={(value) => {
@@ -113,9 +108,7 @@ export function ExpenseForm({
                 errors.categoryId ? "categoryId-error" : undefined
               }
             >
-              <SelectValue
-                placeholder={t("projects.expenses.selectCategory")}
-              />
+              <SelectValue placeholder={t("common.selectCategory")} />
             </SelectTrigger>
             <SelectContent>
               {categories.map((cat) => (
@@ -140,7 +133,7 @@ export function ExpenseForm({
 
         <Field
           name="amount"
-          label={t("projects.expenses.amount")}
+          label={t("common.amount")}
           value={amount}
           onChange={setAmount}
           error={errors.amount}
@@ -150,7 +143,7 @@ export function ExpenseForm({
 
       <Field
         name="expenseDate"
-        label={t("projects.expenses.date")}
+        label={t("common.date")}
         value={expenseDate}
         onChange={setExpenseDate}
         error={errors.expenseDate}

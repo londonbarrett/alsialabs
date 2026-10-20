@@ -193,7 +193,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Receipt className="h-4 w-4" />
-            {t("projects.expenses.title")}
+            {t("common.expenses")}
           </span>
           {canEdit && (
             <Button onClick={openNew} size="sm">
@@ -210,7 +210,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 font-medium">
                   <Wallet className="size-4 text-muted-foreground" />
-                  {t("projects.card.budget")}
+                  {t("common.budget")}
                 </span>
                 <span
                   className={cn(
@@ -256,7 +256,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
             />
             <div className="mt-4 flex justify-end">
               <p className="text-sm text-muted-foreground">
-                {t("projects.expenses.total")}: <Money value={total} />
+                {t("common.total")}: <Money value={total} />
               </p>
             </div>
           </>

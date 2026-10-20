@@ -37,7 +37,7 @@ export function MyInvoicesView({
       <Card>
         <CardContent className="py-12 text-center">
           <p className="text-sm text-muted-foreground">
-            {t("myInvoices.noInvoices")}
+            {t("invoice.noInvoicesYet")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {t("myInvoices.noInvoicesDesc")}

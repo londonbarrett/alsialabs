@@ -36,7 +36,7 @@ export function ClientCombobox({
   disabled,
   placeholder,
 }: ClientComboboxProps) {
-  const t = useTranslations("clients")
+  const t = useTranslations()
   const [searchResults, setSearchResults] = useState<ClientOptionDTO[]>(
     []
   )
@@ -87,7 +87,7 @@ export function ClientCombobox({
         disabled={disabled}
       >
         <ComboboxInput
-          placeholder={placeholder ?? t("selectClient")}
+          placeholder={placeholder ?? t("clients.selectClient")}
           aria-invalid={!!error || undefined}
           showClear
           disabled={disabled}
@@ -97,11 +97,11 @@ export function ClientCombobox({
             <div className="px-2 py-1.5 text-xs text-muted-foreground">
               <span className="flex items-center gap-2">
                 <Spinner className="size-3" />
-                {t("searching")}
+                {t("common.searching")}
               </span>
             </div>
           )}
-          <ComboboxEmpty>{t("noClientsFound")}</ComboboxEmpty>
+          <ComboboxEmpty>{t("clients.noClientsFound")}</ComboboxEmpty>
           <ComboboxList>
             {(client) => (
               <ComboboxItem key={client.id} value={client}>

@@ -64,21 +64,19 @@ export function MyTasksList({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead scope="col">{t("common.task")}</TableHead>
                   <TableHead scope="col">
-                    {t("myTasks.taskName")}
+                    {t("common.project")} ({t("common.owner")})
                   </TableHead>
                   <TableHead scope="col">
-                    {t("myTasks.project")} ({t("myTasks.owner")})
+                    {t("common.status")}
                   </TableHead>
                   <TableHead scope="col">
-                    {t("myTasks.statusLabel")}
+                    {t("common.priority")}
                   </TableHead>
+                  <TableHead scope="col">{t("common.cost")}</TableHead>
                   <TableHead scope="col">
-                    {t("projects.tasks.priorityLabel")}
-                  </TableHead>
-                  <TableHead scope="col">{t("myTasks.cost")}</TableHead>
-                  <TableHead scope="col">
-                    {t("projects.tasks.dueDate")}
+                    {t("common.dueDate")}
                   </TableHead>
                   <TableHead scope="col" className="w-12" />
                 </TableRow>
@@ -172,7 +170,7 @@ export function MyTasksList({
                           task.status,
                           task.dueDate
                         )}
-                        overdueLabel={t("projects.tasks.overdue")}
+                        overdueLabel={t("common.overdue")}
                       />
                     </TableCell>
                     <TableCell>

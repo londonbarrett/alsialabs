@@ -87,7 +87,7 @@ export function MyTasksView({
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <PageHeader
-        title={t("myTasks.title")}
+        title={t("nav.mis-tareas")}
         subtitle={t("myTasks.subtitle")}
         icon={ListTodo}
       />
@@ -97,7 +97,7 @@ export function MyTasksView({
           value={statusFilter}
           onValueChange={handleStatusFilterChange}
           items={{
-            all: t("myTasks.allStatuses"),
+            all: t("common.allStatuses"),
             ...Object.fromEntries(
               ALL_TASK_STATUSES.map((s) => [
                 s,
@@ -107,11 +107,11 @@ export function MyTasksView({
           }}
         >
           <SelectTrigger className="w-44">
-            <SelectValue placeholder={t("myTasks.allStatuses")} />
+            <SelectValue placeholder={t("common.allStatuses")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">
-              {t("myTasks.allStatuses")}
+              {t("common.allStatuses")}
             </SelectItem>
             {ALL_TASK_STATUSES.map((s) => (
               <SelectItem key={s} value={s}>

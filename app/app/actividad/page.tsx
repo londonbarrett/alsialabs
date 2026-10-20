@@ -24,7 +24,7 @@ export default async function ActivityPage() {
     forbidden()
   }
 
-  const t = await getTranslations("activity")
+  const t = await getTranslations()
   const reminders = await getReminders()
   const inactiveClientsPromise = getInactiveClients(
     Number(DEFAULT_INACTIVE_PERIOD)
@@ -33,15 +33,17 @@ export default async function ActivityPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
-        title={t("title")}
-        subtitle={t("subtitle")}
+        title={t("nav.actividad")}
+        subtitle={t("activity.subtitle")}
         icon={BellRing}
       />
       <ActivityProvider reminders={unwrapResponse(reminders)}>
         <RemindersCard />
         <Suspense
           fallback={
-            <InactiveClientsCardFallback title={t("inactiveClients")} />
+            <InactiveClientsCardFallback
+              title={t("activity.inactiveClients")}
+            />
           }
         >
           <InactiveClientsCard

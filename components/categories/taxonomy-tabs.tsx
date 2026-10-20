@@ -34,7 +34,7 @@ export function TaxonomyTabs({
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-6">
-      <PageHeader title={t("categories.title")} icon={FolderTree} />
+      <PageHeader title={t("nav.categorias")} icon={FolderTree} />
 
       <Tabs className="gap-4" defaultValue={defaultSlug}>
         <TabsList>

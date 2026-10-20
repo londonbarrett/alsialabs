@@ -132,12 +132,12 @@ export function ClientListView({ clients }: ClientListViewProps) {
   return (
     <div className="flex flex-1 flex-col gap-4 p-6">
       <PageHeader
-        title={t("clients.title")}
+        title={t("nav.clientes")}
         subtitle={t("clients.subtitle")}
         icon={Users}
       >
         <span className="text-sm text-muted-foreground">
-          {clients.length} {t("clients.title").toLowerCase()}
+          {clients.length} {t("nav.clientes").toLowerCase()}
         </span>
         <InputGroup className="w-64">
           <InputGroupAddon>

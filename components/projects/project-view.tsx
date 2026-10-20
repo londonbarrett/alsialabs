@@ -41,7 +41,7 @@ export function ProjectView({ children }: ProjectViewProps) {
   const tabs = [
     {
       href: basePath,
-      label: t("projects.tasks.title"),
+      label: t("common.tasks"),
       icon: ListTodo,
       active: pathname === basePath,
     },
@@ -53,19 +53,19 @@ export function ProjectView({ children }: ProjectViewProps) {
     },
     {
       href: `${basePath}/detalles`,
-      label: t("projects.detail.tabs.details"),
+      label: t("common.details"),
       icon: ClipboardList,
       active: pathname === `${basePath}/detalles`,
     },
     {
       href: `${basePath}/personas`,
-      label: t("projects.detail.tabs.people"),
+      label: t("common.people"),
       icon: Users,
       active: pathname === `${basePath}/personas`,
     },
     {
       href: `${basePath}/gastos`,
-      label: t("projects.detail.tabs.expenses"),
+      label: t("common.expenses"),
       icon: Receipt,
       active: pathname === `${basePath}/gastos`,
     },

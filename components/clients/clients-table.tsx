@@ -37,8 +37,8 @@ export function ClientsTable({
         <TableRow>
           <TableHead scope="col">{t("common.name")}</TableHead>
           <TableHead scope="col">{t("common.phone")}</TableHead>
-          <TableHead scope="col">{t("clients.location")}</TableHead>
-          <TableHead scope="col">{t("clients.comments")}</TableHead>
+          <TableHead scope="col">{t("common.location")}</TableHead>
+          <TableHead scope="col">{t("common.comments")}</TableHead>
           <TableHead scope="col">{t("common.email")}</TableHead>
           <TableHead scope="col">{t("common.actions")}</TableHead>
         </TableRow>

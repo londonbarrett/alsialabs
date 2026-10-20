@@ -34,32 +34,36 @@ export function LineItemsTable({
   onProductSelect,
   itemErrors = {},
 }: LineItemsTableProps) {
-  const t = useTranslations("sales")
+  const t = useTranslations()
   return (
     <div className="max-h-72 overflow-auto">
       {items.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted-foreground">
-          {t("noItems")}
+          {t("sales.noItems")}
         </p>
       ) : (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground">
               <th className="min-w-40 py-2 pr-2 font-medium">
-                {type === "product" ? t("product") : t("service")}
+                {type === "product"
+                  ? t("invoice.product")
+                  : t("invoice.service")}
               </th>
-              <th className="w-24 px-2 py-2 font-medium">{t("qty")}</th>
+              <th className="w-24 px-2 py-2 font-medium">
+                {t("invoice.qty")}
+              </th>
               <th className="w-32 px-2 py-2 font-medium">
-                {t("unitPrice")}
+                {t("invoice.unitPrice")}
               </th>
               <th className="w-24 px-2 py-2 font-medium">
-                {t("discPercent")}
+                {t("sales.discPercent")}
               </th>
               <th className="w-24 px-2 py-2 font-medium">
-                {t("taxPercent")}
+                {t("sales.taxPercent")}
               </th>
               <th className="w-28 px-2 py-2 text-right font-medium">
-                {t("total")}
+                {t("common.total")}
               </th>
               <th className="w-12 py-2 pl-2" />
             </tr>

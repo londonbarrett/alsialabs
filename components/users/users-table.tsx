@@ -71,7 +71,7 @@ export function UsersTable({ users, roles }: Props) {
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">
-          {t("users.title")}
+          {t("nav.usuarios")}
         </h1>
         <Button onClick={() => setIsCreateOpen(true)}>
           <Plus data-icon="inline-start" />
@@ -96,10 +96,10 @@ export function UsersTable({ users, roles }: Props) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>{t("users.name")}</TableHead>
-            <TableHead>{t("users.email")}</TableHead>
-            <TableHead>{t("users.role")}</TableHead>
-            <TableHead className="w-24">{t("users.actions")}</TableHead>
+            <TableHead>{t("common.name")}</TableHead>
+            <TableHead>{t("common.email")}</TableHead>
+            <TableHead>{t("common.role")}</TableHead>
+            <TableHead className="w-24">{t("common.actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

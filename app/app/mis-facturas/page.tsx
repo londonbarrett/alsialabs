@@ -14,15 +14,15 @@ export default async function MyInvoicesPage() {
     redirect("/login")
   }
 
-  const t = await getTranslations("myInvoices")
+  const t = await getTranslations()
   const invoicesPromise = getMyInvoices()
 
   return (
     <Page
       header={
         <PageHeader
-          title={t("title")}
-          subtitle={t("subtitle")}
+          title={t("nav.mis-facturas")}
+          subtitle={t("myInvoices.subtitle")}
           icon={Receipt}
         />
       }
