@@ -20,6 +20,7 @@ interface DestructiveDialogProps {
   loading?: boolean
 }
 
+// TODO: Remove loading prop, all actions should be optimistic
 export function DestructiveDialog({
   open,
   title,
@@ -30,18 +31,31 @@ export function DestructiveDialog({
 }: DestructiveDialogProps) {
   const t = useTranslations()
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel() }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onCancel()
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{message}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading}
+          >
             {t("common.cancel")}
           </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={loading}>
-            {loading ? t("common.deleting") : t("actionMenu.delete")}
+          <Button
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={loading}
+          >
+            {loading ? t("common.deleting") : t("common.delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

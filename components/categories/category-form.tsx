@@ -103,7 +103,7 @@ export function CategoryForm({
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!name.trim()) fieldErrors.name = t("categories.nameRequired")
+    if (!name.trim()) fieldErrors.name = t("common.nameRequired")
     if (!slug.trim()) fieldErrors.slug = t("categories.slugRequired")
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
@@ -138,7 +138,7 @@ export function CategoryForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Field
         name="name"
-        label={t("categories.name")}
+        label={t("common.name")}
         value={name}
         onChange={setName}
         error={errors.name}
@@ -156,7 +156,7 @@ export function CategoryForm({
       />
       <Field
         name="description"
-        label={t("categories.description")}
+        label={t("common.description")}
         value={description}
         onChange={setDescription}
         error={errors.description}

@@ -1,8 +1,12 @@
-'use client'
+"use client"
 
-import { ChevronsUpDown, LogOut, User } from 'lucide-react'
+import { ChevronsUpDown, LogOut, User } from "lucide-react"
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,18 +15,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu"
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from '@/components/ui/sidebar'
-import { signOut } from 'next-auth/react'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { LocaleSwitcher } from '@/components/locale-switcher'
-import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+} from "@/components/ui/sidebar"
+import { signOut } from "next-auth/react"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { LocaleSwitcher } from "@/components/locale-switcher"
+import Link from "next/link"
+import { useTranslations } from "next-intl"
 
 export function NavUser({
   user,
@@ -35,7 +39,9 @@ export function NavUser({
 }) {
   const t = useTranslations()
   const { isMobile } = useSidebar()
-  const initials = (user.name ?? user.email ?? '?').charAt(0).toUpperCase()
+  const initials = (user.name ?? user.email ?? "?")
+    .charAt(0)
+    .toUpperCase()
 
   return (
     <SidebarMenu>
@@ -48,11 +54,16 @@ export function NavUser({
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.image ?? undefined} alt={user.name ?? ''} />
+                  <AvatarImage
+                    src={user.image ?? undefined}
+                    alt={user.name ?? ""}
+                  />
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name ?? t('auth.user')}</span>
+                  <span className="truncate font-medium">
+                    {user.name ?? t("auth.user")}
+                  </span>
                   <span className="truncate text-xs">{user.email}</span>
                 </div>
                 <ChevronsUpDown className="ml-auto size-4" />
@@ -61,7 +72,7 @@ export function NavUser({
           />
           <DropdownMenuContent
             className="w-(--anchor-width) min-w-56 rounded-lg"
-            side={isMobile ? 'bottom' : 'right'}
+            side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
           >
@@ -69,12 +80,22 @@ export function NavUser({
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user.image ?? undefined} alt={user.name ?? ''} referrerPolicy="no-referrer" />
-                    <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                    <AvatarImage
+                      src={user.image ?? undefined}
+                      alt={user.name ?? ""}
+                      referrerPolicy="no-referrer"
+                    />
+                    <AvatarFallback className="rounded-lg">
+                      {initials}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{user.name ?? t('auth.user')}</span>
-                    <span className="truncate text-xs">{user.email}</span>
+                    <span className="truncate font-medium">
+                      {user.name ?? t("auth.user")}
+                    </span>
+                    <span className="truncate text-xs">
+                      {user.email}
+                    </span>
                   </div>
                 </div>
               </DropdownMenuLabel>
@@ -82,14 +103,16 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuItem render={<Link href="/app/perfil" />}>
               <User />
-              {t('sidebar.profile')}
+              {t("nav.perfil")}
             </DropdownMenuItem>
             <ThemeToggle />
             <LocaleSwitcher />
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut({ redirectTo: '/login' })}>
+            <DropdownMenuItem
+              onClick={() => signOut({ redirectTo: "/login" })}
+            >
               <LogOut />
-              {t('auth.signOut')}
+              {t("auth.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

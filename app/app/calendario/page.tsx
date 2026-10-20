@@ -5,7 +5,7 @@ import { getMyTasks } from "@/actions/tasks"
 import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { CalendarDays } from "lucide-react"
-import { getLocale, getTranslations } from "next-intl/server"
+import { getTranslations } from "next-intl/server"
 import { forbidden } from "next/navigation"
 import { Suspense } from "react"
 
@@ -18,10 +18,7 @@ export default async function CalendarPage() {
     forbidden()
   }
 
-  const [t, locale] = await Promise.all([
-    getTranslations("calendar"),
-    getLocale(),
-  ])
+  const t = await getTranslations()
 
   const tasks = unwrapResponse(await getMyTasks({}))
   const routines = await getCalendarRoutines()
@@ -29,8 +26,8 @@ export default async function CalendarPage() {
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col gap-6 p-6">
       <PageHeader
-        title={t("title")}
-        subtitle={t("subtitle")}
+        title={t("nav.calendario")}
+        subtitle={t("calendar.subtitle")}
         icon={CalendarDays}
       />
       <Suspense
@@ -41,14 +38,13 @@ export default async function CalendarPage() {
         <CalendarView
           tasks={tasks}
           routines={unwrapResponse(routines)}
-          locale={locale}
           labels={{
-            today: t("today"),
-            month: t("month"),
-            week: t("week"),
-            day: t("day"),
-            moreEvents: t("moreEvents"),
-            allDay: t("allDay"),
+            today: t("calendar.today"),
+            month: t("calendar.month"),
+            week: t("calendar.week"),
+            day: t("calendar.day"),
+            moreEvents: t("calendar.moreEvents"),
+            allDay: t("calendar.allDay"),
           }}
         />
       </Suspense>

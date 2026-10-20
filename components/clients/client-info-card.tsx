@@ -50,7 +50,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
-              {t("clients.phone")}
+              {t("common.phone")}
             </p>
             <p className="text-base font-medium">
               {displayClient.phone}
@@ -58,7 +58,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
-              {t("clients.email")}
+              {t("common.email")}
             </p>
             <p className="text-base font-medium">
               {displayClient.email ?? "—"}
@@ -66,7 +66,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
-              {t("clients.location")}
+              {t("common.location")}
             </p>
             <p className="text-base font-medium">
               {displayClient.location ?? "—"}
@@ -74,7 +74,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
-              {t("clients.comments")}
+              {t("common.comments")}
             </p>
             <p className="text-base font-medium">
               {displayClient.comments ?? "—"}

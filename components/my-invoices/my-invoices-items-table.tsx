@@ -16,10 +16,10 @@ export function MyInvoicesItemsTable({ items }: { items: InvoiceItem[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="text-xs">{t("myInvoices.description")}</TableHead>
-          <TableHead className="text-right text-xs">{t("myInvoices.qty")}</TableHead>
-          <TableHead className="text-right text-xs">{t("myInvoices.unitPrice")}</TableHead>
-          <TableHead className="text-right text-xs">{t("myInvoices.total")}</TableHead>
+          <TableHead className="text-xs">{t("common.description")}</TableHead>
+          <TableHead className="text-right text-xs">{t("invoice.qty")}</TableHead>
+          <TableHead className="text-right text-xs">{t("invoice.unitPrice")}</TableHead>
+          <TableHead className="text-right text-xs">{t("common.total")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

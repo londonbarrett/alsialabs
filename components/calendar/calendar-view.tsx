@@ -19,14 +19,12 @@ import { useCallback, useMemo, useRef, useState } from "react"
 export interface CalendarViewProps {
   tasks: CalendarTaskDataDTO[]
   routines: CalendarRoutineDataDTO[]
-  locale: string
   labels: Partial<CalendarLabels>
 }
 
 export function CalendarView({
   tasks,
   routines,
-  locale,
   labels,
 }: CalendarViewProps) {
   const [tasksState, setTasks] = useState(tasks)
@@ -97,7 +95,6 @@ export function CalendarView({
     <Calendar
       events={events}
       isPending={isFetching}
-      locale={locale}
       labels={labels}
       onVisibleRangeChange={handleVisibleRangeChange}
     />

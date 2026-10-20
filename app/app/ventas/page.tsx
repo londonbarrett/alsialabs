@@ -33,14 +33,13 @@ export default async function SalesPage() {
   const invoices = unwrapResponse(invoicesResult)
   const monthlyRevenue = unwrapResponse(monthlyRevenueResult)
   const topClients = unwrapResponse(topClientsResult)
-  const t = await getTranslations("sales")
-
-  return (
+  const t = await getTranslations()
+return (
     <Page
       header={
         <PageHeader
-          title={t("title")}
-          subtitle={t("subtitle")}
+          title={t("nav.ventas")}
+          subtitle={t("sales.subtitle")}
           icon={ChartNoAxesCombined}
         />
       }

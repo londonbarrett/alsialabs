@@ -116,7 +116,7 @@ export function ProjectDetails() {
             <Tag className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <div>
               <p className="mb-1 text-xs text-muted-foreground">
-                {t("projects.category")}
+                {t("common.category")}
               </p>
               <p className="text-sm font-medium">
                 {project.categorySlug &&
@@ -147,7 +147,7 @@ export function ProjectDetails() {
             <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <div>
               <p className="mb-1 text-xs text-muted-foreground">
-                {t("projects.location")}
+                {t("common.location")}
               </p>
               <p className="text-sm font-medium">
                 {project.location || "—"}
@@ -178,7 +178,7 @@ export function ProjectDetails() {
             <Wallet className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <div>
               <p className="mb-1 text-xs text-muted-foreground">
-                {t("projects.budget")}
+                {t("common.budget")}
               </p>
               <p className="text-sm font-medium">
                 <Money value={project.budget} />
@@ -190,7 +190,7 @@ export function ProjectDetails() {
               <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <div>
                 <p className="mb-1 text-xs text-muted-foreground">
-                  {t("projects.description")}
+                  {t("common.description")}
                 </p>
                 <p className="text-sm">{project.description}</p>
               </div>
@@ -212,7 +212,7 @@ export function ProjectDetails() {
               ) : (
                 <Pencil className="h-4 w-4" />
               )}
-              {t("projects.card.edit")}
+              {t("common.edit")}
             </Button>
           )}
           {canDelete && (
@@ -238,7 +238,7 @@ export function ProjectDetails() {
 
       <DestructiveDialog
         open={deleteDialogOpen}
-        title={t("actionMenu.deleteTitle")}
+        title={t("common.delete")}
         message={t("actionMenu.confirmDelete", { name: project.name })}
         onConfirm={handleDelete}
         onCancel={() => setDeleteDialogOpen(false)}

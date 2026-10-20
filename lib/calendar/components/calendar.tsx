@@ -2,6 +2,7 @@
 
 import { cn } from "cn"
 import { memo, useEffect, useMemo } from "react"
+import { useLocale } from "next-intl"
 import { useCalendar } from "../hooks/use-calendar"
 import type { CalendarProps } from "../types"
 import {
@@ -20,8 +21,7 @@ export const Calendar = memo(function Calendar({
   events,
   initialView = "month",
   initialDate,
-  locale = "en-US",
-  weekStartsOn = getFirstDayOfWeek(locale),
+  weekStartsOn,
   hourHeight = 64,
   startHour = 8,
   maxMonthEvents = 3,
@@ -32,12 +32,14 @@ export const Calendar = memo(function Calendar({
   onVisibleRangeChange,
   className,
 }: CalendarProps) {
+  const locale = useLocale()
+  const firstDayOfWeek = weekStartsOn ?? getFirstDayOfWeek(locale)
   const resolvedLabels = useMemo(() => resolveLabels(labels), [labels])
 
   const calendar = useCalendar({
     initialView,
     initialDate,
-    weekStartsOn,
+    weekStartsOn: firstDayOfWeek,
   })
   const { view, anchor, range } = calendar
 
@@ -98,7 +100,7 @@ export const Calendar = memo(function Calendar({
           anchor={anchor}
           events={events}
           locale={locale}
-          weekStartsOn={weekStartsOn}
+          weekStartsOn={firstDayOfWeek}
           maxMonthEvents={maxMonthEvents}
           labels={resolvedLabels}
           onDateClick={onDateClick}

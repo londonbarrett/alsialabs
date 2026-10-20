@@ -21,13 +21,13 @@ export function ClientActionMenu({
   canInvite = true,
   ...rest
 }: ClientActionMenuProps) {
-  const t = useTranslations("clients")
+  const tc = useTranslations("common")
   return (
     <ActionMenu {...rest}>
       {onInvite && canInvite && (
         <DropdownMenuItem onClick={onInvite}>
           <UserPlus className="mr-2 h-4 w-4" />
-          {t("invite")}
+          {tc("invite")}
         </DropdownMenuItem>
       )}
     </ActionMenu>

@@ -25,12 +25,8 @@ import { useState } from "react"
 export function InvoicesCard() {
   const t = useTranslations()
 
-  const {
-    deleteInvoice,
-    cancelInvoice,
-    reopenInvoice,
-    sendInvoice,
-  } = useInvoiceActions()
+  const { deleteInvoice, cancelInvoice, reopenInvoice, sendInvoice } =
+    useInvoiceActions()
   const { invoices } = useInvoiceState()
   const { recordPayment } = usePaymentActions()
 
@@ -77,7 +73,7 @@ export function InvoicesCard() {
           {invoices.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-4 py-12">
               <p className="text-muted-foreground">
-                {t("sales.noInvoices")}
+                {t("invoice.noInvoicesYet")}
               </p>
               {canCreate && (
                 <Button

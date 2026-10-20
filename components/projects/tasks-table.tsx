@@ -80,26 +80,14 @@ export function TasksTable({
             <TableHead scope="col">
               {t("projects.tasks.name")}
             </TableHead>
-            <TableHead scope="col">
-              {t("projects.tasks.assignee")}
-            </TableHead>
-            <TableHead scope="col">
-              {t("projects.tasks.statusLabel")}
-            </TableHead>
-            <TableHead scope="col">
-              {t("projects.tasks.priorityLabel")}
-            </TableHead>
-            <TableHead scope="col">
-              {t("projects.tasks.cost")}
-            </TableHead>
-            <TableHead scope="col">
-              {t("projects.tasks.dueDate")}
-            </TableHead>
+            <TableHead scope="col">{t("common.assignee")}</TableHead>
+            <TableHead scope="col">{t("common.status")}</TableHead>
+            <TableHead scope="col">{t("common.priority")}</TableHead>
+            <TableHead scope="col">{t("common.cost")}</TableHead>
+            <TableHead scope="col">{t("common.dueDate")}</TableHead>
             <TableHead scope="col" className="w-12" />
             {canMutate && (
-              <TableHead scope="col">
-                {t("projects.tasks.actions")}
-              </TableHead>
+              <TableHead scope="col">{t("common.actions")}</TableHead>
             )}
           </TableRow>
         </TableHeader>
@@ -139,7 +127,7 @@ export function TasksTable({
                     </span>
                   ) : (
                     <span className="text-xs text-muted-foreground">
-                      {t("projects.tasks.unassigned")}
+                      {t("common.unassigned")}
                     </span>
                   )}
                 </TableCell>
@@ -179,7 +167,7 @@ export function TasksTable({
                   <DueDate
                     date={task.dueDate}
                     overdue={isTaskOverdue(task.status, task.dueDate)}
-                    overdueLabel={t("projects.tasks.overdue")}
+                    overdueLabel={t("common.overdue")}
                   />
                 </TableCell>
                 <TableCell>

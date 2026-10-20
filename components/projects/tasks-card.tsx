@@ -111,7 +111,7 @@ export function TasksCard() {
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <ListTodo className="h-4 w-4" />
-            {t("projects.tasks.title")}
+            {t("common.tasks")}
           </span>
           {canEdit && (
             <Button onClick={openNew} size="sm">

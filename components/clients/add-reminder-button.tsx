@@ -19,7 +19,7 @@ export function AddReminderButton({ clientId }: { clientId: string }) {
   return (
     <>
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-        <Plus /> {t("activities.addReminder")}
+        <Plus /> {t("common.addReminder")}
       </Button>
       <ReminderDialog
         clientId={clientId}

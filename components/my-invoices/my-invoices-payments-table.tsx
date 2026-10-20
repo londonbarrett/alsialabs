@@ -33,16 +33,16 @@ export function MyInvoicesPaymentsTable({
       <TableHeader>
         <TableRow>
           <TableHead className="text-xs">
-            {t("myInvoices.paymentDate")}
+            {t("invoice.paymentDate")}
           </TableHead>
           <TableHead className="text-right text-xs">
-            {t("myInvoices.amount")}
+            {t("common.amount")}
           </TableHead>
           <TableHead className="text-xs">
             {t("myInvoices.paymentMethod")}
           </TableHead>
           <TableHead className="text-xs">
-            {t("myInvoices.reference")}
+            {t("invoice.reference")}
           </TableHead>
         </TableRow>
       </TableHeader>

@@ -24,7 +24,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Plus, Trash2 } from "lucide-react"
-import { manageModule, togglePermission } from "@/actions/not-safe/permissions"
+import {
+  manageModule,
+  togglePermission,
+} from "@/actions/not-safe/permissions"
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { toast } from "sonner"
 import { useActionError } from "@/lib/util/action-errors"
@@ -39,7 +42,7 @@ type Props = {
 }
 
 export function PermissionMatrix({ matrix, roles }: Props) {
-  const t = useTranslations("permissions")
+  const t = useTranslations()
   const translateError = useActionError()
   const [addOpen, setAddOpen] = useState(false)
   const [moduleName, setModuleName] = useState("")
@@ -68,10 +71,10 @@ export function PermissionMatrix({ matrix, roles }: Props) {
       toast.error(
         result.serverError
           ? translateError(result.serverError.code)
-          : t("failedToCreate")
+          : t("permissions.failedToCreate")
       )
     } else {
-      toast.success(t("moduleCreated"))
+      toast.success(t("permissions.moduleCreated"))
       setAddOpen(false)
       setModuleName("")
       setActionsStr("")
@@ -93,10 +96,10 @@ export function PermissionMatrix({ matrix, roles }: Props) {
       toast.error(
         result.serverError
           ? translateError(result.serverError.code)
-          : t("failedToDelete")
+          : t("permissions.failedToDelete")
       )
     } else {
-      toast.success(t("moduleDeleted"))
+      toast.success(t("permissions.moduleDeleted"))
     }
     setDeleteModule(null)
     setDeleting(false)
@@ -116,7 +119,7 @@ export function PermissionMatrix({ matrix, roles }: Props) {
       toast.error(
         result.serverError
           ? translateError(result.serverError.code)
-          : t("failedToToggle")
+          : t("permissions.failedToToggle")
       )
     }
   }
@@ -125,41 +128,45 @@ export function PermissionMatrix({ matrix, roles }: Props) {
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">
-          {t("title")}
+          {t("nav.permisos")}
         </h1>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger
             render={
               <Button>
                 <Plus />
-                {t("addModule")}
+                {t("common.addModule")}
               </Button>
             }
           />
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t("addModuleTitle")}</DialogTitle>
+              <DialogTitle>{t("common.addModule")}</DialogTitle>
               <DialogDescription>
-                {t("addModuleDescription")}
+                {t("permissions.addModuleDescription")}
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="module-name">{t("moduleName")}</Label>
+                <Label htmlFor="module-name">
+                  {t("permissions.moduleName")}
+                </Label>
                 <Input
                   id="module-name"
                   value={moduleName}
                   onChange={(e) => setModuleName(e.target.value)}
-                  placeholder={t("modulePlaceholder")}
+                  placeholder={t("permissions.modulePlaceholder")}
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="module-actions">{t("actions")}</Label>
+                <Label htmlFor="module-actions">
+                  {t("common.actions")}
+                </Label>
                 <Input
                   id="module-actions"
                   value={actionsStr}
                   onChange={(e) => setActionsStr(e.target.value)}
-                  placeholder={t("actionsPlaceholder")}
+                  placeholder={t("permissions.actionsPlaceholder")}
                 />
               </div>
             </div>
@@ -168,9 +175,11 @@ export function PermissionMatrix({ matrix, roles }: Props) {
                 variant="outline"
                 onClick={() => setAddOpen(false)}
               >
-                {t("cancel")}
+                {t("common.cancel")}
               </Button>
-              <Button onClick={handleAddModule}>{t("create")}</Button>
+              <Button onClick={handleAddModule}>
+                {t("common.create")}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -181,7 +190,7 @@ export function PermissionMatrix({ matrix, roles }: Props) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-48">
-                {t("moduleActions")}
+                {t("permissions.moduleActions")}
               </TableHead>
               {roles.map((role) => (
                 <TableHead
@@ -210,7 +219,7 @@ export function PermissionMatrix({ matrix, roles }: Props) {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteModule(moduleName)}
-                        aria-label={t("deleteModule", {
+                        aria-label={t("permissions.deleteModule", {
                           name: moduleName,
                         })}
                       >
@@ -235,11 +244,14 @@ export function PermissionMatrix({ matrix, roles }: Props) {
                               onCheckedChange={() =>
                                 handleToggle(item.id, role.id, enabled)
                               }
-                              aria-label={t("togglePermission", {
-                                module: moduleName,
-                                action: item.action,
-                                role: role.name,
-                              })}
+                              aria-label={t(
+                                "permissions.togglePermission",
+                                {
+                                  module: moduleName,
+                                  action: item.action,
+                                  role: role.name,
+                                }
+                              )}
                             />
                           </TableCell>
                         )
@@ -256,8 +268,10 @@ export function PermissionMatrix({ matrix, roles }: Props) {
 
       <DestructiveDialog
         open={!!deleteModule}
-        title={t("deleteModuleTitle")}
-        message={t("deleteModuleConfirm", { name: deleteModule ?? "" })}
+        title={t("permissions.deleteModuleTitle")}
+        message={t("permissions.deleteModuleConfirm", {
+          name: deleteModule ?? "",
+        })}
         onConfirm={confirmDeleteModule}
         onCancel={() => setDeleteModule(null)}
         loading={deleting}

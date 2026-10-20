@@ -26,14 +26,14 @@ export function MyInvoicesList({ invoices }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t("myInvoices.invoiceHash")}</TableHead>
-                <TableHead>{t("myInvoices.date")}</TableHead>
-                <TableHead>{t("myInvoices.status")}</TableHead>
+                <TableHead>{t("invoice.invoiceNumber")}</TableHead>
+                <TableHead>{t("invoice.issueDate")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
                 <TableHead className="text-right">
-                  {t("myInvoices.outstanding")}
+                  {t("invoice.outstanding")}
                 </TableHead>
                 <TableHead className="text-right">
-                  {t("myInvoices.total")}
+                  {t("common.total")}
                 </TableHead>
               </TableRow>
             </TableHeader>

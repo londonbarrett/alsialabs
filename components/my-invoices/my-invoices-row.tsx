@@ -44,13 +44,13 @@ function InvoiceDetailsRow({
             <div className="flex flex-col gap-6 @[900px]:flex-row">
               <div className="flex-1">
                 <h4 className="mb-2 text-sm font-semibold">
-                  {t("myInvoices.lineItems")}
+                  {t("invoice.lineItems")}
                 </h4>
                 <MyInvoicesItemsTable items={details?.items ?? []} />
               </div>
               <div className="flex-1">
                 <h4 className="mb-2 text-sm font-semibold">
-                  {t("myInvoices.paymentHistory")}
+                  {t("invoice.paymentHistory")}
                 </h4>
                 <MyInvoicesPaymentsTable
                   payments={details?.payments ?? []}

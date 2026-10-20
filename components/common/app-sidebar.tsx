@@ -37,12 +37,15 @@ export function AppSidebar({
   }
   selectedStoreId?: string | null
 }) {
-  const t = useTranslations("sidebar")
+  const t = useTranslations("nav")
   const pathname = usePathname()
   const { isMobile, setOpenMobile } = useSidebar()
   const permissions = usePermissions()
 
   const sidebarMenu = getSidebarMenu(role, permissions)
+
+  const segment = (url: string) =>
+    url.startsWith("/app#") ? url.slice(5) : url.split("/").pop()!
 
   return (
     <Sidebar collapsible="icon">
@@ -53,7 +56,9 @@ export function AppSidebar({
       <SidebarContent>
         {sidebarMenu.map((section) => (
           <SidebarGroup key={section.label}>
-            <SidebarGroupLabel>{t(section.label)}</SidebarGroupLabel>
+            <SidebarGroupLabel>
+              {t(`sections.${section.label}`)}
+            </SidebarGroupLabel>
             {section.showStoreSwitcher && (
               <div className="px-0 pb-2">
                 <StoreSwitcher
@@ -83,7 +88,7 @@ export function AppSidebar({
                         }
                       >
                         <Icon />
-                        <span>{t(item.label)}</span>
+                        <span>{t(segment(item.url))}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )

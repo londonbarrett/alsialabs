@@ -21,7 +21,7 @@ export function ActivityTimeline({ clientId }: { clientId: string }) {
     <section>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-tight">
-          {t("activities.title")}
+          {t("common.activity")}
         </h2>
         <div className="flex gap-2">
           <LogActivityButton clientId={clientId} />

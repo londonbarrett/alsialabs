@@ -142,16 +142,16 @@ export function CategoryListView({
                 <TableHeader>
                   <TableRow>
                     <TableHead scope="col">
-                      {t("categories.name")}
+                      {t("common.name")}
                     </TableHead>
                     <TableHead scope="col">
                       {t("categories.slug")}
                     </TableHead>
                     <TableHead scope="col">
-                      {t("categories.description")}
+                      {t("common.description")}
                     </TableHead>
                     <TableHead scope="col">
-                      {t("categories.actions")}
+                      {t("common.actions")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>

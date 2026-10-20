@@ -86,8 +86,8 @@ export function ActionMenu({
 
       <DestructiveDialog
         open={deleteOpen}
-        title={t("actionMenu.deleteTitle")}
-        message={t("actionMenu.confirmDelete", { name: entityName })}
+        title={t("common.delete")}
+        message={t("common.confirmDelete", { name: entityName })}
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(false)}
         loading={deleting}

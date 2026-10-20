@@ -44,7 +44,7 @@ export function InviteDialog({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="invite-email">{t("clients.email")}</Label>
+            <Label htmlFor="invite-email">{t("common.email")}</Label>
             <Input
               id="invite-email"
               type="email"

@@ -63,9 +63,9 @@ export function ProjectForm({
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!name.trim()) fieldErrors.name = t("projects.nameRequired")
+    if (!name.trim()) fieldErrors.name = t("common.nameRequired")
     if (!categoryId)
-      fieldErrors.categoryId = t("projects.categoryRequired")
+      fieldErrors.categoryId = t("common.categoryRequired")
     if (!startDate)
       fieldErrors.startDate = t("projects.startDateRequired")
     if (!location.trim())
@@ -98,7 +98,7 @@ export function ProjectForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Field
         name="name"
-        label={t("projects.name")}
+        label={t("common.name")}
         value={name}
         onChange={setName}
         error={errors.name}
@@ -108,7 +108,7 @@ export function ProjectForm({
         className="flex flex-col gap-2"
         data-invalid={!!errors.categoryId || undefined}
       >
-        <Label htmlFor="categoryId">{t("projects.category")}</Label>
+        <Label htmlFor="categoryId">{t("common.category")}</Label>
         <Select
           value={categoryId}
           onValueChange={(value) => {
@@ -125,7 +125,7 @@ export function ProjectForm({
             id="categoryId"
             aria-invalid={!!errors.categoryId}
           >
-            <SelectValue placeholder={t("projects.selectCategory")} />
+            <SelectValue placeholder={t("common.selectCategory")} />
           </SelectTrigger>
           <SelectContent>
             {categories.map((c) => (
@@ -156,7 +156,7 @@ export function ProjectForm({
 
       {project && (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="status">{t("projects.statusLabel")}</Label>
+          <Label htmlFor="status">{t("common.status")}</Label>
           <Select
             value={status}
             onValueChange={(value) => {
@@ -201,7 +201,7 @@ export function ProjectForm({
 
       <Field
         name="description"
-        label={t("projects.description")}
+        label={t("common.description")}
         value={description}
         onChange={setDescription}
         error={errors.description}
@@ -230,14 +230,14 @@ export function ProjectForm({
       <div className="grid grid-cols-2 gap-4">
         <Field
           name="location"
-          label={t("projects.location")}
+          label={t("common.location")}
           value={location}
           onChange={setLocation}
           error={errors.location}
         />
         <Field
           name="budget"
-          label={t("projects.budget")}
+          label={t("common.budget")}
           value={budget}
           onChange={setBudget}
           error={errors.budget}

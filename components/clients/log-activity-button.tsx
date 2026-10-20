@@ -19,7 +19,7 @@ export function LogActivityButton({ clientId }: { clientId: string }) {
   return (
     <>
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-        <Plus /> {t("activities.logActivityBtn")}
+        <Plus /> {t("common.logActivity")}
       </Button>
       <LogActivityDialog
         clientId={clientId}

@@ -131,7 +131,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         </Field>
         <Field data-invalid={!!errors.description || undefined}>
           <FieldLabel htmlFor="description">
-            {t("projects.tasks.description")}
+            {t("common.description")}
           </FieldLabel>
           <Textarea
             id="description"
@@ -145,7 +145,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         </Field>
         <Field data-invalid={!!errors.cost || undefined}>
           <FieldLabel htmlFor="cost">
-            {t("projects.tasks.cost")}
+            {t("common.cost")}
           </FieldLabel>
           <MoneyInput
             id="cost"
@@ -157,7 +157,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         </Field>
         <Field>
           <FieldLabel htmlFor="status">
-            {t("projects.tasks.statusLabel")}
+            {t("common.status")}
           </FieldLabel>
           <TaskStatusSelect
             id="status"
@@ -169,7 +169,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         </Field>
         <Field>
           <FieldLabel htmlFor="priority">
-            {t("projects.tasks.priorityLabel")}
+            {t("common.priority")}
           </FieldLabel>
           <TaskPrioritySelect
             id="priority"
@@ -180,7 +180,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         </Field>
         <Field>
           <FieldLabel htmlFor="dueDate">
-            {t("projects.tasks.dueDate")}
+            {t("common.dueDate")}
           </FieldLabel>
           <div className="flex gap-3">
             <Input
@@ -199,7 +199,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         </Field>
         <Field>
           <FieldLabel htmlFor="assignee">
-            {t("projects.tasks.assignee")}
+            {t("common.assignee")}
           </FieldLabel>
           <Select
             value={assigneeId}
@@ -207,7 +207,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
               if (value !== null) setAssigneeId(value as string)
             }}
             items={[
-              { value: "", label: t("projects.tasks.unassigned") },
+              { value: "", label: t("common.unassigned") },
               ...members.map(
                 (m: {
                   userId: string
@@ -222,12 +222,12 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
           >
             <SelectTrigger id="assignee" className="w-full">
               <SelectValue
-                placeholder={t("projects.tasks.unassigned")}
+                placeholder={t("common.unassigned")}
               />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">
-                {t("projects.tasks.unassigned")}
+                {t("common.unassigned")}
               </SelectItem>
               {members.map(
                 (m: {

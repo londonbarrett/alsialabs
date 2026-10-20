@@ -18,30 +18,30 @@ export function MyInvoiceDetails({
   return (
     <div className="grid grid-cols-2 gap-4 rounded-md border p-3 text-xs @[600px]:grid-cols-3">
       <div>
-        <p className="text-muted-foreground">{t("myInvoices.type")}</p>
+        <p className="text-muted-foreground">{t("common.type")}</p>
         <p className="font-medium capitalize">{invoice.type}</p>
       </div>
       <div>
-        <p className="text-muted-foreground">{t("myInvoices.date")}</p>
+        <p className="text-muted-foreground">{t("invoice.issueDate")}</p>
         <p className="font-medium">
           {formatISODate(invoice.issueDate)}
         </p>
       </div>
       <div>
         <p className="text-muted-foreground">
-          {t("myInvoices.dueDate")}
+          {t("common.dueDate")}
         </p>
         <p className="font-medium">{formatISODate(invoice.dueDate)}</p>
       </div>
       <div>
-        <p className="text-muted-foreground">{t("myInvoices.total")}</p>
+        <p className="text-muted-foreground">{t("common.total")}</p>
         <p className="font-medium">
           {formatCurrency(invoice.grandTotal)}
         </p>
       </div>
       <div>
         <p className="text-muted-foreground">
-          {t("myInvoices.paidAmount")}
+          {t("invoice.paid")}
         </p>
         <p className="font-medium">
           {formatCurrency(invoice.paidAmount)}
@@ -49,7 +49,7 @@ export function MyInvoiceDetails({
       </div>
       <div>
         <p className="text-muted-foreground">
-          {t("myInvoices.outstanding")}
+          {t("invoice.outstanding")}
         </p>
         <p className="font-medium">{formatCurrency(outstanding)}</p>
       </div>

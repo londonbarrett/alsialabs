@@ -21,7 +21,7 @@ import { redirect } from "next/navigation"
 
 export default async function ProfilePage() {
   const session = await auth()
-  const t = await getTranslations("profile")
+  const t = await getTranslations()
 
   if (!session?.user) {
     redirect("/login")
@@ -73,26 +73,30 @@ export default async function ProfilePage() {
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold tracking-tight">
-        {t("title")}
+        {t("nav.perfil")}
       </h1>
       <div className="max-w-lg rounded-md border p-6">
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">{t("name")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("common.name")}
+            </p>
             <p className="text-base font-medium">
               {session.user.name ?? "—"}
             </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
-              {t("email")}
+              {t("common.email")}
             </p>
             <p className="text-base font-medium">
               {session.user.email ?? "—"}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">{t("role")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("common.role")}
+            </p>
             <p className="text-base font-medium capitalize">
               {session.user.role ?? "—"}
             </p>

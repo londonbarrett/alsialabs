@@ -34,7 +34,7 @@ export function UserInviteInput({
   placeholder,
   excludedIds,
 }: UserInviteInputProps) {
-  const t = useTranslations("projects")
+  const t = useTranslations()
   const [searchResults, setSearchResults] = useState<UserOptionDTO[]>(
     []
   )
@@ -101,7 +101,7 @@ export function UserInviteInput({
         filter={null}
       >
         <ComboboxInput
-          placeholder={placeholder ?? t("searchUser")}
+          placeholder={placeholder ?? t("projects.searchUser")}
           showTrigger={false}
           className="h-10 w-56"
         />
@@ -110,11 +110,11 @@ export function UserInviteInput({
             <div className="px-2 py-1.5 text-xs text-muted-foreground">
               <span className="flex items-center gap-2">
                 <Spinner className="size-3" />
-                {t("searching")}
+                {t("common.searching")}
               </span>
             </div>
           )}
-          <ComboboxEmpty>{t("noUsersFound")}</ComboboxEmpty>
+          <ComboboxEmpty>{t("projects.noUsersFound")}</ComboboxEmpty>
           <ComboboxList>
             {(user) => (
               <ComboboxItem key={user.id} value={user}>
@@ -137,7 +137,7 @@ export function UserInviteInput({
         disabled={!selectedValue}
       >
         <UserPlus className="size-4" />
-        {t("invite")}
+        {t("common.invite")}
       </Button>
     </div>
   )

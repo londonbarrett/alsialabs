@@ -104,7 +104,7 @@ export function UserDialog({
         <form action={handleSubmit}>
           <div className="flex flex-col gap-4 py-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="email">{t("users.email")}</Label>
+              <Label htmlFor="email">{t("common.email")}</Label>
               <Input
                 id="email"
                 name="email"
@@ -114,7 +114,7 @@ export function UserDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="role">{t("users.role")}</Label>
+              <Label htmlFor="role">{t("common.role")}</Label>
               <Select
                 name="roleId"
                 defaultValue={user?.roleId ?? undefined}
@@ -135,7 +135,7 @@ export function UserDialog({
           </div>
           <DialogFooter>
             <SubmitButton
-              label={isEdit ? t("users.save") : t("users.create")}
+              label={isEdit ? t("common.save") : t("common.create")}
             />
           </DialogFooter>
         </form>

@@ -88,7 +88,7 @@ export function TaskCommentPanel({
 
         <div className="flex items-center justify-between px-4 pt-2">
           <span className="text-sm font-medium">
-            {t("projects.tasks.comments.title")}
+            {t("common.comments")}
           </span>
           <Button
             variant="ghost"

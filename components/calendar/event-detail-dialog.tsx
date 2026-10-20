@@ -46,11 +46,11 @@ const BaseRows = memo(function BaseRows({
   return (
     <>
       <Row
-        label={t("calendar.project")}
+        label={t("common.project")}
         value={meta?.projectName ?? "—"}
       />
       <Row
-        label={t("calendar.owner")}
+        label={t("common.owner")}
         value={meta?.projectOwnerName ?? "—"}
       />
       <Row
@@ -58,7 +58,7 @@ const BaseRows = memo(function BaseRows({
         value={
           meta?.assigneeName
             ? meta.assigneeName
-            : t("projects.tasks.unassigned")
+            : t("common.unassigned")
         }
       />
     </>
@@ -124,7 +124,7 @@ export function EventDetailDialog({
             {overdue && (
               <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
                 <AlertTriangle className="h-3 w-3" />
-                {t("projects.tasks.overdue")}
+                {t("common.overdue")}
               </span>
             )}
           </span>
@@ -135,7 +135,7 @@ export function EventDetailDialog({
             <BaseRows meta={meta} />
             {isTask ? (
               <Row
-                label={t("calendar.priority")}
+                label={t("common.priority")}
                 value={
                   <Badge
                     className={
@@ -158,7 +158,7 @@ export function EventDetailDialog({
             ) : null}
             {meta?.cost ? (
               <Row
-                label={t("calendar.cost")}
+                label={t("common.cost")}
                 value={<Money value={meta.cost} />}
               />
             ) : null}
