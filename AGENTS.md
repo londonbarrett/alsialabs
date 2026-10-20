@@ -27,7 +27,6 @@ Common triggers:
 - Lint (targeted): `pnpm eslint <paths>` — full: `pnpm eslint --max-warnings=0`
 - Types: `pnpm typecheck`
 - Unit tests (watch): `pnpm test` — once: `pnpm test:run` — focused: `pnpm vitest run -t "<test name>"`
-- E2E tests: `pnpm test:e2e`
 - Full verification: `pnpm verify` (typecheck + lint + tests with coverage)
 - Generate migration: `pnpm db:generate` — apply: `pnpm db:migrate` — seed: `pnpm db:seed`
 
@@ -82,33 +81,13 @@ Never:
 - Add `any` to work around type errors — fix the type instead
 - Bypass the quality gate (`git commit --no-verify`) or weaken lint/coverage thresholds to make a change pass
 
-## Workflow
-
-Superpowers-driven development: brainstorm → design doc → plan → execute → verify → commit.
-
-1. **Brainstorm** — clarify intent before building; produce a design doc in `docs/superpowers/specs/`
-2. **Plan** — write an implementation plan in `docs/superpowers/plans/` with bite-sized tasks
-3. **Execute** — inline via `executing-pls` (preferred) or subagent-driven via `subagent-driven-development`
-4. **Verify** — `pnpm verify` must pass
-5. **Commit** — the pre-commit hook runs `pnpm verify`; CI re-runs it on push/PR
-
-### Quality gate
-
-Automated guardrails are the quality gate — not manual code review:
-
-- **Pre-commit hook** (`.githooks/pre-commit`) runs `pnpm verify` before every commit
-- **CI** (`.github/workflows/ci.yml`) runs `pnpm verify` on every push and PR
-- `pnpm verify` = `tsc --noEmit` + `eslint --max-warnings=0` + `vitest run --coverage` (floor: 60% lines/functions/statements, 50% branches)
-
-The `requesting-code-review` / `receiving-code-review` skills and per-task review subagents are **not** run unless explicitly requested. `executing-pls` (one end-of-branch review) is preferred over `subagent-driven-development`'s per-task reviews.
-
 ## Verification
 
 Run after finishing a change; fix failures before completing the task:
 
-1. `pnpm verify` — types + lint (warnings fail) + unit tests with coverage
+1. `pnpm verify` — `tsc --noEmit` + `eslint --max-warnings=0` + `vitest run --coverage` (floor: 60% lines/functions/statements, 50% branches)
 
-Or use the `/verify` command, which runs the full suite.
+Or use the `/verify` command, which runs the full suite. The pre-commit hook (`.githooks/pre-commit`) and CI (`.github/workflows/ci.yml`) both run `pnpm verify` — never bypass them.
 
 ## Drizzle Migration Workflow
 
