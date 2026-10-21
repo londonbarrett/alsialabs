@@ -3,14 +3,20 @@
 import { StatusBadge } from "@/components/sales/status-badge"
 import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
 import { getMyInvoiceDetails } from "@/actions/invoices"
 import type { InvoiceItem, InvoicePayment } from "@/lib/drizzle/schema"
+import { useMyInvoicesActions } from "@/stores/my-invoices/use-my-invoices-actions"
 import { cn } from "cn"
 import { formatCurrency } from "@/lib/util/money"
 import { formatISODate } from "@/lib/util/schedule"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronUp, Link2, Unlink } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Activity, Fragment, useEffect, useState } from "react"
 import { MyInvoiceDetails } from "./my-invoice-details"
@@ -74,6 +80,7 @@ export function MyInvoicesRow({
   onBind: (invoice: MyInvoiceDTO) => void
 }) {
   const t = useTranslations()
+  const { bindToProject } = useMyInvoicesActions()
   const [expanded, setExpanded] = useState(false)
   const [details, setDetails] = useState<Details | null>(null)
   const [loading, setLoading] = useState(false)
@@ -149,17 +156,53 @@ export function MyInvoicesRow({
         <TableCell className="text-right text-xs font-medium">
           {formatCurrency(invoice.grandTotal)}
         </TableCell>
-        <TableCell>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              onBind(invoice)
-            }}
+        <TableCell className="text-center">
+          <div
+            className="flex items-center justify-center gap-1"
+            onClick={(e) => e.stopPropagation()}
           >
-            {t("myInvoices.bindToProject")}
-          </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label={t("myInvoices.bindToProject")}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onBind(invoice)
+                    }}
+                  >
+                    <Link2 />
+                  </Button>
+                }
+              />
+              <TooltipContent>
+                {t("myInvoices.bindToProject")}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={!invoice.projectId}
+                    aria-label={t("myInvoices.unbindToProject")}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void bindToProject(invoice.id, null, null)
+                    }}
+                  >
+                    <Unlink />
+                  </Button>
+                }
+              />
+              <TooltipContent>
+                {t("myInvoices.unbindToProject")}
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </TableCell>
       </TableRow>
       <Activity mode={expanded ? "visible" : "hidden"}>

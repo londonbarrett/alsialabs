@@ -25,7 +25,7 @@ import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-s
 import { cn } from "cn"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { TaskDialog, type TaskFormValues } from "../task-dialog"
 import { ExpenseDialog } from "./expense-dialog"
 import { ExpensesTable } from "./expenses-table"
@@ -60,7 +60,8 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     canDeleteExpense || isPrimaryOwner || isCurrentUserAdmin
 
   const { expenses, invoices } = useExpensesState()
-  const { saveExpense, deleteExpense } = useExpensesActions()
+  const { saveExpense, deleteExpense, unbindInvoice } =
+    useExpensesActions()
   const { tasks } = useProjectTasksState()
   const { createTask, updateTask, deleteTask } =
     useProjectTasksActions()
@@ -147,6 +148,13 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   async function handleDeleteExpense(expenseId: string) {
     await deleteExpense({ projectId, expenseId })
   }
+
+  const handleUnbindInvoice = useCallback(
+    (invoiceId: string) => {
+      unbindInvoice(invoiceId)
+    },
+    [unbindInvoice]
+  )
 
   async function handleExpenseSubmit(data: Expense) {
     await saveExpense({ data, categories, editingExpense })
@@ -264,6 +272,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
               onEditTask={openEditTask}
               onDeleteExpense={handleDeleteExpense}
               onDeleteTask={handleDeleteTask}
+              onUnbindInvoice={handleUnbindInvoice}
             />
             <div className="mt-4 flex justify-end">
               <p className="text-sm text-muted-foreground">
@@ -287,7 +296,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
         onSubmit={(data) => {
           setDialogOpen(false)
           setEditingExpense(undefined)
-          void handleExpenseSubmit(data)
+          handleExpenseSubmit(data)
         }}
       />
 

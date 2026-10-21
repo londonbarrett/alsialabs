@@ -42,7 +42,9 @@ export function MyInvoicesList({ invoices }: Props) {
                 <TableHead className="text-right">
                   {t("common.total")}
                 </TableHead>
-                <TableHead>{t("common.actions")}</TableHead>
+                <TableHead className="text-center">
+                  {t("common.actions")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -42,7 +42,10 @@ vi.mock("@/lib/drizzle/client", async () => {
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import { verifyProjectAccess } from "@/actions/not-safe/project-access"
-import type { ProjectDetailDTO } from "@/actions/schemas/project"
+import type {
+  ProjectDetailDTO,
+  ProjectOptionDTO,
+} from "@/actions/schemas/project"
 import {
   createProject,
   getProjects,
@@ -201,7 +204,7 @@ describe("projects actions", () => {
   describe("getProjects", () => {
     it("returns projects without checking the projects:view permission", async () => {
       mockIsSuperUser.mockReturnValue(false)
-      const row: ProjectDetailDTO = {
+      const row: ProjectOptionDTO = {
         id: PROJECT_ID,
         primaryOwnerId: "user-1",
         categoryId: CATEGORY_ID,
@@ -217,6 +220,7 @@ describe("projects actions", () => {
         updatedAt: new Date("2026-08-01T00:00:00.000Z"),
         categorySlug: null,
         categoryName: null,
+        ownerName: "Jane Doe",
       }
       state.mock.onSelect(schema.projectsTable).respond([row])
       const result = await getProjects()

@@ -83,6 +83,17 @@ describe("expenseReducer", () => {
     )
     expect(next.invoices).toEqual([inv])
   })
+
+  it("unbindInvoice removes the matching invoice, leaves expenses and other invoices untouched", () => {
+    const inv1 = makeInvoice({ id: "inv-1" })
+    const inv2 = makeInvoice({ id: "inv-2", invoiceNumber: "INV-002" })
+    const next = expenseReducer(
+      { expenses: [a, b], invoices: [inv1, inv2] },
+      { type: "unbindInvoice", invoiceId: "inv-1" }
+    )
+    expect(next.invoices).toEqual([inv2])
+    expect(next.expenses).toEqual([a, b])
+  })
 })
 
 describe("createExpensesStore", () => {
@@ -133,6 +144,27 @@ describe("createExpensesStore", () => {
     const id = store.getState().pend({ type: "delete", expenseId: "a" })
     store.getState().discard(id)
     expect(store.getState().committed.expenses).toEqual([a, b])
+    expect(store.getState().pending).toHaveLength(0)
+  })
+
+  it("pend unbindInvoice removes the row optimistically; discard restores it", () => {
+    const inv1 = makeInvoice({ id: "inv-1" })
+    const inv2 = makeInvoice({ id: "inv-2", invoiceNumber: "INV-002" })
+    const store = createExpensesStore({
+      expenses: [],
+      invoices: [inv1, inv2],
+    })
+    const id = store.getState().pend({
+      type: "unbindInvoice",
+      invoiceId: "inv-1",
+    })
+    expect(store.getState().optimistic.invoices).toEqual([inv2])
+    expect(store.getState().committed.invoices).toEqual([inv1, inv2])
+
+    store.getState().discard(id)
+
+    expect(store.getState().committed.invoices).toEqual([inv1, inv2])
+    expect(store.getState().optimistic.invoices).toEqual([inv1, inv2])
     expect(store.getState().pending).toHaveLength(0)
   })
 

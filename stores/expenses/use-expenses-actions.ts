@@ -5,6 +5,7 @@ import {
   deleteExpense as deleteExpenseAction,
   updateExpense as updateExpenseAction,
 } from "@/actions/expenses"
+import { bindInvoiceToProject as bindInvoiceToProjectAction } from "@/actions/invoices"
 import { useSettle } from "@/hooks/use-settle"
 import type { Expense } from "@/lib/drizzle/schema"
 import type {
@@ -101,5 +102,12 @@ export function useExpensesActions() {
     settle(result, t("projects.expenses.expenseDeleted"))
   }
 
-  return { saveExpense, deleteExpense }
+  async function unbindInvoice(invoiceId: string): Promise<void> {
+    const result = await run({ type: "unbindInvoice", invoiceId }, () =>
+      bindInvoiceToProjectAction({ invoiceId, projectId: null })
+    )
+    settle(result, t("myInvoices.bindSuccess"))
+  }
+
+  return { saveExpense, deleteExpense, unbindInvoice }
 }

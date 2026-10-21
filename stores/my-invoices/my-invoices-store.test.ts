@@ -1,5 +1,5 @@
 import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
-import type { ProjectDetailDTO } from "@/actions/schemas/project"
+import type { ProjectOptionDTO } from "@/actions/schemas/project"
 import { describe, expect, it } from "vitest"
 import {
   myInvoicesReducer,
@@ -36,7 +36,7 @@ function makeInvoice(
   }
 }
 
-function makeProject(id: string, name: string): ProjectDetailDTO {
+function makeProject(id: string, name: string): ProjectOptionDTO {
   return {
     id,
     primaryOwnerId: "user-1",
@@ -53,13 +53,14 @@ function makeProject(id: string, name: string): ProjectDetailDTO {
     updatedAt: new Date("2024-01-01"),
     categorySlug: null,
     categoryName: null,
+    ownerName: "Jane Doe",
   }
 }
 
 function makeSeed(
   invoices: MyInvoiceDTO[],
   clientId: string | null = null,
-  projects: ProjectDetailDTO[] = []
+  projects: ProjectOptionDTO[] = []
 ): MyInvoicesState {
   return { clientId, invoices, projects }
 }

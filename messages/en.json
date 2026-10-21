@@ -404,11 +404,12 @@
     "paymentMethod": "Method",
     "bindSuccess": "Invoice project updated",
     "bindToProject": "Bind to Project",
+    "unbindToProject": "Unbind from Project",
+    "unbind": "Unbind",
+    "confirmUnbind": "Are you sure you want to unbind this invoice from the project?",
     "bindTitle": "Bind to project",
     "bindDescription": "Choose a project to link this invoice to.",
-    "noProject": "No project",
     "bind": "Bind",
-    "clear": "Clear",
     "noOwnedProjects": "You don't own any projects yet."
   },
   "calendar": {

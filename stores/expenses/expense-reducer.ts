@@ -15,6 +15,7 @@ export type ExpenseAction =
       expense: ExpenseWithCategoryDTO
     }
   | { type: "delete"; expenseId: string }
+  | { type: "unbindInvoice"; invoiceId: string }
 
 export function expenseReducer(
   state: ExpenseStoreState,
@@ -42,6 +43,13 @@ export function expenseReducer(
         ...state,
         expenses: state.expenses.filter(
           (e) => e.id !== action.expenseId
+        ),
+      }
+    case "unbindInvoice":
+      return {
+        ...state,
+        invoices: state.invoices.filter(
+          (i) => i.id !== action.invoiceId
         ),
       }
   }

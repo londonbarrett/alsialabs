@@ -4,8 +4,10 @@ import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
 import type { ProjectInvoiceDTO } from "@/actions/schemas/invoice"
 import type { TaskWithCommentCountDTO } from "@/actions/schemas/task"
 import { ActionMenu } from "@/components/common/action-menu"
+import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { Money } from "@/components/common/money"
 import { Badge } from "@/components/ui/badge"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import {
   Table,
   TableBody,
@@ -14,8 +16,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ListTodo, Receipt } from "lucide-react"
+import { ListTodo, Receipt, Unlink } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { useState } from "react"
 
 type CombinedExpenseRow =
   | {
@@ -43,8 +46,9 @@ interface ExpensesTableProps {
   canDelete: boolean
   onEditExpense: (expense: ExpenseWithCategoryDTO) => void
   onEditTask: (task: TaskWithCommentCountDTO) => void
-  onDeleteExpense: (expenseId: string) => Promise<void>
-  onDeleteTask: (taskId: string) => Promise<void>
+  onDeleteExpense: (expenseId: string) => void
+  onDeleteTask: (taskId: string) => void
+  onUnbindInvoice?: (invoiceId: string) => void
 }
 
 export function ExpensesTable({
@@ -55,8 +59,11 @@ export function ExpensesTable({
   onEditTask,
   onDeleteExpense,
   onDeleteTask,
+  onUnbindInvoice,
 }: ExpensesTableProps) {
   const t = useTranslations()
+  const [unbindTarget, setUnbindTarget] =
+    useState<ProjectInvoiceDTO | null>(null)
 
   return (
     <div className="overflow-auto rounded-md border">
@@ -120,7 +127,21 @@ export function ExpensesTable({
               <TableCell>{row.date}</TableCell>
               {(canEdit || canDelete) && (
                 <TableCell>
-                  {row.type === "invoice" ? null : (
+                  {row.type === "invoice" ? (
+                    <ActionMenu
+                      entityName={row.invoice.invoiceNumber}
+                      canEdit={false}
+                      canDelete={false}
+                    >
+                      <DropdownMenuItem
+                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                        onClick={() => setUnbindTarget(row.invoice)}
+                      >
+                        <Unlink className="mr-2 h-4 w-4" />
+                        {t("myInvoices.unbindToProject")}
+                      </DropdownMenuItem>
+                    </ActionMenu>
+                  ) : (
                     <ActionMenu
                       entityName={
                         row.type === "task"
@@ -150,6 +171,17 @@ export function ExpensesTable({
           ))}
         </TableBody>
       </Table>
+      <DestructiveDialog
+        open={unbindTarget !== null}
+        title={t("myInvoices.unbindToProject")}
+        message={t("myInvoices.confirmUnbind")}
+        confirmLabel={t("myInvoices.unbind")}
+        onConfirm={() => {
+          if (unbindTarget) onUnbindInvoice?.(unbindTarget.id)
+          setUnbindTarget(null)
+        }}
+        onCancel={() => setUnbindTarget(null)}
+      />
     </div>
   )
 }

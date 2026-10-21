@@ -10,6 +10,7 @@ import {
   CreateProjectSchema,
   ProjectContextSchema,
   ProjectDetailSchema,
+  ProjectOptionSchema,
   ProjectRecordSchema,
   ProjectSummarySchema,
   UpdateProjectSchema,
@@ -38,7 +39,7 @@ import { z } from "zod"
 
 export const getProjects = sessionAction
   .metadata({})
-  .outputSchema(z.array(ProjectDetailSchema))
+  .outputSchema(z.array(ProjectOptionSchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
     if (isSuperUser(session as { user: { role: string | null } })) {
@@ -59,11 +60,16 @@ export const getProjects = sessionAction
           updatedAt: projectsTable.updatedAt,
           categorySlug: categoryTable.slug,
           categoryName: categoryTable.name,
+          ownerName: usersTable.name,
         })
         .from(projectsTable)
         .leftJoin(
           categoryTable,
           eq(projectsTable.categoryId, categoryTable.id)
+        )
+        .leftJoin(
+          usersTable,
+          eq(projectsTable.primaryOwnerId, usersTable.id)
         )
         .orderBy(desc(projectsTable.createdAt))
     }
@@ -84,11 +90,16 @@ export const getProjects = sessionAction
         updatedAt: projectsTable.updatedAt,
         categorySlug: categoryTable.slug,
         categoryName: categoryTable.name,
+        ownerName: usersTable.name,
       })
       .from(projectsTable)
       .leftJoin(
         categoryTable,
         eq(projectsTable.categoryId, categoryTable.id)
+      )
+      .leftJoin(
+        usersTable,
+        eq(projectsTable.primaryOwnerId, usersTable.id)
       )
       .where(
         sql`exists (select 1 from ${projectOwnersTable} where ${projectOwnersTable.projectId} = ${projectsTable.id} and ${projectOwnersTable.userId} = ${session.user.id})`

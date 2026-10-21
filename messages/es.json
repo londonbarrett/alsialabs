@@ -404,11 +404,12 @@
     "paymentMethod": "Método",
     "bindSuccess": "Proyecto de la factura actualizado",
     "bindToProject": "Vincular a proyecto",
+    "unbindToProject": "Desvincular de proyecto",
+    "unbind": "Desvincular",
+    "confirmUnbind": "¿Estás seguro de que quieres desvincular esta factura del proyecto?",
     "bindTitle": "Vincular a proyecto",
     "bindDescription": "Elige el proyecto al que quieres vincular esta factura.",
-    "noProject": "Sin proyecto",
     "bind": "Vincular",
-    "clear": "Quitar",
     "noOwnedProjects": "Aún no tienes proyectos propios."
   },
   "calendar": {

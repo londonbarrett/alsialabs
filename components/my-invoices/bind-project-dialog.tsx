@@ -2,7 +2,16 @@
 
 import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
 import { Dialog } from "@/components/common/dialog"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item"
 import { useMyInvoicesState } from "@/stores/my-invoices/use-my-invoices-state"
 import { cn } from "cn"
 import { useTranslations } from "next-intl"
@@ -13,15 +22,6 @@ interface BindProjectDialogProps {
   invoice: MyInvoiceDTO | null
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-function optionClassName(selected: boolean) {
-  return cn(
-    "w-full rounded-md border px-3 py-2 text-left text-sm transition-colors",
-    selected
-      ? "border-ring bg-muted ring-2 ring-ring/50"
-      : "border-border hover:bg-muted/50"
-  )
 }
 
 export function BindProjectDialog({
@@ -64,27 +64,47 @@ export function BindProjectDialog({
           {t("myInvoices.noOwnedProjects")}
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            aria-pressed={selected === null}
-            className={optionClassName(selected === null)}
-            onClick={() => setSelected(null)}
-          >
-            {t("myInvoices.noProject")}
-          </button>
+        <ItemGroup>
           {projects.map((project) => (
-            <button
+            <Item
               key={project.id}
-              type="button"
-              aria-pressed={selected === project.id}
-              className={optionClassName(selected === project.id)}
-              onClick={() => setSelected(project.id)}
+              size="sm"
+              className={cn(
+                "cursor-pointer hover:bg-muted/50",
+                selected === project.id && "border-ring bg-muted/50"
+              )}
+              render={
+                <button
+                  type="button"
+                  aria-pressed={selected === project.id}
+                  onClick={() => setSelected(project.id)}
+                />
+              }
             >
-              {project.name}
-            </button>
+              <ItemMedia variant="icon">
+                <span
+                  className="size-3 rounded-full"
+                  style={{ backgroundColor: project.color }}
+                />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>
+                  {project.name}
+                  {project.categorySlug && (
+                    <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
+                      {t.has(`categoryNames.${project.categorySlug}`)
+                        ? t(`categoryNames.${project.categorySlug}`)
+                        : project.categoryName}
+                    </Badge>
+                  )}
+                </ItemTitle>
+                <ItemDescription>
+                  {project.ownerName ?? t("common.unassigned")}
+                </ItemDescription>
+              </ItemContent>
+            </Item>
           ))}
-        </div>
+        </ItemGroup>
       )}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -94,9 +114,7 @@ export function BindProjectDialog({
           onClick={handleConfirm}
           disabled={selected === invoice.projectId}
         >
-          {selected === null
-            ? t("myInvoices.clear")
-            : t("myInvoices.bind")}
+          {t("myInvoices.bind")}
         </Button>
       </div>
     </Dialog>
