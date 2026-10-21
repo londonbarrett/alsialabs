@@ -46,6 +46,7 @@
     "dueDate": "Fecha de vencimiento",
     "amount": "Monto",
     "task": "Tarea",
+    "invoice": "Factura",
     "allStatuses": "Todos los estados",
     "addModule": "Agregar Módulo",
     "store": "Tienda",

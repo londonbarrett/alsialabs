@@ -59,7 +59,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const canDelete =
     canDeleteExpense || isPrimaryOwner || isCurrentUserAdmin
 
-  const { expenses } = useExpensesState()
+  const { expenses, invoices } = useExpensesState()
   const { saveExpense, deleteExpense } = useExpensesActions()
   const { tasks } = useProjectTasksState()
   const { createTask, updateTask, deleteTask } =
@@ -161,8 +161,13 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     (sum, t) => sum + Number(t.cost),
     0
   )
-  const total = expenseTotal + taskCostTotal
-  const hasItems = expenses.length > 0 || taskCosts.length > 0
+  const invoicePaidTotal = invoices.reduce(
+    (sum, i) => sum + Number(i.paidAmount),
+    0
+  )
+  const total = expenseTotal + taskCostTotal + invoicePaidTotal
+  const hasItems =
+    expenses.length > 0 || taskCosts.length > 0 || invoices.length > 0
   const budgetNum = budget ? Number(budget) : 0
   const spendPct =
     budgetNum > 0
@@ -184,6 +189,12 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
       type: "expense" as const,
       expense,
       date: expense.expenseDate,
+    })),
+    ...invoices.map((invoice) => ({
+      key: invoice.id,
+      type: "invoice" as const,
+      invoice,
+      date: invoice.issueDate,
     })),
   ].sort((a, b) => a.date.localeCompare(b.date))
 

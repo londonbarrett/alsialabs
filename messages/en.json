@@ -46,6 +46,7 @@
     "dueDate": "Due Date",
     "amount": "Amount",
     "task": "Task",
+    "invoice": "Invoice",
     "allStatuses": "All statuses",
     "addModule": "Add Module",
     "store": "Store",
