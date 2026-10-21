@@ -36,7 +36,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 
 export const getProjects = sessionAction
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(z.array(ProjectDetailSchema))
   .action(async ({ ctx }) => {
     const session = ctx.session

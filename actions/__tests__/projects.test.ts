@@ -37,7 +37,12 @@ vi.mock("@/lib/drizzle/client", async () => {
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import { verifyProjectAccess } from "@/actions/not-safe/project-access"
-import { createProject, updateProject } from "@/actions/projects"
+import type { ProjectDetailDTO } from "@/actions/schemas/project"
+import {
+  createProject,
+  getProjects,
+  updateProject,
+} from "@/actions/projects"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
@@ -184,6 +189,33 @@ describe("projects actions", () => {
       })
 
       expect(result.serverError).toEqual({ code: "NOT_FOUND" })
+    })
+  })
+
+  describe("getProjects", () => {
+    it("returns projects without checking the projects:view permission", async () => {
+      mockIsSuperUser.mockReturnValue(false)
+      const row: ProjectDetailDTO = {
+        id: PROJECT_ID,
+        primaryOwnerId: "user-1",
+        categoryId: CATEGORY_ID,
+        name: "Owned Project",
+        description: null,
+        status: "active",
+        startDate: "2026-08-01",
+        endDate: null,
+        location: "Test Location",
+        budget: null,
+        color: "#3b82f6",
+        createdAt: new Date("2026-08-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+        categorySlug: null,
+        categoryName: null,
+      }
+      state.mock.onSelect(schema.projectsTable).respond([row])
+      const result = await getProjects()
+      expect(result.data).toHaveLength(1)
+      expect(mockHasPermission).not.toHaveBeenCalled()
     })
   })
 })
