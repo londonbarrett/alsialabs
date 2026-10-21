@@ -400,7 +400,8 @@
     "noClientDesc": "Your account is not linked to a client yet. Contact support if you expect to see invoices.",
     "noItems": "No items",
     "noPayments": "No payments recorded yet.",
-    "paymentMethod": "Method"
+    "paymentMethod": "Method",
+    "bindSuccess": "Invoice project updated"
   },
   "calendar": {
     "subtitle": "Your tasks and routines across all projects.",

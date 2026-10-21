@@ -400,7 +400,8 @@
     "noClientDesc": "Tu cuenta aún no está vinculada a un cliente. Contacta a soporte si esperas ver facturas.",
     "noItems": "Sin líneas",
     "noPayments": "Aún no hay pagos registrados.",
-    "paymentMethod": "Método"
+    "paymentMethod": "Método",
+    "bindSuccess": "Proyecto de la factura actualizado"
   },
   "calendar": {
     "subtitle": "Tus tareas y rutinas en todos los proyectos.",
