@@ -73,9 +73,10 @@ export const InvoicePaymentSchema = z.object({
   createdAt: z.date(),
 })
 
-export const InvoicePaymentWithNumberSchema = InvoicePaymentSchema.extend({
-  invoiceNumber: z.string(),
-})
+export const InvoicePaymentWithNumberSchema =
+  InvoicePaymentSchema.extend({
+    invoiceNumber: z.string(),
+  })
 
 export const InvoiceRecordSchema = z.object({
   id: z.string(),
@@ -100,6 +101,7 @@ export const InvoiceRecordSchema = z.object({
 
 export const MyInvoiceSchema = InvoiceRecordSchema.extend({
   outstandingBalance: z.string(),
+  projectName: z.string().nullable(),
 })
 
 export const MyInvoicesResultSchema = z.object({

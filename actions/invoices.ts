@@ -21,6 +21,7 @@ import {
   invoicePaymentsTable,
   invoicesTable,
   productsTable,
+  projectsTable,
 } from "@/lib/drizzle/schema"
 import { returnActionError, sessionAction } from "@/lib/safe-action"
 import {
@@ -185,11 +186,16 @@ export const getMyInvoices = sessionAction
         taxTotal: invoicesTable.taxTotal,
         grandTotal: invoicesTable.grandTotal,
         projectId: invoicesTable.projectId,
+        projectName: projectsTable.name,
         createdAt: invoicesTable.createdAt,
         updatedAt: invoicesTable.updatedAt,
         outstandingBalance: sql<string>`(${invoicesTable.grandTotal}::numeric - ${invoicesTable.paidAmount}::numeric)::text`,
       })
       .from(invoicesTable)
+      .leftJoin(
+        projectsTable,
+        eq(invoicesTable.projectId, projectsTable.id)
+      )
       .where(inArray(invoicesTable.clientId, uniqueIds))
       .orderBy(sql`${invoicesTable.issueDate} desc`)
 
@@ -290,11 +296,16 @@ export const getMyInvoiceDetails = sessionAction
         taxTotal: invoicesTable.taxTotal,
         grandTotal: invoicesTable.grandTotal,
         projectId: invoicesTable.projectId,
+        projectName: projectsTable.name,
         createdAt: invoicesTable.createdAt,
         updatedAt: invoicesTable.updatedAt,
         outstandingBalance: sql<string>`(${invoicesTable.grandTotal}::numeric - ${invoicesTable.paidAmount}::numeric)::text`,
       })
       .from(invoicesTable)
+      .leftJoin(
+        projectsTable,
+        eq(invoicesTable.projectId, projectsTable.id)
+      )
       .where(
         and(
           eq(invoicesTable.id, invoiceId),

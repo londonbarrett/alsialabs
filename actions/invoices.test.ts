@@ -76,6 +76,28 @@ const validInvoiceData = {
   ],
 }
 
+const myInvoiceFixture = {
+  id: INVOICE_ID,
+  store_id: STORE_ID,
+  type: "product",
+  invoiceNumber: INVOICE_NUMBER,
+  clientId: CLIENT_ID,
+  userId: USER_ID,
+  status: "draft",
+  issueDate: "2024-01-15",
+  dueDate: null,
+  paidAmount: "0",
+  notes: null,
+  subtotal: "100",
+  discountTotal: "0",
+  taxTotal: "0",
+  grandTotal: "100",
+  projectId: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  outstandingBalance: "100",
+}
+
 describe("invoices actions", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -152,31 +174,33 @@ describe("invoices actions", () => {
         .respond([{ id: CLIENT_ID }])
       state.mock.onSelect(schema.invoicesTable).respond([
         {
-          id: INVOICE_ID,
-          store_id: STORE_ID,
-          type: "product",
-          invoiceNumber: INVOICE_NUMBER,
-          clientId: CLIENT_ID,
-          userId: USER_ID,
-          status: "draft",
-          issueDate: "2024-01-15",
-          dueDate: null,
-          paidAmount: "0",
-          notes: null,
-          subtotal: "100",
-          discountTotal: "0",
-          taxTotal: "0",
-          grandTotal: "100",
-          projectId: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          outstandingBalance: "100",
+          ...myInvoiceFixture,
+          projectName: null,
         },
       ])
 
       const result = await getMyInvoices()
 
       expect(result.data).toBeDefined()
+    })
+
+    it("includes projectName from the joined project", async () => {
+      // clients → [{ id: CLIENT_ID }]; invoicesTable → fixture (above)
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          ...myInvoiceFixture,
+          projectName: "Website Redesign",
+        },
+      ])
+
+      const result = await getMyInvoices()
+
+      expect(result.data?.invoices[0]?.projectName).toBe(
+        "Website Redesign"
+      )
     })
 
     it("returns empty when no client found", async () => {
@@ -196,25 +220,8 @@ describe("invoices actions", () => {
         .respond([{ id: CLIENT_ID }])
       state.mock.onSelect(schema.invoicesTable).respond([
         {
-          id: INVOICE_ID,
-          store_id: STORE_ID,
-          type: "product",
-          invoiceNumber: INVOICE_NUMBER,
-          clientId: CLIENT_ID,
-          userId: USER_ID,
-          status: "draft",
-          issueDate: "2024-01-15",
-          dueDate: null,
-          paidAmount: "0",
-          notes: null,
-          subtotal: "100",
-          discountTotal: "0",
-          taxTotal: "0",
-          grandTotal: "100",
-          projectId: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          outstandingBalance: "100",
+          ...myInvoiceFixture,
+          projectName: null,
         },
       ])
       state.mock.onSelect(schema.invoiceItemsTable).respond([])
@@ -225,6 +232,27 @@ describe("invoices actions", () => {
       })
 
       expect(result.data).toBeDefined()
+    })
+
+    it("includes projectName from the joined project", async () => {
+      // clients → [{ id: CLIENT_ID }]; invoicesTable → fixture (above)
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          ...myInvoiceFixture,
+          projectName: "Website Redesign",
+        },
+      ])
+      state.mock.onSelect(schema.invoiceItemsTable).respond([])
+      state.mock.onSelect(schema.invoicePaymentsTable).respond([])
+
+      const result = await getMyInvoiceDetails({
+        invoiceId: INVOICE_ID,
+      })
+
+      expect(result.data?.invoice.projectName).toBe("Website Redesign")
     })
 
     it("returns FORBIDDEN when no client", async () => {
