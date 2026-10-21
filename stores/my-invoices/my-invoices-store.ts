@@ -1,13 +1,15 @@
-import type { MyInvoicesResultDTO } from "@/actions/schemas/invoice"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
-import { myInvoicesReducer } from "./my-invoices-reducer"
+import {
+  myInvoicesReducer,
+  type MyInvoicesState,
+} from "./my-invoices-reducer"
 
-export function createMyInvoicesStore(seed: MyInvoicesResultDTO) {
+export function createMyInvoicesStore(seed: MyInvoicesState) {
   /**
-   * The seed is the whole state — `clientId` and `invoices` both come from
-   * `getMyInvoices`, so a reseed replaces the state wholesale and no
-   * `serverSlice` is declared.
+   * The seed is the whole state — `clientId` and `invoices` come from
+   * `getMyInvoices`, `projects` from `getProjects`, so a reseed replaces
+   * the state wholesale and no `serverSlice` is declared.
    */
   return createOptimisticStore({
     initialState: seed,

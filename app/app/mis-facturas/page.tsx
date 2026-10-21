@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/common/page-header"
 import { MyInvoicesView } from "@/components/my-invoices/my-invoices-view"
 import { MyInvoicesProvider } from "@/components/my-invoices/my-invoices-provider"
 import { getMyInvoices } from "@/actions/invoices"
+import { getProjects } from "@/actions/projects"
 import { auth } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { Receipt } from "lucide-react"
@@ -10,10 +11,14 @@ import { getTranslations } from "next-intl/server"
 import { redirect } from "next/navigation"
 
 async function MyInvoicesContent() {
-  const seed = unwrapResponse(await getMyInvoices(), {
-    clientId: null,
-    invoices: [],
-  })
+  const [myResult, projectsResult] = await Promise.all([
+    getMyInvoices(),
+    getProjects(),
+  ])
+  const seed = {
+    ...unwrapResponse(myResult, { clientId: null, invoices: [] }),
+    projects: unwrapResponse(projectsResult, []),
+  }
   return (
     <MyInvoicesProvider seed={seed}>
       <MyInvoicesView />

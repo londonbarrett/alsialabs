@@ -20,6 +20,10 @@ export function useMyInvoicesState() {
     store,
     (s: StoreType) => s.optimistic.invoices
   )
+  const projects = useStore(
+    store,
+    (s: StoreType) => s.optimistic.projects
+  )
 
-  return { clientId, invoices }
+  return { clientId, invoices, projects }
 }

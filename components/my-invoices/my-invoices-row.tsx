@@ -1,6 +1,7 @@
 "use client"
 
 import { StatusBadge } from "@/components/sales/status-badge"
+import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
@@ -34,7 +35,7 @@ function InvoiceDetailsRow({
 
   return (
     <TableRow>
-      <TableCell colSpan={6} className="bg-muted/30 p-4">
+      <TableCell colSpan={7} className="bg-muted/30 p-4">
         {loading ? (
           <p className="text-xs text-muted-foreground">
             {t("common.loading")}
@@ -65,7 +66,14 @@ function InvoiceDetailsRow({
   )
 }
 
-export function MyInvoicesRow({ invoice }: { invoice: MyInvoiceDTO }) {
+export function MyInvoicesRow({
+  invoice,
+  onBind,
+}: {
+  invoice: MyInvoiceDTO
+  onBind: (invoice: MyInvoiceDTO) => void
+}) {
+  const t = useTranslations()
   const [expanded, setExpanded] = useState(false)
   const [details, setDetails] = useState<Details | null>(null)
   const [loading, setLoading] = useState(false)
@@ -140,6 +148,18 @@ export function MyInvoicesRow({ invoice }: { invoice: MyInvoiceDTO }) {
         </TableCell>
         <TableCell className="text-right text-xs font-medium">
           {formatCurrency(invoice.grandTotal)}
+        </TableCell>
+        <TableCell>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              onBind(invoice)
+            }}
+          >
+            {t("myInvoices.bindToProject")}
+          </Button>
         </TableCell>
       </TableRow>
       <Activity mode={expanded ? "visible" : "hidden"}>

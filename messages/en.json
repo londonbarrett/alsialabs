@@ -401,7 +401,14 @@
     "noItems": "No items",
     "noPayments": "No payments recorded yet.",
     "paymentMethod": "Method",
-    "bindSuccess": "Invoice project updated"
+    "bindSuccess": "Invoice project updated",
+    "bindToProject": "Bind to Project",
+    "bindTitle": "Bind to project",
+    "bindDescription": "Choose a project to link this invoice to.",
+    "noProject": "No project",
+    "bind": "Bind",
+    "clear": "Clear",
+    "noOwnedProjects": "You don't own any projects yet."
   },
   "calendar": {
     "subtitle": "Your tasks and routines across all projects.",

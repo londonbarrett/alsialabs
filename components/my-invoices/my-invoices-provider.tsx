@@ -1,7 +1,7 @@
 "use client"
 
-import type { MyInvoicesResultDTO } from "@/actions/schemas/invoice"
 import { useServerReseed } from "@/hooks/use-server-reseed"
+import type { MyInvoicesState } from "@/stores/my-invoices/my-invoices-reducer"
 import {
   createMyInvoicesStore,
   MyInvoicesStoreContext,
@@ -12,7 +12,7 @@ export function MyInvoicesProvider({
   seed,
   children,
 }: {
-  seed: MyInvoicesResultDTO
+  seed: MyInvoicesState
   children: React.ReactNode
 }) {
   const [store] = useState(() => createMyInvoicesStore(seed))

@@ -1,4 +1,5 @@
 import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
+import type { ProjectDetailDTO } from "@/actions/schemas/project"
 import { describe, expect, it } from "vitest"
 import {
   myInvoicesReducer,
@@ -35,11 +36,32 @@ function makeInvoice(
   }
 }
 
+function makeProject(id: string, name: string): ProjectDetailDTO {
+  return {
+    id,
+    primaryOwnerId: "user-1",
+    categoryId: "cat-1",
+    name,
+    description: null,
+    status: "active",
+    startDate: "2024-01-01",
+    endDate: null,
+    location: null,
+    budget: null,
+    color: "#3b82f6",
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
+    categorySlug: null,
+    categoryName: null,
+  }
+}
+
 function makeSeed(
   invoices: MyInvoiceDTO[],
-  clientId: string | null = null
+  clientId: string | null = null,
+  projects: ProjectDetailDTO[] = []
 ): MyInvoicesState {
-  return { clientId, invoices }
+  return { clientId, invoices, projects }
 }
 
 describe("myInvoicesReducer", () => {
@@ -47,7 +69,10 @@ describe("myInvoicesReducer", () => {
   const b = makeInvoice("b")
 
   it("bindProject patches projectId and projectName", () => {
-    const next = myInvoicesReducer(makeSeed([a, b]), {
+    const state = makeSeed([a, b], null, [
+      makeProject("p1", "Project X"),
+    ])
+    const next = myInvoicesReducer(state, {
       type: "bindProject",
       invoiceId: "a",
       projectId: "project-1",
@@ -57,6 +82,7 @@ describe("myInvoicesReducer", () => {
     expect(next.invoices[0].projectId).toBe("project-1")
     expect(next.invoices[0].projectName).toBe("Project X")
     expect(next.invoices[1]).toBe(b)
+    expect(next.projects).toBe(state.projects)
   })
 
   it("clears projectId and projectName when projectId is null", () => {
@@ -92,12 +118,14 @@ describe("createMyInvoicesStore", () => {
   it("seeds committed and optimistic from the seed", () => {
     const seed = makeSeed(
       [makeInvoice("a"), makeInvoice("b")],
-      "client-1"
+      "client-1",
+      [makeProject("p1", "Project X")]
     )
     const store = createMyInvoicesStore(seed)
 
     expect(store.getState().committed).toEqual(seed)
     expect(store.getState().optimistic).toEqual(seed)
+    expect(store.getState().optimistic.projects).toEqual(seed.projects)
     expect(store.getState().pending).toHaveLength(0)
   })
 
@@ -127,11 +155,14 @@ describe("createMyInvoicesStore", () => {
 
   it("reseedFromServer replaces the whole state", () => {
     const store = createMyInvoicesStore(makeSeed([makeInvoice("a")]))
-    const next = makeSeed([makeInvoice("b")], "client-9")
+    const next = makeSeed([makeInvoice("b")], "client-9", [
+      makeProject("p9", "New Project"),
+    ])
 
     store.getState().reseedFromServer(next)
 
     expect(store.getState().committed).toEqual(next)
     expect(store.getState().optimistic).toEqual(next)
+    expect(store.getState().optimistic.projects).toEqual(next.projects)
   })
 })
