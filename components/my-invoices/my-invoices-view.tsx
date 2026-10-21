@@ -1,25 +1,15 @@
 "use client"
 
-import type { MyInvoicesResultDTO } from "@/actions/schemas/invoice"
 import { MyInvoicesList } from "@/components/my-invoices/my-invoices-list"
 import { Card, CardContent } from "@/components/ui/card"
+import { useMyInvoicesState } from "@/stores/my-invoices/use-my-invoices-state"
 import { useTranslations } from "next-intl"
-import { use } from "react"
 
-export function MyInvoicesView({
-  invoicesPromise,
-}: {
-  invoicesPromise: Promise<{
-    data?: MyInvoicesResultDTO
-    serverError?: { code: string }
-  }>
-}) {
+export function MyInvoicesView() {
   const t = useTranslations()
-  const result = use(invoicesPromise)
-  const hasClient = !!result.data?.clientId
-  const data = result.data?.invoices ?? []
+  const { clientId, invoices } = useMyInvoicesState()
 
-  if (!hasClient) {
+  if (!clientId) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -32,7 +22,7 @@ export function MyInvoicesView({
     )
   }
 
-  if (data.length === 0) {
+  if (invoices.length === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -47,5 +37,5 @@ export function MyInvoicesView({
     )
   }
 
-  return <MyInvoicesList invoices={data} />
+  return <MyInvoicesList invoices={invoices} />
 }

@@ -1,11 +1,25 @@
 import { Page } from "@/components/common/page"
 import { PageHeader } from "@/components/common/page-header"
 import { MyInvoicesView } from "@/components/my-invoices/my-invoices-view"
+import { MyInvoicesProvider } from "@/components/my-invoices/my-invoices-provider"
 import { getMyInvoices } from "@/actions/invoices"
 import { auth } from "@/lib/auth"
+import { unwrapResponse } from "@/lib/util/unwrap"
 import { Receipt } from "lucide-react"
 import { getTranslations } from "next-intl/server"
 import { redirect } from "next/navigation"
+
+async function MyInvoicesContent() {
+  const seed = unwrapResponse(await getMyInvoices(), {
+    clientId: null,
+    invoices: [],
+  })
+  return (
+    <MyInvoicesProvider seed={seed}>
+      <MyInvoicesView />
+    </MyInvoicesProvider>
+  )
+}
 
 export default async function MyInvoicesPage() {
   const session = await auth()
@@ -15,7 +29,6 @@ export default async function MyInvoicesPage() {
   }
 
   const t = await getTranslations()
-  const invoicesPromise = getMyInvoices()
 
   return (
     <Page
@@ -30,7 +43,7 @@ export default async function MyInvoicesPage() {
         <div className="h-96 animate-pulse rounded-xl border bg-muted/30" />
       }
     >
-      <MyInvoicesView invoicesPromise={invoicesPromise} />
+      <MyInvoicesContent />
     </Page>
   )
 }

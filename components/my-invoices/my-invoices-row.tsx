@@ -6,6 +6,7 @@ import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
 import { getMyInvoiceDetails } from "@/actions/invoices"
 import type { InvoiceItem, InvoicePayment } from "@/lib/drizzle/schema"
+import { cn } from "cn"
 import { formatCurrency } from "@/lib/util/money"
 import { formatISODate } from "@/lib/util/schedule"
 import { ChevronDown, ChevronUp } from "lucide-react"
@@ -33,7 +34,7 @@ function InvoiceDetailsRow({
 
   return (
     <TableRow>
-      <TableCell colSpan={5} className="bg-muted/30 p-4">
+      <TableCell colSpan={6} className="bg-muted/30 p-4">
         {loading ? (
           <p className="text-xs text-muted-foreground">
             {t("common.loading")}
@@ -125,6 +126,14 @@ export function MyInvoicesRow({ invoice }: { invoice: MyInvoiceDTO }) {
         </TableCell>
         <TableCell>
           <StatusBadge status={invoice.status} />
+        </TableCell>
+        <TableCell
+          className={cn(
+            "text-xs",
+            !invoice.projectName && "text-muted-foreground"
+          )}
+        >
+          {invoice.projectName ?? "—"}
         </TableCell>
         <TableCell className="text-right text-xs font-medium">
           {formatCurrency(outstanding)}

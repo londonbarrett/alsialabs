@@ -29,6 +29,7 @@ export function MyInvoicesList({ invoices }: Props) {
                 <TableHead>{t("invoice.invoiceNumber")}</TableHead>
                 <TableHead>{t("invoice.issueDate")}</TableHead>
                 <TableHead>{t("common.status")}</TableHead>
+                <TableHead>{t("common.project")}</TableHead>
                 <TableHead className="text-right">
                   {t("invoice.outstanding")}
                 </TableHead>
