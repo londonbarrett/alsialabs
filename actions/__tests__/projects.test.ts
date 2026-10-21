@@ -18,7 +18,12 @@ vi.mock("next/cache", () => ({
 const state = vi.hoisted(() => ({
   mock: null as unknown as {
     resetMocks(): void
-    onSelect(table: unknown): { respond(data: unknown): unknown }
+    onSelect(table: unknown): {
+      respond(data: unknown): unknown
+      respondWith(
+        fn: (sql: string, params: unknown[]) => unknown
+      ): unknown
+    }
     onInsert(table: unknown): { respond(data: unknown): unknown }
     onUpdate(table: unknown): { respond(data: unknown): unknown }
     onDelete(table: unknown): { respond(data: unknown): unknown }
@@ -41,6 +46,7 @@ import type { ProjectDetailDTO } from "@/actions/schemas/project"
 import {
   createProject,
   getProjects,
+  getProjectsWithDetails,
   updateProject,
 } from "@/actions/projects"
 
@@ -216,6 +222,55 @@ describe("projects actions", () => {
       const result = await getProjects()
       expect(result.data).toHaveLength(1)
       expect(mockHasPermission).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("getProjectsWithDetails", () => {
+    it("counts invoice paidAmount toward project spend", async () => {
+      mockIsSuperUser.mockReturnValue(false)
+      const PROJECT: ProjectDetailDTO = {
+        id: PROJECT_ID,
+        primaryOwnerId: "user-1",
+        categoryId: CATEGORY_ID,
+        name: "Owned Project",
+        description: null,
+        status: "active",
+        startDate: "2026-08-01",
+        endDate: null,
+        location: "Test Location",
+        budget: null,
+        color: "#3b82f6",
+        createdAt: new Date("2026-08-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+        categorySlug: null,
+        categoryName: null,
+      }
+      state.mock.onSelect(schema.projectsTable).respond([PROJECT])
+      state.mock
+        .onSelect(schema.tasksTable)
+        .respondWith((sql) =>
+          sql.includes("count(")
+            ? [{ projectId: PROJECT.id, total: 2, completed: 1 }]
+            : sql.includes("cost")
+              ? [{ projectId: PROJECT.id, total: "40" }]
+              : []
+        )
+      state.mock
+        .onSelect(schema.expensesTable)
+        .respond([{ projectId: PROJECT.id, total: "50" }])
+      let invoiceSql = ""
+      state.mock.onSelect(schema.invoicesTable).respondWith((sql) => {
+        invoiceSql = sql
+        return [{ projectId: PROJECT.id, total: "30" }]
+      })
+      state.mock.onSelect(schema.projectOwnersTable).respond([])
+      state.mock.onSelect(schema.projectCollaboratorsTable).respond([])
+
+      const result = await getProjectsWithDetails()
+
+      expect(result.data?.[0]?.expenses).toBe(120) // 50 expenses + 40 tasks + 30 invoices
+      expect(invoiceSql).toContain("paid_amount")
+      expect(invoiceSql).not.toContain("grand_total")
     })
   })
 })

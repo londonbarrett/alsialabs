@@ -20,6 +20,7 @@ import { db } from "@/lib/drizzle/client"
 import {
   categoryTable,
   expensesTable,
+  invoicesTable,
   projectCollaboratorsTable,
   projectOwnersTable,
   projectsTable,
@@ -170,6 +171,7 @@ export const getProjectsWithDetails = sessionAction
       taskAggs,
       expenseAggs,
       taskCostAggs,
+      invoicePaidAggs,
       inProgressTasks,
       ownerData,
       collaboratorData,
@@ -199,6 +201,14 @@ export const getProjectsWithDetails = sessionAction
         .from(tasksTable)
         .where(inArray(tasksTable.projectId, projectIds))
         .groupBy(tasksTable.projectId),
+      db
+        .select({
+          projectId: invoicesTable.projectId,
+          total: sql<string>`coalesce(sum(${invoicesTable.paidAmount}), '0')`,
+        })
+        .from(invoicesTable)
+        .where(inArray(invoicesTable.projectId, projectIds))
+        .groupBy(invoicesTable.projectId),
       db
         .select({
           id: tasksTable.id,
@@ -265,6 +275,11 @@ export const getProjectsWithDetails = sessionAction
     for (const agg of taskCostAggs) {
       taskCostMap.set(agg.projectId, Number(agg.total))
     }
+    const invoicePaidMap = new Map<string, number>()
+    for (const agg of invoicePaidAggs) {
+      if (agg.projectId === null) continue
+      invoicePaidMap.set(agg.projectId, Number(agg.total))
+    }
     const inProgressMap = new Map<
       string,
       {
@@ -310,7 +325,9 @@ export const getProjectsWithDetails = sessionAction
     return filteredProjects.map((p) => {
       const tasks = taskMap.get(p.id) ?? { total: 0, completed: 0 }
       const expenses =
-        (expenseMap.get(p.id) ?? 0) + (taskCostMap.get(p.id) ?? 0)
+        (expenseMap.get(p.id) ?? 0) +
+        (taskCostMap.get(p.id) ?? 0) +
+        (invoicePaidMap.get(p.id) ?? 0)
       const budget = p.budget ? Number(p.budget) : 0
       return {
         id: p.id,
