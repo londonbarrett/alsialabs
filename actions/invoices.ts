@@ -3,6 +3,8 @@
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
 import { SuccessSchema } from "@/actions/schemas/common"
 import {
+  BindInvoiceResultSchema,
+  BindInvoiceToProjectSchema,
   CreateInvoiceSchema,
   InvoiceItemSchema,
   InvoicePaymentSchema,
@@ -14,6 +16,7 @@ import {
   MyInvoicesResultSchema,
   UpdateInvoiceSchema,
 } from "@/actions/schemas/invoice"
+import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   clientsTable,
@@ -21,6 +24,7 @@ import {
   invoicePaymentsTable,
   invoicesTable,
   productsTable,
+  projectOwnersTable,
   projectsTable,
 } from "@/lib/drizzle/schema"
 import { returnActionError, sessionAction } from "@/lib/safe-action"
@@ -333,6 +337,69 @@ export const getMyInvoiceDetails = sessionAction
     ])
 
     return { invoice: derived, items, payments }
+  })
+
+export const bindInvoiceToProject = sessionAction
+  .inputSchema(BindInvoiceToProjectSchema)
+  .metadata({ revalidate: ["/app/mis-facturas"] })
+  .outputSchema(BindInvoiceResultSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { invoiceId, projectId } = parsedInput
+    const session = ctx.session
+    const email = session.user.email ?? null
+
+    const clientRows = await db
+      .select({ id: clientsTable.id })
+      .from(clientsTable)
+      .where(
+        email
+          ? or(
+              eq(clientsTable.userId, session.user.id),
+              eq(clientsTable.email, email)
+            )
+          : eq(clientsTable.userId, session.user.id)
+      )
+
+    const uniqueIds = [...new Set(clientRows.map((r) => r.id))]
+    if (uniqueIds.length === 0) returnActionError("FORBIDDEN")
+
+    const invoiceRows = await db
+      .select({ clientId: invoicesTable.clientId })
+      .from(invoicesTable)
+      .where(eq(invoicesTable.id, invoiceId))
+      .limit(1)
+
+    const invoice = invoiceRows[0]
+    if (!invoice) returnActionError("NOT_FOUND")
+    if (!uniqueIds.includes(invoice.clientId))
+      returnActionError("FORBIDDEN")
+
+    if (projectId !== null && !isSuperUser(session)) {
+      const ownerRows = await db
+        .select({ projectId: projectOwnersTable.projectId })
+        .from(projectOwnersTable)
+        .where(
+          and(
+            eq(projectOwnersTable.projectId, projectId),
+            eq(projectOwnersTable.userId, session.user.id)
+          )
+        )
+        .limit(1)
+
+      if (!ownerRows[0]) returnActionError("FORBIDDEN")
+    }
+
+    const [updated] = await db
+      .update(invoicesTable)
+      .set({ projectId })
+      .where(eq(invoicesTable.id, invoiceId))
+      .returning({
+        id: invoicesTable.id,
+        projectId: invoicesTable.projectId,
+      })
+
+    if (!updated) returnActionError("NOT_FOUND")
+    return updated
   })
 
 // ---------- Sales invoice actions (migrated from sales) ----------
