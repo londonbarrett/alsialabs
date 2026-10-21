@@ -14,6 +14,7 @@ import {
   InvoiceWithClientNameSchema,
   MyInvoiceDetailsSchema,
   MyInvoicesResultSchema,
+  ProjectInvoiceSchema,
   UpdateInvoiceSchema,
 } from "@/actions/schemas/invoice"
 import { isSuperUser } from "@/lib/auth"
@@ -27,7 +28,11 @@ import {
   projectOwnersTable,
   projectsTable,
 } from "@/lib/drizzle/schema"
-import { returnActionError, sessionAction } from "@/lib/safe-action"
+import {
+  projectScopedAction,
+  returnActionError,
+  sessionAction,
+} from "@/lib/safe-action"
 import {
   computeInvoiceTotals,
   computeLineTotal,
@@ -400,6 +405,27 @@ export const bindInvoiceToProject = sessionAction
 
     if (!updated) returnActionError("NOT_FOUND")
     return updated
+  })
+
+export const getProjectInvoices = projectScopedAction(
+  z.object({ projectId: z.uuid() })
+)
+  .metadata({
+    permission: { module: "expenses", action: "view" },
+  })
+  .outputSchema(z.array(ProjectInvoiceSchema))
+  .action(async ({ parsedInput }) => {
+    return db
+      .select({
+        id: invoicesTable.id,
+        invoiceNumber: invoicesTable.invoiceNumber,
+        status: invoicesTable.status,
+        paidAmount: invoicesTable.paidAmount,
+        issueDate: invoicesTable.issueDate,
+      })
+      .from(invoicesTable)
+      .where(eq(invoicesTable.projectId, parsedInput.projectId))
+      .orderBy(invoicesTable.issueDate)
   })
 
 // ---------- Sales invoice actions (migrated from sales) ----------

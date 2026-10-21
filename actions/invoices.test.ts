@@ -6,6 +6,10 @@ vi.mock("@/lib/auth", () => ({
   isSuperUser: vi.fn(),
 }))
 
+vi.mock("@/actions/not-safe/project-access", () => ({
+  verifyProjectAccess: vi.fn(),
+}))
+
 vi.mock("@/actions/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
@@ -35,6 +39,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 })
 
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { verifyProjectAccess } from "@/actions/not-safe/project-access"
 import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import * as schema from "@/lib/drizzle/schema"
 import {
@@ -46,6 +51,7 @@ import {
   getInvoices,
   getMyInvoiceDetails,
   getMyInvoices,
+  getProjectInvoices,
   updateInvoice,
 } from "./invoices"
 
@@ -53,6 +59,7 @@ const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
 const mockIsSuperUser = vi.mocked(isSuperUser)
 const mockGetEffectiveStoreId = vi.mocked(getEffectiveStoreId)
+const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
 
 const USER_ID = "user-1"
 const CLIENT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
@@ -106,6 +113,10 @@ const myInvoiceFixture = {
 describe("invoices actions", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockVerifyProjectAccess.mockResolvedValue({
+      hasAccess: true,
+      isOwner: true,
+    })
     state.mock.resetMocks()
     mockAuth.mockResolvedValue({
       user: {
@@ -618,6 +629,43 @@ describe("invoices actions", () => {
         invoiceId: INVOICE_ID,
         projectId: PROJECT_ID,
       })
+
+      expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    })
+  })
+
+  describe("getProjectInvoices", () => {
+    it("returns bound invoices for an accessible project, including cancelled", async () => {
+      const rows = [
+        {
+          id: INVOICE_ID,
+          invoiceNumber: INVOICE_NUMBER,
+          status: "cancelled",
+          paidAmount: "0",
+          issueDate: "2024-01-15",
+        },
+        {
+          id: "e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55",
+          invoiceNumber: "ALSIA-2",
+          status: "paid",
+          paidAmount: "220.00",
+          issueDate: "2024-02-01",
+        },
+      ]
+      state.mock.onSelect(schema.invoicesTable).respond(rows)
+
+      const result = await getProjectInvoices({ projectId: PROJECT_ID })
+
+      expect(result.data).toEqual(rows)
+    })
+
+    it("returns FORBIDDEN when project access is denied", async () => {
+      mockVerifyProjectAccess.mockResolvedValue({
+        hasAccess: false,
+        isOwner: false,
+      })
+
+      const result = await getProjectInvoices({ projectId: PROJECT_ID })
 
       expect(result.serverError).toEqual({ code: "FORBIDDEN" })
     })

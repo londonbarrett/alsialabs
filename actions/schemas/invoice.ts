@@ -125,6 +125,14 @@ export const BindInvoiceResultSchema = z.object({
   projectId: z.string().nullable(),
 })
 
+export const ProjectInvoiceSchema = z.object({
+  id: z.string(),
+  invoiceNumber: z.string(),
+  status: InvoiceStatusSchema,
+  paidAmount: z.string(),
+  issueDate: z.string(),
+})
+
 export const InvoiceWithClientNameSchema = InvoiceRecordSchema.extend({
   clientName: z.string().nullable(),
 })
@@ -151,6 +159,7 @@ export type BindInvoiceToProjectDTO = z.infer<
 export type BindInvoiceResultDTO = z.infer<
   typeof BindInvoiceResultSchema
 >
+export type ProjectInvoiceDTO = z.infer<typeof ProjectInvoiceSchema>
 export type InvoiceWithClientNameDTO = z.infer<
   typeof InvoiceWithClientNameSchema
 >
