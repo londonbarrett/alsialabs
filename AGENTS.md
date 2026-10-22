@@ -48,6 +48,7 @@ Common triggers:
 
 - **Server actions** in `actions/` (safe actions via next-safe-action) and `actions/not-safe/` (plain server actions without next-safe-action) — auth-guarded, Zod validation via `actions/schemas/`, `revalidatePath` after mutations
 - **Components** follow shadcn/ui patterns: `FieldGroup`/`Field` for forms, `data-invalid`/`aria-invalid` for validation, `cn()` for class merging
+- **Event handlers** — memoized with `useCallback` when the body is two lines or more; single-line handlers may stay inline
 - **Database** via Drizzle ORM with PostgreSQL — schema in `lib/drizzle/schema.ts`
 - **State** — page-scoped optimistic stores in `stores/<domain>/` — see the Optimistic Stores section
 - **Auth** via NextAuth v5 — `auth()` from `@/lib/auth`

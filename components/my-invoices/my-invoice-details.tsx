@@ -22,15 +22,15 @@ export function MyInvoiceDetails({
         <p className="font-medium capitalize">{invoice.type}</p>
       </div>
       <div>
-        <p className="text-muted-foreground">{t("invoice.issueDate")}</p>
+        <p className="text-muted-foreground">
+          {t("invoice.issueDate")}
+        </p>
         <p className="font-medium">
           {formatISODate(invoice.issueDate)}
         </p>
       </div>
       <div>
-        <p className="text-muted-foreground">
-          {t("common.dueDate")}
-        </p>
+        <p className="text-muted-foreground">{t("common.dueDate")}</p>
         <p className="font-medium">{formatISODate(invoice.dueDate)}</p>
       </div>
       <div>
@@ -40,9 +40,7 @@ export function MyInvoiceDetails({
         </p>
       </div>
       <div>
-        <p className="text-muted-foreground">
-          {t("invoice.paid")}
-        </p>
+        <p className="text-muted-foreground">{t("invoice.paid")}</p>
         <p className="font-medium">
           {formatCurrency(invoice.paidAmount)}
         </p>
@@ -52,6 +50,10 @@ export function MyInvoiceDetails({
           {t("invoice.outstanding")}
         </p>
         <p className="font-medium">{formatCurrency(outstanding)}</p>
+      </div>
+      <div>
+        <p className="text-muted-foreground">{t("common.project")}</p>
+        <p className="font-medium">{invoice.projectName ?? "—"}</p>
       </div>
     </div>
   )

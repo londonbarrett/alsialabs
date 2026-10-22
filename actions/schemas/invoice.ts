@@ -73,9 +73,10 @@ export const InvoicePaymentSchema = z.object({
   createdAt: z.date(),
 })
 
-export const InvoicePaymentWithNumberSchema = InvoicePaymentSchema.extend({
-  invoiceNumber: z.string(),
-})
+export const InvoicePaymentWithNumberSchema =
+  InvoicePaymentSchema.extend({
+    invoiceNumber: z.string(),
+  })
 
 export const InvoiceRecordSchema = z.object({
   id: z.string(),
@@ -100,6 +101,7 @@ export const InvoiceRecordSchema = z.object({
 
 export const MyInvoiceSchema = InvoiceRecordSchema.extend({
   outstandingBalance: z.string(),
+  projectName: z.string().nullable(),
 })
 
 export const MyInvoicesResultSchema = z.object({
@@ -111,6 +113,24 @@ export const MyInvoiceDetailsSchema = z.object({
   invoice: MyInvoiceSchema,
   items: z.array(InvoiceItemSchema),
   payments: z.array(InvoicePaymentSchema),
+})
+
+export const BindInvoiceToProjectSchema = z.object({
+  invoiceId: z.uuid(),
+  projectId: z.uuid().nullable(),
+})
+
+export const BindInvoiceResultSchema = z.object({
+  id: z.string(),
+  projectId: z.string().nullable(),
+})
+
+export const ProjectInvoiceSchema = z.object({
+  id: z.string(),
+  invoiceNumber: z.string(),
+  status: InvoiceStatusSchema,
+  paidAmount: z.string(),
+  issueDate: z.string(),
 })
 
 export const InvoiceWithClientNameSchema = InvoiceRecordSchema.extend({
@@ -133,6 +153,13 @@ export type InvoiceRecordDTO = z.infer<typeof InvoiceRecordSchema>
 export type MyInvoiceDTO = z.infer<typeof MyInvoiceSchema>
 export type MyInvoicesResultDTO = z.infer<typeof MyInvoicesResultSchema>
 export type MyInvoiceDetailsDTO = z.infer<typeof MyInvoiceDetailsSchema>
+export type BindInvoiceToProjectDTO = z.infer<
+  typeof BindInvoiceToProjectSchema
+>
+export type BindInvoiceResultDTO = z.infer<
+  typeof BindInvoiceResultSchema
+>
+export type ProjectInvoiceDTO = z.infer<typeof ProjectInvoiceSchema>
 export type InvoiceWithClientNameDTO = z.infer<
   typeof InvoiceWithClientNameSchema
 >

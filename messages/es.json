@@ -46,6 +46,7 @@
     "dueDate": "Fecha de vencimiento",
     "amount": "Monto",
     "task": "Tarea",
+    "invoice": "Factura",
     "allStatuses": "Todos los estados",
     "addModule": "Agregar Módulo",
     "store": "Tienda",
@@ -400,7 +401,16 @@
     "noClientDesc": "Tu cuenta aún no está vinculada a un cliente. Contacta a soporte si esperas ver facturas.",
     "noItems": "Sin líneas",
     "noPayments": "Aún no hay pagos registrados.",
-    "paymentMethod": "Método"
+    "paymentMethod": "Método",
+    "bindSuccess": "Proyecto de la factura actualizado",
+    "bindToProject": "Vincular a proyecto",
+    "unbindToProject": "Desvincular de proyecto",
+    "unbind": "Desvincular",
+    "confirmUnbind": "¿Estás seguro de que quieres desvincular esta factura del proyecto?",
+    "bindTitle": "Vincular a proyecto",
+    "bindDescription": "Elige el proyecto al que quieres vincular esta factura.",
+    "bind": "Vincular",
+    "noOwnedProjects": "Aún no tienes proyectos propios."
   },
   "calendar": {
     "subtitle": "Tus tareas y rutinas en todos los proyectos.",

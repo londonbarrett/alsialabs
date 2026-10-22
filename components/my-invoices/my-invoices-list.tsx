@@ -10,6 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useTranslations } from "next-intl"
+import { useState } from "react"
+import { BindProjectDialog } from "./bind-project-dialog"
 import { MyInvoicesRow } from "./my-invoices-row"
 
 interface Props {
@@ -18,6 +20,10 @@ interface Props {
 
 export function MyInvoicesList({ invoices }: Props) {
   const t = useTranslations()
+  const [bindId, setBindId] = useState<string | null>(null)
+  const [bindOpen, setBindOpen] = useState(false)
+  const [bindSeq, setBindSeq] = useState(0)
+  const bindInvoice = invoices.find((i) => i.id === bindId) ?? null
 
   return (
     <Card>
@@ -29,21 +35,39 @@ export function MyInvoicesList({ invoices }: Props) {
                 <TableHead>{t("invoice.invoiceNumber")}</TableHead>
                 <TableHead>{t("invoice.issueDate")}</TableHead>
                 <TableHead>{t("common.status")}</TableHead>
+                <TableHead>{t("common.project")}</TableHead>
                 <TableHead className="text-right">
                   {t("invoice.outstanding")}
                 </TableHead>
                 <TableHead className="text-right">
                   {t("common.total")}
                 </TableHead>
+                <TableHead className="text-center">
+                  {t("common.actions")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {invoices.map((inv) => (
-                <MyInvoicesRow key={inv.id} invoice={inv} />
+                <MyInvoicesRow
+                  key={inv.id}
+                  invoice={inv}
+                  onBind={(invoice) => {
+                    setBindId(invoice.id)
+                    setBindSeq((n) => n + 1)
+                    setBindOpen(true)
+                  }}
+                />
               ))}
             </TableBody>
           </Table>
         </div>
+        <BindProjectDialog
+          key={bindSeq}
+          invoice={bindInvoice}
+          open={bindOpen}
+          onOpenChange={setBindOpen}
+        />
       </CardContent>
     </Card>
   )

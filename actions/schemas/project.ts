@@ -8,7 +8,9 @@ import {
 } from "@/actions/schemas/project-people"
 
 export const ProjectSchema = z.object({
-  name: z.string().min(1, { message: "Name is required" })
+  name: z
+    .string()
+    .min(1, { message: "Name is required" })
     .transform((v) => v.trim()),
   categoryId: z.string().min(1, { message: "Category is required" }),
   status: z
@@ -22,7 +24,9 @@ export const ProjectSchema = z.object({
     .default(""),
   startDate: z.string().min(1, { message: "Start date is required" }),
   endDate: z.string().optional().default(""),
-  location: z.string().min(1, { message: "Location is required" })
+  location: z
+    .string()
+    .min(1, { message: "Location is required" })
     .transform((v) => v.trim()),
   budget: z.string().optional().default(""),
   color: z.enum(PROJECT_COLORS, {
@@ -44,7 +48,9 @@ export const ProjectAccessResultSchema = z.object({
 export type ProjectDTO = z.infer<typeof ProjectSchema>
 export type CreateProjectDTO = z.infer<typeof CreateProjectSchema>
 export type UpdateProjectDTO = z.infer<typeof UpdateProjectSchema>
-export type ProjectAccessResultDTO = z.infer<typeof ProjectAccessResultSchema>
+export type ProjectAccessResultDTO = z.infer<
+  typeof ProjectAccessResultSchema
+>
 export type ProjectStatusDTO = ProjectStatusType
 
 // ---------- Response schemas ----------
@@ -75,6 +81,10 @@ export const ProjectRecordSchema = z.object({
 export const ProjectDetailSchema = ProjectRecordSchema.extend({
   categorySlug: z.string().nullable(),
   categoryName: z.string().nullable(),
+})
+
+export const ProjectOptionSchema = ProjectDetailSchema.extend({
+  ownerName: z.string().nullable(),
 })
 
 export const ProjectInProgressTaskSchema = z.object({
@@ -133,6 +143,7 @@ export const ProjectContextSchema = z.object({
 
 export type ProjectRecordDTO = z.infer<typeof ProjectRecordSchema>
 export type ProjectDetailDTO = z.infer<typeof ProjectDetailSchema>
+export type ProjectOptionDTO = z.infer<typeof ProjectOptionSchema>
 export type ProjectInProgressTaskDTO = z.infer<
   typeof ProjectInProgressTaskSchema
 >

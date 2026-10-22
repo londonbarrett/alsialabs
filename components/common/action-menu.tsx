@@ -15,7 +15,7 @@ import { useState } from "react"
 interface ActionMenuProps {
   entityName: string
   onEdit?: () => void
-  onDelete: () => Promise<void>
+  onDelete?: () => void
   canEdit?: boolean
   canDelete?: boolean
   onView?: () => void
@@ -32,14 +32,11 @@ export function ActionMenu({
   children,
 }: ActionMenuProps) {
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const t = useTranslations()
 
-  async function handleDelete() {
-    setDeleting(true)
-    await onDelete()
+  function handleDelete() {
+    onDelete?.()
     setDeleteOpen(false)
-    setDeleting(false)
   }
 
   return (
@@ -90,7 +87,6 @@ export function ActionMenu({
         message={t("common.confirmDelete", { name: entityName })}
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(false)}
-        loading={deleting}
       />
     </>
   )

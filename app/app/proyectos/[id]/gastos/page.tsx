@@ -5,6 +5,7 @@ import {
   getExpenseCategories,
   getExpensesByProjectId,
 } from "@/actions/expenses"
+import { getProjectInvoices } from "@/actions/invoices"
 import { getTasks } from "@/actions/tasks"
 import { unwrapResponse } from "@/lib/util/unwrap"
 
@@ -14,14 +15,19 @@ type Props = {
 
 export default async function ProjectExpensesPage({ params }: Props) {
   const { id } = await params
-  const [expenses, tasksResult, expenseCategories] = await Promise.all([
-    getExpensesByProjectId({ projectId: id }),
-    getTasks({ projectId: id }),
-    getExpenseCategories(),
-  ])
+  const [expenses, tasksResult, expenseCategories, invoicesResult] =
+    await Promise.all([
+      getExpensesByProjectId({ projectId: id }),
+      getTasks({ projectId: id }),
+      getExpenseCategories(),
+      getProjectInvoices({ projectId: id }),
+    ])
 
   return (
-    <ExpensesProvider expenses={unwrapResponse(expenses)}>
+    <ExpensesProvider
+      expenses={unwrapResponse(expenses)}
+      invoices={unwrapResponse(invoicesResult)}
+    >
       <ProjectTasksProvider tasks={unwrapResponse(tasksResult)}>
         <ProjectExpenses
           categories={unwrapResponse(expenseCategories)}

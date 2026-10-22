@@ -18,6 +18,7 @@ interface DestructiveDialogProps {
   onConfirm: () => void
   onCancel: () => void
   loading?: boolean
+  confirmLabel?: string
 }
 
 // TODO: Remove loading prop, all actions should be optimistic
@@ -28,6 +29,7 @@ export function DestructiveDialog({
   onConfirm,
   onCancel,
   loading,
+  confirmLabel,
 }: DestructiveDialogProps) {
   const t = useTranslations()
   return (
@@ -55,7 +57,9 @@ export function DestructiveDialog({
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? t("common.deleting") : t("common.delete")}
+            {loading
+              ? t("common.deleting")
+              : (confirmLabel ?? t("common.delete"))}
           </Button>
         </DialogFooter>
       </DialogContent>

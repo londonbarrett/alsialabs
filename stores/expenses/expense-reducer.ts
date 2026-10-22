@@ -1,4 +1,10 @@
 import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
+import type { ProjectInvoiceDTO } from "@/actions/schemas/invoice"
+
+export type ExpenseStoreState = {
+  expenses: ExpenseWithCategoryDTO[]
+  invoices: ProjectInvoiceDTO[]
+}
 
 export type ExpenseAction =
   | { type: "add"; expense: ExpenseWithCategoryDTO }
@@ -9,23 +15,42 @@ export type ExpenseAction =
       expense: ExpenseWithCategoryDTO
     }
   | { type: "delete"; expenseId: string }
+  | { type: "unbindInvoice"; invoiceId: string }
 
 export function expenseReducer(
-  state: ExpenseWithCategoryDTO[],
+  state: ExpenseStoreState,
   action: ExpenseAction
-): ExpenseWithCategoryDTO[] {
+): ExpenseStoreState {
   switch (action.type) {
     case "add":
-      return [action.expense, ...state]
+      return { ...state, expenses: [action.expense, ...state.expenses] }
     case "update":
-      return state.map((e) =>
-        e.id === action.expense.id ? action.expense : e
-      )
+      return {
+        ...state,
+        expenses: state.expenses.map((e) =>
+          e.id === action.expense.id ? action.expense : e
+        ),
+      }
     case "replaceTemp":
-      return state.map((e) =>
-        e.id === action.tempId ? action.expense : e
-      )
+      return {
+        ...state,
+        expenses: state.expenses.map((e) =>
+          e.id === action.tempId ? action.expense : e
+        ),
+      }
     case "delete":
-      return state.filter((e) => e.id !== action.expenseId)
+      return {
+        ...state,
+        expenses: state.expenses.filter(
+          (e) => e.id !== action.expenseId
+        ),
+      }
+    case "unbindInvoice":
+      return {
+        ...state,
+        invoices: state.invoices.filter(
+          (i) => i.id !== action.invoiceId
+        ),
+      }
   }
 }

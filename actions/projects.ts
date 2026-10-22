@@ -10,6 +10,7 @@ import {
   CreateProjectSchema,
   ProjectContextSchema,
   ProjectDetailSchema,
+  ProjectOptionSchema,
   ProjectRecordSchema,
   ProjectSummarySchema,
   UpdateProjectSchema,
@@ -20,6 +21,7 @@ import { db } from "@/lib/drizzle/client"
 import {
   categoryTable,
   expensesTable,
+  invoicesTable,
   projectCollaboratorsTable,
   projectOwnersTable,
   projectsTable,
@@ -36,8 +38,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 
 export const getProjects = sessionAction
-  .metadata({ permission: { module: "projects", action: "view" } })
-  .outputSchema(z.array(ProjectDetailSchema))
+  .metadata({})
+  .outputSchema(z.array(ProjectOptionSchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
     if (isSuperUser(session as { user: { role: string | null } })) {
@@ -58,11 +60,16 @@ export const getProjects = sessionAction
           updatedAt: projectsTable.updatedAt,
           categorySlug: categoryTable.slug,
           categoryName: categoryTable.name,
+          ownerName: usersTable.name,
         })
         .from(projectsTable)
         .leftJoin(
           categoryTable,
           eq(projectsTable.categoryId, categoryTable.id)
+        )
+        .leftJoin(
+          usersTable,
+          eq(projectsTable.primaryOwnerId, usersTable.id)
         )
         .orderBy(desc(projectsTable.createdAt))
     }
@@ -83,11 +90,16 @@ export const getProjects = sessionAction
         updatedAt: projectsTable.updatedAt,
         categorySlug: categoryTable.slug,
         categoryName: categoryTable.name,
+        ownerName: usersTable.name,
       })
       .from(projectsTable)
       .leftJoin(
         categoryTable,
         eq(projectsTable.categoryId, categoryTable.id)
+      )
+      .leftJoin(
+        usersTable,
+        eq(projectsTable.primaryOwnerId, usersTable.id)
       )
       .where(
         sql`exists (select 1 from ${projectOwnersTable} where ${projectOwnersTable.projectId} = ${projectsTable.id} and ${projectOwnersTable.userId} = ${session.user.id})`
@@ -170,6 +182,7 @@ export const getProjectsWithDetails = sessionAction
       taskAggs,
       expenseAggs,
       taskCostAggs,
+      invoicePaidAggs,
       inProgressTasks,
       ownerData,
       collaboratorData,
@@ -199,6 +212,14 @@ export const getProjectsWithDetails = sessionAction
         .from(tasksTable)
         .where(inArray(tasksTable.projectId, projectIds))
         .groupBy(tasksTable.projectId),
+      db
+        .select({
+          projectId: invoicesTable.projectId,
+          total: sql<string>`coalesce(sum(${invoicesTable.paidAmount}), '0')`,
+        })
+        .from(invoicesTable)
+        .where(inArray(invoicesTable.projectId, projectIds))
+        .groupBy(invoicesTable.projectId),
       db
         .select({
           id: tasksTable.id,
@@ -265,6 +286,11 @@ export const getProjectsWithDetails = sessionAction
     for (const agg of taskCostAggs) {
       taskCostMap.set(agg.projectId, Number(agg.total))
     }
+    const invoicePaidMap = new Map<string, number>()
+    for (const agg of invoicePaidAggs) {
+      if (agg.projectId === null) continue
+      invoicePaidMap.set(agg.projectId, Number(agg.total))
+    }
     const inProgressMap = new Map<
       string,
       {
@@ -310,7 +336,9 @@ export const getProjectsWithDetails = sessionAction
     return filteredProjects.map((p) => {
       const tasks = taskMap.get(p.id) ?? { total: 0, completed: 0 }
       const expenses =
-        (expenseMap.get(p.id) ?? 0) + (taskCostMap.get(p.id) ?? 0)
+        (expenseMap.get(p.id) ?? 0) +
+        (taskCostMap.get(p.id) ?? 0) +
+        (invoicePaidMap.get(p.id) ?? 0)
       const budget = p.budget ? Number(p.budget) : 0
       return {
         id: p.id,

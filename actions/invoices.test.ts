@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
   hasPermission: vi.fn(),
+  isSuperUser: vi.fn(),
+}))
+
+vi.mock("@/actions/not-safe/project-access", () => ({
+  verifyProjectAccess: vi.fn(),
 }))
 
 vi.mock("@/actions/not-safe/stores", () => ({
@@ -34,9 +39,11 @@ vi.mock("@/lib/drizzle/client", async () => {
 })
 
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
-import { auth, hasPermission } from "@/lib/auth"
+import { verifyProjectAccess } from "@/actions/not-safe/project-access"
+import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import * as schema from "@/lib/drizzle/schema"
 import {
+  bindInvoiceToProject,
   cancelInvoice,
   createInvoice,
   deleteInvoice,
@@ -44,16 +51,21 @@ import {
   getInvoices,
   getMyInvoiceDetails,
   getMyInvoices,
+  getProjectInvoices,
   updateInvoice,
 } from "./invoices"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
+const mockIsSuperUser = vi.mocked(isSuperUser)
 const mockGetEffectiveStoreId = vi.mocked(getEffectiveStoreId)
+const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
 
 const USER_ID = "user-1"
 const CLIENT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+const OTHER_CLIENT_ID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44"
 const INVOICE_ID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22"
+const PROJECT_ID = "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33"
 const STORE_ID = "store-1"
 const INVOICE_NUMBER = "ALSIA-TEST123"
 
@@ -76,9 +88,35 @@ const validInvoiceData = {
   ],
 }
 
+const myInvoiceFixture = {
+  id: INVOICE_ID,
+  store_id: STORE_ID,
+  type: "product",
+  invoiceNumber: INVOICE_NUMBER,
+  clientId: CLIENT_ID,
+  userId: USER_ID,
+  status: "draft",
+  issueDate: "2024-01-15",
+  dueDate: null,
+  paidAmount: "0",
+  notes: null,
+  subtotal: "100",
+  discountTotal: "0",
+  taxTotal: "0",
+  grandTotal: "100",
+  projectId: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  outstandingBalance: "100",
+}
+
 describe("invoices actions", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockVerifyProjectAccess.mockResolvedValue({
+      hasAccess: true,
+      isOwner: true,
+    })
     state.mock.resetMocks()
     mockAuth.mockResolvedValue({
       user: {
@@ -90,6 +128,7 @@ describe("invoices actions", () => {
       expires: new Date(Date.now() + 86400000).toISOString(),
     })
     mockHasPermission.mockResolvedValue(true)
+    mockIsSuperUser.mockReturnValue(false)
     mockGetEffectiveStoreId.mockResolvedValue(STORE_ID)
   })
 
@@ -152,31 +191,33 @@ describe("invoices actions", () => {
         .respond([{ id: CLIENT_ID }])
       state.mock.onSelect(schema.invoicesTable).respond([
         {
-          id: INVOICE_ID,
-          store_id: STORE_ID,
-          type: "product",
-          invoiceNumber: INVOICE_NUMBER,
-          clientId: CLIENT_ID,
-          userId: USER_ID,
-          status: "draft",
-          issueDate: "2024-01-15",
-          dueDate: null,
-          paidAmount: "0",
-          notes: null,
-          subtotal: "100",
-          discountTotal: "0",
-          taxTotal: "0",
-          grandTotal: "100",
-          projectId: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          outstandingBalance: "100",
+          ...myInvoiceFixture,
+          projectName: null,
         },
       ])
 
       const result = await getMyInvoices()
 
       expect(result.data).toBeDefined()
+    })
+
+    it("includes projectName from the joined project", async () => {
+      // clients → [{ id: CLIENT_ID }]; invoicesTable → fixture (above)
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          ...myInvoiceFixture,
+          projectName: "Website Redesign",
+        },
+      ])
+
+      const result = await getMyInvoices()
+
+      expect(result.data?.invoices[0]?.projectName).toBe(
+        "Website Redesign"
+      )
     })
 
     it("returns empty when no client found", async () => {
@@ -196,25 +237,8 @@ describe("invoices actions", () => {
         .respond([{ id: CLIENT_ID }])
       state.mock.onSelect(schema.invoicesTable).respond([
         {
-          id: INVOICE_ID,
-          store_id: STORE_ID,
-          type: "product",
-          invoiceNumber: INVOICE_NUMBER,
-          clientId: CLIENT_ID,
-          userId: USER_ID,
-          status: "draft",
-          issueDate: "2024-01-15",
-          dueDate: null,
-          paidAmount: "0",
-          notes: null,
-          subtotal: "100",
-          discountTotal: "0",
-          taxTotal: "0",
-          grandTotal: "100",
-          projectId: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          outstandingBalance: "100",
+          ...myInvoiceFixture,
+          projectName: null,
         },
       ])
       state.mock.onSelect(schema.invoiceItemsTable).respond([])
@@ -225,6 +249,27 @@ describe("invoices actions", () => {
       })
 
       expect(result.data).toBeDefined()
+    })
+
+    it("includes projectName from the joined project", async () => {
+      // clients → [{ id: CLIENT_ID }]; invoicesTable → fixture (above)
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          ...myInvoiceFixture,
+          projectName: "Website Redesign",
+        },
+      ])
+      state.mock.onSelect(schema.invoiceItemsTable).respond([])
+      state.mock.onSelect(schema.invoicePaymentsTable).respond([])
+
+      const result = await getMyInvoiceDetails({
+        invoiceId: INVOICE_ID,
+      })
+
+      expect(result.data?.invoice.projectName).toBe("Website Redesign")
     })
 
     it("returns FORBIDDEN when no client", async () => {
@@ -475,6 +520,154 @@ describe("invoices actions", () => {
       expect(result.serverError).toEqual({
         code: "CANNOT_DELETE_INVOICE",
       })
+    })
+  })
+
+  describe("bindInvoiceToProject", () => {
+    it("binds an owned invoice to an owned project", async () => {
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          ...myInvoiceFixture,
+          clientId: CLIENT_ID,
+        },
+      ])
+      state.mock
+        .onSelect(schema.projectOwnersTable)
+        .respond([{ projectId: PROJECT_ID }])
+      state.mock.onUpdate(schema.invoicesTable).respond([
+        {
+          id: INVOICE_ID,
+          projectId: PROJECT_ID,
+        },
+      ])
+
+      const result = await bindInvoiceToProject({
+        invoiceId: INVOICE_ID,
+        projectId: PROJECT_ID,
+      })
+
+      expect(result.data).toEqual({
+        id: INVOICE_ID,
+        projectId: PROJECT_ID,
+      })
+    })
+
+    it("clears the binding when projectId is null", async () => {
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          ...myInvoiceFixture,
+          clientId: CLIENT_ID,
+        },
+      ])
+      state.mock.onUpdate(schema.invoicesTable).respond([
+        {
+          id: INVOICE_ID,
+          projectId: null,
+        },
+      ])
+
+      const result = await bindInvoiceToProject({
+        invoiceId: INVOICE_ID,
+        projectId: null,
+      })
+
+      expect(result.data?.projectId).toBeNull()
+    })
+
+    it("returns NOT_FOUND for an unknown invoice", async () => {
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
+      state.mock.onSelect(schema.invoicesTable).respond([])
+
+      const result = await bindInvoiceToProject({
+        invoiceId: INVOICE_ID,
+        projectId: PROJECT_ID,
+      })
+
+      expect(result.serverError).toEqual({ code: "NOT_FOUND" })
+    })
+
+    it("returns FORBIDDEN when the invoice belongs to another client", async () => {
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          ...myInvoiceFixture,
+          clientId: OTHER_CLIENT_ID,
+        },
+      ])
+
+      const result = await bindInvoiceToProject({
+        invoiceId: INVOICE_ID,
+        projectId: PROJECT_ID,
+      })
+
+      expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    })
+
+    it("returns FORBIDDEN when the user does not own the project", async () => {
+      state.mock
+        .onSelect(schema.clientsTable)
+        .respond([{ id: CLIENT_ID }])
+      state.mock.onSelect(schema.invoicesTable).respond([
+        {
+          ...myInvoiceFixture,
+          clientId: CLIENT_ID,
+        },
+      ])
+      state.mock.onSelect(schema.projectOwnersTable).respond([])
+
+      const result = await bindInvoiceToProject({
+        invoiceId: INVOICE_ID,
+        projectId: PROJECT_ID,
+      })
+
+      expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    })
+  })
+
+  describe("getProjectInvoices", () => {
+    it("returns bound invoices for an accessible project, including cancelled", async () => {
+      const rows = [
+        {
+          id: INVOICE_ID,
+          invoiceNumber: INVOICE_NUMBER,
+          status: "cancelled",
+          paidAmount: "0",
+          issueDate: "2024-01-15",
+        },
+        {
+          id: "e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55",
+          invoiceNumber: "ALSIA-2",
+          status: "paid",
+          paidAmount: "220.00",
+          issueDate: "2024-02-01",
+        },
+      ]
+      state.mock.onSelect(schema.invoicesTable).respond(rows)
+
+      const result = await getProjectInvoices({ projectId: PROJECT_ID })
+
+      expect(result.data).toEqual(rows)
+    })
+
+    it("returns FORBIDDEN when project access is denied", async () => {
+      mockVerifyProjectAccess.mockResolvedValue({
+        hasAccess: false,
+        isOwner: false,
+      })
+
+      const result = await getProjectInvoices({ projectId: PROJECT_ID })
+
+      expect(result.serverError).toEqual({ code: "FORBIDDEN" })
     })
   })
 })
