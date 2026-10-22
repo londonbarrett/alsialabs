@@ -175,3 +175,27 @@ Error messages reuse `errors.forbidden` / existing `errors.*` keys — no new er
 - Toast wording details beyond the keys above.
 - Placement of the Project column (proposed: between Status and Outstanding) if it reads better elsewhere.
 - Whether the expenses-section invoice row shows a status badge (e.g., muted for cancelled) — the DTO carries `status`, so it's available either way.
+
+## Amendments (post-implementation)
+
+The implementation shipped with the following human-directed changes; where they conflict with the prose above, these win.
+
+### Bind flow (my-invoices)
+
+- Projects for the picker are **server-fetched** in `app/app/mis-facturas/page.tsx` (`Promise.all` with the seed) and stored **in the my-invoices store** (`MyInvoicesState = MyInvoicesResultDTO & { projects: ProjectOptionDTO[] }`) — not fetched on dialog open. `getProjects` gained `ownerName` (leftJoin on `primaryOwnerId`) and a `ProjectOptionSchema`.
+- The dialog has **no "No project"/clear option** — unbind is a separate row action. It is always mounted in the list, controlled by `open`, remounted per open via a `bindSeq` key, and dumb (props + one `useState`; selection captured eagerly as `{ id, name }` at preselect/click).
+- Row actions are **outline icon-only buttons with tooltips** (`Link2` bind / `Unlink` unbind, labels `myInvoices.bindToProject`/`unbindToProject`); the actions column is center-aligned; unbind is **disabled, not hidden**, when the invoice is unbound; it fires `bindToProject(id, null, null)` directly (no dialog). Clicks inside the actions cell never toggle row expansion.
+- Dialog project rows use the shadcn `Item` primitives: color dot, name, owner (`common.unassigned` fallback), and the category as a gray `Badge` translated via the `categoryNames.*` dynamic lookup.
+
+### Expenses surface
+
+- Invoice rows also get an unbind action, as a destructive item in the row's `ActionMenu` with a `DestructiveDialog` confirm (`myInvoices.confirmUnbind`, confirm label `myInvoices.unbind` via the new optional `DestructiveDialog.confirmLabel` prop). It runs through the expenses store (`unbindInvoice` reducer case filters the row; `run` → `bindInvoiceToProject({ projectId: null })`; discard restores on failure).
+- Description cells carry type icons: `ListTodo` for tasks, `Receipt` for expenses **and** invoices (human's choice; the amber badge distinguishes invoices).
+- `getProjectsWithDetails` adds a fourth aggregate (invoice `paidAmount` by project) folded into `project.expenses`, so the projects-list card budget bars match the detail page totals.
+
+### Shared components / conventions
+
+- `ActionMenu`: `onDelete` is optional and `() => void`; the delete-loading indicator was removed (`DestructiveDialog` keeps its `loading` prop for other callers and gained optional `confirmLabel`).
+- Fire-and-forget call sites for these mutations are sync with bare calls (no `async`/`await`/`void` at component level); the action hooks keep `async`/`await` internally (inferred `Promise` return, never annotated). Prop types are `() => void`.
+- `unwrapResponse` calls seeding the my-invoices page pass explicit fallbacks (`{ clientId: null, invoices: [] }` / `[]`).
+- i18n: added `myInvoices.bindToProject`, `bindTitle`, `bindDescription`, `bind`, `bindSuccess`, `noOwnedProjects`, `unbindToProject`, `unbind`, `confirmUnbind`, and `common.invoice`; removed `myInvoices.clear` and `noProject`.
