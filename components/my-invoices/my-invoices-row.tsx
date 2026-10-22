@@ -191,7 +191,7 @@ export function MyInvoicesRow({
                     aria-label={t("myInvoices.unbindToProject")}
                     onClick={(e) => {
                       e.stopPropagation()
-                      void bindToProject(invoice.id, null, null)
+                      bindToProject(invoice.id, null, null)
                     }}
                   >
                     <Unlink />

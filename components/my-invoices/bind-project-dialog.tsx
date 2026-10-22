@@ -34,22 +34,20 @@ export function BindProjectDialog({
   const { projects } = useMyInvoicesState()
   // The parent remounts this dialog via `key` on every open, so the
   // initial state is always the invoice's current project.
-  const [selected, setSelected] = useState<string | null>(
-    invoice?.projectId ?? null
-  )
+  const [selection, setSelection] = useState<{
+    id: string | null
+    name: string | null
+  }>(() => ({
+    id: invoice?.projectId ?? null,
+    name: invoice?.projectName ?? null,
+  }))
 
   if (!invoice) return null
   const currentInvoice = invoice
 
   function handleConfirm() {
     onOpenChange(false)
-    void bindToProject(
-      currentInvoice.id,
-      selected,
-      selected === null
-        ? null
-        : (projects.find((p) => p.id === selected)?.name ?? null)
-    )
+    bindToProject(currentInvoice.id, selection.id, selection.name)
   }
 
   return (
@@ -71,13 +69,15 @@ export function BindProjectDialog({
               size="sm"
               className={cn(
                 "cursor-pointer hover:bg-muted/50",
-                selected === project.id && "border-ring bg-muted/50"
+                selection.id === project.id && "border-ring bg-muted/50"
               )}
               render={
                 <button
                   type="button"
-                  aria-pressed={selected === project.id}
-                  onClick={() => setSelected(project.id)}
+                  aria-pressed={selection.id === project.id}
+                  onClick={() =>
+                    setSelection({ id: project.id, name: project.name })
+                  }
                 />
               }
             >
@@ -112,7 +112,7 @@ export function BindProjectDialog({
         </Button>
         <Button
           onClick={handleConfirm}
-          disabled={selected === invoice.projectId}
+          disabled={selection.id === invoice.projectId}
         >
           {t("myInvoices.bind")}
         </Button>

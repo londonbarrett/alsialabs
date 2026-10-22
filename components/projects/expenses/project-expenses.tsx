@@ -141,12 +141,12 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     if (!open) setEditingExpense(undefined)
   }
 
-  async function handleDeleteTask(taskId: string) {
-    await deleteTask(projectId, taskId)
+  function handleDeleteTask(taskId: string) {
+    deleteTask(projectId, taskId)
   }
 
-  async function handleDeleteExpense(expenseId: string) {
-    await deleteExpense({ projectId, expenseId })
+  function handleDeleteExpense(expenseId: string) {
+    deleteExpense({ projectId, expenseId })
   }
 
   const handleUnbindInvoice = useCallback(
@@ -156,8 +156,8 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     [unbindInvoice]
   )
 
-  async function handleExpenseSubmit(data: Expense) {
-    await saveExpense({ data, categories, editingExpense })
+  function handleExpenseSubmit(data: Expense) {
+    saveExpense({ data, categories, editingExpense })
   }
 
   const taskCosts = tasks.filter((t) => t.cost && Number(t.cost) > 0)
