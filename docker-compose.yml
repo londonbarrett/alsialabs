@@ -1,0 +1,19 @@
+services:
+  test-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: alsia
+      POSTGRES_PASSWORD: alsia_test
+      POSTGRES_DB: alsia_test
+    ports:
+      - "55432:5432"
+    volumes:
+      - alsia_test_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alsia -d alsia_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  alsia_test_pgdata:

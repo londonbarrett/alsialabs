@@ -13,6 +13,8 @@
     "db:seed": "tsx lib/drizzle/seed.ts",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:db:up": "docker compose up -d --wait",
+    "test:db:down": "docker compose down",
     "typecheck": "tsc --noEmit",
     "verify": "pnpm typecheck && pnpm lint --max-warnings=0 && pnpm test:run --coverage"
   },
