@@ -1,9 +1,9 @@
-import { config } from "dotenv"
-config({ path: ".env.local" })
+import { config } from 'dotenv'
+config({ path: '.env.local' })
 
-import postgres from "postgres"
-import { drizzle } from "drizzle-orm/postgres-js"
-import { resolveSslOption } from "./ssl"
+import postgres from 'postgres'
+import { drizzle } from 'drizzle-orm/postgres-js'
+import { resolveSslOption } from './ssl'
 
 const connectionString = process.env.DATABASE_URL!
 
@@ -21,7 +21,7 @@ const client =
     max_lifetime: 60 * 30,
   })
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== 'production') {
   globalForDb._postgresClient = client
 }
 
