@@ -18,7 +18,7 @@
     "test:db:migrate": "DB_DIRECT_URL=postgresql://alsia:alsia_test@localhost:55432/alsia_test pnpm db:migrate",
     "test:db:seed": "DATABASE_URL=postgresql://alsia:alsia_test@localhost:55432/alsia_test DATABASE_SSL=disable tsx lib/drizzle/seed-e2e.ts",
     "test:db:setup": "pnpm test:db:up && pnpm test:db:migrate && pnpm test:db:seed",
-    "test:e2e": "PLAYWRIGHT_FORCE_ASYNC_LOADER=1 pnpm test:db:setup && PLAYWRIGHT_FORCE_ASYNC_LOADER=1 playwright test",
+    "test:e2e": "pnpm test:db:setup && playwright test",
     "typecheck": "tsc --noEmit",
     "verify": "pnpm typecheck && pnpm lint --max-warnings=0 && pnpm test:run --coverage"
   },
@@ -53,7 +53,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
