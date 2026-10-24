@@ -46,7 +46,8 @@ export const test = base.extend<{
         {
           name: "authjs.session-token",
           value: sessionToken,
-          url: "http://localhost:3000",
+          domain: "localhost",
+          path: "/",
         },
       ])
     })

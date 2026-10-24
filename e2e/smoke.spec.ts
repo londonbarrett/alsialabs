@@ -10,7 +10,9 @@ test("redirects unauthenticated visitors of /app to /login", async ({
 test("login page renders its two sign-in buttons", async ({ page }) => {
   await page.goto("/login")
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole("button")).toHaveCount(2)
+  await expect(
+    page.getByRole("button", { name: /google|facebook/i })
+  ).toHaveCount(2)
 })
 
 test("keeps a signed-in super user inside the app", async ({
