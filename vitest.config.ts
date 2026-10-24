@@ -8,6 +8,7 @@ export default defineConfig({
     exclude: [...configDefaults.exclude],
     coverage: {
       provider: "v8",
+      exclude: ["lib/drizzle/seed-e2e.ts"],
       thresholds: {
         lines: 60,
         branches: 50,
