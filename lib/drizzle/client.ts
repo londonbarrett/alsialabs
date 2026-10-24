@@ -3,6 +3,7 @@ config({ path: '.env.local' })
 
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
+import { resolveSslOption } from './ssl'
 
 const connectionString = process.env.DATABASE_URL!
 
@@ -14,7 +15,7 @@ const client =
   globalForDb._postgresClient ??
   postgres(connectionString, {
     prepare: false,
-    ssl: 'require',
+    ssl: resolveSslOption(process.env.DATABASE_SSL),
     max: 10,
     idle_timeout: 20,
     max_lifetime: 60 * 30,

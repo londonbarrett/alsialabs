@@ -28,6 +28,7 @@ Common triggers:
 - Types: `pnpm typecheck`
 - Unit tests (watch): `pnpm test` — once: `pnpm test:run` — focused: `pnpm vitest run -t "<test name>"`
 - Full verification: `pnpm verify` (typecheck + lint + tests with coverage)
+- E2E tests: `pnpm test:e2e` (boots the app on port 3100 with the Docker test DB; runs alongside `pnpm dev` on 3000)
 - Generate migration: `pnpm db:generate` — apply: `pnpm db:migrate` — seed: `pnpm db:seed`
 
 ## Repository map
@@ -42,7 +43,7 @@ Common triggers:
 - `drizzle/` — generated SQL migrations (never hand-edit)
 - `e2e/` — Playwright specs
 - `docs/superpowers/specs/` — design docs, one per capability; `docs/superpowers/plans/` — implementation plans
-- `.githooks/` — native git hooks (pre-commit runs `pnpm verify`); `.github/workflows/` — CI
+- `.githooks/` — native git hooks (pre-commit runs `pnpm verify` + `pnpm test:e2e`); `.github/workflows/` — CI
 
 ## Project Conventions
 
@@ -82,13 +83,21 @@ Never:
 - Add `any` to work around type errors — fix the type instead
 - Bypass the quality gate (`git commit --no-verify`) or weaken lint/coverage thresholds to make a change pass
 
+## Testing
+
+- **E2E** (`e2e/*.spec.ts`, Playwright) — proves functionality works all together; drive it through the Next.js pages a user would interact with, never by invoking actions or helpers directly.
+- **Server actions and util functions** — covered by vitest unit tests (`actions/*.test.ts`, `actions/__tests__/`, beside-file `*.test.ts`), not by e2e.
+- **Auth in e2e** — import `test`/`expect` from `./fixtures`, not `@playwright/test`, and call `signInAs("<role>")` (see `TEST_USERS`) for an authenticated context.
+- **Every behavioral change ships with tests** — superpowers adds e2e and/or unit coverage alongside features, fixes, and behavior edits; docs/config-only changes are exempt.
+
 ## Verification
 
 Run after finishing a change; fix failures before completing the task:
 
 1. `pnpm verify` — `tsc --noEmit` + `eslint --max-warnings=0` + `vitest run --coverage` (floor: 60% lines/functions/statements, 50% branches)
+2. `pnpm test:e2e` — Playwright smoke suite (requires Docker: the pre-commit hook runs both)
 
-Or use the `/verify` command, which runs the full suite. The pre-commit hook (`.githooks/pre-commit`) and CI (`.github/workflows/ci.yml`) both run `pnpm verify` — never bypass them.
+Or use the `/verify` command, which runs the full suite. The pre-commit hook (`.githooks/pre-commit`) runs `pnpm verify` + `pnpm test:e2e` — never bypass it; CI (`.github/workflows/ci.yml`) runs `pnpm verify`.
 
 ## Drizzle Migration Workflow
 
