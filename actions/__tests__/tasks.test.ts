@@ -92,6 +92,19 @@ describe("tasks actions", () => {
           priority: null,
           routineId: null,
           dueDate: null,
+          startDate: null,
+
+          endDate: null,
+
+          recurrence: null,
+
+          interval: 1,
+
+          daysOfWeek: null,
+
+          startTime: null,
+
+          endTime: null,
           assigneeId: null,
           assigneeName: null,
           createdAt: new Date(),
@@ -127,6 +140,19 @@ describe("tasks actions", () => {
         priority: null,
         routineId: null,
         dueDate: null,
+        startDate: null,
+
+        endDate: null,
+
+        recurrence: null,
+
+        interval: 1,
+
+        daysOfWeek: null,
+
+        startTime: null,
+
+        endTime: null,
         assigneeId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -194,6 +220,19 @@ describe("tasks actions", () => {
         priority: null,
         routineId: null,
         dueDate: null,
+        startDate: null,
+
+        endDate: null,
+
+        recurrence: null,
+
+        interval: 1,
+
+        daysOfWeek: null,
+
+        startTime: null,
+
+        endTime: null,
         assigneeId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -244,6 +283,19 @@ describe("tasks actions", () => {
           assigneeId: USER_ID,
           routineId: null,
           dueDate: null,
+          startDate: null,
+
+          endDate: null,
+
+          recurrence: null,
+
+          interval: 1,
+
+          daysOfWeek: null,
+
+          startTime: null,
+
+          endTime: null,
         },
       ])
       state.mock.onUpdate(schema.tasksTable).respond([{ id: TASK_ID }])
@@ -265,6 +317,19 @@ describe("tasks actions", () => {
           assigneeId: USER_ID,
           routineId: null,
           dueDate: null,
+          startDate: null,
+
+          endDate: null,
+
+          recurrence: null,
+
+          interval: 1,
+
+          daysOfWeek: null,
+
+          startTime: null,
+
+          endTime: null,
         },
       ])
       state.mock.onUpdate(schema.tasksTable).respond([{ id: TASK_ID }])
@@ -286,6 +351,19 @@ describe("tasks actions", () => {
           assigneeId: USER_ID,
           routineId: null,
           dueDate: null,
+          startDate: null,
+
+          endDate: null,
+
+          recurrence: null,
+
+          interval: 1,
+
+          daysOfWeek: null,
+
+          startTime: null,
+
+          endTime: null,
         },
       ])
 
@@ -306,6 +384,19 @@ describe("tasks actions", () => {
           assigneeId: USER_ID,
           routineId: null,
           dueDate: null,
+          startDate: null,
+
+          endDate: null,
+
+          recurrence: null,
+
+          interval: 1,
+
+          daysOfWeek: null,
+
+          startTime: null,
+
+          endTime: null,
         },
       ])
 

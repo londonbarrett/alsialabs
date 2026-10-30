@@ -87,6 +87,19 @@ const TASK = {
   status: "todo",
   priority: null,
   dueDate: new Date("2026-08-03T08:00:00Z"),
+  startDate: null,
+
+  endDate: null,
+
+  recurrence: null,
+
+  interval: 1,
+
+  daysOfWeek: null,
+
+  startTime: null,
+
+  endTime: null,
   assigneeId: null,
   createdAt: new Date("2026-08-01T10:00:00Z"),
   updatedAt: new Date("2026-08-01T10:00:00Z"),

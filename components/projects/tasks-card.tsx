@@ -30,8 +30,13 @@ export function TasksCard() {
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = isOwner && canEditProject
   const { tasks } = useProjectTasksState()
-  const { createTask, updateTask, deleteTask, updateTaskStatus, updateTaskPriority } =
-    useProjectTasksActions()
+  const {
+    createTask,
+    updateTask,
+    deleteTask,
+    updateTaskStatus,
+    updateTaskPriority,
+  } = useProjectTasksActions()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<
     TaskWithCommentCountDTO | undefined
@@ -79,6 +84,13 @@ export function TasksCard() {
       status: taskStatus,
       priority: taskPriority,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      startDate: editingTask?.startDate ?? null,
+      endDate: editingTask?.endDate ?? null,
+      recurrence: editingTask?.recurrence ?? null,
+      interval: editingTask?.interval ?? 1,
+      daysOfWeek: editingTask?.daysOfWeek ?? null,
+      startTime: editingTask?.startTime ?? null,
+      endTime: editingTask?.endTime ?? null,
       routineId: editingTask?.routineId ?? null,
       assigneeId: data.assigneeId,
       assigneeName:

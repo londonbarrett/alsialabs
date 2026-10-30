@@ -90,6 +90,13 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
       status: taskStatus,
       priority: taskPriority,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      startDate: editingTask?.startDate ?? null,
+      endDate: editingTask?.endDate ?? null,
+      recurrence: editingTask?.recurrence ?? null,
+      interval: editingTask?.interval ?? 1,
+      daysOfWeek: editingTask?.daysOfWeek ?? null,
+      startTime: editingTask?.startTime ?? null,
+      endTime: editingTask?.endTime ?? null,
       routineId: editingTask?.routineId ?? null,
       assigneeId: data.assigneeId,
       assigneeName:

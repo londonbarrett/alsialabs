@@ -1,15 +1,20 @@
 import {
   boolean,
+  check,
   date,
   decimal,
+  index,
   integer,
   pgTable,
+  pgView,
   primaryKey,
+  time,
   text,
   timestamp,
   unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
+import { eq, sql } from "drizzle-orm"
 import { PROJECT_COLORS } from "@/components/projects/colors"
 
 export const usersTable = pgTable("user", {
@@ -179,12 +184,7 @@ export const clientsTable = pgTable("client", {
 })
 
 export type InvoiceStatus =
-  | "draft"
-  | "sent"
-  | "paid"
-  | "partially_paid"
-  | "overdue"
-  | "cancelled"
+  "draft" | "sent" | "paid" | "partially_paid" | "overdue" | "cancelled"
 
 export const invoicesTable = pgTable("invoice", {
   id: text()
@@ -375,10 +375,7 @@ export const categoryTable = pgTable(
 )
 
 export type ProjectStatus =
-  | "active"
-  | "completed"
-  | "cancelled"
-  | "archived"
+  "active" | "completed" | "cancelled" | "archived"
 
 export const projectsTable = pgTable("project", {
   id: text()
@@ -407,6 +404,32 @@ export const projectsTable = pgTable("project", {
     .$onUpdate(() => new Date()),
 })
 
+export const PROJECT_MEMBER_ROLES = ["admin", "collaborator"] as const
+export type ProjectMemberRole = (typeof PROJECT_MEMBER_ROLES)[number]
+
+export const projectMembershipTable = pgTable(
+  "project_membership",
+  {
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projectsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    role: text().notNull().$type<ProjectMemberRole>(),
+    createdAt: timestamp("created_at", { mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.projectId, table.userId] }),
+    check(
+      "project_membership_role_check",
+      sql`${table.role} in ('admin','collaborator')`
+    ),
+  ]
+)
+
 export const TASK_STATUSES = [
   "todo",
   "in_progress",
@@ -430,15 +453,19 @@ export const tasksTable = pgTable("task", {
   name: text().notNull(),
   description: text(),
   cost: decimal("cost", { precision: 10, scale: 2 }),
-  status: text()
-    .notNull()
-    .default("todo")
-    .$type<TaskStatus>(),
+  status: text().notNull().default("todo").$type<TaskStatus>(),
   priority: text("priority").$type<TaskPriority | null>(),
   routineId: text("routine_id").references(() => routinesTable.id, {
     onDelete: "set null",
   }),
   dueDate: timestamp("due_date", { mode: "date" }),
+  startDate: timestamp("start_date", { mode: "date" }),
+  endDate: timestamp("end_date", { mode: "date" }),
+  recurrence: text().$type<"daily" | "weekly" | null>(),
+  interval: integer().notNull().default(1),
+  daysOfWeek: text("days_of_week").array(),
+  startTime: time("start_time"),
+  endTime: time("end_time"),
   assigneeId: text("assignee_id").references(() => usersTable.id, {
     onDelete: "set null",
   }),
@@ -450,6 +477,38 @@ export const tasksTable = pgTable("task", {
     .defaultNow()
     .$onUpdate(() => new Date()),
 })
+
+export const taskAssignmentsTable = pgTable(
+  "task_assignment",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    status: text().notNull().default("todo").$type<TaskStatus>(),
+    comment: text(),
+    startDate: timestamp("start_date", { mode: "date" }),
+    endDate: timestamp("end_date", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("task_assignment_open_unique")
+      .on(table.taskId, table.userId)
+      .where(sql`${table.status} not in ('done','cancelled')`),
+    index("task_assignment_user_idx").on(table.userId),
+  ]
+)
 
 export const routinesTable = pgTable("routine", {
   id: text()
@@ -548,4 +607,30 @@ export const projectCollaboratorsTable = pgTable(
       .references(() => usersTable.id, { onDelete: "cascade" }),
   },
   (table) => [primaryKey({ columns: [table.projectId, table.userId] })]
+)
+
+export const taskAssignmentDetailView = pgView(
+  "task_assignment_detail"
+).as((qb) =>
+  qb
+    .select({
+      assignmentId: sql<string>`${taskAssignmentsTable.id}`.as("assignment_id"),
+      taskId: sql<string>`${tasksTable.id}`.as("task_id"),
+      userId: sql<string>`${usersTable.id}`.as("user_id"),
+      status: sql<string>`${taskAssignmentsTable.status}`.as("status"),
+      comment: sql<string | null>`${taskAssignmentsTable.comment}`.as("comment"),
+      startDate: sql<Date | null>`${taskAssignmentsTable.startDate}`.as("start_date"),
+      endDate: sql<Date | null>`${taskAssignmentsTable.endDate}`.as("end_date"),
+      taskName: sql<string>`${tasksTable.name}`.as("task_name"),
+      taskDescription: sql<string | null>`${tasksTable.description}`.as("task_description"),
+      taskPriority: sql<string | null>`${tasksTable.priority}`.as("task_priority"),
+      taskRecurrence: sql<string | null>`${tasksTable.recurrence}`.as("task_recurrence"),
+      projectId: sql<string>`${tasksTable.projectId}`.as("project_id"),
+      userName: sql<string | null>`${usersTable.name}`.as("user_name"),
+      userEmail: sql<string | null>`${usersTable.email}`.as("user_email"),
+      userImage: sql<string | null>`${usersTable.image}`.as("user_image"),
+    })
+    .from(taskAssignmentsTable)
+    .innerJoin(tasksTable, eq(taskAssignmentsTable.taskId, tasksTable.id))
+    .innerJoin(usersTable, eq(taskAssignmentsTable.userId, usersTable.id))
 )
