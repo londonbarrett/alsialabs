@@ -106,7 +106,6 @@ describe("projects actions", () => {
       state.mock
         .onInsert(schema.projectsTable)
         .respond([makeProjectRow()])
-      state.mock.onInsert(schema.projectOwnersTable).respond([])
 
       const result = await createProject({
         name: "New Project",
@@ -223,10 +222,19 @@ describe("projects actions", () => {
         categoryName: null,
         ownerName: "Jane Doe",
       }
-      state.mock.onSelect(schema.projectsTable).respond([row])
+      let projectSql = ""
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respondWith((sql) => {
+          projectSql = sql
+          return [row]
+        })
       const result = await getProjects()
       expect(result.data).toHaveLength(1)
       expect(mockHasPermission).not.toHaveBeenCalled()
+      expect(mockIsSuperUser).not.toHaveBeenCalled()
+      expect(projectSql).toContain("project_membership")
+      expect(projectSql).toContain("primary_owner_id")
     })
   })
 

@@ -2,20 +2,12 @@ import { ProjectsProvider } from "@/components/projects/projects-provider"
 import { ProjectsView } from "@/components/projects/projects-view"
 import { getProjectCategories } from "@/actions/categories"
 import { getProjectsWithDetails } from "@/actions/projects"
-import { auth, hasPermission } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
-import { forbidden } from "next/navigation"
 import { Suspense } from "react"
 
 export default async function ProjectsPage() {
   const session = await auth()
-
-  if (
-    !session?.user?.id ||
-    !(await hasPermission(session.user.id, "projects", "view"))
-  ) {
-    forbidden()
-  }
 
   const [projectsResult, categoriesResult] = await Promise.all([
     getProjectsWithDetails(),
@@ -44,9 +36,9 @@ export default async function ProjectsPage() {
         <ProjectsView
           categories={unwrapResponse(categoriesResult)}
           owner={{
-            id: session.user.id,
-            name: session.user.name ?? session.user.email ?? "",
-            image: session.user.image ?? null,
+            id: session!.user.id,
+            name: session!.user.name ?? session!.user.email ?? "",
+            image: session!.user.image ?? null,
           }}
         />
       </ProjectsProvider>

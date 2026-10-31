@@ -1,22 +1,14 @@
 import { Suspense } from "react"
-import { auth, hasPermission } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { getMyTasks } from "@/actions/tasks"
 import { MyTasksView } from "@/components/my-tasks/my-tasks-view"
 import { MyTasksProvider } from "@/components/my-tasks/my-tasks-provider"
-import { forbidden } from "next/navigation"
 import { unwrapResponse } from "@/lib/util/unwrap"
 
 export default async function MyTasksPage() {
   const session = await auth()
 
-  if (
-    !session?.user?.id ||
-    !(await hasPermission(session.user.id, "projects", "view"))
-  ) {
-    forbidden()
-  }
-
-  const userId = session.user.id
+  const userId = session!.user.id
 
   const tasks = unwrapResponse(await getMyTasks({}))
 

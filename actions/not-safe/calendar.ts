@@ -9,7 +9,7 @@ import {
   CalendarTaskDataSchema,
 } from "@/actions/schemas/calendar"
 import { runAction, throwActionError } from "@/lib/action-result"
-import { auth, requirePermission } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   projectOwnersTable,
@@ -39,12 +39,6 @@ export async function getCalendarTasks(range?: {
   to?: string
 }) {
   return runAction<CalendarTaskDataDTO[]>(async () => {
-    try {
-      await requirePermission("projects", "view")
-    } catch {
-      throwActionError("FORBIDDEN")
-    }
-
     const session = await auth()
     const userId = session?.user?.id
     if (!userId) throwActionError("UNAUTHORIZED")
@@ -164,12 +158,6 @@ async function getVisibleTasks(userId: string) {
  */
 export async function getCalendarRoutines() {
   return runAction<CalendarRoutineDataDTO[]>(async () => {
-    try {
-      await requirePermission("projects", "view")
-    } catch {
-      throwActionError("FORBIDDEN")
-    }
-
     const session = await auth()
     const userId = session?.user?.id
     if (!userId) throwActionError("UNAUTHORIZED")

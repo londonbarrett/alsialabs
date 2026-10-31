@@ -20,7 +20,6 @@ import {
   expensesTable,
   invoicesTable,
   projectMembershipTable,
-  projectOwnersTable,
   projectsTable,
   tasksTable,
   usersTable,
@@ -31,7 +30,7 @@ import {
   sessionAction,
 } from "@/lib/safe-action"
 import { unwrapResponse } from "@/lib/util/unwrap"
-import { and, desc, eq, inArray, sql } from "drizzle-orm"
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm"
 import { z } from "zod"
 
 export const getProjects = sessionAction
@@ -68,13 +67,16 @@ export const getProjects = sessionAction
         eq(projectsTable.primaryOwnerId, usersTable.id)
       )
       .where(
-        sql`exists (select 1 from ${projectOwnersTable} where ${projectOwnersTable.projectId} = ${projectsTable.id} and ${projectOwnersTable.userId} = ${session.user.id})`
+        or(
+          eq(projectsTable.primaryOwnerId, session.user.id),
+          sql`exists (select 1 from ${projectMembershipTable} where ${projectMembershipTable.projectId} = ${projectsTable.id} and ${projectMembershipTable.userId} = ${session.user.id})`
+        )
       )
       .orderBy(desc(projectsTable.createdAt))
   })
 
 export const getProjectsWithDetails = sessionAction
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(z.array(ProjectSummarySchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
@@ -102,7 +104,10 @@ export const getProjectsWithDetails = sessionAction
         eq(projectsTable.categoryId, categoryTable.id)
       )
       .where(
-        sql`exists (select 1 from ${projectOwnersTable} where ${projectOwnersTable.projectId} = ${projectsTable.id} and ${projectOwnersTable.userId} = ${session.user.id})`
+        or(
+          eq(projectsTable.primaryOwnerId, session.user.id),
+          sql`exists (select 1 from ${projectMembershipTable} where ${projectMembershipTable.projectId} = ${projectsTable.id} and ${projectMembershipTable.userId} = ${session.user.id})`
+        )
       )
       .orderBy(desc(projectsTable.createdAt))
 
@@ -343,10 +348,7 @@ export const getProjectById = projectAction(
   })
 
 export const createProject = sessionAction
-  .metadata({
-    permission: { module: "projects", action: "create" },
-    revalidate: ["/app/proyectos"],
-  })
+  .metadata({ revalidate: ["/app/proyectos"] })
   .inputSchema(CreateProjectSchema)
   .outputSchema(ProjectRecordSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -377,9 +379,6 @@ export const createProject = sessionAction
         color,
       })
       .returning()
-    await db
-      .insert(projectOwnersTable)
-      .values({ projectId: created.id, userId: session.user.id })
     return created
   })
 
@@ -402,7 +401,7 @@ export const updateProject = projectAction(UpdateProjectSchema)
       budget,
       color,
     } = parsedInput
-    if (!ctx.isProjectOwner) returnActionError("FORBIDDEN")
+    if (!canManageProject(ctx.projectRole)) returnActionError("FORBIDDEN")
     const [updated] = await db
       .update(projectsTable)
       .set({

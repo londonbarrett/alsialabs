@@ -56,11 +56,11 @@ const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a00"
 const EXPENSE_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const CATEGORY_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22"
 
-function grantAccess() {
+function grantAccess(isOwner = true) {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: true,
-    role: "owner",
-    isOwner: true,
+    role: isOwner ? "owner" : "collaborator",
+    isOwner,
   })
 }
 
@@ -135,6 +135,16 @@ describe("expenses actions", () => {
       expect(result.data).toEqual(fakeExpenses)
     })
 
+    it("forbids a collaborator from reading expenses", async () => {
+      grantAccess(false)
+
+      const result = await getExpensesByProjectId({
+        projectId: PROJECT_ID,
+      })
+
+      expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    })
+
     it("returns FORBIDDEN when access is denied", async () => {
       denyAccess()
 
@@ -174,6 +184,20 @@ describe("expenses actions", () => {
         PROJECT_ID,
         "user-1"
       )
+    })
+
+    it("forbids a collaborator from creating an expense", async () => {
+      grantAccess(false)
+
+      const result = await createExpense({
+        projectId: PROJECT_ID,
+        description: "Fertilizer",
+        categoryId: CATEGORY_ID,
+        amount: "120.00",
+        expenseDate: "2026-08-01",
+      })
+
+      expect(result.serverError).toEqual({ code: "FORBIDDEN" })
     })
 
     it("returns FORBIDDEN when access is denied", async () => {

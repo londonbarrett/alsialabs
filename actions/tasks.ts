@@ -88,7 +88,7 @@ export const getMyTasks = sessionAction
       projectIdFilter: z.string().optional(),
     })
   )
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(z.array(MyTaskSchema))
   .action(async ({ parsedInput, ctx }) => {
     const { statusFilter, projectIdFilter } = parsedInput

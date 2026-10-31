@@ -2,22 +2,12 @@ import { CalendarView } from "@/components/calendar/calendar-view"
 import { PageHeader } from "@/components/common/page-header"
 import { getCalendarRoutines } from "@/actions/not-safe/calendar"
 import { getMyTasks } from "@/actions/tasks"
-import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { CalendarDays } from "lucide-react"
 import { getTranslations } from "next-intl/server"
-import { forbidden } from "next/navigation"
 import { Suspense } from "react"
 
 export default async function CalendarPage() {
-  const session = await auth()
-  if (
-    !session?.user?.id ||
-    !(await hasPermission(session.user.id, "projects", "view"))
-  ) {
-    forbidden()
-  }
-
   const t = await getTranslations()
 
   const tasks = unwrapResponse(await getMyTasks({}))

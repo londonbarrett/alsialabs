@@ -11,6 +11,7 @@ import {
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
+import { canManageWork, canViewProject } from "@/lib/project-roles"
 import {
   CreateExpenseSchema,
   ExpenseCategoryOptionSchema,
@@ -49,7 +50,11 @@ export const getExpensesByProjectId = projectAction(
   .metadata({
   })
   .outputSchema(z.array(ExpenseWithCategorySchema))
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canViewProject(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     return db
       .select({
         id: expensesTable.id,
@@ -78,7 +83,11 @@ export const createExpense = projectAction(CreateExpenseSchema)
   .metadata({
   })
   .outputSchema(ExpenseRecordSchema)
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canManageWork(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     const { description, categoryId, amount, expenseDate } = parsedInput
 
     const [created] = await db
@@ -99,7 +108,11 @@ export const updateExpense = projectAction(UpdateExpenseSchema)
   .metadata({
   })
   .outputSchema(ExpenseRecordSchema)
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canManageWork(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     const { id, description, categoryId, amount, expenseDate } =
       parsedInput
 
@@ -130,7 +143,11 @@ export const deleteExpense = projectAction(
   .metadata({
   })
   .outputSchema(SuccessSchema)
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canManageWork(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     const [deleted] = await db
       .delete(expensesTable)
       .where(
