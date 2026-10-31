@@ -7,8 +7,9 @@ export const CalendarAssignmentSchema = z.object({
   taskName: z.string(),
   status: z.enum(TASK_STATUSES),
   priority: z.enum(TASK_PRIORITIES).nullable(),
-  startDate: z.date().nullable(),
-  endDate: z.date().nullable(),
+  // View columns come back as raw driver strings; coerce them to Dates.
+  startDate: z.coerce.date().nullable(),
+  endDate: z.coerce.date().nullable(),
   projectId: z.string(),
   projectName: z.string(),
   projectColor: z.string(),

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 
+import { CalendarAssignmentSchema } from "@/actions/schemas/calendar"
 import {
   CreateTaskV2Schema,
+  MyAssignmentSchema,
+  TaskAssignmentSchema,
   TaskFormSchema,
 } from "@/actions/schemas/task"
 
@@ -72,5 +75,79 @@ describe("task window schema", () => {
       projectId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe("assignment dates from the detail view", () => {
+  /**
+   * The view's date columns are `sql<>`-typed, so drizzle hands them back as
+   * the driver's raw strings instead of Dates. Every schema that validates a
+   * view row has to accept that shape.
+   */
+  const rawDates = {
+    startDate: "2026-11-03 09:00:00",
+    endDate: "2026-11-03 11:00:00",
+  }
+
+  it("coerces raw strings into Dates for MyAssignmentSchema", () => {
+    const parsed = MyAssignmentSchema.parse({
+      assignmentId: "a1",
+      taskId: "t1",
+      projectId: "p1",
+      name: "Task",
+      description: null,
+      priority: null,
+      projectName: "Project",
+      projectColor: "#0f766e",
+      projectOwnerName: null,
+      role: "collaborator",
+      status: "todo",
+      comment: null,
+      commentCount: 0,
+      ...rawDates,
+    })
+
+    expect(parsed.startDate).toBeInstanceOf(Date)
+    expect(parsed.endDate).toBeInstanceOf(Date)
+  })
+
+  it("coerces raw strings into Dates for TaskAssignmentSchema", () => {
+    const parsed = TaskAssignmentSchema.parse({
+      id: "a1",
+      taskId: "t1",
+      userId: "u1",
+      userName: null,
+      userEmail: null,
+      userImage: null,
+      status: "todo",
+      comment: null,
+      ...rawDates,
+    })
+
+    expect(parsed.startDate).toBeInstanceOf(Date)
+    expect(parsed.endDate).toBeInstanceOf(Date)
+  })
+
+  it("coerces raw strings into Dates for CalendarAssignmentSchema", () => {
+    const parsed = CalendarAssignmentSchema.parse({
+      assignmentId: "a1",
+      taskId: "t1",
+      taskName: "Task",
+      status: "todo",
+      priority: null,
+      projectId: "p1",
+      projectName: "Project",
+      projectColor: "#0f766e",
+      projectOwnerName: null,
+      userName: null,
+      userImage: null,
+      comment: null,
+      commentCount: 0,
+      recurrence: null,
+      ...rawDates,
+    })
+
+    expect(parsed.startDate).toBeInstanceOf(Date)
+    expect(parsed.endDate).toBeInstanceOf(Date)
   })
 })

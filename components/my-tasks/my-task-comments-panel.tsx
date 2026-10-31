@@ -21,7 +21,7 @@ export function MyTaskCommentsPanel({
   open,
   onOpenChange,
   currentUserId,
-  isOwner,
+  canModerate,
 }: {
   /**
    * Empty while the Sheet plays its close animation; the parent keeps it
@@ -34,7 +34,7 @@ export function MyTaskCommentsPanel({
   open: boolean
   onOpenChange: (open: boolean) => void
   currentUserId: string
-  isOwner: boolean
+  canModerate: boolean
 }) {
   const { getComments } = useMyTasksState()
   const { loadComments, createComment, updateComment, deleteComment } =
@@ -62,7 +62,7 @@ export function MyTaskCommentsPanel({
       comments={getComments(taskId)}
       loading={loading}
       currentUserId={currentUserId}
-      canModerate={isOwner}
+      canModerate={canModerate}
       open={open}
       onOpenChange={onOpenChange}
       onRefresh={refresh}

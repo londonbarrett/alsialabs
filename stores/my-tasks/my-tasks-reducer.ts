@@ -1,6 +1,10 @@
-import type { MyTaskDTO, TaskStatus } from "@/actions/schemas/task"
+import type {
+  MyAssignmentDTO,
+  TaskAssignmentDTO,
+  TaskStatus,
+} from "@/actions/schemas/task"
 import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
-import type { Task } from "@/lib/drizzle/schema"
+import { isTerminalStatus } from "@/lib/project-roles"
 
 /**
  * Stable empty list for a task whose comments have never been loaded, so
@@ -8,14 +12,30 @@ import type { Task } from "@/lib/drizzle/schema"
  */
 export const EMPTY_COMMENTS: TaskCommentWithAuthorDTO[] = []
 
+/**
+ * `assignments` is the single list the server sent for the tab being shown —
+ * either the open rows (active) or the terminal ones (past), never both.
+ */
 export type MyTasksState = {
-  tasks: MyTaskDTO[]
+  assignments: MyAssignmentDTO[]
   commentsByTask: Record<string, TaskCommentWithAuthorDTO[]>
 }
 
+export type MyTasksSeed = {
+  assignments: MyAssignmentDTO[]
+}
+
 export type MyTaskAction =
-  | { type: "updateTaskStatus"; taskId: string; status: TaskStatus }
-  | { type: "addNextTask"; sourceTaskId: string; nextTask: Task }
+  | {
+      type: "updateAssignment"
+      assignmentId: string
+      status: TaskStatus
+    }
+  | {
+      type: "insertNextAssignment"
+      source: MyAssignmentDTO
+      assignment: TaskAssignmentDTO
+    }
   | {
       type: "setComments"
       taskId: string
@@ -41,33 +61,20 @@ export type MyTaskAction =
   | { type: "deleteComment"; taskId: string; commentId: string }
 
 /**
- * `commentCount` lives on the task row because `getMyTasks` seeds it, but every
- * comment mutation adjusts it in the *same* action. That keeps the count and
- * the comment list from drifting, and because a failed action is discarded as a
- * unit, a rejected comment also rolls its count back. Previously the panel
- * reported a delta upward through `MyTasksList` after the server call, leaving
- * a window where the count disagreed with the list.
+ * `commentCount` lives on the assignment row because `getMyTasks` seeds it, but
+ * every comment mutation adjusts it in the *same* action. That keeps the count
+ * and the comment list from drifting, and because a failed action is discarded
+ * as a unit, a rejected comment also rolls its count back.
  */
-function bumpCommentCount(
-  tasks: MyTaskDTO[],
+function changeCommentCount(
+  state: MyTasksState,
   taskId: string,
-  delta: number
-): MyTaskDTO[] {
-  return tasks.map((t) =>
-    t.id === taskId
-      ? { ...t, commentCount: Math.max(0, t.commentCount + delta) }
-      : t
-  )
-}
-
-/** Reconciles the seeded count with an authoritative fetch. */
-function setCommentCount(
-  tasks: MyTaskDTO[],
-  taskId: string,
-  count: number
-): MyTaskDTO[] {
-  return tasks.map((t) =>
-    t.id === taskId ? { ...t, commentCount: count } : t
+  update: (count: number) => number
+): MyAssignmentDTO[] {
+  return state.assignments.map((row) =>
+    row.taskId === taskId
+      ? { ...row, commentCount: Math.max(0, update(row.commentCount)) }
+      : row
   )
 }
 
@@ -76,50 +83,65 @@ export function myTasksReducer(
   action: MyTaskAction
 ): MyTasksState {
   switch (action.type) {
-    case "updateTaskStatus":
-      return {
-        ...state,
-        tasks: state.tasks.map((t) =>
-          t.id === action.taskId ? { ...t, status: action.status } : t
-        ),
+    /**
+     * The list holds one view's rows, so an assignment whose status turns
+     * terminal leaves it immediately — it belongs to the past tab now, which
+     * the next seed brings back. Anything still open stays put.
+     */
+    case "updateAssignment": {
+      const current = state.assignments.find(
+        (row) => row.assignmentId === action.assignmentId
+      )
+      if (!current) return state
+
+      if (isTerminalStatus(action.status)) {
+        return {
+          ...state,
+          assignments: state.assignments.filter(
+            (row) => row.assignmentId !== action.assignmentId
+          ),
+        }
       }
 
-    /**
-     * The returned row is a bare task row, so it carries no project display
-     * fields. They are copied from the task it replaces rather than looked up
-     * again: same project, same assignee. `commentCount` starts at 0 because
-     * the occurrence is new and has no comments yet — the completed task keeps
-     * its own count, which only status touched.
-     */
-    case "addNextTask": {
-      const source = state.tasks.find(
-        (t) => t.id === action.sourceTaskId
-      )
-      if (!source) return state
       return {
         ...state,
-        tasks: [
-          {
-            ...action.nextTask,
-            projectId: source.projectId,
-            projectName: source.projectName,
-            projectColor: source.projectColor,
-            projectOwnerName: source.projectOwnerName,
-            assigneeName: source.assigneeName,
-            isOwner: source.isOwner,
-            commentCount: 0,
-          },
-          ...state.tasks,
-        ],
+        assignments: state.assignments.map((row) =>
+          row.assignmentId === action.assignmentId
+            ? { ...row, status: action.status }
+            : row
+        ),
       }
+    }
+
+    /**
+     * The returned assignment is a bare assignment row, so it carries no
+     * project display fields. They are copied from the occurrence it replaces
+     * rather than looked up again: same task, same project, same person.
+     * `commentCount` starts at 0 because the occurrence is new. The source row
+     * rides along in the action because completing it already removed it from
+     * the list.
+     */
+    case "insertNextAssignment": {
+      const next: MyAssignmentDTO = {
+        ...action.source,
+        assignmentId: action.assignment.id,
+        taskId: action.assignment.taskId,
+        status: action.assignment.status,
+        comment: action.assignment.comment,
+        startDate: action.assignment.startDate,
+        endDate: action.assignment.endDate,
+        commentCount: 0,
+      }
+
+      return { ...state, assignments: [next, ...state.assignments] }
     }
 
     case "setComments":
       return {
-        tasks: setCommentCount(
-          state.tasks,
+        assignments: changeCommentCount(
+          state,
           action.taskId,
-          action.comments.length
+          () => action.comments.length
         ),
         commentsByTask: {
           ...state.commentsByTask,
@@ -129,7 +151,11 @@ export function myTasksReducer(
 
     case "createComment":
       return {
-        tasks: bumpCommentCount(state.tasks, action.taskId, 1),
+        assignments: changeCommentCount(
+          state,
+          action.taskId,
+          (count) => count + 1
+        ),
         commentsByTask: {
           ...state.commentsByTask,
           [action.taskId]: [
@@ -167,7 +193,11 @@ export function myTasksReducer(
 
     case "deleteComment":
       return {
-        tasks: bumpCommentCount(state.tasks, action.taskId, -1),
+        assignments: changeCommentCount(
+          state,
+          action.taskId,
+          (count) => count - 1
+        ),
         commentsByTask: {
           ...state.commentsByTask,
           [action.taskId]: (

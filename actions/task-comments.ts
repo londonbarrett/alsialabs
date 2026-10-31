@@ -10,12 +10,18 @@ import {
 } from "@/actions/schemas/task-comment"
 import { db } from "@/lib/drizzle/client"
 import {
+  taskAssignmentsTable,
   taskCommentsTable,
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
+import {
+  canManageWork,
+  canViewProject,
+  type ProjectRole,
+} from "@/lib/project-roles"
 import { projectAction, returnActionError } from "@/lib/safe-action"
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, notInArray } from "drizzle-orm"
 import { z } from "zod"
 
 /** A comment is only reachable through the project that owns its task. */
@@ -37,14 +43,48 @@ async function assertTaskInProject(
   if (!task) returnActionError("NOT_FOUND")
 }
 
+/**
+ * Project work is visible to owners and admins; a collaborator only sees a
+ * task's comments while they hold an open assignment on it.
+ */
+async function assertCommentAccess(
+  taskId: string,
+  projectId: string,
+  userId: string,
+  role: ProjectRole | null
+): Promise<void> {
+  await assertTaskInProject(taskId, projectId)
+  if (canViewProject(role)) return
+
+  const openAssignment = await db
+    .select({ id: taskAssignmentsTable.id })
+    .from(taskAssignmentsTable)
+    .where(
+      and(
+        eq(taskAssignmentsTable.taskId, taskId),
+        eq(taskAssignmentsTable.userId, userId),
+        notInArray(taskAssignmentsTable.status, ["done", "cancelled"])
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!openAssignment) returnActionError("FORBIDDEN")
+}
+
 export const getTaskComments = projectAction(
   z.object({ projectId: z.uuid(), taskId: z.uuid() })
 )
   .metadata({})
   .outputSchema(z.array(TaskCommentWithAuthorSchema))
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
     const { projectId, taskId } = parsedInput
-    await assertTaskInProject(taskId, projectId)
+    await assertCommentAccess(
+      taskId,
+      projectId,
+      ctx.session.user.id,
+      ctx.projectRole
+    )
 
     return db
       .select({
@@ -73,7 +113,12 @@ export const createComment = projectAction(CreateTaskCommentSchema)
     const { projectId, taskId, content } = parsedInput
     const session = ctx.session
 
-    await assertTaskInProject(taskId, projectId)
+    await assertCommentAccess(
+      taskId,
+      projectId,
+      session.user.id,
+      ctx.projectRole
+    )
 
     const [inserted] = await db
       .insert(taskCommentsTable)
@@ -111,7 +156,12 @@ export const updateComment = projectAction(UpdateTaskCommentSchema)
     const { projectId, commentId, taskId, content } = parsedInput
     const session = ctx.session
 
-    await assertTaskInProject(taskId, projectId)
+    await assertCommentAccess(
+      taskId,
+      projectId,
+      session.user.id,
+      ctx.projectRole
+    )
 
     const comment = await db
       .select({
@@ -164,7 +214,12 @@ export const deleteComment = projectAction(DeleteTaskCommentSchema)
     const { projectId, commentId, taskId } = parsedInput
     const session = ctx.session
 
-    await assertTaskInProject(taskId, projectId)
+    await assertCommentAccess(
+      taskId,
+      projectId,
+      session.user.id,
+      ctx.projectRole
+    )
 
     const comment = await db
       .select({
@@ -180,7 +235,8 @@ export const deleteComment = projectAction(DeleteTaskCommentSchema)
     }
 
     const canDelete =
-      comment.authorId === session.user.id || ctx.isProjectOwner
+      comment.authorId === session.user.id ||
+      canManageWork(ctx.projectRole)
     if (!canDelete) returnActionError("FORBIDDEN")
 
     await db

@@ -5,12 +5,21 @@ import { MyTasksView } from "@/components/my-tasks/my-tasks-view"
 import { MyTasksProvider } from "@/components/my-tasks/my-tasks-provider"
 import { unwrapResponse } from "@/lib/util/unwrap"
 
-export default async function MyTasksPage() {
+interface MyTasksPageProps {
+  searchParams: Promise<{ view?: string }>
+}
+
+export default async function MyTasksPage({
+  searchParams,
+}: MyTasksPageProps) {
   const session = await auth()
 
   const userId = session!.user.id
 
-  const tasks = unwrapResponse(await getMyTasks({}))
+  const { view } = await searchParams
+  const tab = view === "past" ? ("past" as const) : ("active" as const)
+
+  const assignments = unwrapResponse(await getMyTasks({ view: tab }))
 
   return (
     <Suspense
@@ -20,16 +29,12 @@ export default async function MyTasksPage() {
             <div className="h-5 w-80 animate-pulse rounded bg-muted md:w-96" />
             <div className="h-8 w-32 animate-pulse rounded bg-muted md:h-9" />
           </header>
-          <div className="flex gap-3">
-            <div className="h-9 w-44 animate-pulse rounded-md bg-muted" />
-            <div className="h-9 w-56 animate-pulse rounded-md bg-muted" />
-          </div>
           <div className="h-64 animate-pulse rounded-xl bg-muted" />
         </div>
       }
     >
-      <MyTasksProvider tasks={tasks}>
-        <MyTasksView currentUserId={userId} />
+      <MyTasksProvider assignments={assignments}>
+        <MyTasksView currentUserId={userId} tab={tab} />
       </MyTasksProvider>
     </Suspense>
   )

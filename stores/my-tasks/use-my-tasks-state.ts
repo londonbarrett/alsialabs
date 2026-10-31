@@ -14,7 +14,10 @@ type StoreType = OptimisticStore<MyTasksState, MyTaskAction>
 
 export function useMyTasksState() {
   const store = useMyTasksStore()
-  const tasks = useStore(store, (s: StoreType) => s.optimistic.tasks)
+  const assignments = useStore(
+    store,
+    (s: StoreType) => s.optimistic.assignments
+  )
   const commentsByTask = useStore(
     store,
     (s: StoreType) => s.optimistic.commentsByTask
@@ -25,5 +28,5 @@ export function useMyTasksState() {
     return commentsByTask[taskId] ?? EMPTY_COMMENTS
   }
 
-  return { tasks, getComments }
+  return { assignments, getComments }
 }

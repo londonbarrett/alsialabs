@@ -1,84 +1,99 @@
 "use client"
 
-import type { MyTaskDTO } from "@/actions/schemas/task"
+import type {
+  MyAssignmentDTO,
+  MyTasksTab,
+  TaskStatus,
+} from "@/actions/schemas/task"
 import {
   ALL_TASK_STATUSES,
   COLLABORATOR_TASK_STATUSES,
 } from "@/actions/schemas/task"
 import { PageHeader } from "@/components/common/page-header"
 import { MyTasksList } from "@/components/my-tasks/my-tasks-list"
-import { taskStatusColors } from "@/components/projects/task-status-select"
-import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
+import {
+  canChangeAnyAssignment,
+  isTerminalStatus,
+} from "@/lib/project-roles"
 import { useMyTasksActions } from "@/stores/my-tasks/use-my-tasks-actions"
 import { useMyTasksState } from "@/stores/my-tasks/use-my-tasks-state"
 import { ListTodo } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useCallback, useMemo } from "react"
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 
 interface MyTasksViewProps {
   currentUserId: string
+  tab: MyTasksTab
 }
 
-export function MyTasksView({ currentUserId }: MyTasksViewProps) {
-  const t = useTranslations()
-  const { isLoading } = useLoadingIndicator()
-  const { tasks } = useMyTasksState()
-  const { updateTaskStatus } = useMyTasksActions()
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [projectFilter, setProjectFilter] = useState<string>("all")
+function allowedStatuses(
+  assignment: MyAssignmentDTO
+): readonly TaskStatus[] | null {
+  if (isTerminalStatus(assignment.status)) return null
+  return canChangeAnyAssignment(assignment.role)
+    ? ALL_TASK_STATUSES
+    : COLLABORATOR_TASK_STATUSES
+}
 
-  const projects = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const task of tasks) {
-      const owner = task.projectOwnerName
-        ? ` (${task.projectOwnerName})`
-        : ""
-      map.set(task.projectId, `${task.projectName}${owner}`)
-    }
-    return Array.from(map.entries()).sort((a, b) =>
-      a[1].localeCompare(b[1])
-    )
-  }, [tasks])
+function statusesFor(assignments: MyAssignmentDTO[]) {
+  return Object.fromEntries(
+    assignments.map((assignment) => [
+      assignment.assignmentId,
+      allowedStatuses(assignment),
+    ])
+  )
+}
+
+export function MyTasksView({
+  currentUserId,
+  tab,
+}: MyTasksViewProps) {
+  const t = useTranslations()
+  const router = useRouter()
+  const { isLoading } = useLoadingIndicator()
+  const { assignments } = useMyTasksState()
+  const { updateAssignment } = useMyTasksActions()
 
   /**
-   * The store always holds the unfiltered set, so the projection — not a
-   * network call — decides what is visible. That is what keeps a focus
-   * refresh honest: a fresh seed is a valid base for any filter combination.
+   * Switching tabs navigates, so the server fetches only the view that will
+   * be shown and the provider reseeds the list with it. The filter keeps the
+   * stale slice from leaking into the other tab before the new one lands.
    */
-  const visibleTasks = useMemo(
-    () =>
-      tasks.filter(
-        (task) =>
-          (statusFilter === "all" || task.status === statusFilter) &&
-          (projectFilter === "all" || task.projectId === projectFilter)
-      ),
-    [tasks, statusFilter, projectFilter]
+  const handleTabChange = useCallback(
+    (value: string | null) => {
+      if (value !== "active" && value !== "past") return
+      router.replace(
+        value === "past" ? "/app/mis-tareas?view=past" : "/app/mis-tareas"
+      )
+    },
+    [router]
   )
 
-  function handleStatusFilterChange(value: string | null) {
-    if (value) setStatusFilter(value)
-  }
+  const visible = useMemo(
+    () =>
+      assignments.filter((row) =>
+        tab === "active"
+          ? !isTerminalStatus(row.status)
+          : isTerminalStatus(row.status)
+      ),
+    [assignments, tab]
+  )
 
-  function handleProjectFilterChange(value: string | null) {
-    if (value) setProjectFilter(value)
-  }
-
-  function getTaskAllowedStatuses(task: MyTaskDTO) {
-    if (task.isOwner) return ALL_TASK_STATUSES
-    if (task.status === "done" || task.status === "cancelled")
-      return null
-    if (task.assigneeId === currentUserId)
-      return COLLABORATOR_TASK_STATUSES
-    return null
-  }
+  const header = (
+    <Tabs value={tab} onValueChange={handleTabChange}>
+      <TabsList>
+        <TabsTrigger value="active">{t("myTasks.active")}</TabsTrigger>
+        <TabsTrigger value="past">{t("myTasks.past")}</TabsTrigger>
+      </TabsList>
+    </Tabs>
+  )
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -88,73 +103,18 @@ export function MyTasksView({ currentUserId }: MyTasksViewProps) {
         icon={ListTodo}
       />
 
-      <div className="flex flex-wrap gap-3">
-        <Select
-          value={statusFilter}
-          onValueChange={handleStatusFilterChange}
-          items={{
-            all: t("common.allStatuses"),
-            ...Object.fromEntries(
-              ALL_TASK_STATUSES.map((s) => [
-                s,
-                t(`projects.tasks.status.${s}`),
-              ])
-            ),
-          }}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder={t("common.allStatuses")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              {t("common.allStatuses")}
-            </SelectItem>
-            {ALL_TASK_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                <Badge className={taskStatusColors[s]}>
-                  {t(`projects.tasks.status.${s}`)}
-                </Badge>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={projectFilter}
-          onValueChange={handleProjectFilterChange}
-          items={{
-            all: t("myTasks.allProjects"),
-            ...Object.fromEntries(projects),
-          }}
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder={t("myTasks.allProjects")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              {t("myTasks.allProjects")}
-            </SelectItem>
-            {projects.map(([id, name]) => (
-              <SelectItem key={id} value={id}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       <MyTasksList
-        tasks={visibleTasks}
-        statuses={Object.fromEntries(
-          visibleTasks.map((task) => [
-            task.id,
-            getTaskAllowedStatuses(task),
-          ])
-        )}
+        header={header}
+        emptyLabel={
+          tab === "active" ? t("myTasks.noTasks") : t("myTasks.noPast")
+        }
+        assignments={visible}
+        statuses={tab === "active" ? statusesFor(visible) : {}}
         isPending={isLoading}
         currentUserId={currentUserId}
-        onStatusChange={(taskId, projectId, status) =>
-          void updateTaskStatus(projectId, taskId, status)
+        readOnly={tab === "past"}
+        onStatusChange={(projectId, assignmentId, status) =>
+          void updateAssignment(projectId, assignmentId, status)
         }
       />
     </div>

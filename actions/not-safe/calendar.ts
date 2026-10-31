@@ -15,8 +15,7 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import { parseISODate, startOfDay } from "@/lib/util/schedule"
-import { and, asc, eq, gte, isNotNull, lte, or, sql } from "drizzle-orm"
-import { alias } from "drizzle-orm/pg-core"
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm"
 
 const RANGE_DAYS = 90
 
@@ -53,17 +52,13 @@ export async function getCalendarAssignments(range?: {
         return date
       })()
 
-    const owners = alias(usersTable, "calendar_project_owner")
-    const commentCounts = db
-      .select({
-        taskId: taskCommentsTable.taskId,
-        cnt: sql<number>`count(*)::int`.as("cnt"),
-      })
-      .from(taskCommentsTable)
-      .groupBy(taskCommentsTable.taskId)
-      .as("calendar_comment_counts")
-
-    const rows = await db
+    /**
+     * Drizzle emits the detail view's columns unqualified, so the view query
+     * stands alone — joining `project` or `project_membership` (shared column
+     * names) here would make the statement ambiguous. Visibility against the
+     * project comes from a keyed lookup instead.
+     */
+    const viewRows = await db
       .select({
         assignmentId: taskAssignmentDetailView.assignmentId,
         taskId: taskAssignmentDetailView.taskId,
@@ -73,48 +68,92 @@ export async function getCalendarAssignments(range?: {
         startDate: taskAssignmentDetailView.startDate,
         endDate: taskAssignmentDetailView.endDate,
         projectId: taskAssignmentDetailView.projectId,
-        projectName: projectsTable.name,
-        projectColor: projectsTable.color,
-        projectOwnerName: sql<
-          string | null
-        >`coalesce(${owners.name}, ${owners.email})`,
+        userId: taskAssignmentDetailView.userId,
+        comment: taskAssignmentDetailView.comment,
         userName: taskAssignmentDetailView.userName,
         userImage: taskAssignmentDetailView.userImage,
-        comment: taskAssignmentDetailView.comment,
-        commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
         recurrence: taskAssignmentDetailView.taskRecurrence,
       })
       .from(taskAssignmentDetailView)
-      .innerJoin(
-        projectsTable,
-        eq(taskAssignmentDetailView.projectId, projectsTable.id)
-      )
-      .leftJoin(owners, eq(projectsTable.primaryOwnerId, owners.id))
-      .leftJoin(
-        projectMembershipTable,
-        and(
-          eq(projectMembershipTable.projectId, projectsTable.id),
-          eq(projectMembershipTable.userId, userId)
-        )
-      )
-      .leftJoin(
-        commentCounts,
-        eq(commentCounts.taskId, taskAssignmentDetailView.taskId)
-      )
       .where(
         and(
           isNotNull(taskAssignmentDetailView.startDate),
-          gte(taskAssignmentDetailView.startDate, from),
-          lte(taskAssignmentDetailView.startDate, to),
-          or(
-            eq(taskAssignmentDetailView.userId, userId),
-            eq(projectsTable.primaryOwnerId, userId),
-            eq(projectMembershipTable.role, "admin")
-          )
+          // The view's date columns carry no type for drizzle, so a Date
+          // parameter cannot be serialized against them: the bounds cross as
+          // ISO strings, which Postgres compares as timestamps.
+          sql`${taskAssignmentDetailView.startDate} >= ${from.toISOString()}`,
+          sql`${taskAssignmentDetailView.startDate} <= ${to.toISOString()}`
         )
       )
       .orderBy(asc(taskAssignmentDetailView.startDate))
 
-    return rows.map((row) => CalendarAssignmentSchema.parse(row))
+    if (viewRows.length === 0) return []
+
+    const projectIds = [
+      ...new Set(viewRows.map((row) => row.projectId)),
+    ]
+    const taskIds = [...new Set(viewRows.map((row) => row.taskId))]
+
+    const [projectRows, countRows] = await Promise.all([
+      db
+        .select({
+          id: projectsTable.id,
+          projectName: projectsTable.name,
+          projectColor: projectsTable.color,
+          primaryOwnerId: projectsTable.primaryOwnerId,
+          projectOwnerName: sql<
+            string | null
+          >`coalesce(${usersTable.name}, ${usersTable.email})`,
+          memberRole: projectMembershipTable.role,
+        })
+        .from(projectsTable)
+        .leftJoin(
+          usersTable,
+          eq(projectsTable.primaryOwnerId, usersTable.id)
+        )
+        .leftJoin(
+          projectMembershipTable,
+          and(
+            eq(projectMembershipTable.projectId, projectsTable.id),
+            eq(projectMembershipTable.userId, userId)
+          )
+        )
+        .where(inArray(projectsTable.id, projectIds)),
+      db
+        .select({
+          taskId: taskCommentsTable.taskId,
+          cnt: sql<number>`count(*)::int`,
+        })
+        .from(taskCommentsTable)
+        .where(inArray(taskCommentsTable.taskId, taskIds))
+        .groupBy(taskCommentsTable.taskId),
+    ])
+
+    const projectsById = new Map(
+      projectRows.map((row) => [row.id, row])
+    )
+    const countsByTask = new Map(
+      countRows.map((row) => [row.taskId, row.cnt])
+    )
+
+    const visible = viewRows.filter((row) => {
+      const project = projectsById.get(row.projectId)
+      return (
+        row.userId === userId ||
+        project?.primaryOwnerId === userId ||
+        project?.memberRole === "admin"
+      )
+    })
+
+    return visible.map((row) => {
+      const project = projectsById.get(row.projectId)
+      return CalendarAssignmentSchema.parse({
+        ...row,
+        projectName: project?.projectName ?? "",
+        projectColor: project?.projectColor ?? "",
+        projectOwnerName: project?.projectOwnerName ?? null,
+        commentCount: countsByTask.get(row.taskId) ?? 0,
+      })
+    })
   })
 }

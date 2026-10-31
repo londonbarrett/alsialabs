@@ -39,12 +39,6 @@ export const UpdateTaskSchema = TaskSchema.extend({
   taskId: z.uuid(),
 })
 
-export const OwnerStatusSchema = z.enum(ALL_TASK_STATUSES)
-
-export const CollaboratorStatusSchema = z.enum(
-  COLLABORATOR_TASK_STATUSES
-)
-
 export const TaskPrioritySchema = z.enum(TASK_PRIORITIES).nullable()
 
 export type TaskPriorityDTO = z.infer<typeof TaskPrioritySchema>
@@ -75,28 +69,7 @@ export const TaskRecordSchema = z.object({
   updatedAt: z.date(),
 })
 
-export const TaskWithCommentCountSchema = TaskRecordSchema.extend({
-  assigneeName: z.string().nullable(),
-  commentCount: z.number(),
-})
-
-export const MyTaskSchema = TaskWithCommentCountSchema.extend({
-  projectName: z.string(),
-  projectColor: z.string(),
-  projectOwnerName: z.string().nullable(),
-  isOwner: z.boolean(),
-})
-
-export const TaskStatusResultSchema = z.object({
-  nextTask: TaskRecordSchema.optional(),
-})
-
 export type TaskRecordDTO = z.infer<typeof TaskRecordSchema>
-export type TaskWithCommentCountDTO = z.infer<
-  typeof TaskWithCommentCountSchema
->
-export type MyTaskDTO = z.infer<typeof MyTaskSchema>
-export type TaskStatusResultDTO = z.infer<typeof TaskStatusResultSchema>
 
 // ---------- Assignment-era task schemas ----------
 
@@ -198,6 +171,11 @@ export const UpdateTaskV2Schema = TaskFormBaseSchema.extend({
   taskId: z.uuid(),
 }).superRefine(refineTaskWindow)
 
+/**
+ * The detail view's date columns are `sql<>`-typed, so drizzle hands them
+ * back as the driver's raw timestamp strings instead of Dates: every schema
+ * that validates a view row coerces them.
+ */
 export const TaskAssignmentSchema = z.object({
   id: z.string(),
   taskId: z.string(),
@@ -207,8 +185,8 @@ export const TaskAssignmentSchema = z.object({
   userImage: z.string().nullable(),
   status: z.enum(TASK_STATUSES),
   comment: z.string().nullable(),
-  startDate: z.date().nullable(),
-  endDate: z.date().nullable(),
+  startDate: z.coerce.date().nullable(),
+  endDate: z.coerce.date().nullable(),
 })
 
 export const TaskRecordV2Schema = z.object({
@@ -235,6 +213,9 @@ export const TaskWithAssignmentsSchema = TaskRecordV2Schema.extend({
   commentCount: z.number(),
 })
 
+export const MyTasksTabSchema = z.enum(["active", "past"])
+export type MyTasksTab = z.infer<typeof MyTasksTabSchema>
+
 export const MyAssignmentSchema = z.object({
   assignmentId: z.string(),
   taskId: z.string(),
@@ -248,8 +229,8 @@ export const MyAssignmentSchema = z.object({
   role: z.enum(["owner", "admin", "collaborator"]),
   status: z.enum(TASK_STATUSES),
   comment: z.string().nullable(),
-  startDate: z.date().nullable(),
-  endDate: z.date().nullable(),
+  startDate: z.coerce.date().nullable(),
+  endDate: z.coerce.date().nullable(),
   commentCount: z.number(),
 })
 

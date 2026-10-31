@@ -1,8 +1,7 @@
 "use server"
 
-import { createNextRoutineTask } from "@/actions/routines"
 import { db } from "@/lib/drizzle/client"
-import type { Task, TaskStatus } from "@/lib/drizzle/schema"
+import type { TaskStatus } from "@/lib/drizzle/schema"
 import {
   projectMembershipTable,
   projectsTable,
@@ -21,14 +20,12 @@ import { SuccessSchema } from "@/actions/schemas/common"
 import {
   ALL_TASK_STATUSES,
   AssignmentStatusResultSchema,
-  CollaboratorStatusSchema,
   COLLABORATOR_TASK_STATUSES,
   CreateTaskV2Schema,
-  MyTaskSchema,
-  OwnerStatusSchema,
+  MyAssignmentSchema,
+  MyTasksTabSchema,
   TaskAssignmentSchema,
   TaskPrioritySchema,
-  TaskStatusResultSchema,
   TaskWithAssignmentsSchema,
   UpdateTaskV2Schema,
   type TaskAssignmentDTO,
@@ -46,7 +43,7 @@ import {
   toTaskAssignmentDTO,
 } from "@/lib/tasks/assignments"
 import { computeNextOccurrence } from "@/lib/tasks/recurrence"
-import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm"
 import { z } from "zod"
 
 const ASSIGNMENT_VIEW_COLUMNS = {
@@ -196,110 +193,125 @@ export const getTasks = projectAction(
   })
 
 export const getMyTasks = sessionAction
-  .inputSchema(
-    z.object({
-      statusFilter: z.string().optional(),
-      projectIdFilter: z.string().optional(),
-    })
-  )
+  .inputSchema(z.object({ view: MyTasksTabSchema }))
   .metadata({})
-  .outputSchema(z.array(MyTaskSchema))
+  .outputSchema(z.array(MyAssignmentSchema))
   .action(async ({ parsedInput, ctx }) => {
-    const { statusFilter, projectIdFilter } = parsedInput
-    const session = ctx.session
+    const { view } = parsedInput
+    const userId = ctx.session.user.id
 
-    const conditions = [eq(tasksTable.assigneeId, session.user.id)]
-    if (statusFilter) {
-      if (
-        (ALL_TASK_STATUSES as readonly string[]).includes(statusFilter)
-      ) {
-        conditions.push(
-          eq(tasksTable.status, statusFilter as TaskStatus)
+    /**
+     * Drizzle emits the detail view's columns unqualified, so the view query
+     * runs on its own: joining `project` (status, start_date...) or
+     * `project_membership` (user_id...) here would make the statement
+     * ambiguous. Projects and comment counts come back as keyed lookups.
+     */
+    const viewRows = await db
+      .select({
+        assignmentId: taskAssignmentDetailView.assignmentId,
+        taskId: taskAssignmentDetailView.taskId,
+        projectId: taskAssignmentDetailView.projectId,
+        name: taskAssignmentDetailView.taskName,
+        description: taskAssignmentDetailView.taskDescription,
+        priority: taskAssignmentDetailView.taskPriority,
+        status: taskAssignmentDetailView.status,
+        comment: taskAssignmentDetailView.comment,
+        startDate: taskAssignmentDetailView.startDate,
+        endDate: taskAssignmentDetailView.endDate,
+      })
+      .from(taskAssignmentDetailView)
+      .where(eq(taskAssignmentDetailView.userId, userId))
+      .orderBy(
+        view === "past"
+          ? desc(taskAssignmentDetailView.endDate)
+          : asc(taskAssignmentDetailView.startDate)
+      )
+
+    if (viewRows.length === 0) return []
+
+    const projectIds = [
+      ...new Set(viewRows.map((row) => row.projectId)),
+    ]
+    const taskIds = [...new Set(viewRows.map((row) => row.taskId))]
+
+    const [projectRows, countRows] = await Promise.all([
+      db
+        .select({
+          id: projectsTable.id,
+          projectName: projectsTable.name,
+          projectColor: projectsTable.color,
+          primaryOwnerId: projectsTable.primaryOwnerId,
+          projectOwnerName: sql<
+            string | null
+          >`coalesce(${usersTable.name}, ${usersTable.email})`,
+          memberRole: projectMembershipTable.role,
+        })
+        .from(projectsTable)
+        .leftJoin(
+          usersTable,
+          eq(projectsTable.primaryOwnerId, usersTable.id)
         )
-      }
-    }
-    if (projectIdFilter) {
-      conditions.push(eq(tasksTable.projectId, projectIdFilter))
-    }
+        .leftJoin(
+          projectMembershipTable,
+          and(
+            eq(projectMembershipTable.projectId, projectsTable.id),
+            eq(projectMembershipTable.userId, userId)
+          )
+        )
+        .where(inArray(projectsTable.id, projectIds)),
+      db
+        .select({
+          taskId: taskCommentsTable.taskId,
+          cnt: sql<number>`count(*)::int`,
+        })
+        .from(taskCommentsTable)
+        .where(inArray(taskCommentsTable.taskId, taskIds))
+        .groupBy(taskCommentsTable.taskId),
+    ])
 
-    const where = and(...conditions)
+    const projectsById = new Map(
+      projectRows.map((row) => [row.id, row])
+    )
+    const countsByTask = new Map(
+      countRows.map((row) => [row.taskId, row.cnt])
+    )
 
-    const commentCounts = db
-      .select({
-        taskId: taskCommentsTable.taskId,
-        cnt: sql<number>`count(*)::int`.as("cnt"),
-      })
-      .from(taskCommentsTable)
-      .groupBy(taskCommentsTable.taskId)
-      .as("task_comment_counts")
+    const isOpen = (status: string) =>
+      !isTerminalStatus(status as TaskStatus)
 
-    const primaryOwners = db
-      .select({
-        projectId: tasksTable.projectId,
-        userId: sql<string>`min(${usersTable.id})`.as("userId"),
-      })
-      .from(tasksTable)
-      .groupBy(tasksTable.projectId)
-      .as("primary_owners")
-
-    const ownerUsers = db
-      .select({
-        userId: usersTable.id,
-        userName: usersTable.name,
-        userEmail: usersTable.email,
-      })
-      .from(usersTable)
-      .as("owner_users")
-
-    return db
-      .select({
-        id: tasksTable.id,
-        projectId: tasksTable.projectId,
-        projectName: projectsTable.name,
-        projectColor: projectsTable.color,
-        projectOwnerName: sql<
-          string | null
-        >`coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail})`,
-        name: tasksTable.name,
-        description: tasksTable.description,
-        cost: tasksTable.cost,
-        status: tasksTable.status,
-        priority: tasksTable.priority,
-        routineId: tasksTable.routineId,
-        dueDate: tasksTable.dueDate,
-        startDate: tasksTable.startDate,
-        endDate: tasksTable.endDate,
-        recurrence: tasksTable.recurrence,
-        interval: tasksTable.interval,
-        daysOfWeek: tasksTable.daysOfWeek,
-        startTime: tasksTable.startTime,
-        endTime: tasksTable.endTime,
-        assigneeId: tasksTable.assigneeId,
-        assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
-        isOwner: sql<boolean>`coalesce((
-        select true from ${projectsTable}
-        where ${projectsTable.id} = ${tasksTable.projectId}
-        and ${projectsTable.primaryOwnerId} = ${session.user.id}
-        limit 1
-      ), false)`,
-        commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
-        createdAt: tasksTable.createdAt,
-        updatedAt: tasksTable.updatedAt,
-      })
-      .from(tasksTable)
-      .innerJoin(
-        projectsTable,
-        eq(tasksTable.projectId, projectsTable.id)
+    const merged = viewRows.map((row) => {
+      const project = projectsById.get(row.projectId)
+      const isOwner = project?.primaryOwnerId === userId
+      // A caller with no project row left still shows in history as a
+      // collaborator: their past work is not rewritten by a role change.
+      const role = isOwner
+        ? ("owner" as const)
+        : project?.memberRole ?? ("collaborator" as const)
+      const hasAccess = Boolean(
+        project && (isOwner || project.memberRole !== null)
       )
-      .leftJoin(commentCounts, eq(tasksTable.id, commentCounts.taskId))
-      .leftJoin(usersTable, eq(tasksTable.assigneeId, usersTable.id))
-      .leftJoin(
-        primaryOwners,
-        eq(tasksTable.projectId, primaryOwners.projectId)
-      )
-      .leftJoin(ownerUsers, eq(primaryOwners.userId, ownerUsers.userId))
-      .where(where)
-      .orderBy(desc(tasksTable.createdAt))
+      return { row, project, role, hasAccess }
+    })
+
+    const visible =
+      view === "active"
+        ? // An open assignment is only actionable while the caller still has
+          // a place on the project; a removed collaborator's row disappears.
+          merged.filter((m) => isOpen(m.row.status) && m.hasAccess)
+        : // Terminal work stays visible even after the caller leaves the
+          // project, so their history outlives the membership.
+          merged.filter((m) => !isOpen(m.row.status))
+
+    return visible.map(({ row, project, role }) =>
+      MyAssignmentSchema.parse({
+        ...row,
+        projectName: project?.projectName ?? "",
+        projectColor: project?.projectColor ?? "",
+        projectOwnerName: project?.projectOwnerName ?? null,
+        role,
+        commentCount: countsByTask.get(row.taskId) ?? 0,
+      })
+    )
   })
 
 // ---------- Mutations ----------
@@ -643,93 +655,6 @@ export const updateAssignmentComment = projectAction(
     if (!viewRow) returnActionError("NOT_FOUND")
 
     return toTaskAssignmentDTO(viewRow)
-  })
-
-export const updateTaskStatus = projectAction(
-  z.object({
-    projectId: z.uuid(),
-    taskId: z.uuid(),
-    status: z.string(),
-  })
-)
-  .metadata({ revalidate: ["/app/proyectos/:projectId"] })
-  .outputSchema(TaskStatusResultSchema)
-  .action(async ({ parsedInput, ctx }) => {
-    const { projectId, taskId, status } = parsedInput
-
-    const currentTask = await db
-      .select({
-        status: tasksTable.status,
-        assigneeId: tasksTable.assigneeId,
-        routineId: tasksTable.routineId,
-        dueDate: tasksTable.dueDate,
-      })
-      .from(tasksTable)
-      .where(
-        and(
-          eq(tasksTable.id, taskId),
-          eq(tasksTable.projectId, projectId)
-        )
-      )
-      .then((rows) => rows[0])
-
-    if (!currentTask) {
-      returnActionError("NOT_FOUND")
-    }
-
-    const isOwner = ctx.isProjectOwner
-
-    if (!isOwner) {
-      if (
-        currentTask.status === "done" ||
-        currentTask.status === "cancelled"
-      ) {
-        returnActionError("FORBIDDEN")
-      }
-
-      const parsed = CollaboratorStatusSchema.safeParse(status)
-      if (!parsed.success) {
-        returnActionError("VALIDATION_FAILED")
-      }
-      await db
-        .update(tasksTable)
-        .set({ status: parsed.data })
-        .where(
-          and(
-            eq(tasksTable.id, taskId),
-            eq(tasksTable.projectId, projectId)
-          )
-        )
-    } else {
-      const parsed = OwnerStatusSchema.safeParse(status)
-      if (!parsed.success) {
-        returnActionError("VALIDATION_FAILED")
-      }
-      await db
-        .update(tasksTable)
-        .set({ status: parsed.data })
-        .where(
-          and(
-            eq(tasksTable.id, taskId),
-            eq(tasksTable.projectId, projectId)
-          )
-        )
-    }
-
-    let nextTask: Task | undefined
-    if (
-      currentTask.routineId &&
-      (status === "done" || status === "cancelled")
-    ) {
-      const spawned = await createNextRoutineTask({
-        projectId,
-        routineId: currentTask.routineId,
-        after: currentTask.dueDate,
-      })
-      if (spawned.data?.spawned) nextTask = spawned.data.task
-    }
-
-    return { nextTask }
   })
 
 export const updateTaskPriority = projectAction(

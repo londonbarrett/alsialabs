@@ -403,7 +403,10 @@
   "myTasks": {
     "subtitle": "All tasks assigned to you across all projects.",
     "allProjects": "All projects",
-    "noTasks": "No tasks assigned to you"
+    "noTasks": "No tasks assigned to you",
+    "active": "Active",
+    "past": "Past",
+    "noPast": "No finished tasks yet"
   },
   "myInvoices": {
     "subtitle": "View your invoices, line items, and payment history.",

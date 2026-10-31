@@ -174,10 +174,9 @@ export const deleteRoutine = projectAction(DeleteRoutineSchema)
 
 /**
  * Spawns the next open instance of a routine. Called server-to-server from
- * `createRoutine` and from `updateTaskStatus` (both already revalidate the
- * project page, so this action declares no `revalidate` metadata). The
- * routine's project — not a caller-supplied one — decides access, and only
- * owners may spawn.
+ * `createRoutine` (which already revalidates the project page, so this action
+ * declares no `revalidate` metadata). The routine's project — not a
+ * caller-supplied one — decides access, and only owners may spawn.
  */
 export const createNextRoutineTask = projectAction(
   SpawnRoutineTaskSchema
