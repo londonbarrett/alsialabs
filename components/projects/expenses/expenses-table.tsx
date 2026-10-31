@@ -2,7 +2,7 @@
 
 import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
 import type { ProjectInvoiceDTO } from "@/actions/schemas/invoice"
-import type { TaskWithCommentCountDTO } from "@/actions/schemas/task"
+import type { TaskWithAssignmentsDTO } from "@/actions/schemas/task"
 import { ActionMenu } from "@/components/common/action-menu"
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { Money } from "@/components/common/money"
@@ -24,7 +24,7 @@ type CombinedExpenseRow =
   | {
       key: string
       type: "task"
-      task: TaskWithCommentCountDTO
+      task: TaskWithAssignmentsDTO
       date: string
     }
   | {
@@ -45,7 +45,7 @@ interface ExpensesTableProps {
   canEdit: boolean
   canDelete: boolean
   onEditExpense: (expense: ExpenseWithCategoryDTO) => void
-  onEditTask: (task: TaskWithCommentCountDTO) => void
+  onEditTask: (task: TaskWithAssignmentsDTO) => void
   onDeleteExpense: (expenseId: string) => void
   onDeleteTask: (taskId: string) => void
   onUnbindInvoice?: (invoiceId: string) => void

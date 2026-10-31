@@ -2,10 +2,12 @@
 
 import { createNextRoutineTask } from "@/actions/routines"
 import { db } from "@/lib/drizzle/client"
-import type { Task } from "@/lib/drizzle/schema"
+import type { Task, TaskStatus } from "@/lib/drizzle/schema"
 import {
-  projectOwnersTable,
+  projectMembershipTable,
   projectsTable,
+  taskAssignmentDetailView,
+  taskAssignmentsTable,
   taskCommentsTable,
   tasksTable,
   usersTable,
@@ -18,18 +20,120 @@ import {
 import { SuccessSchema } from "@/actions/schemas/common"
 import {
   ALL_TASK_STATUSES,
+  AssignmentStatusResultSchema,
   CollaboratorStatusSchema,
-  CreateTaskSchema,
+  COLLABORATOR_TASK_STATUSES,
+  CreateTaskV2Schema,
   MyTaskSchema,
   OwnerStatusSchema,
   TaskPrioritySchema,
   TaskStatusResultSchema,
-  TaskWithCommentCountSchema,
-  type TaskStatus,
-  UpdateTaskSchema,
+  TaskWithAssignmentsSchema,
+  UpdateTaskV2Schema,
+  type TaskAssignmentDTO,
+  type TaskRecordV2DTO,
 } from "@/actions/schemas/task"
-import { and, desc, eq, sql } from "drizzle-orm"
+import {
+  canChangeAnyAssignment,
+  canManageWork,
+  canViewProject,
+  isTerminalStatus,
+} from "@/lib/project-roles"
+import {
+  firstAssignmentWindow,
+  toTaskAssignmentDTO,
+} from "@/lib/tasks/assignments"
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm"
 import { z } from "zod"
+
+const ASSIGNMENT_VIEW_COLUMNS = {
+  assignmentId: taskAssignmentDetailView.assignmentId,
+  taskId: taskAssignmentDetailView.taskId,
+  userId: taskAssignmentDetailView.userId,
+  status: taskAssignmentDetailView.status,
+  comment: taskAssignmentDetailView.comment,
+  startDate: taskAssignmentDetailView.startDate,
+  endDate: taskAssignmentDetailView.endDate,
+  userName: taskAssignmentDetailView.userName,
+  userEmail: taskAssignmentDetailView.userEmail,
+  userImage: taskAssignmentDetailView.userImage,
+}
+
+function toTaskRecord(
+  row: typeof tasksTable.$inferSelect
+): TaskRecordV2DTO {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    name: row.name,
+    description: row.description,
+    priority: row.priority,
+    startDate: row.startDate,
+    endDate: row.endDate,
+    recurrence: row.recurrence,
+    interval: row.interval,
+    daysOfWeek: row.daysOfWeek,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    cost: row.cost,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+}
+
+async function assertAssignees(
+  projectId: string,
+  userIds: string[]
+): Promise<void> {
+  if (userIds.length === 0) return
+
+  const [project, members] = await Promise.all([
+    db
+      .select({ primaryOwnerId: projectsTable.primaryOwnerId })
+      .from(projectsTable)
+      .where(eq(projectsTable.id, projectId))
+      .then((rows) => rows[0]),
+    db
+      .select({ userId: projectMembershipTable.userId })
+      .from(projectMembershipTable)
+      .where(eq(projectMembershipTable.projectId, projectId)),
+  ])
+
+  if (!project) returnActionError("NOT_FOUND")
+
+  const allowed = new Set([
+    project!.primaryOwnerId,
+    ...members.map((m) => m.userId),
+  ])
+  if (userIds.some((id) => !allowed.has(id))) {
+    returnActionError("FORBIDDEN")
+  }
+}
+
+async function loadTaskWithAssignments(
+  taskId: string
+): Promise<{
+  record: TaskRecordV2DTO
+  assignments: TaskAssignmentDTO[]
+}> {
+  const row = await db
+    .select()
+    .from(tasksTable)
+    .where(eq(tasksTable.id, taskId))
+    .then((rows) => rows[0])
+
+  if (!row) returnActionError("NOT_FOUND")
+
+  const assignmentRows = await db
+    .select(ASSIGNMENT_VIEW_COLUMNS)
+    .from(taskAssignmentDetailView)
+    .where(eq(taskAssignmentDetailView.taskId, taskId))
+
+  return {
+    record: toTaskRecord(row!),
+    assignments: assignmentRows.map(toTaskAssignmentDTO),
+  }
+}
 
 // ---------- Queries ----------
 
@@ -37,48 +141,55 @@ export const getTasks = projectAction(
   z.object({ projectId: z.uuid() })
 )
   .metadata({})
-  .outputSchema(z.array(TaskWithCommentCountSchema))
-  .action(async ({ parsedInput }) => {
+  .outputSchema(z.array(TaskWithAssignmentsSchema))
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canViewProject(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     const { projectId } = parsedInput
 
-    const commentCounts = db
-      .select({
-        taskId: taskCommentsTable.taskId,
-        cnt: sql<number>`count(*)::int`.as("cnt"),
-      })
-      .from(taskCommentsTable)
-      .groupBy(taskCommentsTable.taskId)
-      .as("task_comment_counts")
-
-    return db
-      .select({
-        id: tasksTable.id,
-        projectId: tasksTable.projectId,
-        name: tasksTable.name,
-        description: tasksTable.description,
-        cost: tasksTable.cost,
-        status: tasksTable.status,
-        priority: tasksTable.priority,
-        routineId: tasksTable.routineId,
-        dueDate: tasksTable.dueDate,
-        startDate: tasksTable.startDate,
-        endDate: tasksTable.endDate,
-        recurrence: tasksTable.recurrence,
-        interval: tasksTable.interval,
-        daysOfWeek: tasksTable.daysOfWeek,
-        startTime: tasksTable.startTime,
-        endTime: tasksTable.endTime,
-        assigneeId: tasksTable.assigneeId,
-        assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
-        createdAt: tasksTable.createdAt,
-        updatedAt: tasksTable.updatedAt,
-        commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
-      })
+    const taskRows = await db
+      .select()
       .from(tasksTable)
-      .leftJoin(commentCounts, eq(tasksTable.id, commentCounts.taskId))
-      .leftJoin(usersTable, eq(tasksTable.assigneeId, usersTable.id))
       .where(eq(tasksTable.projectId, projectId))
       .orderBy(desc(tasksTable.createdAt))
+
+    const ids = taskRows.map((t) => t.id)
+    if (ids.length === 0) return []
+
+    const [assignmentRows, commentRows] = await Promise.all([
+      db
+        .select(ASSIGNMENT_VIEW_COLUMNS)
+        .from(taskAssignmentDetailView)
+        .where(inArray(taskAssignmentDetailView.taskId, ids)),
+      db
+        .select({
+          taskId: taskCommentsTable.taskId,
+          cnt: sql<number>`count(*)::int`,
+        })
+        .from(taskCommentsTable)
+        .where(inArray(taskCommentsTable.taskId, ids))
+        .groupBy(taskCommentsTable.taskId),
+    ])
+
+    const assignmentsByTask = new Map<
+      string,
+      TaskAssignmentDTO[]
+    >()
+    for (const row of assignmentRows) {
+      const list = assignmentsByTask.get(row.taskId) ?? []
+      list.push(toTaskAssignmentDTO(row))
+      assignmentsByTask.set(row.taskId, list)
+    }
+
+    const counts = new Map(commentRows.map((r) => [r.taskId, r.cnt]))
+
+    return taskRows.map((row) => ({
+      ...toTaskRecord(row),
+      assignments: assignmentsByTask.get(row.id) ?? [],
+      commentCount: counts.get(row.id) ?? 0,
+    }))
   })
 
 export const getMyTasks = sessionAction
@@ -121,13 +232,11 @@ export const getMyTasks = sessionAction
 
     const primaryOwners = db
       .select({
-        projectId: projectOwnersTable.projectId,
-        userId: sql<string>`min(${projectOwnersTable.userId})`.as(
-          "userId"
-        ),
+        projectId: tasksTable.projectId,
+        userId: sql<string>`min(${usersTable.id})`.as("userId"),
       })
-      .from(projectOwnersTable)
-      .groupBy(projectOwnersTable.projectId)
+      .from(tasksTable)
+      .groupBy(tasksTable.projectId)
       .as("primary_owners")
 
     const ownerUsers = db
@@ -165,9 +274,9 @@ export const getMyTasks = sessionAction
         assigneeId: tasksTable.assigneeId,
         assigneeName: sql<string>`coalesce(${usersTable.name}, ${usersTable.email})`,
         isOwner: sql<boolean>`coalesce((
-        select true from ${projectOwnersTable}
-        where ${projectOwnersTable.projectId} = ${tasksTable.projectId}
-        and ${projectOwnersTable.userId} = ${session.user.id}
+        select true from ${projectsTable}
+        where ${projectsTable.id} = ${tasksTable.projectId}
+        and ${projectsTable.primaryOwnerId} = ${session.user.id}
         limit 1
       ), false)`,
         commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
@@ -192,11 +301,11 @@ export const getMyTasks = sessionAction
 
 // ---------- Mutations ----------
 
-export const createTask = projectAction(CreateTaskSchema)
+export const createTask = projectAction(CreateTaskV2Schema)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
-  .outputSchema(TaskWithCommentCountSchema)
+  .outputSchema(TaskWithAssignmentsSchema)
   .action(async ({ parsedInput, ctx }) => {
-    if (!ctx.isProjectOwner) {
+    if (!canManageWork(ctx.projectRole)) {
       returnActionError("FORBIDDEN")
     }
 
@@ -204,39 +313,66 @@ export const createTask = projectAction(CreateTaskSchema)
       projectId,
       name,
       description,
-      cost,
-      status,
       priority,
-      dueDate,
-      assigneeId,
+      assigneeIds,
+      startDate,
+      endDate,
+      recurrence,
+      interval,
+      daysOfWeek,
+      startTime,
+      endTime,
+      cost,
     } = parsedInput
 
-    const [taskRow] = await db
-      .insert(tasksTable)
-      .values({
-        projectId,
-        name,
-        description: description || null,
-        cost: cost || null,
-        status,
-        priority: priority ?? null,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        assigneeId: assigneeId ?? null,
-      })
-      .returning()
+    const uniqueIds = [...new Set(assigneeIds)]
+    await assertAssignees(projectId, uniqueIds)
 
-    return {
-      ...taskRow,
-      assigneeName: null as string | null,
-      commentCount: 0,
-    }
+    let createdId = ""
+    await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(tasksTable)
+        .values({
+          projectId,
+          name,
+          description: description || null,
+          priority: priority ?? null,
+          startDate: recurrence ? null : new Date(startDate!),
+          endDate: recurrence ? null : new Date(endDate!),
+          recurrence: recurrence ?? null,
+          interval,
+          daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
+          startTime: startTime || null,
+          endTime: endTime || null,
+          cost: cost || null,
+        })
+        .returning()
+
+      createdId = row.id
+
+      if (uniqueIds.length > 0) {
+        const window = firstAssignmentWindow(row)
+        await tx.insert(taskAssignmentsTable).values(
+          uniqueIds.map((userId) => ({
+            taskId: row.id,
+            userId,
+            status: "todo" as const,
+            startDate: window.startDate,
+            endDate: window.endDate,
+          }))
+        )
+      }
+    })
+
+    const loaded = await loadTaskWithAssignments(createdId)
+    return { ...loaded.record, assignments: loaded.assignments, commentCount: 0 }
   })
 
-export const updateTask = projectAction(UpdateTaskSchema)
+export const updateTask = projectAction(UpdateTaskV2Schema)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
-  .outputSchema(TaskWithCommentCountSchema)
+  .outputSchema(TaskWithAssignmentsSchema)
   .action(async ({ parsedInput, ctx }) => {
-    if (!ctx.isProjectOwner) {
+    if (!canManageWork(ctx.projectRole)) {
       returnActionError("FORBIDDEN")
     }
 
@@ -245,23 +381,35 @@ export const updateTask = projectAction(UpdateTaskSchema)
       taskId,
       name,
       description,
-      cost,
-      status,
       priority,
-      dueDate,
-      assigneeId,
+      assigneeIds,
+      startDate,
+      endDate,
+      recurrence,
+      interval,
+      daysOfWeek,
+      startTime,
+      endTime,
+      cost,
     } = parsedInput
 
-    const [taskRow] = await db
+    const uniqueIds = [...new Set(assigneeIds)]
+    await assertAssignees(projectId, uniqueIds)
+
+    const [row] = await db
       .update(tasksTable)
       .set({
         name,
         description: description || null,
-        cost: cost || null,
-        status,
         priority: priority ?? null,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        assigneeId: assigneeId ?? null,
+        startDate: recurrence ? null : new Date(startDate!),
+        endDate: recurrence ? null : new Date(endDate!),
+        recurrence: recurrence ?? null,
+        interval,
+        daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
+        startTime: startTime || null,
+        endTime: endTime || null,
+        cost: cost || null,
       })
       .where(
         and(
@@ -271,12 +419,123 @@ export const updateTask = projectAction(UpdateTaskSchema)
       )
       .returning()
 
-    if (!taskRow) returnActionError("NOT_FOUND")
+    if (!row) returnActionError("NOT_FOUND")
+
+    const openAssignments = await db
+      .select({
+        id: taskAssignmentsTable.id,
+        userId: taskAssignmentsTable.userId,
+      })
+      .from(taskAssignmentsTable)
+      .where(
+        and(
+          eq(taskAssignmentsTable.taskId, taskId),
+          notInArray(taskAssignmentsTable.status, [
+            "done",
+            "cancelled",
+          ])
+        )
+      )
+
+    const openUserIds = new Set(openAssignments.map((a) => a.userId))
+    const toAdd = uniqueIds.filter((id) => !openUserIds.has(id))
+    const toRemove = openAssignments
+      .filter((a) => !uniqueIds.includes(a.userId))
+      .map((a) => a.id)
+
+    await db.transaction(async (tx) => {
+      if (toRemove.length > 0) {
+        await tx
+          .delete(taskAssignmentsTable)
+          .where(inArray(taskAssignmentsTable.id, toRemove))
+      }
+      if (toAdd.length > 0) {
+        const window = firstAssignmentWindow(row)
+        await tx.insert(taskAssignmentsTable).values(
+          toAdd.map((userId) => ({
+            taskId,
+            userId,
+            status: "todo" as const,
+            startDate: window.startDate,
+            endDate: window.endDate,
+          }))
+        )
+      }
+    })
+
+    const loaded = await loadTaskWithAssignments(taskId)
+    return { ...loaded.record, assignments: loaded.assignments, commentCount: 0 }
+  })
+
+export const updateAssignmentStatus = projectAction(
+  z.object({
+    projectId: z.uuid(),
+    assignmentId: z.uuid(),
+    status: z.string(),
+  })
+)
+  .metadata({})
+  .outputSchema(AssignmentStatusResultSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { projectId, assignmentId, status } = parsedInput
+
+    const row = await db
+      .select({
+        id: taskAssignmentsTable.id,
+        userId: taskAssignmentsTable.userId,
+        status: taskAssignmentsTable.status,
+      })
+      .from(taskAssignmentsTable)
+      .innerJoin(
+        tasksTable,
+        eq(taskAssignmentsTable.taskId, tasksTable.id)
+      )
+      .where(
+        and(
+          eq(taskAssignmentsTable.id, assignmentId),
+          eq(tasksTable.projectId, projectId)
+        )
+      )
+      .then((rows) => rows[0])
+
+    if (!row) returnActionError("NOT_FOUND")
+
+    if (!canChangeAnyAssignment(ctx.projectRole)) {
+      if (row.userId !== ctx.session.user.id) {
+        returnActionError("FORBIDDEN")
+      }
+      if (isTerminalStatus(row.status)) {
+        returnActionError("FORBIDDEN")
+      }
+      if (
+        !(COLLABORATOR_TASK_STATUSES as readonly string[]).includes(
+          status
+        )
+      ) {
+        returnActionError("VALIDATION_FAILED")
+      }
+    } else if (
+      !(ALL_TASK_STATUSES as readonly string[]).includes(status)
+    ) {
+      returnActionError("VALIDATION_FAILED")
+    }
+
+    await db
+      .update(taskAssignmentsTable)
+      .set({ status: status as TaskStatus })
+      .where(eq(taskAssignmentsTable.id, assignmentId))
+
+    const viewRow = await db
+      .select(ASSIGNMENT_VIEW_COLUMNS)
+      .from(taskAssignmentDetailView)
+      .where(eq(taskAssignmentDetailView.assignmentId, assignmentId))
+      .then((rows) => rows[0])
+
+    if (!viewRow) returnActionError("NOT_FOUND")
 
     return {
-      ...taskRow,
-      assigneeName: null as string | null,
-      commentCount: 0,
+      assignment: toTaskAssignmentDTO(viewRow),
+      nextAssignment: null,
     }
   })
 
@@ -377,7 +636,7 @@ export const updateTaskPriority = projectAction(
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
-    if (!ctx.isProjectOwner) {
+    if (!canManageWork(ctx.projectRole)) {
       returnActionError("FORBIDDEN")
     }
 
@@ -409,7 +668,7 @@ export const deleteTask = projectAction(
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
-    if (!ctx.isProjectOwner) {
+    if (!canManageWork(ctx.projectRole)) {
       returnActionError("FORBIDDEN")
     }
 

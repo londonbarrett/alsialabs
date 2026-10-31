@@ -1,7 +1,7 @@
 "use client"
 
 import { Dialog } from "@/components/common/dialog"
-import type { Task } from "@/lib/drizzle/schema"
+import type { TaskWithAssignmentsDTO } from "@/actions/schemas/task"
 import { useTranslations } from "next-intl"
 import { TaskForm } from "./task-form"
 
@@ -9,14 +9,14 @@ export interface TaskFormValues {
   name: string
   description: string
   cost: string
-  status: string
   priority: string | null
-  dueDate: string | null
-  assigneeId: string | null
+  assigneeIds: string[]
+  startDate: string | null
+  endDate: string | null
 }
 
 interface TaskDialogProps {
-  task?: Task
+  task?: TaskWithAssignmentsDTO
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: TaskFormValues) => void

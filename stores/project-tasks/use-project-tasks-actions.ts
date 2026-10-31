@@ -3,7 +3,7 @@
 import {
   type TaskPriorityDTO,
   type TaskStatus,
-  type TaskWithCommentCountDTO,
+  type TaskWithAssignmentsDTO,
 } from "@/actions/schemas/task"
 import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 import {
@@ -15,9 +15,9 @@ import {
 import {
   createTask as createTaskAction,
   deleteTask as deleteTaskAction,
+  updateAssignmentStatus as updateAssignmentStatusAction,
   updateTask as updateTaskAction,
   updateTaskPriority as updateTaskPriorityAction,
-  updateTaskStatus as updateTaskStatusAction,
 } from "@/actions/tasks"
 import type { TaskFormValues } from "@/components/projects/task-dialog"
 import { useSettle } from "@/hooks/use-settle"
@@ -28,30 +28,27 @@ import { useCallback } from "react"
 import { toast } from "sonner"
 import { useProjectTasksStore } from "./project-tasks-store"
 
-function toTaskPayload(projectId: string, values: TaskFormValues) {
+function toTaskPayload(
+  projectId: string,
+  values: TaskFormValues
+) {
   return {
     projectId,
     name: values.name,
     description: values.description,
-    cost: values.cost,
-    status: values.status as TaskStatus,
     priority: values.priority as TaskPriorityDTO,
-    dueDate: values.dueDate,
-    assigneeId: values.assigneeId,
+    assigneeIds: values.assigneeIds,
+    startDate: values.startDate,
+    endDate: values.endDate,
+    recurrence: null,
+    interval: 1,
+    daysOfWeek: [] as string[],
+    startTime: "",
+    endTime: "",
+    cost: values.cost,
   }
 }
 
-/**
- * Every project-task and project-task-comment mutation, so `tasks-card` and
- * `project-task-comments-panel` never import the actions directly. Runs
- * through the project tasks store (`ProjectTasksProvider`).
- *
- * `projectId` is a parameter rather than read from `useProjectContextState`,
- * because no store folder may import a sibling store folder. The seeded
- * `assigneeName` on the optimistic row is carried through to the authoritative
- * row, which also preserves `commentCount`: the task actions return a hardcoded
- * `0`, so trusting them would wipe the count on every edit.
- */
 export function useProjectTasksActions() {
   const t = useTranslations()
   const settle = useSettle()
@@ -62,13 +59,12 @@ export function useProjectTasksActions() {
   const { executeAsync: executeUpdate } = useAction(updateTaskAction)
   const { executeAsync: executeDelete } = useAction(deleteTaskAction)
   const { executeAsync: executeStatus } = useAction(
-    updateTaskStatusAction
+    updateAssignmentStatusAction
   )
   const { executeAsync: executePriority } = useAction(
     updateTaskPriorityAction
   )
 
-  /** Fetch, not mutation: pends and commits directly so no loading bar. */
   const loadComments = useCallback(
     async (projectId: string, taskId: string): Promise<void> => {
       try {
@@ -79,7 +75,6 @@ export function useProjectTasksActions() {
           .pend({ type: "setComments", taskId, comments })
         store.getState().commit(id)
       } catch (error) {
-        // `getTaskComments` throws an already-translated message.
         toast.error(
           error instanceof Error
             ? error.message
@@ -97,23 +92,23 @@ export function useProjectTasksActions() {
   }: {
     projectId: string
     values: TaskFormValues
-    optimisticTask: TaskWithCommentCountDTO
+    optimisticTask: TaskWithAssignmentsDTO
   }) {
     const result = await run(
       { type: "addTask", task: optimisticTask },
       () => executeCreate(toTaskPayload(projectId, values)),
       {
-        commitAction: (r) => ({
-          type: "replaceTempTask",
-          tempId: optimisticTask.id,
-          task: r.data
+        commitAction: (r) =>
+          r.data
             ? {
-                ...r.data,
-                assigneeName: optimisticTask.assigneeName,
-                commentCount: optimisticTask.commentCount,
+                type: "replaceTempTask",
+                tempId: optimisticTask.id,
+                task: {
+                  ...r.data,
+                  commentCount: optimisticTask.commentCount,
+                },
               }
-            : optimisticTask,
-        }),
+            : undefined,
       }
     )
     settle(result, t("projects.tasks.taskCreated"))
@@ -128,24 +123,24 @@ export function useProjectTasksActions() {
     projectId: string
     taskId: string
     values: TaskFormValues
-    optimisticTask: TaskWithCommentCountDTO
+    optimisticTask: TaskWithAssignmentsDTO
   }) {
     const result = await run(
       { type: "updateTask", task: optimisticTask },
       () =>
         executeUpdate({ ...toTaskPayload(projectId, values), taskId }),
       {
-        commitAction: (r) => ({
-          type: "replaceTempTask",
-          tempId: optimisticTask.id,
-          task: r.data
+        commitAction: (r) =>
+          r.data
             ? {
-                ...r.data,
-                assigneeName: optimisticTask.assigneeName,
-                commentCount: optimisticTask.commentCount,
+                type: "replaceTempTask",
+                tempId: optimisticTask.id,
+                task: {
+                  ...r.data,
+                  commentCount: optimisticTask.commentCount,
+                },
               }
-            : optimisticTask,
-        }),
+            : undefined,
       }
     )
     settle(result, t("projects.tasks.taskUpdated"))
@@ -158,39 +153,37 @@ export function useProjectTasksActions() {
     settle(result, t("projects.tasks.taskDeleted"))
   }
 
-  async function updateTaskStatus(
+  async function updateAssignmentStatus(
     projectId: string,
     taskId: string,
+    assignmentId: string,
     status: TaskStatus
   ) {
-    const changed = store
+    const current = store
       .getState()
-      .optimistic.tasks.find((t) => t.id === taskId)
+      .optimistic.tasks.find((task) => task.id === taskId)
+      ?.assignments.find((a) => a.id === assignmentId)
+    if (!current) return
 
     const result = await run(
-      { type: "updateTaskStatus", taskId, status },
-      () => executeStatus({ projectId, taskId, status }),
       {
-        // Completing a recurring task can spawn its next occurrence.
-        commitAction: (r) => {
-          const nextTask = r?.data?.nextTask
-          if (!nextTask) return undefined
-          return {
-            type: "addTask" as const,
-            task: {
-              ...nextTask,
-              assigneeName: changed?.assigneeName ?? null,
-              commentCount: 0,
-            },
-          }
-        },
+        type: "upsertAssignment",
+        taskId,
+        assignment: { ...current, status },
+      },
+      () => executeStatus({ projectId, assignmentId, status }),
+      {
+        commitAction: (r) =>
+          r.data
+            ? {
+                type: "upsertAssignment",
+                taskId,
+                assignment: r.data.assignment,
+              }
+            : undefined,
       }
     )
     settle(result, t("projects.tasks.statusChanged"))
-    const nextTask = result?.data?.nextTask
-    if (nextTask) {
-      toast.success(t("projects.routines.nextOccurrenceCreated"))
-    }
   }
 
   async function updateTaskPriority(
@@ -211,8 +204,6 @@ export function useProjectTasksActions() {
     content: string,
     authorId: string
   ) {
-    // `getTaskComments` only returns the author of each existing comment, so
-    // reuse it for the optimistic row rather than threading the user's profile.
     const existing = store
       .getState()
       .optimistic.commentsByTask[
@@ -269,8 +260,7 @@ export function useProjectTasksActions() {
   ) {
     const result = await run(
       { type: "deleteComment", taskId, commentId },
-      () =>
-        deleteCommentAction({ projectId, commentId, taskId })
+      () => deleteCommentAction({ projectId, commentId, taskId })
     )
     settle(result, t("projects.tasks.comments.commentDeleted"))
   }
@@ -280,7 +270,7 @@ export function useProjectTasksActions() {
     createTask,
     updateTask,
     deleteTask,
-    updateTaskStatus,
+    updateAssignmentStatus,
     updateTaskPriority,
     createComment,
     updateComment,

@@ -13,9 +13,9 @@ import { Progress } from "@/components/ui/progress"
 import type { Expense } from "@/lib/drizzle/schema"
 import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
 import {
+  type TaskAssignmentDTO,
   type TaskPriorityDTO,
-  type TaskStatus,
-  type TaskWithCommentCountDTO,
+  type TaskWithAssignmentsDTO,
 } from "@/actions/schemas/task"
 import { useExpensesActions } from "@/stores/expenses/use-expenses-actions"
 import { useExpensesState } from "@/stores/expenses/use-expenses-state"
@@ -65,44 +65,60 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     ExpenseWithCategoryDTO | undefined
   >()
   const [editingTask, setEditingTask] = useState<
-    TaskWithCommentCountDTO | undefined
+    TaskWithAssignmentsDTO | undefined
   >()
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
 
   function handleTaskSubmit(data: TaskFormValues) {
     setEditingTask(undefined)
     setTaskDialogOpen(false)
-    const taskStatus = data.status as TaskStatus
     const taskPriority = data.priority as TaskPriorityDTO
+    const tempId = editingTask?.id ?? `temp-${Date.now()}`
+    const startDate = data.startDate ? new Date(data.startDate) : null
+    const endDate = data.endDate ? new Date(data.endDate) : null
 
-    const optimisticTask: TaskWithCommentCountDTO = {
-      id: editingTask?.id ?? `temp-${Date.now()}`,
+    const assignments: TaskAssignmentDTO[] = data.assigneeIds.map(
+      (userId, index) => {
+        const member = members.find((m) => m.userId === userId)
+        const existing = editingTask?.assignments.find(
+          (a) => a.userId === userId
+        )
+        return {
+          id: existing?.id ?? `temp-assignment-${tempId}-${index}`,
+          taskId: tempId,
+          userId,
+          userName: member?.userName ?? existing?.userName ?? null,
+          userEmail: member?.userEmail ?? existing?.userEmail ?? null,
+          userImage: member?.userImage ?? existing?.userImage ?? null,
+          status: existing?.status ?? "todo",
+          comment: existing?.comment ?? null,
+          startDate: existing?.startDate ?? startDate,
+          endDate: existing?.endDate ?? endDate,
+        }
+      }
+    )
+
+    const optimisticTask: TaskWithAssignmentsDTO = {
+      id: tempId,
       projectId,
       name: data.name,
       description: data.description || null,
-      cost: data.cost || null,
-      status: taskStatus,
       priority: taskPriority,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      startDate: editingTask?.startDate ?? null,
-      endDate: editingTask?.endDate ?? null,
+      startDate,
+      endDate,
       recurrence: editingTask?.recurrence ?? null,
       interval: editingTask?.interval ?? 1,
       daysOfWeek: editingTask?.daysOfWeek ?? null,
       startTime: editingTask?.startTime ?? null,
       endTime: editingTask?.endTime ?? null,
-      routineId: editingTask?.routineId ?? null,
-      assigneeId: data.assigneeId,
-      assigneeName:
-        members.find((m) => m.userId === data.assigneeId)?.userName ??
-        editingTask?.assigneeName ??
-        null,
+      cost: data.cost || null,
+      createdAt: editingTask?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+      assignments,
       commentCount: editingTask
         ? (tasks.find((t) => t.id === editingTask.id)?.commentCount ??
           0)
         : 0,
-      createdAt: editingTask?.createdAt ?? new Date(),
-      updatedAt: new Date(),
     }
 
     if (editingTask) {
@@ -127,7 +143,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     setDialogOpen(true)
   }
 
-  function openEditTask(task: TaskWithCommentCountDTO) {
+  function openEditTask(task: TaskWithAssignmentsDTO) {
     setEditingTask(task)
     setTaskDialogOpen(true)
   }

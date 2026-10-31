@@ -1,6 +1,6 @@
 "use client"
 
-import type { TaskWithCommentCountDTO } from "@/actions/schemas/task"
+import type { TaskWithAssignmentsDTO } from "@/actions/schemas/task"
 import { TaskCommentPanel } from "@/components/common/task-comment-panel"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
@@ -26,7 +26,7 @@ export function ProjectTaskCommentsPanel({
    * Undefined only while the Sheet plays its close animation; the parent keeps
    * it mounted for ~300ms after clearing the selected task.
    */
-  task?: TaskWithCommentCountDTO
+  task?: TaskWithAssignmentsDTO
   open: boolean
   onOpenChange: (open: boolean) => void
   currentUserId: string

@@ -1,5 +1,6 @@
 "use client"
 
+import type { TaskPriorityDTO, TaskWithAssignmentsDTO } from "@/actions/schemas/task"
 import { MoneyInput } from "@/components/common/money-input"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,90 +10,79 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Task } from "@/lib/drizzle/schema"
-import type {
-  TaskPriorityDTO,
-  TaskStatus,
-} from "@/actions/schemas/task"
 import { combineDateTime } from "@/lib/util/schedule"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
+import { TaskAssigneeSelect } from "./task-assignee-select"
 import { TaskPrioritySelect } from "./task-priority-select"
-import { TaskStatusSelect } from "./task-status-select"
 
 function toDateInput(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
 }
 
 function toTimeInput(date: Date): string {
-  return `${String(date.getHours()).padStart(2, "0")}:${String(
-    date.getMinutes()
-  ).padStart(2, "0")}`
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
 }
 
 interface TaskFormProps {
-  task?: Task
+  task?: TaskWithAssignmentsDTO
   onSubmit: (data: {
     name: string
     description: string
     cost: string
-    status: string
     priority: string | null
-    dueDate: string | null
-    assigneeId: string | null
+    assigneeIds: string[]
+    startDate: string | null
+    endDate: string | null
   }) => void
   onCancel: () => void
 }
 
-const taskStatuses: TaskStatus[] = [
-  "todo",
-  "in_progress",
-  "in_review",
-  "blocked",
-  "done",
-]
-
 export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const t = useTranslations()
   const { members } = useProjectContextState()
+  const firstAssignment = task?.assignments[0]
   const [name, setName] = useState(task?.name ?? "")
-  const [description, setDescription] = useState(
-    task?.description ?? ""
-  )
+  const [description, setDescription] = useState(task?.description ?? "")
   const [cost, setCost] = useState(task?.cost ?? "")
-  const [status, setStatus] = useState<TaskStatus>(
-    task?.status ?? "todo"
-  )
   const [priority, setPriority] = useState<TaskPriorityDTO>(
     task?.priority ?? null
   )
-  const [dueDate, setDueDate] = useState(
-    task?.dueDate ? toDateInput(task.dueDate) : ""
+  const [assigneeId, setAssigneeId] = useState(
+    firstAssignment?.userId ?? ""
   )
-  const [dueTime, setDueTime] = useState(
-    task?.dueDate ? toTimeInput(task.dueDate) : ""
+  const [startDate, setStartDate] = useState(
+    task?.startDate ? toDateInput(task.startDate) : ""
   )
-  const [assigneeId, setAssigneeId] = useState<string>(
-    task?.assigneeId ?? ""
+  const [startTime, setStartTime] = useState(
+    task?.startDate ? toTimeInput(task.startDate) : ""
+  )
+  const [endDate, setEndDate] = useState(
+    task?.endDate ? toDateInput(task.endDate) : ""
+  )
+  const [endTime, setEndTime] = useState(
+    task?.endDate ? toTimeInput(task.endDate) : ""
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
-    if (!name.trim())
-      fieldErrors.name = t("projects.tasks.nameRequired")
+    if (!name.trim()) fieldErrors.name = t("projects.tasks.nameRequired")
+    if (startDate && endDate) {
+      const start = combineDateTime(startDate, startTime)
+      const end = combineDateTime(endDate, endTime)
+      if (start && end && end.getTime() < start.getTime()) {
+        fieldErrors.endDate = t("projects.routines.endBeforeStart")
+      } else if (
+        start &&
+        end &&
+        start.toDateString() !== end.toDateString()
+      ) {
+        fieldErrors.endDate = t("projects.routines.endBeforeStart")
+      }
+    }
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
   }
@@ -101,16 +91,17 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
     e.preventDefault()
     if (!validate()) return
 
-    const combinedDueDate = combineDateTime(dueDate, dueTime)
+    const start = combineDateTime(startDate, startTime)
+    const end = combineDateTime(endDate, endTime)
 
     onSubmit({
       name: name.trim(),
       description: description.trim(),
       cost: cost.trim(),
-      status,
       priority,
-      dueDate: combinedDueDate ? combinedDueDate.toISOString() : null,
-      assigneeId: assigneeId || null,
+      assigneeIds: assigneeId ? [assigneeId] : [],
+      startDate: start ? start.toISOString() : null,
+      endDate: end ? end.toISOString() : null,
     })
   }
 
@@ -129,7 +120,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
           />
           {errors.name && <FieldError>{errors.name}</FieldError>}
         </Field>
-        <Field data-invalid={!!errors.description || undefined}>
+        <Field>
           <FieldLabel htmlFor="description">
             {t("common.description")}
           </FieldLabel>
@@ -137,35 +128,11 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
             id="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            aria-invalid={!!errors.description || undefined}
           />
-          {errors.description && (
-            <FieldError>{errors.description}</FieldError>
-          )}
-        </Field>
-        <Field data-invalid={!!errors.cost || undefined}>
-          <FieldLabel htmlFor="cost">
-            {t("common.cost")}
-          </FieldLabel>
-          <MoneyInput
-            id="cost"
-            value={cost}
-            onChange={setCost}
-            aria-invalid={!!errors.cost || undefined}
-          />
-          {errors.cost && <FieldError>{errors.cost}</FieldError>}
         </Field>
         <Field>
-          <FieldLabel htmlFor="status">
-            {t("common.status")}
-          </FieldLabel>
-          <TaskStatusSelect
-            id="status"
-            status={status}
-            allowedStatuses={taskStatuses}
-            onStatusChange={setStatus}
-            fullWidth
-          />
+          <FieldLabel htmlFor="cost">{t("common.cost")}</FieldLabel>
+          <MoneyInput id="cost" value={cost} onChange={setCost} />
         </Field>
         <Field>
           <FieldLabel htmlFor="priority">
@@ -179,69 +146,54 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="dueDate">
+          <FieldLabel htmlFor="assignee">
+            {t("common.assignee")}
+          </FieldLabel>
+          <TaskAssigneeSelect
+            value={assigneeId}
+            onChange={setAssigneeId}
+            members={members}
+          />
+        </Field>
+        <Field data-invalid={!!errors.endDate || undefined}>
+          <FieldLabel htmlFor="startDate">
+            {t("projects.startDate")}
+          </FieldLabel>
+          <div className="flex gap-3">
+            <Input
+              id="startDate"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <Input
+              id="startTime"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+            />
+          </div>
+        </Field>
+        <Field data-invalid={!!errors.endDate || undefined}>
+          <FieldLabel htmlFor="endDate">
             {t("common.dueDate")}
           </FieldLabel>
           <div className="flex gap-3">
             <Input
-              id="dueDate"
+              id="endDate"
               type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              aria-invalid={!!errors.endDate || undefined}
             />
             <Input
-              id="dueTime"
+              id="endTime"
               type="time"
-              value={dueTime}
-              onChange={(e) => setDueTime(e.target.value)}
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
             />
           </div>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="assignee">
-            {t("common.assignee")}
-          </FieldLabel>
-          <Select
-            value={assigneeId}
-            onValueChange={(value) => {
-              if (value !== null) setAssigneeId(value as string)
-            }}
-            items={[
-              { value: "", label: t("common.unassigned") },
-              ...members.map(
-                (m: {
-                  userId: string
-                  userName: string | null
-                  userEmail: string | null
-                }) => ({
-                  value: m.userId,
-                  label: m.userName || m.userEmail || m.userId,
-                })
-              ),
-            ]}
-          >
-            <SelectTrigger id="assignee" className="w-full">
-              <SelectValue
-                placeholder={t("common.unassigned")}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">
-                {t("common.unassigned")}
-              </SelectItem>
-              {members.map(
-                (m: {
-                  userId: string
-                  userName: string | null
-                  userEmail: string | null
-                }) => (
-                  <SelectItem key={m.userId} value={m.userId}>
-                    {m.userName || m.userEmail || m.userId}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
+          {errors.endDate && <FieldError>{errors.endDate}</FieldError>}
         </Field>
         <Field orientation="horizontal">
           <Button type="button" variant="outline" onClick={onCancel}>

@@ -1,21 +1,37 @@
 import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
-import type { TaskWithCommentCountDTO } from "@/actions/schemas/task"
+import type { TaskAssignmentDTO, TaskWithAssignmentsDTO } from "@/actions/schemas/task"
 import { describe, expect, it } from "vitest"
 import { EMPTY_COMMENTS } from "./project-tasks-reducer"
 import { createProjectTasksStore } from "./project-tasks-store"
 
+function makeAssignment(
+  overrides: Partial<TaskAssignmentDTO> = {}
+): TaskAssignmentDTO {
+  return {
+    id: "assignment-1",
+    taskId: "task-1",
+    userId: "user-1",
+    userName: "Ada",
+    userEmail: "ada@test.local",
+    userImage: null,
+    status: "todo",
+    comment: null,
+    startDate: null,
+    endDate: null,
+    ...overrides,
+  }
+}
+
 function makeTask(
-  overrides: Partial<TaskWithCommentCountDTO> = {}
-): TaskWithCommentCountDTO {
+  overrides: Partial<TaskWithAssignmentsDTO> = {}
+): TaskWithAssignmentsDTO {
   return {
     id: "task-1",
     projectId: "project-1",
     name: "Fix the roof",
     description: null,
     cost: "10.00",
-    status: "todo",
     priority: null,
-    dueDate: null,
     startDate: null,
     endDate: null,
     recurrence: null,
@@ -23,14 +39,12 @@ function makeTask(
     daysOfWeek: null,
     startTime: null,
     endTime: null,
-    routineId: null,
-    assigneeId: null,
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     commentCount: 0,
-    assigneeName: null,
+    assignments: [makeAssignment()],
     ...overrides,
-  } satisfies TaskWithCommentCountDTO
+  } satisfies TaskWithAssignmentsDTO
 }
 
 function makeComment(
@@ -102,11 +116,16 @@ describe("createProjectTasksStore", () => {
     ])
   })
 
-  it("updates status and priority in place", () => {
-    const store = createProjectTasksStore([makeTask({ id: "a" })])
-    const statusId = store
-      .getState()
-      .pend({ type: "updateTaskStatus", taskId: "a", status: "done" })
+  it("updates an assignment status and the task priority in place", () => {
+    const assignment = makeAssignment({ id: "assignment-1" })
+    const store = createProjectTasksStore([
+      makeTask({ id: "a", assignments: [assignment] }),
+    ])
+    const statusId = store.getState().pend({
+      type: "upsertAssignment",
+      taskId: "a",
+      assignment: { ...assignment, status: "done" },
+    })
     const priorityId = store
       .getState()
       .pend({ type: "updateTaskPriority", taskId: "a", priority: "urgent" })
@@ -114,7 +133,7 @@ describe("createProjectTasksStore", () => {
     store.getState().commit(priorityId)
 
     const task = store.getState().optimistic.tasks[0]
-    expect(task.status).toBe("done")
+    expect(task.assignments[0]?.status).toBe("done")
     expect(task.priority).toBe("urgent")
   })
 

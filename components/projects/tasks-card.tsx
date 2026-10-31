@@ -1,5 +1,11 @@
 "use client"
 
+import type {
+  TaskAssignmentDTO,
+  TaskPriorityDTO,
+  TaskWithAssignmentsDTO,
+} from "@/actions/schemas/task"
+import { useHasPermission } from "@/components/common/permissions-provider"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -7,20 +13,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useHasPermission } from "@/components/common/permissions-provider"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
-import type {
-  TaskPriorityDTO,
-  TaskStatus,
-  TaskWithCommentCountDTO,
-} from "@/actions/schemas/task"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
 import { ListTodo, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { ProjectTaskCommentsPanel } from "./project-task-comments-panel"
-import { TaskDialog } from "./task-dialog"
+import { TaskDialog, type TaskFormValues } from "./task-dialog"
 import { TasksTable } from "./tasks-table"
 
 export function TasksCard() {
@@ -34,15 +34,15 @@ export function TasksCard() {
     createTask,
     updateTask,
     deleteTask,
-    updateTaskStatus,
+    updateAssignmentStatus,
     updateTaskPriority,
   } = useProjectTasksActions()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<
-    TaskWithCommentCountDTO | undefined
+    TaskWithAssignmentsDTO | undefined
   >()
   const [commentsTask, setCommentsTask] = useState<
-    TaskWithCommentCountDTO | undefined
+    TaskWithAssignmentsDTO | undefined
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
 
@@ -51,7 +51,7 @@ export function TasksCard() {
     setDialogOpen(true)
   }
 
-  const openEdit = (task: TaskWithCommentCountDTO) => {
+  const openEdit = (task: TaskWithAssignmentsDTO) => {
     setEditingTask(task)
     setDialogOpen(true)
   }
@@ -61,48 +61,56 @@ export function TasksCard() {
     if (!open) setEditingTask(undefined)
   }
 
-  function handleTaskSubmit(data: {
-    name: string
-    description: string
-    cost: string
-    status: string
-    priority: string | null
-    dueDate: string | null
-    assigneeId: string | null
-  }) {
+  function handleTaskSubmit(data: TaskFormValues) {
     setEditingTask(undefined)
     setDialogOpen(false)
-    const taskStatus = data.status as TaskStatus
-    const taskPriority = data.priority as TaskPriorityDTO
 
-    const optimisticTask: TaskWithCommentCountDTO = {
-      id: editingTask?.id ?? `temp-${Date.now()}`,
+    const tempId = editingTask?.id ?? `temp-${Date.now()}`
+    const startDate = data.startDate ? new Date(data.startDate) : null
+    const endDate = data.endDate ? new Date(data.endDate) : null
+
+    const assignments: TaskAssignmentDTO[] = data.assigneeIds.map(
+      (userId, index) => {
+        const member = members.find((m) => m.userId === userId)
+        const existing = editingTask?.assignments.find(
+          (a) => a.userId === userId
+        )
+        return {
+          id: existing?.id ?? `temp-assignment-${tempId}-${index}`,
+          taskId: tempId,
+          userId,
+          userName: member?.userName ?? existing?.userName ?? null,
+          userEmail: member?.userEmail ?? existing?.userEmail ?? null,
+          userImage: member?.userImage ?? existing?.userImage ?? null,
+          status: existing?.status ?? "todo",
+          comment: existing?.comment ?? null,
+          startDate: existing?.startDate ?? startDate,
+          endDate: existing?.endDate ?? endDate,
+        }
+      }
+    )
+
+    const optimisticTask: TaskWithAssignmentsDTO = {
+      id: tempId,
       projectId,
       name: data.name,
       description: data.description || null,
-      cost: data.cost || null,
-      status: taskStatus,
-      priority: taskPriority,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      startDate: editingTask?.startDate ?? null,
-      endDate: editingTask?.endDate ?? null,
+      priority: data.priority as TaskPriorityDTO,
+      startDate,
+      endDate,
       recurrence: editingTask?.recurrence ?? null,
       interval: editingTask?.interval ?? 1,
       daysOfWeek: editingTask?.daysOfWeek ?? null,
       startTime: editingTask?.startTime ?? null,
       endTime: editingTask?.endTime ?? null,
-      routineId: editingTask?.routineId ?? null,
-      assigneeId: data.assigneeId,
-      assigneeName:
-        members.find((m) => m.userId === data.assigneeId)?.userName ??
-        editingTask?.assigneeName ??
-        null,
+      cost: data.cost || null,
+      createdAt: editingTask?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+      assignments,
       commentCount: editingTask
         ? (tasks.find((t) => t.id === editingTask.id)?.commentCount ??
           0)
         : 0,
-      createdAt: editingTask?.createdAt ?? new Date(),
-      updatedAt: new Date(),
     }
 
     if (editingTask) {
@@ -141,8 +149,13 @@ export function TasksCard() {
         ) : (
           <TasksTable
             tasks={tasks}
-            onStatusChange={(taskId, status) =>
-              updateTaskStatus(projectId, taskId, status)
+            onStatusChange={(taskId, assignmentId, status) =>
+              updateAssignmentStatus(
+                projectId,
+                taskId,
+                assignmentId,
+                status
+              )
             }
             onPriorityChange={(taskId, priority) =>
               updateTaskPriority(projectId, taskId, priority)
