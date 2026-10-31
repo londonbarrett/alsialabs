@@ -387,7 +387,14 @@
     "noCollaborators": "Aún no hay colaboradores",
     "noAdditionalOwners": "No hay propietarios adicionales",
     "searchUser": "Buscar usuario...",
-    "noUsersFound": "No se encontraron usuarios"
+    "noUsersFound": "No se encontraron usuarios",
+    "roles": {
+      "owner": "Propietario",
+      "admin": "Administrador",
+      "collaborator": "Colaborador",
+      "makeAdmin": "Hacer administrador",
+      "makeCollaborator": "Hacer colaborador"
+    }
   },
   "myTasks": {
     "subtitle": "Todas las tareas asignadas a ti en todos los proyectos.",

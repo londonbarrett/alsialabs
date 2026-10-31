@@ -25,13 +25,9 @@ import { useMemo, useState } from "react"
 
 interface MyTasksViewProps {
   currentUserId: string
-  isSuperUser: boolean
 }
 
-export function MyTasksView({
-  currentUserId,
-  isSuperUser,
-}: MyTasksViewProps) {
+export function MyTasksView({ currentUserId }: MyTasksViewProps) {
   const t = useTranslations()
   const { isLoading } = useLoadingIndicator()
   const { tasks } = useMyTasksState()
@@ -76,7 +72,7 @@ export function MyTasksView({
   }
 
   function getTaskAllowedStatuses(task: MyTaskDTO) {
-    if (isSuperUser || task.isOwner) return ALL_TASK_STATUSES
+    if (task.isOwner) return ALL_TASK_STATUSES
     if (task.status === "done" || task.status === "cancelled")
       return null
     if (task.assigneeId === currentUserId)
@@ -157,7 +153,6 @@ export function MyTasksView({
         )}
         isPending={isLoading}
         currentUserId={currentUserId}
-        isSuperUser={isSuperUser}
         onStatusChange={(taskId, projectId, status) =>
           void updateTaskStatus(projectId, taskId, status)
         }

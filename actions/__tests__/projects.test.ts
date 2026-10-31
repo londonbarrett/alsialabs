@@ -250,7 +250,20 @@ describe("projects actions", () => {
         categorySlug: null,
         categoryName: null,
       }
-      state.mock.onSelect(schema.projectsTable).respond([PROJECT])
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respondWith((sql) =>
+          sql.includes('inner join "user"')
+            ? [
+                {
+                  projectId: PROJECT.id,
+                  userId: "user-1",
+                  name: "Owner",
+                  image: null,
+                },
+              ]
+            : [PROJECT]
+        )
       state.mock
         .onSelect(schema.tasksTable)
         .respondWith((sql) =>
@@ -268,8 +281,7 @@ describe("projects actions", () => {
         invoiceSql = sql
         return [{ projectId: PROJECT.id, total: "30" }]
       })
-      state.mock.onSelect(schema.projectOwnersTable).respond([])
-      state.mock.onSelect(schema.projectCollaboratorsTable).respond([])
+      state.mock.onSelect(schema.projectMembershipTable).respond([])
 
       const result = await getProjectsWithDetails()
 

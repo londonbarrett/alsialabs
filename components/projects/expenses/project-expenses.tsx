@@ -43,21 +43,15 @@ interface ProjectExpensesProps {
 
 export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const t = useTranslations()
-  const {
-    project,
-    projectId,
-    members,
-    isOwner,
-    isPrimaryOwner,
-    isCurrentUserAdmin,
-  } = useProjectContextState()
+  const { project, projectId, members, isOwner, isAdmin } =
+    useProjectContextState()
   const budget = project.budget ?? null
   const canEditProject = useHasPermission("projects:edit")
   const canEdit =
-    useHasPermission("expenses:create") || (isOwner && canEditProject)
+    useHasPermission("expenses:create") ||
+    ((isOwner || isAdmin) && canEditProject)
   const canDeleteExpense = useHasPermission("expenses:delete")
-  const canDelete =
-    canDeleteExpense || isPrimaryOwner || isCurrentUserAdmin
+  const canDelete = canDeleteExpense || isOwner || isAdmin
 
   const { expenses, invoices } = useExpensesState()
   const { saveExpense, deleteExpense, unbindInvoice } =

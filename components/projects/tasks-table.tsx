@@ -50,15 +50,16 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
-  const { members, currentUserId, isOwner, isCollaborator } =
+  const { members, currentUserId, isOwner, isAdmin, isCollaborator } =
     useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
-  const canEdit = isOwner && canEditProject
+  const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
-  const canMutate = isOwner && (canEdit || canDeleteProject)
+  const canMutate =
+    (isOwner || isAdmin) && (canEdit || canDeleteProject)
 
   function getTaskAllowedStatuses(task: Task) {
-    if (isOwner) return ALL_TASK_STATUSES
+    if (isOwner || isAdmin) return ALL_TASK_STATUSES
     if (task.status === "done" || task.status === "cancelled")
       return null
     if (isCollaborator && task.assigneeId === currentUserId)
@@ -145,7 +146,7 @@ export function TasksTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  {isOwner && canEdit ? (
+                  {(isOwner || isAdmin) && canEdit ? (
                     <TaskPrioritySelect
                       priority={task.priority}
                       onPriorityChange={(p) =>

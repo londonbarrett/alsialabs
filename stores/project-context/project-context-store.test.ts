@@ -1,284 +1,122 @@
-import type { ProjectOwnerDTO } from "@/actions/schemas/project-people"
-import type { ProjectContextDTO } from "@/actions/schemas/project"
-import type { ProjectMemberDTO } from "@/actions/schemas/project-people"
-import { createProjectContextStore } from "./project-context-store"
-import { projectContextReducer } from "./project-context-reducer"
 import { describe, expect, it } from "vitest"
 
-const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a00"
-const OTHER_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+import type { ProjectContextDTO } from "@/actions/schemas/project"
+import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
+import {
+  projectContextReducer,
+  type ProjectContextAction,
+} from "./project-context-reducer"
 
-function makeMember(
-  overrides: Partial<ProjectMemberDTO> = {}
-): ProjectMemberDTO {
+function member(
+  overrides: Partial<ProjectMemberRowDTO> = {}
+): ProjectMemberRowDTO {
   return {
     userId: "user-2",
-    userName: "Luis",
-    userEmail: "luis@example.com",
+    userName: "Ada",
+    userEmail: "ada@test.local",
     userImage: null,
+    role: "collaborator",
+    isPrimaryOwner: false,
     ...overrides,
   }
 }
 
-function makeOwner(
-  overrides: Partial<ProjectOwnerDTO> = {}
-): ProjectOwnerDTO {
-  return {
-    ...makeMember({ userId: "user-1", userName: "Ana" }),
-    primaryOwnerId: "user-1",
-    ...overrides,
-  }
-}
-
-/** An owner row for a user who is not the primary owner. */
-function makeOwnerMember(userId: string): ProjectOwnerDTO {
-  return { ...makeMember({ userId }), primaryOwnerId: "user-1" }
-}
-
-function makeContext(
+function context(
   overrides: Partial<ProjectContextDTO> = {}
 ): ProjectContextDTO {
   return {
-    project: {
-      id: PROJECT_ID,
-      primaryOwnerId: "user-1",
-      categoryId: "cat-1",
-      name: "Kitchen Remodel",
-      description: null,
-      status: "active",
-      startDate: "2026-08-01",
-      endDate: null,
-      location: "Medellin",
-      budget: "1000.00",
-      color: "#3b82f6",
-      createdAt: new Date("2026-08-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
-      categorySlug: "remodel",
-      categoryName: "Remodel",
-    },
-    owners: [makeOwner()],
-    collaborators: [],
-    permissions: ["projects:view", "projects:edit"],
-    session: {
-      user: { id: "user-1", role: "user" },
-      expires: "2026-09-01T00:00:00.000Z",
-    } as unknown as ProjectContextDTO["session"],
-    isCurrentUserAdmin: false,
-    categories: [
-      { id: "cat-1", slug: "remodel", name: "Remodel" },
-      { id: "cat-2", slug: "new-build", name: "New build" },
+    project: { id: "project-1", primaryOwnerId: "owner-1" },
+    members: [
+      member({
+        userId: "owner-1",
+        userName: "Owner",
+        role: "owner",
+        isPrimaryOwner: true,
+      }),
+      member({ userId: "user-2", role: "admin" }),
+      member({ userId: "user-3" }),
     ],
+    permissions: [],
+    session: {
+      user: { id: "owner-1", role: "user" },
+      expires: new Date("2030-01-01"),
+    },
+    currentRole: "owner",
+    currentUserId: "owner-1",
+    categories: [],
     ...overrides,
-  }
+  } as unknown as ProjectContextDTO
 }
 
-describe("projectContextReducer (via stores/project-context-store)", () => {
-  it("patches the project without dropping joined category fields", () => {
-    const result = projectContextReducer(makeContext(), {
+function reduce(
+  action: ProjectContextAction,
+  state = context()
+): ProjectContextDTO {
+  return projectContextReducer(state, action)
+}
+
+describe("project context reducer", () => {
+  it("patches the project", () => {
+    const result = reduce({
       type: "patchProject",
-      patch: { name: "Bathroom Remodel" },
+      patch: { name: "Renamed" },
     })
-    expect(result.project.name).toBe("Bathroom Remodel")
-    expect(result.project.categorySlug).toBe("remodel")
-    expect(result.project.categoryName).toBe("Remodel")
+    expect((result.project as { name?: string }).name).toBe("Renamed")
   })
 
-  it("patchProject leaves membership untouched", () => {
-    const context = makeContext({ collaborators: [makeMember()] })
-    const result = projectContextReducer(context, {
-      type: "patchProject",
-      patch: { status: "completed" },
+  it("adds a member", () => {
+    const result = reduce({
+      type: "addMember",
+      member: member({ userId: "user-4" }),
     })
-    expect(result.owners).toBe(context.owners)
-    expect(result.collaborators).toBe(context.collaborators)
+    expect(result.members.map((m) => m.userId)).toContain("user-4")
   })
 
-  it("adds an owner", () => {
-    const result = projectContextReducer(makeContext(), {
-      type: "addOwner",
-      member: makeOwnerMember("user-3"),
+  it("ignores a duplicate member", () => {
+    const result = reduce({
+      type: "addMember",
+      member: member({ userId: "user-2" }),
     })
-    expect(result.owners.map((o) => o.userId)).toEqual([
-      "user-1",
-      "user-3",
-    ])
-    expect(result.collaborators).toHaveLength(0)
+    expect(result.members).toHaveLength(3)
   })
 
-  it("ignores an owner that is already there", () => {
-    const context = makeContext()
-    const result = projectContextReducer(context, {
-      type: "addOwner",
-      member: makeOwnerMember("user-1"),
+  it("refuses to add an owner row", () => {
+    const result = reduce({
+      type: "addMember",
+      member: member({ userId: "user-9", role: "owner" }),
     })
-    expect(result).toBe(context)
+    expect(result.members).toHaveLength(3)
   })
 
-  it("adds a collaborator", () => {
-    const result = projectContextReducer(makeContext(), {
-      type: "addCollaborator",
-      member: makeMember(),
-    })
-    expect(result.collaborators.map((c) => c.userId)).toEqual([
-      "user-2",
-    ])
-    expect(result.owners).toHaveLength(1)
+  it("removes a member", () => {
+    const result = reduce({ type: "removeMember", userId: "user-3" })
+    expect(result.members.map((m) => m.userId)).not.toContain("user-3")
   })
 
-  it("ignores a collaborator that is already there", () => {
-    const context = makeContext({ collaborators: [makeMember()] })
-    const result = projectContextReducer(context, {
-      type: "addCollaborator",
-      member: makeMember(),
-    })
-    expect(result).toBe(context)
+  it("refuses to remove the primary owner", () => {
+    const result = reduce({ type: "removeMember", userId: "owner-1" })
+    expect(result.members.map((m) => m.userId)).toContain("owner-1")
   })
 
-  it("removeOwner drops the user from the owners list only", () => {
-    const context = makeContext({
-      owners: [makeOwner(), makeOwnerMember("user-3")],
-      collaborators: [makeMember()],
-    })
-    const result = projectContextReducer(context, {
-      type: "removeOwner",
-      userId: "user-3",
-    })
-    expect(result.owners.map((o) => o.userId)).toEqual(["user-1"])
-    expect(result.collaborators.map((c) => c.userId)).toEqual([
-      "user-2",
-    ])
-  })
-
-  it("removeCollaborator drops the user from the collaborators list only", () => {
-    const context = makeContext({
-      owners: [makeOwner(), makeOwnerMember("user-3")],
-      collaborators: [makeMember()],
-    })
-    const result = projectContextReducer(context, {
-      type: "removeCollaborator",
+  it("changes a member role", () => {
+    const result = reduce({
+      type: "setMemberRole",
       userId: "user-2",
+      role: "collaborator",
     })
-    expect(result.collaborators).toHaveLength(0)
-    expect(result.owners.map((o) => o.userId)).toEqual([
-      "user-1",
-      "user-3",
-    ])
+    expect(
+      result.members.find((m) => m.userId === "user-2")?.role
+    ).toBe("collaborator")
   })
 
-  it("removal is a no-op for a user who is not on the project", () => {
-    const context = makeContext()
-    const result = projectContextReducer(context, {
-      type: "removeOwner",
-      userId: "user-404",
+  it("refuses to change the primary owner role", () => {
+    const result = reduce({
+      type: "setMemberRole",
+      userId: "owner-1",
+      role: "admin",
     })
-    expect(result).toBe(context)
-  })
-})
-
-describe("createProjectContextStore (via stores/project-context-store)", () => {
-  function derive(store: ReturnType<typeof createProjectContextStore>) {
-    const state = store.getState()
-    return state.pending.reduce(
-      (acc, item) => projectContextReducer(acc, item.action),
-      state.committed
-    )
-  }
-
-  it("seeds committed from the given context with nothing pending", () => {
-    const context = makeContext()
-    const store = createProjectContextStore(context)
-    expect(store.getState().committed).toBe(context)
-    expect(store.getState().pending).toHaveLength(0)
-  })
-
-  it("pend keeps committed untouched while the derive exposes the action", () => {
-    const context = makeContext()
-    const store = createProjectContextStore(context)
-    const id = store
-      .getState()
-      .pend({ type: "patchProject", patch: { name: "Optimistic" } })
-
-    expect(store.getState().committed).toBe(context)
-    expect(store.getState().pending).toHaveLength(1)
-    expect(derive(store).project.name).toBe("Optimistic")
-
-    store.getState().commit(id)
-    expect(store.getState().committed.project.name).toBe("Optimistic")
-    expect(store.getState().pending).toHaveLength(0)
-  })
-
-  it("commit layers the server row on top of the optimistic patch", () => {
-    const store = createProjectContextStore(makeContext())
-    const id = store.getState().pend({
-      type: "patchProject",
-      patch: { name: "Optimistic", status: "active" },
-    })
-    store.getState().commit(id, {
-      type: "patchProject",
-      patch: { name: "Server Name", status: "completed" },
-    })
-    const project = store.getState().committed.project
-    expect(project.name).toBe("Server Name")
-    expect(project.status).toBe("completed")
-    expect(project.categorySlug).toBe("remodel")
-  })
-
-  it("discard reverts the failed action", () => {
-    const context = makeContext()
-    const store = createProjectContextStore(context)
-    const id = store
-      .getState()
-      .pend({ type: "removeOwner", userId: "user-1" })
-    expect(derive(store).owners).toHaveLength(0)
-
-    store.getState().discard(id)
-    expect(store.getState().committed).toBe(context)
-    expect(derive(store).owners).toHaveLength(1)
-  })
-
-  it("commits a membership removal, so the member leaves without a refetch", () => {
-    const store = createProjectContextStore(
-      makeContext({ collaborators: [makeMember()] })
-    )
-    const id = store.getState().pend({
-      type: "removeCollaborator",
-      userId: "user-2",
-    })
-    store.getState().commit(id)
-    expect(store.getState().committed.collaborators).toHaveLength(0)
-  })
-
-  it("commits a membership addition, so the new pill renders without a refetch", () => {
-    const store = createProjectContextStore(makeContext())
-    const member = makeMember({ userId: "user-7", userName: "Sara" })
-    const id = store
-      .getState()
-      .pend({ type: "addCollaborator", member })
-    expect(derive(store).collaborators).toHaveLength(1)
-
-    store.getState().commit(id)
-    expect(store.getState().committed.collaborators[0]).toEqual(member)
-  })
-
-  it("gives each provider its own store, so two projects never share state", () => {
-    const first = createProjectContextStore(makeContext())
-    const second = createProjectContextStore(
-      makeContext({
-        project: {
-          ...makeContext().project,
-          id: OTHER_ID,
-          name: "Other",
-        },
-      })
-    )
-
-    first
-      .getState()
-      .pend({ type: "patchProject", patch: { name: "Renamed" } })
-    first.getState().commit(first.getState().pending[0].id)
-
-    expect(first.getState().committed.project.name).toBe("Renamed")
-    expect(second.getState().committed.project.name).toBe("Other")
-    expect(second.getState().committed.project.id).toBe(OTHER_ID)
+    expect(
+      result.members.find((m) => m.userId === "owner-1")?.role
+    ).toBe("owner")
   })
 })

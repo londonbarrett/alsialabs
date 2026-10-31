@@ -30,7 +30,6 @@ interface MyTasksListProps {
   statuses: Record<string, readonly TaskStatus[] | null>
   isPending: boolean
   currentUserId: string
-  isSuperUser: boolean
   onStatusChange: (
     taskId: string,
     projectId: string,
@@ -43,7 +42,6 @@ export function MyTasksList({
   statuses,
   isPending,
   currentUserId,
-  isSuperUser,
   onStatusChange,
 }: MyTasksListProps) {
   const t = useTranslations()
@@ -210,7 +208,7 @@ export function MyTasksList({
           }
         }}
         currentUserId={currentUserId}
-        isOwner={isSuperUser || commentsTask?.isOwner || false}
+        isOwner={commentsTask?.isOwner || false}
       />
     </Card>
   )

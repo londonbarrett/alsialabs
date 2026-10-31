@@ -1,15 +1,13 @@
 "use client"
 
 import {
+  addProjectAdmin,
   addProjectCollaborator,
-  addProjectOwner,
+  removeProjectAdmin,
   removeProjectCollaborator,
-  removeProjectOwner,
-} from "@/actions/project-people"
-import type {
-  ProjectMemberDTO,
-  ProjectOwnerDTO,
-} from "@/actions/schemas/project-people"
+  setProjectMemberRole,
+} from "@/actions/project-membership"
+import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
 import type { UserOptionDTO } from "@/actions/schemas/user"
 import { useSettle } from "@/hooks/use-settle"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
@@ -18,83 +16,86 @@ import { useAction } from "next-safe-action/hooks"
 import { useProjectContextStore } from "./project-context-store"
 import { useProjectContextState } from "./use-project-context-state"
 
-function toMember(user: UserOptionDTO): ProjectMemberDTO {
+function toMember(
+  user: UserOptionDTO,
+  role: "admin" | "collaborator"
+): ProjectMemberRowDTO {
   return {
     userId: user.id,
     userName: user.name,
     userEmail: user.email,
     userImage: user.image,
+    role,
+    isPrimaryOwner: false,
   }
 }
 
-/** A newly added owner is never the primary one, so the row points at whoever
- * already holds it. */
-function toOwner(
-  user: UserOptionDTO,
-  primaryOwnerId: string
-): ProjectOwnerDTO {
-  return { ...toMember(user), primaryOwnerId }
-}
-
-// TODO: this should be stored on the members store, removed when complete
 /**
- * Membership mutations for the open project.
- *
- * These go through the context store rather than `router.refresh()`: the store
- * is seeded once when the provider mounts, so a refresh would not bring the new
- * membership into client state. The user picked in the invite input carries the
- * details needed to render their pill immediately; if the server rejects the
- * change, the pending action is discarded and the pill reverts.
+ * Membership mutations for the open project, through the context store so the
+ * optimistic row appears before `router.refresh()` reseeds it.
  */
 export function useProjectPeopleActions() {
   const t = useTranslations("projects")
   const settle = useSettle()
-  const { project, projectId } = useProjectContextState()
+  const { projectId } = useProjectContextState()
   const { run } = useOptimisticAction(useProjectContextStore())
 
-  const { executeAsync: executeAddOwner } = useAction(addProjectOwner)
-  const { executeAsync: executeRemoveOwner } =
-    useAction(removeProjectOwner)
+  const { executeAsync: executeAddAdmin } = useAction(addProjectAdmin)
+  const { executeAsync: executeRemoveAdmin } = useAction(removeProjectAdmin)
   const { executeAsync: executeAddCollaborator } = useAction(
     addProjectCollaborator
   )
   const { executeAsync: executeRemoveCollaborator } = useAction(
     removeProjectCollaborator
   )
+  const { executeAsync: executeSetRole } = useAction(setProjectMemberRole)
 
-  async function addOwner(user: UserOptionDTO) {
+  async function addAdmin(user: UserOptionDTO) {
     const result = await run(
-      {
-        type: "addOwner",
-        member: toOwner(user, project.primaryOwnerId),
-      },
-      () => executeAddOwner({ projectId, userId: user.id })
+      { type: "addMember", member: toMember(user, "admin") },
+      () => executeAddAdmin({ projectId, userId: user.id })
     )
     settle(result, t("ownerAdded"))
   }
 
-  async function removeOwner(userId: string) {
-    const result = await run({ type: "removeOwner", userId }, () =>
-      executeRemoveOwner({ projectId, userId })
+  async function removeAdmin(userId: string) {
+    const result = await run({ type: "removeMember", userId }, () =>
+      executeRemoveAdmin({ projectId, userId })
     )
     settle(result, t("ownerRemoved"))
   }
 
   async function addCollaborator(user: UserOptionDTO) {
     const result = await run(
-      { type: "addCollaborator", member: toMember(user) },
+      { type: "addMember", member: toMember(user, "collaborator") },
       () => executeAddCollaborator({ projectId, userId: user.id })
     )
     settle(result, t("collaboratorAdded"))
   }
 
   async function removeCollaborator(userId: string) {
-    const result = await run(
-      { type: "removeCollaborator", userId },
-      () => executeRemoveCollaborator({ projectId, userId })
+    const result = await run({ type: "removeMember", userId }, () =>
+      executeRemoveCollaborator({ projectId, userId })
     )
     settle(result, t("collaboratorRemoved"))
   }
 
-  return { addOwner, removeOwner, addCollaborator, removeCollaborator }
+  async function setRole(
+    userId: string,
+    role: "admin" | "collaborator"
+  ) {
+    const result = await run(
+      { type: "setMemberRole", userId, role },
+      () => executeSetRole({ projectId, userId, role })
+    )
+    settle(result, t("projectUpdated"))
+  }
+
+  return {
+    addAdmin,
+    removeAdmin,
+    addCollaborator,
+    removeCollaborator,
+    setRole,
+  }
 }

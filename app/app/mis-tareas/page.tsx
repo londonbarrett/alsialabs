@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { auth, hasPermission, isSuperUser } from "@/lib/auth"
+import { auth, hasPermission } from "@/lib/auth"
 import { getMyTasks } from "@/actions/tasks"
 import { MyTasksView } from "@/components/my-tasks/my-tasks-view"
 import { MyTasksProvider } from "@/components/my-tasks/my-tasks-provider"
@@ -17,9 +17,6 @@ export default async function MyTasksPage() {
   }
 
   const userId = session.user.id
-  const superUser = isSuperUser(
-    session as { user: { role: string | null } }
-  )
 
   const tasks = unwrapResponse(await getMyTasks({}))
 
@@ -40,7 +37,7 @@ export default async function MyTasksPage() {
       }
     >
       <MyTasksProvider tasks={tasks}>
-        <MyTasksView currentUserId={userId} isSuperUser={superUser} />
+        <MyTasksView currentUserId={userId} />
       </MyTasksProvider>
     </Suspense>
   )

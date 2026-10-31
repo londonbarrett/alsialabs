@@ -387,7 +387,14 @@
     "noCollaborators": "No collaborators yet",
     "noAdditionalOwners": "No additional owners",
     "searchUser": "Search user...",
-    "noUsersFound": "No users found"
+    "noUsersFound": "No users found",
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "collaborator": "Collaborator",
+      "makeAdmin": "Make admin",
+      "makeCollaborator": "Make collaborator"
+    }
   },
   "myTasks": {
     "subtitle": "All tasks assigned to you across all projects.",

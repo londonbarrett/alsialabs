@@ -32,9 +32,10 @@ import { RoutineScheduleSummary } from "./routine-schedule-summary"
 
 export const RoutinesView = memo(function RoutinesView() {
   const t = useTranslations()
-  const { projectId, members, isOwner } = useProjectContextState()
+  const { projectId, members, isOwner, isAdmin } =
+    useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
-  const canEdit = isOwner && canEditProject
+  const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
   const { routines } = useRoutinesState()
   const { createRoutine, updateRoutine, deleteRoutine } =
@@ -44,7 +45,8 @@ export const RoutinesView = memo(function RoutinesView() {
     RoutineWithAssigneeDTO | undefined
   >()
 
-  const canMutate = isOwner && (canEdit || canDeleteProject)
+  const canMutate =
+    (isOwner || isAdmin) && (canEdit || canDeleteProject)
 
   const handleRoutineSubmit = useCallback(
     async (data: RoutineSubmitData) => {

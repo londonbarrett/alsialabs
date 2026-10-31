@@ -9,7 +9,7 @@ import {
   CalendarTaskDataSchema,
 } from "@/actions/schemas/calendar"
 import { runAction, throwActionError } from "@/lib/action-result"
-import { auth, isSuperUser, requirePermission } from "@/lib/auth"
+import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   projectOwnersTable,
@@ -70,32 +70,28 @@ export async function getCalendarTasks(range?: {
 
 /**
  * Tasks assigned to the user or belonging to projects they own
- * (co-owners included); superusers see everything.
+ * (co-owners included).
  */
 async function getVisibleTasks(userId: string) {
   const session = await auth()
   if (!session?.user) return []
-  const isSuper = isSuperUser(session)
 
-  const conditions = []
-  if (!isSuper) {
-    conditions.push(
-      or(
-        eq(tasksTable.assigneeId, userId),
-        exists(
-          db
-            .select({ one: sql`1` })
-            .from(projectOwnersTable)
-            .where(
-              and(
-                eq(projectOwnersTable.projectId, tasksTable.projectId),
-                eq(projectOwnersTable.userId, userId)
-              )
+  const conditions = [
+    or(
+      eq(tasksTable.assigneeId, userId),
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(projectOwnersTable)
+          .where(
+            and(
+              eq(projectOwnersTable.projectId, tasksTable.projectId),
+              eq(projectOwnersTable.userId, userId)
             )
-        )
+          )
       )
-    )
-  }
+    ),
+  ]
 
   const commentCounts = db
     .select({
@@ -186,30 +182,26 @@ export async function getCalendarRoutines() {
 async function getVisibleRoutines(userId: string) {
   const session = await auth()
   if (!session?.user) return []
-  const isSuper = isSuperUser(session)
 
-  const conditions = []
-  if (!isSuper) {
-    conditions.push(
-      or(
-        eq(routinesTable.assigneeId, userId),
-        exists(
-          db
-            .select({ one: sql`1` })
-            .from(projectOwnersTable)
-            .where(
-              and(
-                eq(
-                  projectOwnersTable.projectId,
-                  routinesTable.projectId
-                ),
-                eq(projectOwnersTable.userId, userId)
-              )
+  const conditions = [
+    or(
+      eq(routinesTable.assigneeId, userId),
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(projectOwnersTable)
+          .where(
+            and(
+              eq(
+                projectOwnersTable.projectId,
+                routinesTable.projectId
+              ),
+              eq(projectOwnersTable.userId, userId)
             )
-        )
+          )
       )
-    )
-  }
+    ),
+  ]
 
   const primaryOwners = db
     .select({

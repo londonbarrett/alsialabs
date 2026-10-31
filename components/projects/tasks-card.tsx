@@ -25,10 +25,10 @@ import { TasksTable } from "./tasks-table"
 
 export function TasksCard() {
   const t = useTranslations()
-  const { projectId, members, currentUserId, isOwner } =
+  const { projectId, members, currentUserId, isOwner, isAdmin } =
     useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
-  const canEdit = isOwner && canEditProject
+  const canEdit = (isOwner || isAdmin) && canEditProject
   const { tasks } = useProjectTasksState()
   const {
     createTask,
@@ -175,7 +175,7 @@ export function TasksCard() {
           }
         }}
         currentUserId={currentUserId}
-        isOwner={isOwner}
+        isOwner={isOwner || isAdmin}
       />
     </Card>
   )

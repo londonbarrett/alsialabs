@@ -12,10 +12,13 @@ import { useProjectsStore } from "./projects-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 
-/** The signed-in user as a `Project` owner row, seeded server-side so the
- *  optimistic row renders with its real owner instead of waiting on
- *  `useSession` to hydrate. */
-export type ProjectOwnerDTO = ProjectSummaryDTO["owners"][number]
+/** The signed-in user, seeded server-side so the optimistic row renders with
+ *  its real owner instead of waiting on `useSession` to hydrate. */
+export type ProjectOwnerDTO = {
+  id: string
+  name: string | null
+  image: string | null
+}
 
 function buildOptimisticProject(
   values: ProjectFormValues,
@@ -38,8 +41,14 @@ function buildOptimisticProject(
     tasksTotal: 0,
     tasksCompleted: 0,
     inProgressTasks: [],
-    owners: [owner],
-    collaborators: [],
+    members: [
+      {
+        id: owner.id,
+        name: owner.name ?? "",
+        image: owner.image,
+        role: "owner" as const,
+      },
+    ],
   }
 }
 

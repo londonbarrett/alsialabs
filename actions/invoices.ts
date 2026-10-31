@@ -17,7 +17,6 @@ import {
   ProjectInvoiceSchema,
   UpdateInvoiceSchema,
 } from "@/actions/schemas/invoice"
-import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   clientsTable,
@@ -379,7 +378,7 @@ export const bindInvoiceToProject = sessionAction
     if (!uniqueIds.includes(invoice.clientId))
       returnActionError("FORBIDDEN")
 
-    if (projectId !== null && !isSuperUser(session)) {
+    if (projectId !== null) {
       const ownerRows = await db
         .select({ projectId: projectOwnersTable.projectId })
         .from(projectOwnersTable)

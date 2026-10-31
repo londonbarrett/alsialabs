@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectPeopleActions } from "@/stores/project-context/use-project-people-actions"
-import { Crown, Users } from "lucide-react"
+import { Crown, Shield, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useMemo } from "react"
 import { MemberPill } from "./member-pill"
@@ -16,25 +16,25 @@ import { UserInviteInput } from "./user-invite-input"
 
 export function ProjectPeople() {
   const t = useTranslations()
-  const { addOwner, removeOwner, addCollaborator, removeCollaborator } =
-    useProjectPeopleActions()
   const {
-    owners,
-    primaryOwner,
-    additionalOwners,
-    collaborators,
-    isOwner,
-    isPrimaryOwner,
-    isCurrentUserAdmin,
-  } = useProjectContextState()
-  const canManageUsers = isPrimaryOwner || isCurrentUserAdmin
+    addAdmin,
+    removeAdmin,
+    addCollaborator,
+    removeCollaborator,
+    setRole,
+  } = useProjectPeopleActions()
+  const { members, isOwner, isAdmin } = useProjectContextState()
+
+  const canManageAdmins = isOwner
+  const canManageCollaborators = isOwner || isAdmin
+
+  const primaryOwner = members.find((m) => m.isPrimaryOwner) ?? null
+  const admins = members.filter((m) => m.role === "admin")
+  const collaborators = members.filter((m) => m.role === "collaborator")
 
   const allMemberIds = useMemo(
-    () => [
-      ...owners.map((o) => o.userId),
-      ...collaborators.map((c) => c.userId),
-    ],
-    [owners, collaborators]
+    () => members.map((m) => m.userId),
+    [members]
   )
 
   return (
@@ -49,38 +49,50 @@ export function ProjectPeople() {
         <div>
           <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
             <Crown className="h-4 w-4 text-muted-foreground" />
-            {t("projects.primaryOwner")}
+            {t("projects.roles.owner")}
           </h3>
-          {primaryOwner && <MemberPill member={primaryOwner} />}
+          {primaryOwner && (
+            <MemberPill
+              member={primaryOwner}
+              roleLabel={t("projects.roles.owner")}
+            />
+          )}
         </div>
 
         <div>
           <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            {t("projects.owners")}
+            <Shield className="h-4 w-4 text-muted-foreground" />
+            {t("projects.roles.admin")}
           </h3>
           <div className="flex flex-wrap gap-2">
-            {additionalOwners.length === 0 && (
+            {admins.length === 0 && (
               <p className="text-sm text-muted-foreground">
                 {t("projects.noAdditionalOwners")}
               </p>
             )}
-            {additionalOwners.map((o) => (
+            {admins.map((admin) => (
               <MemberPill
-                key={o.userId}
-                member={o}
+                key={admin.userId}
+                member={admin}
+                roleLabel={t("projects.roles.admin")}
                 onRemove={
-                  canManageUsers
-                    ? () => removeOwner(o.userId)
+                  canManageAdmins
+                    ? () => removeAdmin(admin.userId)
                     : undefined
                 }
+                onToggleRole={
+                  canManageAdmins
+                    ? () => setRole(admin.userId, "collaborator")
+                    : undefined
+                }
+                toggleRoleTitle={t("projects.roles.makeCollaborator")}
               />
             ))}
           </div>
-          {canManageUsers && (
+          {canManageAdmins && (
             <div className="mt-3">
               <UserInviteInput
-                onSelect={addOwner}
+                onSelect={addAdmin}
                 placeholder={t("projects.addOwner")}
                 excludedIds={allMemberIds}
               />
@@ -91,7 +103,7 @@ export function ProjectPeople() {
         <div>
           <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
             <Users className="h-4 w-4 text-muted-foreground" />
-            {t("projects.collaborators")}
+            {t("projects.roles.collaborator")}
           </h3>
           <div className="flex flex-wrap gap-2">
             {collaborators.length === 0 && (
@@ -99,19 +111,26 @@ export function ProjectPeople() {
                 {t("projects.noCollaborators")}
               </p>
             )}
-            {collaborators.map((c) => (
+            {collaborators.map((collaborator) => (
               <MemberPill
-                key={c.userId}
-                member={c}
+                key={collaborator.userId}
+                member={collaborator}
+                roleLabel={t("projects.roles.collaborator")}
                 onRemove={
-                  isOwner
-                    ? () => removeCollaborator(c.userId)
+                  canManageCollaborators
+                    ? () => removeCollaborator(collaborator.userId)
                     : undefined
                 }
+                onToggleRole={
+                  canManageAdmins
+                    ? () => setRole(collaborator.userId, "admin")
+                    : undefined
+                }
+                toggleRoleTitle={t("projects.roles.makeAdmin")}
               />
             ))}
           </div>
-          {isOwner && (
+          {canManageCollaborators && (
             <div className="mt-3">
               <UserInviteInput
                 onSelect={addCollaborator}

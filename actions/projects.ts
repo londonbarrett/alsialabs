@@ -1,10 +1,7 @@
 "use server"
 
 import { getProjectCategories } from "@/actions/categories"
-import {
-  getProjectCollaborators,
-  getProjectOwners,
-} from "@/actions/project-people"
+import { getProjectMembers } from "@/actions/project-membership"
 import { SuccessSchema } from "@/actions/schemas/common"
 import {
   CreateProjectSchema,
@@ -14,15 +11,15 @@ import {
   ProjectRecordSchema,
   ProjectSummarySchema,
   UpdateProjectSchema,
-  type ProjectDetailDTO,
 } from "@/actions/schemas/project"
-import { getUserPermissions, isSuperUser } from "@/lib/auth"
+import { getUserPermissions } from "@/lib/auth"
+import { canManageProject, canViewProject } from "@/lib/project-roles"
 import { db } from "@/lib/drizzle/client"
 import {
   categoryTable,
   expensesTable,
   invoicesTable,
-  projectCollaboratorsTable,
+  projectMembershipTable,
   projectOwnersTable,
   projectsTable,
   tasksTable,
@@ -42,37 +39,6 @@ export const getProjects = sessionAction
   .outputSchema(z.array(ProjectOptionSchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
-    if (isSuperUser(session as { user: { role: string | null } })) {
-      return db
-        .select({
-          id: projectsTable.id,
-          primaryOwnerId: projectsTable.primaryOwnerId,
-          categoryId: projectsTable.categoryId,
-          name: projectsTable.name,
-          description: projectsTable.description,
-          status: projectsTable.status,
-          startDate: projectsTable.startDate,
-          endDate: projectsTable.endDate,
-          location: projectsTable.location,
-          budget: projectsTable.budget,
-          color: projectsTable.color,
-          createdAt: projectsTable.createdAt,
-          updatedAt: projectsTable.updatedAt,
-          categorySlug: categoryTable.slug,
-          categoryName: categoryTable.name,
-          ownerName: usersTable.name,
-        })
-        .from(projectsTable)
-        .leftJoin(
-          categoryTable,
-          eq(projectsTable.categoryId, categoryTable.id)
-        )
-        .leftJoin(
-          usersTable,
-          eq(projectsTable.primaryOwnerId, usersTable.id)
-        )
-        .orderBy(desc(projectsTable.createdAt))
-    }
     return db
       .select({
         id: projectsTable.id,
@@ -112,62 +78,33 @@ export const getProjectsWithDetails = sessionAction
   .outputSchema(z.array(ProjectSummarySchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
-    let filteredProjects: ProjectDetailDTO[]
-
-    if (isSuperUser(session as { user: { role: string | null } })) {
-      filteredProjects = await db
-        .select({
-          id: projectsTable.id,
-          primaryOwnerId: projectsTable.primaryOwnerId,
-          categoryId: projectsTable.categoryId,
-          name: projectsTable.name,
-          description: projectsTable.description,
-          status: projectsTable.status,
-          startDate: projectsTable.startDate,
-          endDate: projectsTable.endDate,
-          location: projectsTable.location,
-          budget: projectsTable.budget,
-          color: projectsTable.color,
-          createdAt: projectsTable.createdAt,
-          updatedAt: projectsTable.updatedAt,
-          categorySlug: categoryTable.slug,
-          categoryName: categoryTable.name,
-        })
-        .from(projectsTable)
-        .leftJoin(
-          categoryTable,
-          eq(projectsTable.categoryId, categoryTable.id)
-        )
-        .orderBy(desc(projectsTable.createdAt))
-    } else {
-      filteredProjects = await db
-        .select({
-          id: projectsTable.id,
-          primaryOwnerId: projectsTable.primaryOwnerId,
-          categoryId: projectsTable.categoryId,
-          name: projectsTable.name,
-          description: projectsTable.description,
-          status: projectsTable.status,
-          startDate: projectsTable.startDate,
-          endDate: projectsTable.endDate,
-          location: projectsTable.location,
-          budget: projectsTable.budget,
-          color: projectsTable.color,
-          createdAt: projectsTable.createdAt,
-          updatedAt: projectsTable.updatedAt,
-          categorySlug: categoryTable.slug,
-          categoryName: categoryTable.name,
-        })
-        .from(projectsTable)
-        .leftJoin(
-          categoryTable,
-          eq(projectsTable.categoryId, categoryTable.id)
-        )
-        .where(
-          sql`exists (select 1 from ${projectOwnersTable} where ${projectOwnersTable.projectId} = ${projectsTable.id} and ${projectOwnersTable.userId} = ${session.user.id})`
-        )
-        .orderBy(desc(projectsTable.createdAt))
-    }
+    const filteredProjects = await db
+      .select({
+        id: projectsTable.id,
+        primaryOwnerId: projectsTable.primaryOwnerId,
+        categoryId: projectsTable.categoryId,
+        name: projectsTable.name,
+        description: projectsTable.description,
+        status: projectsTable.status,
+        startDate: projectsTable.startDate,
+        endDate: projectsTable.endDate,
+        location: projectsTable.location,
+        budget: projectsTable.budget,
+        color: projectsTable.color,
+        createdAt: projectsTable.createdAt,
+        updatedAt: projectsTable.updatedAt,
+        categorySlug: categoryTable.slug,
+        categoryName: categoryTable.name,
+      })
+      .from(projectsTable)
+      .leftJoin(
+        categoryTable,
+        eq(projectsTable.categoryId, categoryTable.id)
+      )
+      .where(
+        sql`exists (select 1 from ${projectOwnersTable} where ${projectOwnersTable.projectId} = ${projectsTable.id} and ${projectOwnersTable.userId} = ${session.user.id})`
+      )
+      .orderBy(desc(projectsTable.createdAt))
 
     const projectIds = filteredProjects.map((p) => p.id)
     if (projectIds.length === 0) return []
@@ -185,7 +122,7 @@ export const getProjectsWithDetails = sessionAction
       invoicePaidAggs,
       inProgressTasks,
       ownerData,
-      collaboratorData,
+      memberData,
     ] = await Promise.all([
       db
         .select({
@@ -240,32 +177,31 @@ export const getProjectsWithDetails = sessionAction
         .limit(3),
       db
         .select({
-          projectId: projectOwnersTable.projectId,
+          projectId: projectsTable.id,
           userId: usersTable.id,
           name: usersTable.name,
           image: usersTable.image,
         })
-        .from(projectOwnersTable)
+        .from(projectsTable)
         .innerJoin(
           usersTable,
-          eq(projectOwnersTable.userId, usersTable.id)
+          eq(projectsTable.primaryOwnerId, usersTable.id)
         )
-        .where(inArray(projectOwnersTable.projectId, projectIds)),
+        .where(inArray(projectsTable.id, projectIds)),
       db
         .select({
-          projectId: projectCollaboratorsTable.projectId,
-          userId: usersTable.id,
+          projectId: projectMembershipTable.projectId,
+          userId: projectMembershipTable.userId,
+          role: projectMembershipTable.role,
           name: usersTable.name,
           image: usersTable.image,
         })
-        .from(projectCollaboratorsTable)
+        .from(projectMembershipTable)
         .innerJoin(
           usersTable,
-          eq(projectCollaboratorsTable.userId, usersTable.id)
+          eq(projectMembershipTable.userId, usersTable.id)
         )
-        .where(
-          inArray(projectCollaboratorsTable.projectId, projectIds)
-        ),
+        .where(inArray(projectMembershipTable.projectId, projectIds)),
     ])
 
     const taskMap = new Map<
@@ -310,27 +246,36 @@ export const getProjectsWithDetails = sessionAction
       })
       inProgressMap.set(task.projectId, list)
     }
-    const ownerMap = new Map<
+    const memberMap = new Map<
       string,
-      { id: string; name: string; image: string | null }[]
+      {
+        id: string
+        name: string
+        image: string | null
+        role: "owner" | "admin" | "collaborator"
+      }[]
     >()
     for (const o of ownerData) {
-      const list = ownerMap.get(o.projectId) ?? []
-      if (!list.find((x) => x.id === o.userId)) {
-        list.push({ id: o.userId, name: o.name ?? "", image: o.image })
-      }
-      ownerMap.set(o.projectId, list)
+      memberMap.set(o.projectId, [
+        {
+          id: o.userId,
+          name: o.name ?? "",
+          image: o.image,
+          role: "owner",
+        },
+      ])
     }
-    const collaboratorMap = new Map<
-      string,
-      { id: string; name: string; image: string | null }[]
-    >()
-    for (const c of collaboratorData) {
-      const list = collaboratorMap.get(c.projectId) ?? []
-      if (!list.find((x) => x.id === c.userId)) {
-        list.push({ id: c.userId, name: c.name ?? "", image: c.image })
+    for (const m of memberData) {
+      const list = memberMap.get(m.projectId) ?? []
+      if (!list.find((x) => x.id === m.userId)) {
+        list.push({
+          id: m.userId,
+          name: m.name ?? "",
+          image: m.image,
+          role: m.role,
+        })
       }
-      collaboratorMap.set(c.projectId, list)
+      memberMap.set(m.projectId, list)
     }
 
     return filteredProjects.map((p) => {
@@ -356,8 +301,7 @@ export const getProjectsWithDetails = sessionAction
         tasksTotal: tasks.total,
         tasksCompleted: tasks.completed,
         inProgressTasks: inProgressMap.get(p.id) ?? [],
-        owners: ownerMap.get(p.id) ?? [],
-        collaborators: collaboratorMap.get(p.id) ?? [],
+        members: memberMap.get(p.id) ?? [],
       }
     })
   })
@@ -521,10 +465,7 @@ export const deleteProject = projectAction(
       .where(eq(projectsTable.id, projectId))
       .then((rows) => rows[0])
     if (!project) returnActionError("NOT_FOUND")
-    if (
-      project.primaryOwnerId !== ctx.session.user.id &&
-      !isSuperUser(ctx.session as { user: { role: string | null } })
-    ) {
+    if (!canManageProject(ctx.projectRole)) {
       returnActionError("FORBIDDEN")
     }
     await db
@@ -541,6 +482,10 @@ export const getProjectContext = projectAction(
   .action(async ({ parsedInput, ctx }) => {
     const { projectId } = parsedInput
     const session = ctx.session
+    if (!canViewProject(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     const projectResult = await getProjectById({ projectId })
     if (projectResult.serverError?.code === "FORBIDDEN") {
       returnActionError("FORBIDDEN")
@@ -549,22 +494,18 @@ export const getProjectContext = projectAction(
       returnActionError("NOT_FOUND")
     }
     const project = projectResult.data!
-    const [owners, collaborators, permissions, categoriesResult] =
-      await Promise.all([
-        getProjectOwners({ projectId }),
-        getProjectCollaborators({ projectId }),
-        getUserPermissions(session.user.id),
-        getProjectCategories(),
-      ])
+    const [members, permissions, categoriesResult] = await Promise.all([
+      getProjectMembers({ projectId }),
+      getUserPermissions(session.user.id),
+      getProjectCategories(),
+    ])
     return {
       project,
-      owners: unwrapResponse(owners),
-      collaborators: unwrapResponse(collaborators),
+      members: unwrapResponse(members),
       permissions,
       session,
-      isCurrentUserAdmin: isSuperUser(
-        session as { user: { role: string | null } }
-      ),
+      currentRole: ctx.projectRole!,
+      currentUserId: session.user.id,
       categories: unwrapResponse(categoriesResult),
     }
   })

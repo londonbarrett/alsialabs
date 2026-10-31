@@ -29,8 +29,9 @@ function makeProject(
     tasksTotal: 4,
     tasksCompleted: 1,
     inProgressTasks: [],
-    owners: [{ id: "user-1", name: "Ana", image: null }],
-    collaborators: [],
+    members: [
+      { id: "user-1", name: "Ana", image: null, role: "owner" },
+    ],
     ...overrides,
   }
 }

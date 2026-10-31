@@ -2,17 +2,23 @@ import type {
   ProjectContextDTO,
   ProjectDetailDTO,
 } from "@/actions/schemas/project"
-import type {
-  ProjectMemberDTO,
-  ProjectOwnerDTO,
-} from "@/actions/schemas/project-people"
+import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
 
 export type ProjectContextAction =
   | { type: "patchProject"; patch: Partial<ProjectDetailDTO> }
-  | { type: "addOwner"; member: ProjectOwnerDTO }
-  | { type: "addCollaborator"; member: ProjectMemberDTO }
-  | { type: "removeOwner"; userId: string }
-  | { type: "removeCollaborator"; userId: string }
+  | { type: "addMember"; member: ProjectMemberRowDTO }
+  | { type: "removeMember"; userId: string }
+  | {
+      type: "setMemberRole"
+      userId: string
+      role: "admin" | "collaborator"
+    }
+
+function isProtectedMember(
+  member: ProjectMemberRowDTO | undefined
+): boolean {
+  return !member || member.isPrimaryOwner || member.role === "owner"
+}
 
 export function projectContextReducer(
   state: ProjectContextDTO,
@@ -24,35 +30,32 @@ export function projectContextReducer(
         ...state,
         project: { ...state.project, ...action.patch },
       }
-    case "addOwner":
-      if (state.owners.some((o) => o.userId === action.member.userId))
+    case "addMember": {
+      if (action.member.role === "owner" || action.member.isPrimaryOwner) {
         return state
-      return { ...state, owners: [...state.owners, action.member] }
-    case "addCollaborator":
-      if (
-        state.collaborators.some(
-          (c) => c.userId === action.member.userId
-        )
-      )
+      }
+      if (state.members.some((m) => m.userId === action.member.userId)) {
         return state
+      }
+      return { ...state, members: [...state.members, action.member] }
+    }
+    case "removeMember": {
+      const target = state.members.find((m) => m.userId === action.userId)
+      if (isProtectedMember(target)) return state
       return {
         ...state,
-        collaborators: [...state.collaborators, action.member],
+        members: state.members.filter((m) => m.userId !== action.userId),
       }
-    case "removeOwner": {
-      const owners = state.owners.filter(
-        (o) => o.userId !== action.userId
-      )
-      if (owners.length === state.owners.length) return state
-      return { ...state, owners }
     }
-    case "removeCollaborator": {
-      const collaborators = state.collaborators.filter(
-        (c) => c.userId !== action.userId
-      )
-      if (collaborators.length === state.collaborators.length)
-        return state
-      return { ...state, collaborators }
+    case "setMemberRole": {
+      const target = state.members.find((m) => m.userId === action.userId)
+      if (isProtectedMember(target)) return state
+      return {
+        ...state,
+        members: state.members.map((m) =>
+          m.userId === action.userId ? { ...m, role: action.role } : m
+        ),
+      }
     }
   }
 }

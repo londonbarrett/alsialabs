@@ -1,7 +1,6 @@
 "use server"
 
 import { createNextRoutineTask } from "@/actions/routines"
-import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import type { Task } from "@/lib/drizzle/schema"
 import {
@@ -94,14 +93,8 @@ export const getMyTasks = sessionAction
   .action(async ({ parsedInput, ctx }) => {
     const { statusFilter, projectIdFilter } = parsedInput
     const session = ctx.session
-    const isSuper = isSuperUser(
-      session as { user: { role: string | null } }
-    )
 
-    const conditions = []
-    if (!isSuper) {
-      conditions.push(eq(tasksTable.assigneeId, session.user.id))
-    }
+    const conditions = [eq(tasksTable.assigneeId, session.user.id)]
     if (statusFilter) {
       if (
         (ALL_TASK_STATUSES as readonly string[]).includes(statusFilter)
@@ -115,7 +108,7 @@ export const getMyTasks = sessionAction
       conditions.push(eq(tasksTable.projectId, projectIdFilter))
     }
 
-    const where = conditions.length > 0 ? and(...conditions) : undefined
+    const where = and(...conditions)
 
     const commentCounts = db
       .select({

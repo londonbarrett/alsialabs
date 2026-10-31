@@ -5,7 +5,7 @@ import {
   deleteRoutine as deleteRoutineAction,
   updateRoutine as updateRoutineAction,
 } from "@/actions/routines"
-import type { ProjectMemberDTO } from "@/actions/schemas/project-people"
+import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
 import type { RoutineWithAssigneeDTO } from "@/actions/schemas/routine"
 import { useSettle } from "@/hooks/use-settle"
 import type { Routine } from "@/lib/drizzle/schema"
@@ -18,7 +18,7 @@ import { useRoutinesStore } from "./routines-store"
 interface SaveRoutineParams {
   data: RoutineSubmitData
   projectId: string
-  members: ProjectMemberDTO[]
+  members: ProjectMemberRowDTO[]
 }
 
 /** The form hands `recurrence`/`interval` over as plain strings. */
