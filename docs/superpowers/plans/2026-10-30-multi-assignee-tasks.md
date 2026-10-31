@@ -514,7 +514,7 @@ git commit -m "feat(tasks): track per-person assignments with their own status a
 **Interfaces:**
 
 - `updateAssignmentStatus` gains the cascade: reaching `done`/`cancelled` on a repeating task computes the next occurrence with `computeNextOccurrence` and inserts the new assignment in the same transaction, returning it as `nextAssignment`.
-- `updateAssignmentComment({ assignmentId, comment })` → `TaskAssignmentDTO`: same ownership rule as the status action; trims; empty → null.
+- `updateAssignmentComment({ assignmentId, comment })` → `TaskAssignmentDTO`: owners and admins only — collaborators can never touch an assignment note; trims; empty → null.
 - Wizard: `step`/`step1Done` exactly like the routine form; step 1 = name, description, priority, assignee, start/end datetimes; step 2 = a "Repeat this task" switch revealing recurrence, interval, weekdays, time, start date, end date.
 - `TaskFormValues` becomes `{ name, description, priority, assigneeIds, startDate, endDate, recurrence: "daily"|"weekly"|null, interval: number, daysOfWeek: string[], startTime: string, endTime: string }`.
 - Task table shows a recurring `Badge` when `task.recurrence !== null`.

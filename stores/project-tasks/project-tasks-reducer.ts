@@ -30,6 +30,7 @@ export type ProjectTaskAction =
       type: "upsertAssignment"
       taskId: string
       assignment: TaskAssignmentDTO
+      nextAssignment?: TaskAssignmentDTO | null
     }
   | {
       type: "setComments"
@@ -132,19 +133,25 @@ export function projectTasksReducer(
         ...state,
         tasks: state.tasks.map((task) => {
           if (task.id !== action.taskId) return task
-          const exists = task.assignments.some(
+          const withAssignment = task.assignments.some(
             (a) => a.id === action.assignment.id
           )
-          return {
-            ...task,
-            assignments: exists
-              ? task.assignments.map((a) =>
-                  a.id === action.assignment.id
-                    ? action.assignment
-                    : a
-                )
-              : [...task.assignments, action.assignment],
-          }
+            ? task.assignments.map((a) =>
+                a.id === action.assignment.id
+                  ? action.assignment
+                  : a
+              )
+            : [...task.assignments, action.assignment]
+
+          const withNext =
+            action.nextAssignment &&
+            !withAssignment.some(
+              (a) => a.id === action.nextAssignment!.id
+            )
+              ? [...withAssignment, action.nextAssignment]
+              : withAssignment
+
+          return { ...task, assignments: withNext }
         }),
       }
 

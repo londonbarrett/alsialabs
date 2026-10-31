@@ -13,6 +13,11 @@ export interface TaskFormValues {
   assigneeIds: string[]
   startDate: string | null
   endDate: string | null
+  recurrence: "daily" | "weekly" | null
+  interval: number
+  daysOfWeek: string[]
+  startTime: string
+  endTime: string
 }
 
 interface TaskDialogProps {

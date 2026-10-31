@@ -294,7 +294,7 @@ Each task ends with `pnpm verify` and `pnpm test:e2e` green, then a review of th
 ## Calls made here, for the reader to check
 
 1. The assignment note is a single nullable `comment` field — no author, timestamps, or history.
-2. Owners and admins may read and edit any assignment note; an assignee may edit their own inside their status rules.
+2. Owners and admins may read and edit any assignment note; collaborators may never edit an assignment note.
 3. `task_comment` stays the task-level thread; collaborators may read and write it only for tasks where they hold an open assignment.
 4. Past means status `done` or `cancelled`.
 5. Assignments are snapshots: created with their dates and never rewritten, including when the task's window or schedule changes.

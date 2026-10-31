@@ -12,7 +12,12 @@ vi.mock("next/cache", () => ({
 const state = vi.hoisted(() => ({
   mock: null as unknown as {
     resetMocks(): void
-    onSelect(table: unknown): { respond(data: unknown): unknown }
+    onSelect(table: unknown): {
+      respond(data: unknown): unknown
+      respondWith(
+        fn: (sql: string, params: unknown[]) => unknown
+      ): unknown
+    }
     onInsert(table: unknown): { respond(data: unknown): unknown }
     onUpdate(table: unknown): { respond(data: unknown): unknown }
     onDelete(table: unknown): { respond(data: unknown): unknown }
@@ -36,6 +41,7 @@ import {
   createTask,
   deleteTask,
   getTasks,
+  updateAssignmentComment,
   updateAssignmentStatus,
   updateTask,
   updateTaskPriority,
@@ -260,6 +266,77 @@ describe("updateAssignmentStatus", () => {
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
   })
 
+  it("creates the next occurrence when a repeating assignment is done", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      {
+        id: ASSIGNMENT_ID,
+        userId: USER_ID,
+        status: "todo",
+        endDate: new Date("2026-10-30T11:00:00"),
+        taskId: TASK_ID,
+        recurrence: "daily",
+        interval: 1,
+        daysOfWeek: null,
+        startTime: "09:00",
+        endTime: "11:00",
+      },
+    ])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock.onInsert(schema.taskAssignmentsTable).respond([
+      { id: "next-assignment" },
+    ])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respondWith((_sql, params) =>
+        params[0] === ASSIGNMENT_ID
+          ? [makeAssignmentRow({ status: "done" })]
+          : [
+              makeAssignmentRow({
+                assignmentId: "next-assignment",
+                status: "todo",
+              }),
+            ]
+      )
+
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID,
+      assignmentId: ASSIGNMENT_ID,
+      status: "done",
+    })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.nextAssignment?.id).toBe("next-assignment")
+  })
+
+  it("spawns nothing for a non-repeating task", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      {
+        id: ASSIGNMENT_ID,
+        userId: USER_ID,
+        status: "todo",
+        endDate: new Date("2026-10-30T11:00:00"),
+        taskId: TASK_ID,
+        recurrence: null,
+        interval: 1,
+        daysOfWeek: null,
+        startTime: null,
+        endTime: null,
+      },
+    ])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "done" })])
+
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID,
+      assignmentId: ASSIGNMENT_ID,
+      status: "done",
+    })
+
+    expect(result.data?.nextAssignment).toBeNull()
+  })
+
   it("returns NOT_FOUND for an assignment outside the project", async () => {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
@@ -270,6 +347,57 @@ describe("updateAssignmentStatus", () => {
     })
 
     expect(result.serverError).toEqual({ code: "NOT_FOUND" })
+  })
+})
+
+describe("updateAssignmentComment", () => {
+  it("lets a manager edit another assignee's note", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { userId: OTHER_ID, status: "todo" },
+    ])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ comment: "note" })])
+
+    const result = await updateAssignmentComment({
+      projectId: PROJECT_ID,
+      assignmentId: ASSIGNMENT_ID,
+      comment: " note ",
+    })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.comment).toBe("note")
+  })
+
+  it("forbids a collaborator from editing another assignee's note", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { userId: OTHER_ID, status: "todo" },
+    ])
+    grantAccess("collaborator")
+
+    const result = await updateAssignmentComment({
+      projectId: PROJECT_ID,
+      assignmentId: ASSIGNMENT_ID,
+      comment: "note",
+    })
+
+    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+  })
+
+  it("forbids a collaborator from editing their own note", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { userId: USER_ID, status: "todo" },
+    ])
+    grantAccess("collaborator")
+
+    const result = await updateAssignmentComment({
+      projectId: PROJECT_ID,
+      assignmentId: ASSIGNMENT_ID,
+      comment: "note",
+    })
+
+    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
   })
 })
 

@@ -26,6 +26,7 @@ import {
   CreateTaskV2Schema,
   MyTaskSchema,
   OwnerStatusSchema,
+  TaskAssignmentSchema,
   TaskPrioritySchema,
   TaskStatusResultSchema,
   TaskWithAssignmentsSchema,
@@ -40,9 +41,11 @@ import {
   isTerminalStatus,
 } from "@/lib/project-roles"
 import {
+  atTime,
   firstAssignmentWindow,
   toTaskAssignmentDTO,
 } from "@/lib/tasks/assignments"
+import { computeNextOccurrence } from "@/lib/tasks/recurrence"
 import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm"
 import { z } from "zod"
 
@@ -484,6 +487,13 @@ export const updateAssignmentStatus = projectAction(
         id: taskAssignmentsTable.id,
         userId: taskAssignmentsTable.userId,
         status: taskAssignmentsTable.status,
+        endDate: taskAssignmentsTable.endDate,
+        taskId: tasksTable.id,
+        recurrence: tasksTable.recurrence,
+        interval: tasksTable.interval,
+        daysOfWeek: tasksTable.daysOfWeek,
+        startTime: tasksTable.startTime,
+        endTime: tasksTable.endTime,
       })
       .from(taskAssignmentsTable)
       .innerJoin(
@@ -533,10 +543,106 @@ export const updateAssignmentStatus = projectAction(
 
     if (!viewRow) returnActionError("NOT_FOUND")
 
+    let nextAssignment: TaskAssignmentDTO | null = null
+
+    if (
+      (status === "done" || status === "cancelled") &&
+      row.recurrence
+    ) {
+      const next = computeNextOccurrence(
+        {
+          recurrence: row.recurrence,
+          interval: row.interval,
+          daysOfWeek: row.daysOfWeek,
+          startTime: row.startTime,
+        },
+        row.endDate ?? new Date()
+      )
+
+      if (next) {
+        const [inserted] = await db
+          .insert(taskAssignmentsTable)
+          .values({
+            taskId: row.taskId,
+            userId: row.userId,
+            status: "todo",
+            startDate: next,
+            endDate: atTime(next, row.endTime),
+          })
+          .returning()
+
+        const nextView = await db
+          .select(ASSIGNMENT_VIEW_COLUMNS)
+          .from(taskAssignmentDetailView)
+          .where(
+            eq(taskAssignmentDetailView.assignmentId, inserted.id)
+          )
+          .then((rows) => rows[0])
+
+        nextAssignment = nextView
+          ? toTaskAssignmentDTO(nextView)
+          : null
+      }
+    }
+
     return {
       assignment: toTaskAssignmentDTO(viewRow),
-      nextAssignment: null,
+      nextAssignment,
     }
+  })
+
+export const updateAssignmentComment = projectAction(
+  z.object({
+    projectId: z.uuid(),
+    assignmentId: z.uuid(),
+    comment: z.string().max(2000),
+  })
+)
+  .metadata({})
+  .outputSchema(TaskAssignmentSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { projectId, assignmentId, comment } = parsedInput
+
+    const row = await db
+      .select({
+        userId: taskAssignmentsTable.userId,
+        status: taskAssignmentsTable.status,
+      })
+      .from(taskAssignmentsTable)
+      .innerJoin(
+        tasksTable,
+        eq(taskAssignmentsTable.taskId, tasksTable.id)
+      )
+      .where(
+        and(
+          eq(taskAssignmentsTable.id, assignmentId),
+          eq(tasksTable.projectId, projectId)
+        )
+      )
+      .then((rows) => rows[0])
+
+    if (!row) returnActionError("NOT_FOUND")
+
+    if (!canChangeAnyAssignment(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
+    const trimmed = comment.trim()
+
+    await db
+      .update(taskAssignmentsTable)
+      .set({ comment: trimmed || null })
+      .where(eq(taskAssignmentsTable.id, assignmentId))
+
+    const viewRow = await db
+      .select(ASSIGNMENT_VIEW_COLUMNS)
+      .from(taskAssignmentDetailView)
+      .where(eq(taskAssignmentDetailView.assignmentId, assignmentId))
+      .then((rows) => rows[0])
+
+    if (!viewRow) returnActionError("NOT_FOUND")
+
+    return toTaskAssignmentDTO(viewRow)
   })
 
 export const updateTaskStatus = projectAction(

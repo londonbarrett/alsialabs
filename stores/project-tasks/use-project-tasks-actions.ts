@@ -15,6 +15,7 @@ import {
 import {
   createTask as createTaskAction,
   deleteTask as deleteTaskAction,
+  updateAssignmentComment as updateAssignmentCommentAction,
   updateAssignmentStatus as updateAssignmentStatusAction,
   updateTask as updateTaskAction,
   updateTaskPriority as updateTaskPriorityAction,
@@ -40,11 +41,11 @@ function toTaskPayload(
     assigneeIds: values.assigneeIds,
     startDate: values.startDate,
     endDate: values.endDate,
-    recurrence: null,
-    interval: 1,
-    daysOfWeek: [] as string[],
-    startTime: "",
-    endTime: "",
+    recurrence: values.recurrence,
+    interval: values.interval,
+    daysOfWeek: values.daysOfWeek,
+    startTime: values.startTime,
+    endTime: values.endTime,
     cost: values.cost,
   }
 }
@@ -60,6 +61,9 @@ export function useProjectTasksActions() {
   const { executeAsync: executeDelete } = useAction(deleteTaskAction)
   const { executeAsync: executeStatus } = useAction(
     updateAssignmentStatusAction
+  )
+  const { executeAsync: executeComment } = useAction(
+    updateAssignmentCommentAction
   )
   const { executeAsync: executePriority } = useAction(
     updateTaskPriorityAction
@@ -179,11 +183,51 @@ export function useProjectTasksActions() {
                 type: "upsertAssignment",
                 taskId,
                 assignment: r.data.assignment,
+                nextAssignment: r.data.nextAssignment,
               }
             : undefined,
       }
     )
     settle(result, t("projects.tasks.statusChanged"))
+    if (result?.data?.nextAssignment) {
+      toast.success(t("projects.routines.nextOccurrenceCreated"))
+    }
+  }
+
+  async function updateAssignmentComment(
+    projectId: string,
+    taskId: string,
+    assignmentId: string,
+    comment: string
+  ) {
+    const current = store
+      .getState()
+      .optimistic.tasks.find((task) => task.id === taskId)
+      ?.assignments.find((a) => a.id === assignmentId)
+    if (!current) return
+
+    const result = await run(
+      {
+        type: "upsertAssignment",
+        taskId,
+        assignment: {
+          ...current,
+          comment: comment.trim() || null,
+        },
+      },
+      () => executeComment({ projectId, assignmentId, comment }),
+      {
+        commitAction: (r) =>
+          r.data
+            ? {
+                type: "upsertAssignment",
+                taskId,
+                assignment: r.data,
+              }
+            : undefined,
+      }
+    )
+    settle(result, t("projects.tasks.comments.commentUpdated"))
   }
 
   async function updateTaskPriority(
@@ -271,6 +315,7 @@ export function useProjectTasksActions() {
     updateTask,
     deleteTask,
     updateAssignmentStatus,
+    updateAssignmentComment,
     updateTaskPriority,
     createComment,
     updateComment,

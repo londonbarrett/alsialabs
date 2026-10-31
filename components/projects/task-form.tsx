@@ -1,22 +1,18 @@
 "use client"
 
-import type { TaskPriorityDTO, TaskWithAssignmentsDTO } from "@/actions/schemas/task"
-import { MoneyInput } from "@/components/common/money-input"
+import type {
+  TaskPriorityDTO,
+  TaskWithAssignmentsDTO,
+} from "@/actions/schemas/task"
 import { Button } from "@/components/ui/button"
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { FieldError } from "@/components/ui/field"
 import { combineDateTime } from "@/lib/util/schedule"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
-import { TaskAssigneeSelect } from "./task-assignee-select"
-import { TaskPrioritySelect } from "./task-priority-select"
+import { TaskFormDetailsStep } from "./task-form-details-step"
+import { TaskFormRepeatStep } from "./task-form-repeat-step"
+import { TaskStepIndicator } from "./task-step-indicator"
 
 function toDateInput(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
@@ -36,6 +32,11 @@ interface TaskFormProps {
     assigneeIds: string[]
     startDate: string | null
     endDate: string | null
+    recurrence: "daily" | "weekly" | null
+    interval: number
+    daysOfWeek: string[]
+    startTime: string
+    endTime: string
   }) => void
   onCancel: () => void
 }
@@ -44,6 +45,9 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const t = useTranslations()
   const { members } = useProjectContextState()
   const firstAssignment = task?.assignments[0]
+
+  const [step, setStep] = useState(1)
+  const [step1Done, setStep1Done] = useState(false)
   const [name, setName] = useState(task?.name ?? "")
   const [description, setDescription] = useState(task?.description ?? "")
   const [cost, setCost] = useState(task?.cost ?? "")
@@ -65,14 +69,53 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [endTime, setEndTime] = useState(
     task?.endDate ? toTimeInput(task.endDate) : ""
   )
+  const [repeat, setRepeat] = useState(Boolean(task?.recurrence))
+  const [recurrence, setRecurrence] = useState<"daily" | "weekly">(
+    task?.recurrence === "daily" ? "daily" : "weekly"
+  )
+  const [interval, setInterval] = useState(String(task?.interval ?? 1))
+  const [daysOfWeek, setDaysOfWeek] = useState<string[]>(
+    task?.daysOfWeek ?? []
+  )
+  const [occurrenceStart, setOccurrenceStart] = useState(
+    task?.startTime ?? ""
+  )
+  const [occurrenceEnd, setOccurrenceEnd] = useState(task?.endTime ?? "")
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  function validate() {
+  function toggleDay(day: string) {
+    setDaysOfWeek((prev) =>
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : [...prev, day]
+    )
+  }
+
+  function goNext() {
+    if (!name.trim()) {
+      setErrors({ name: t("projects.tasks.nameRequired") })
+      return
+    }
+    setErrors({})
+    setStep1Done(true)
+    setStep(2)
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
     const fieldErrors: Record<string, string> = {}
     if (!name.trim()) fieldErrors.name = t("projects.tasks.nameRequired")
-    if (startDate && endDate) {
+
+    if (repeat) {
+      if (!occurrenceStart)
+        fieldErrors.startTime = t("projects.routines.startNotPast")
+      if (recurrence === "weekly" && daysOfWeek.length === 0)
+        fieldErrors.daysOfWeek = t("projects.routines.atLeastOneDay")
+    } else {
       const start = combineDateTime(startDate, startTime)
       const end = combineDateTime(endDate, endTime)
+      if (!start) fieldErrors.startDate = t("common.dateRequired")
+      if (!end) fieldErrors.endDate = t("common.dateRequired")
       if (start && end && end.getTime() < start.getTime()) {
         fieldErrors.endDate = t("projects.routines.endBeforeStart")
       } else if (
@@ -83,13 +126,9 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         fieldErrors.endDate = t("projects.routines.endBeforeStart")
       }
     }
-    setErrors(fieldErrors)
-    return Object.keys(fieldErrors).length === 0
-  }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!validate()) return
+    setErrors(fieldErrors)
+    if (Object.keys(fieldErrors).length > 0) return
 
     const start = combineDateTime(startDate, startTime)
     const end = combineDateTime(endDate, endTime)
@@ -100,112 +139,87 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
       cost: cost.trim(),
       priority,
       assigneeIds: assigneeId ? [assigneeId] : [],
-      startDate: start ? start.toISOString() : null,
-      endDate: end ? end.toISOString() : null,
+      startDate: repeat || !start ? null : start.toISOString(),
+      endDate: repeat || !end ? null : end.toISOString(),
+      recurrence: repeat ? recurrence : null,
+      interval: Number(interval) || 1,
+      daysOfWeek: repeat ? daysOfWeek : [],
+      startTime: repeat ? occurrenceStart : "",
+      endTime: repeat ? occurrenceEnd : "",
     })
   }
 
   return (
     <form onSubmit={handleSubmit}>
-      <FieldGroup>
-        <Field data-invalid={!!errors.name || undefined}>
-          <FieldLabel htmlFor="name">
-            {t("projects.tasks.name")}
-          </FieldLabel>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            aria-invalid={!!errors.name || undefined}
+      <TaskStepIndicator
+        current={step}
+        editMode={Boolean(task)}
+        step1Done={step1Done}
+        onSelect={setStep}
+      />
+
+      {step === 1 ? (
+        <TaskFormDetailsStep
+          name={name}
+          description={description}
+          cost={cost}
+          priority={priority}
+          assigneeId={assigneeId}
+          startDate={startDate}
+          startTime={startTime}
+          endDate={endDate}
+          endTime={endTime}
+          members={members}
+          errors={errors}
+          onNameChange={setName}
+          onDescriptionChange={setDescription}
+          onCostChange={setCost}
+          onPriorityChange={setPriority}
+          onAssigneeChange={setAssigneeId}
+          onStartDateChange={setStartDate}
+          onStartTimeChange={setStartTime}
+          onEndDateChange={setEndDate}
+          onEndTimeChange={setEndTime}
+          onNext={goNext}
+          onCancel={onCancel}
+        />
+      ) : (
+        <div className="flex flex-col gap-6">
+          <TaskFormRepeatStep
+            repeat={repeat}
+            recurrence={recurrence}
+            interval={interval}
+            daysOfWeek={daysOfWeek}
+            startTime={occurrenceStart}
+            endTime={occurrenceEnd}
+            onRepeatChange={setRepeat}
+            onRecurrenceChange={setRecurrence}
+            onIntervalChange={setInterval}
+            onDayToggle={toggleDay}
+            onStartTimeChange={setOccurrenceStart}
+            onEndTimeChange={setOccurrenceEnd}
           />
-          {errors.name && <FieldError>{errors.name}</FieldError>}
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="description">
-            {t("common.description")}
-          </FieldLabel>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="cost">{t("common.cost")}</FieldLabel>
-          <MoneyInput id="cost" value={cost} onChange={setCost} />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="priority">
-            {t("common.priority")}
-          </FieldLabel>
-          <TaskPrioritySelect
-            id="priority"
-            priority={priority}
-            onPriorityChange={setPriority}
-            fullWidth
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="assignee">
-            {t("common.assignee")}
-          </FieldLabel>
-          <TaskAssigneeSelect
-            value={assigneeId}
-            onChange={setAssigneeId}
-            members={members}
-          />
-        </Field>
-        <Field data-invalid={!!errors.endDate || undefined}>
-          <FieldLabel htmlFor="startDate">
-            {t("projects.startDate")}
-          </FieldLabel>
-          <div className="flex gap-3">
-            <Input
-              id="startDate"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <Input
-              id="startTime"
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-            />
+          {(errors.startTime || errors.daysOfWeek) && (
+            <FieldError>
+              {errors.startTime ?? errors.daysOfWeek}
+            </FieldError>
+          )}
+          <div className="flex justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStep(1)}
+            >
+              {t("common.back")}
+            </Button>
+            <Button type="submit">
+              {task
+                ? t("common.saveChanges")
+                : t("projects.tasks.createTask")}
+            </Button>
           </div>
-        </Field>
-        <Field data-invalid={!!errors.endDate || undefined}>
-          <FieldLabel htmlFor="endDate">
-            {t("common.dueDate")}
-          </FieldLabel>
-          <div className="flex gap-3">
-            <Input
-              id="endDate"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              aria-invalid={!!errors.endDate || undefined}
-            />
-            <Input
-              id="endTime"
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-            />
-          </div>
-          {errors.endDate && <FieldError>{errors.endDate}</FieldError>}
-        </Field>
-        <Field orientation="horizontal">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            {t("common.cancel")}
-          </Button>
-          <Button type="submit">
-            {task
-              ? t("common.saveChanges")
-              : t("projects.tasks.createTask")}
-          </Button>
-        </Field>
-      </FieldGroup>
+        </div>
+      )}
     </form>
   )
 }

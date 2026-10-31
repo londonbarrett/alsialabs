@@ -310,7 +310,11 @@
         "commentUpdated": "Comment updated",
         "commentDeleted": "Comment deleted",
         "edited": "edited"
-      }
+      },
+      "recurring": "Recurring",
+      "repeat": "Repeat this task",
+      "stepDetails": "Details",
+      "stepRepeat": "Repeat"
     },
     "expenses": {
       "addExpense": "Add Expense",

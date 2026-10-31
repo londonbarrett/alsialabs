@@ -310,7 +310,11 @@
         "commentUpdated": "Comentario actualizado",
         "commentDeleted": "Comentario eliminado",
         "edited": "editado"
-      }
+      },
+      "recurring": "Recurrente",
+      "repeat": "Repetir esta tarea",
+      "stepDetails": "Detalles",
+      "stepRepeat": "Repetición"
     },
     "expenses": {
       "addExpense": "Agregar Gasto",
