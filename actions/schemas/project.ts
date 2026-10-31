@@ -42,6 +42,7 @@ export const UpdateProjectSchema = ProjectSchema.extend({
 
 export const ProjectAccessResultSchema = z.object({
   hasAccess: z.boolean(),
+  role: z.enum(["owner", "admin", "collaborator"]).nullable(),
   isOwner: z.boolean(),
 })
 

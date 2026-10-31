@@ -59,6 +59,7 @@ const CATEGORY_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22"
 function grantAccess() {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: true,
+    role: "owner",
     isOwner: true,
   })
 }
@@ -66,6 +67,7 @@ function grantAccess() {
 function denyAccess() {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: false,
+    role: null,
     isOwner: false,
   })
 }
@@ -131,11 +133,6 @@ describe("expenses actions", () => {
       })
 
       expect(result.data).toEqual(fakeExpenses)
-      expect(mockHasPermission).toHaveBeenCalledWith(
-        "user-1",
-        "expenses",
-        "view"
-      )
     })
 
     it("returns FORBIDDEN when access is denied", async () => {
@@ -175,13 +172,7 @@ describe("expenses actions", () => {
       expect(result.data).toEqual(fakeExpense)
       expect(mockVerifyProjectAccess).toHaveBeenCalledWith(
         PROJECT_ID,
-        "user-1",
-        "user"
-      )
-      expect(mockHasPermission).toHaveBeenCalledWith(
-        "user-1",
-        "expenses",
-        "create"
+        "user-1"
       )
     })
 
@@ -239,11 +230,6 @@ describe("expenses actions", () => {
 
       expect(result.serverError).toBeUndefined()
       expect(result.data).toEqual(fakeExpense)
-      expect(mockHasPermission).toHaveBeenCalledWith(
-        "user-1",
-        "expenses",
-        "edit"
-      )
     })
 
     it("returns NOT_FOUND when expense does not exist", async () => {
@@ -274,11 +260,6 @@ describe("expenses actions", () => {
       })
 
       expect(result.serverError).toBeUndefined()
-      expect(mockHasPermission).toHaveBeenCalledWith(
-        "user-1",
-        "expenses",
-        "delete"
-      )
     })
 
     it("returns NOT_FOUND when expense does not exist", async () => {

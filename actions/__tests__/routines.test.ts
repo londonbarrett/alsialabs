@@ -122,6 +122,7 @@ const validRoutineInput = {
 function grantAccess(isOwner = true) {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: true,
+    role: isOwner ? "owner" : "collaborator",
     isOwner,
   })
 }
@@ -129,6 +130,7 @@ function grantAccess(isOwner = true) {
 function denyAccess() {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: false,
+    role: null,
     isOwner: false,
   })
 }
@@ -153,15 +155,9 @@ describe("routines actions", () => {
       const result = await getProjectRoutines({ projectId: PROJECT_ID })
 
       expect(result.data).toEqual([withAssignee])
-      expect(mockHasPermission).toHaveBeenCalledWith(
-        "user-1",
-        "projects",
-        "view"
-      )
       expect(mockVerifyProjectAccess).toHaveBeenCalledWith(
         PROJECT_ID,
-        "user-1",
-        "user"
+        "user-1"
       )
     })
 
@@ -193,11 +189,6 @@ describe("routines actions", () => {
 
       expect(result.serverError).toBeUndefined()
       expect(result.data).toEqual(ROUTINE)
-      expect(mockHasPermission).toHaveBeenCalledWith(
-        "user-1",
-        "projects",
-        "edit"
-      )
       expect(mockRevalidatePath).toHaveBeenCalledWith(PROJECT_PATH)
     })
 
@@ -290,11 +281,6 @@ describe("routines actions", () => {
       })
 
       expect(result.serverError).toBeUndefined()
-      expect(mockHasPermission).toHaveBeenCalledWith(
-        "user-1",
-        "projects",
-        "delete"
-      )
       expect(mockRevalidatePath).toHaveBeenCalledWith(PROJECT_PATH)
     })
 
@@ -318,6 +304,7 @@ describe("routines actions", () => {
       state.mock.onInsert(schema.tasksTable).respond([TASK])
 
       const result = await createNextRoutineTask({
+        projectId: PROJECT_ID,
         routineId: ROUTINE_ID,
       })
 
@@ -326,8 +313,7 @@ describe("routines actions", () => {
       expect(result.data?.task).toEqual(TASK)
       expect(mockVerifyProjectAccess).toHaveBeenCalledWith(
         PROJECT_ID,
-        "user-1",
-        "user"
+        "user-1"
       )
     })
 
@@ -336,6 +322,7 @@ describe("routines actions", () => {
       state.mock.onSelect(schema.tasksTable).respond([{ id: TASK_ID }])
 
       const result = await createNextRoutineTask({
+        projectId: PROJECT_ID,
         routineId: ROUTINE_ID,
       })
 
@@ -346,6 +333,7 @@ describe("routines actions", () => {
       state.mock.onSelect(schema.routinesTable).respond([])
 
       const result = await createNextRoutineTask({
+        projectId: PROJECT_ID,
         routineId: ROUTINE_ID,
       })
 
@@ -357,6 +345,7 @@ describe("routines actions", () => {
       grantAccess(false)
 
       const result = await createNextRoutineTask({
+        projectId: PROJECT_ID,
         routineId: ROUTINE_ID,
       })
 
@@ -367,6 +356,7 @@ describe("routines actions", () => {
       mockAuth.mockResolvedValue(null)
 
       const result = await createNextRoutineTask({
+        projectId: PROJECT_ID,
         routineId: ROUTINE_ID,
       })
 

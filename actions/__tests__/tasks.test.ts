@@ -56,6 +56,7 @@ const USER_ID = "user-1"
 function grantAccess(isOwner = true) {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: true,
+    role: isOwner ? "owner" : "collaborator",
     isOwner,
   })
 }
@@ -63,6 +64,7 @@ function grantAccess(isOwner = true) {
 function denyAccess() {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: false,
+    role: null,
     isOwner: false,
   })
 }

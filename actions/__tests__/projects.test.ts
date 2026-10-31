@@ -83,6 +83,7 @@ function makeProjectRow(overrides: Record<string, unknown> = {}) {
 function grantAccess(isOwner = true) {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: true,
+    role: isOwner ? "owner" : "collaborator",
     isOwner,
   })
 }

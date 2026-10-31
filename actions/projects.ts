@@ -29,7 +29,7 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import {
-  projectScopedAction,
+  projectAction,
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
@@ -362,10 +362,10 @@ export const getProjectsWithDetails = sessionAction
     })
   })
 
-export const getProjectById = projectScopedAction(
+export const getProjectById = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(ProjectDetailSchema)
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
@@ -439,9 +439,8 @@ export const createProject = sessionAction
     return created
   })
 
-export const updateProject = projectScopedAction(UpdateProjectSchema)
+export const updateProject = projectAction(UpdateProjectSchema)
   .metadata({
-    permission: { module: "projects", action: "edit" },
     // :projectId interpolated from input AFTER the action commits
     revalidate: ["/app/proyectos", "/app/proyectos/:projectId"],
   })
@@ -479,10 +478,10 @@ export const updateProject = projectScopedAction(UpdateProjectSchema)
     return updated
   })
 
-export const getProjectForEdit = projectScopedAction(
+export const getProjectForEdit = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(ProjectRecordSchema)
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
@@ -509,13 +508,10 @@ export const getProjectForEdit = projectScopedAction(
     return project
   })
 
-export const deleteProject = projectScopedAction(
+export const deleteProject = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({
-    permission: { module: "projects", action: "delete" },
-    revalidate: ["/app/proyectos"],
-  })
+  .metadata({ revalidate: ["/app/proyectos"] })
   .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId } = parsedInput
@@ -537,9 +533,10 @@ export const deleteProject = projectScopedAction(
     return { success: true }
   })
 
-export const getProjectContext = sessionAction
-  .metadata({ permission: { module: "projects", action: "view" } })
-  .inputSchema(z.object({ projectId: z.uuid() }))
+export const getProjectContext = projectAction(
+  z.object({ projectId: z.uuid() })
+)
+  .metadata({})
   .outputSchema(ProjectContextSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId } = parsedInput

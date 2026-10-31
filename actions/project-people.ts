@@ -15,7 +15,7 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import {
-  projectScopedAction,
+  projectAction,
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
@@ -142,7 +142,7 @@ export const getProjectCollaborators = sessionAction
 
 // ---------- Mutations ----------
 
-export const addProjectOwner = projectScopedAction(MemberInputSchema)
+export const addProjectOwner = projectAction(MemberInputSchema)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(ProjectMembershipSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -164,7 +164,7 @@ export const addProjectOwner = projectScopedAction(MemberInputSchema)
     return owner
   })
 
-export const removeProjectOwner = projectScopedAction(MemberInputSchema)
+export const removeProjectOwner = projectAction(MemberInputSchema)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(ProjectMembershipSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -191,7 +191,7 @@ export const removeProjectOwner = projectScopedAction(MemberInputSchema)
     return { projectId, userId }
   })
 
-export const transferPrimaryOwner = projectScopedAction(
+export const transferPrimaryOwner = projectAction(
   z.object({
     projectId: z.uuid(),
     newOwnerId: z.string().min(1),
@@ -219,7 +219,7 @@ export const transferPrimaryOwner = projectScopedAction(
     return updated
   })
 
-export const addProjectCollaborator = projectScopedAction(
+export const addProjectCollaborator = projectAction(
   MemberInputSchema
 )
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
@@ -243,7 +243,7 @@ export const addProjectCollaborator = projectScopedAction(
     return collaborator
   })
 
-export const removeProjectCollaborator = projectScopedAction(
+export const removeProjectCollaborator = projectAction(
   MemberInputSchema
 )
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })

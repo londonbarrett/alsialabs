@@ -1,6 +1,5 @@
 "use server"
 
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
 import { SuccessSchema } from "@/actions/schemas/common"
 import {
   CreateRoutineSchema,
@@ -19,9 +18,8 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import {
-  projectScopedAction,
+  projectAction,
   returnActionError,
-  sessionAction,
 } from "@/lib/safe-action"
 import {
   computeScheduledFor,
@@ -35,10 +33,10 @@ import { z } from "zod"
 
 // ---------- Query actions ----------
 
-export const getProjectRoutines = projectScopedAction(
+export const getProjectRoutines = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(z.array(RoutineWithAssigneeSchema))
   .action(async ({ parsedInput }) => {
     return db
@@ -67,7 +65,7 @@ export const getProjectRoutines = projectScopedAction(
 
 // ---------- Mutation actions ----------
 
-/** Create/edit/delete are owner-only: `projectScopedAction` guarantees
+/** Create/edit/delete are owner-only: `projectAction` guarantees
  * membership, not ownership. */
 function requireProjectOwner(ctx: { isProjectOwner: boolean }): void {
   if (!ctx.isProjectOwner) {
@@ -93,11 +91,10 @@ function routineValues(data: RoutineDTO) {
 }
 
 const ROUTINE_EDIT_METADATA = {
-  permission: { module: "projects", action: "edit" },
   revalidate: ["/app/proyectos/:projectId"],
 }
 
-export const createRoutine = projectScopedAction(CreateRoutineSchema)
+export const createRoutine = projectAction(CreateRoutineSchema)
   .metadata(ROUTINE_EDIT_METADATA)
   .outputSchema(RoutineRecordSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -115,6 +112,7 @@ export const createRoutine = projectScopedAction(CreateRoutineSchema)
     }
 
     const spawned = await createNextRoutineTask({
+      projectId,
       routineId: routine.id,
     })
     if (spawned.serverError) {
@@ -124,7 +122,7 @@ export const createRoutine = projectScopedAction(CreateRoutineSchema)
     return routine
   })
 
-export const updateRoutine = projectScopedAction(UpdateRoutineSchema)
+export const updateRoutine = projectAction(UpdateRoutineSchema)
   .metadata(ROUTINE_EDIT_METADATA)
   .outputSchema(RoutineRecordSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -150,11 +148,8 @@ export const updateRoutine = projectScopedAction(UpdateRoutineSchema)
     return routine
   })
 
-export const deleteRoutine = projectScopedAction(DeleteRoutineSchema)
-  .metadata({
-    permission: { module: "projects", action: "delete" },
-    revalidate: ["/app/proyectos/:projectId"],
-  })
+export const deleteRoutine = projectAction(DeleteRoutineSchema)
+  .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     requireProjectOwner(ctx)
@@ -184,29 +179,30 @@ export const deleteRoutine = projectScopedAction(DeleteRoutineSchema)
  * routine's project — not a caller-supplied one — decides access, and only
  * owners may spawn.
  */
-export const createNextRoutineTask = sessionAction
+export const createNextRoutineTask = projectAction(
+  SpawnRoutineTaskSchema
+)
   .metadata({})
-  .inputSchema(SpawnRoutineTaskSchema)
   .outputSchema(SpawnRoutineTaskResultSchema)
   .action(async ({ parsedInput, ctx }) => {
-    const { routineId, after } = parsedInput
+    const { projectId, routineId, after } = parsedInput
 
     const routine = await db
       .select()
       .from(routinesTable)
-      .where(eq(routinesTable.id, routineId))
+      .where(
+        and(
+          eq(routinesTable.id, routineId),
+          eq(routinesTable.projectId, projectId)
+        )
+      )
       .then((rows) => rows[0])
 
     if (!routine) {
       returnActionError("NOT_FOUND")
     }
 
-    const access = await verifyProjectAccess(
-      routine.projectId,
-      ctx.session.user.id,
-      ctx.session.user.role ?? null
-    )
-    if (!access.hasAccess || !access.isOwner) {
+    if (!ctx.isProjectOwner) {
       returnActionError("FORBIDDEN")
     }
 

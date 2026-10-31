@@ -179,8 +179,9 @@ git commit -m "feat(db): add task assignments, project membership, and recurring
 **Files:**
 
 - Create: `lib/project-roles.ts`, `lib/project-roles.test.ts`
-- Modify: `actions/not-safe/project-access.ts`
+- Modify: `actions/not-safe/project-access.ts`, `actions/projects.ts` (`getProjectContext` becomes a `projectAction`)
 - Modify: `lib/safe-action.ts:140-179`
+- Modify: `actions/tasks.ts`, `actions/routines.ts`, `actions/task-comments.ts` (move derived-project verification into the wrapper)
 - Test: `actions/__tests__/project-access.test.ts` (new)
 
 **Interfaces:**
@@ -189,6 +190,7 @@ git commit -m "feat(db): add task assignments, project membership, and recurring
 - `canViewProject(role)` (owner|admin), `canManageProject(role)` (owner), `canManageWork(role)` (owner|admin), `canManageAdmins(role)` (owner), `canManageCollaborators(role)` (owner|admin), `canChangeAnyAssignment(role)` (owner|admin), `isTerminalStatus(status)` (done|cancelled).
 - `verifyProjectAccess(projectId: string, userId: string, _legacySessionRole?: string | null): Promise<ProjectAccess>` — the third parameter is accepted and ignored so existing call sites keep compiling; superusers get no override.
 - ctx gains `projectRole: ProjectRole | null`; `ctx.isProjectOwner` stays, mapped to `role === "owner"` for now.
+- Every project-scoped action carries `projectId` in its own input and scopes its query by it, so `projectAction` is the single verification path — no second wrapper. Actions keyed by a task or routine take both ids; a mismatched pair is `NOT_FOUND`. Project actions declare no `metadata.permission`: the project role is the sole authority.
 
 - [ ] **Step 1: Write the failing helper tests** in `lib/project-roles.test.ts`:
 
@@ -258,15 +260,22 @@ it("grants no implicit super user access", ...) // primary owner is someone else
 
 - [ ] **Step 8: Update the shared test helpers.** `grantAccess(isOwner = true)` becomes `grantAccess(role: ProjectRole = "owner")` returning `{ hasAccess: true, role, isOwner: role === "owner" }`; `denyAccess()` returns `{ hasAccess: false, role: null, isOwner: false }`. Apply to `actions/__tests__/tasks.test.ts`, `projects.test.ts`, `expenses.test.ts`, `routines.test.ts`.
 
-- [ ] **Step 9: Run the gate.**
+- [ ] **Step 9: Move derived-project actions onto the wrapper.**
 
-Run: `pnpm verify`
+- `updateTaskStatus` becomes a `projectAction` (its input already has `projectId`) and drops its manual `verifyProjectAccess`.
+- `createNextRoutineTask` gains `projectId` in its input (both callers already have it), becomes a `projectAction`, and scopes the routine lookup by `projectId`; the owner check uses `ctx.isProjectOwner`.
+- The four comment schemas and `SpawnRoutineTaskSchema` gain `projectId`; the comment actions become `projectAction`, assert the task belongs to that project (`NOT_FOUND` otherwise), and keep today's membership rule. `deleteComment` uses `ctx.isProjectOwner` for moderation. The stores and both comment panels pass `projectId`; My Tasks takes it from `MyTaskDTO.projectId`.
+- Remove `metadata.permission` from every `projectAction` action and drop the matching `hasPermission` call assertions from their tests; global module codes no longer gate in-project work. No action calls `verifyProjectAccess` directly anymore.
+
+- [ ] **Step 10: Run the gate.**
+
+Run: `pnpm verify && pnpm test:e2e`
 Expected: PASS.
 
-- [ ] **Step 10: Review checkpoint — do not commit until the user approves.**
+- [ ] **Step 11: Review checkpoint — do not commit until the user approves.**
 
 ```bash
-git add lib/project-roles.ts lib/project-roles.test.ts actions/not-safe/project-access.ts lib/safe-action.ts actions/__tests__ actions/schemas/project.ts
+git add lib/project-roles.ts lib/project-roles.test.ts actions/not-safe/project-access.ts lib/safe-action.ts actions/tasks.ts actions/routines.ts actions/task-comments.ts actions/__tests__ actions/schemas/project.ts
 git commit -m "feat(projects): resolve project roles and expose them to actions"
 ```
 
@@ -285,7 +294,7 @@ The existing `actions/project-people.ts` and `use-project-people-actions.ts` sta
 **Interfaces:**
 
 - `ProjectMemberRowSchema = { userId, userName|null, userEmail|null, userImage|null, role: ProjectRole, isPrimaryOwner: boolean }`.
-- Actions, all `projectScopedAction`:
+- Actions, all `projectAction`:
   - `getProjectMembers({ projectId })` → `ProjectMemberRowDTO[]` — owner first, then admins, then collaborators.
   - `addProjectAdmin({ projectId, userId })` → `ProjectMembershipDTO` — owner only; rejects the owner and existing admins (`ALREADY_OWNER`).
   - `removeProjectAdmin({ projectId, userId })` → `ProjectMembershipDTO` — owner only.
@@ -341,7 +350,7 @@ git commit -m "feat(projects): add membership actions for admins and collaborato
 
 - [ ] **Step 4: Rewrite `project-people.tsx`** as one member list with role badges; "Add admin" only under `canManageAdmins(currentRole)`, "Add collaborator" and collaborator removal under `canManageCollaborators(currentRole)`, role change under `canManageAdmins(currentRole)`.
 
-- [ ] **Step 5: Update `getProjectContext`** to call `getProjectMembers`, derive `currentRole` from `verifyProjectAccess`, and reject collaborators with `FORBIDDEN` when `canViewProject` is false.
+- [ ] **Step 5: Update `getProjectContext`** — already a `projectAction` since Task 2 — to call `getProjectMembers`, use `ctx.projectRole` for `currentRole`, and reject collaborators with `FORBIDDEN` when `canViewProject` is false.
 
 - [ ] **Step 6: Update the consumers listed under Files** so typecheck passes; keep behaviour otherwise identical.
 
@@ -589,7 +598,7 @@ git commit -m "feat(calendar): render assignments grouped by task and day"
 **Interfaces:**
 
 - `getMyTasks()` → `{ active: MyTaskDTO[], past: MyTaskDTO[] }`. Active = open assignments on projects where the caller is owner/admin/collaborator. Past = terminal assignments **including** projects the caller no longer belongs to.
-- Comment access: `canViewProject(role)` or the caller holds an open assignment on the task.
+- Comment access: `canViewProject(role)` or the caller holds an open assignment on the task. This is an in-action predicate change; the wrapper stays `projectAction`.
 - Store state `{ active, past, commentsByTask }`; `updateAssignment` moves a row between the two lists when status crosses the terminal boundary; `insertNextAssignment` adds to `active`.
 - `MyTasksView` takes `currentUserId` only; two sections, past read-only; no cost column.
 

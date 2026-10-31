@@ -1,6 +1,5 @@
 "use server"
 
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
 import {
   CreateTaskCommentSchema,
   DeleteTaskCommentResultSchema,
@@ -15,42 +14,37 @@ import {
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { returnActionError, sessionAction } from "@/lib/safe-action"
-import { asc, eq } from "drizzle-orm"
+import { projectAction, returnActionError } from "@/lib/safe-action"
+import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 
-async function getTaskContext(
-  taskId: string
-): Promise<{ projectId: string; assigneeId: string | null } | null> {
+/** A comment is only reachable through the project that owns its task. */
+async function assertTaskInProject(
+  taskId: string,
+  projectId: string
+): Promise<void> {
   const task = await db
-    .select({
-      projectId: tasksTable.projectId,
-      assigneeId: tasksTable.assigneeId,
-    })
+    .select({ id: tasksTable.id })
     .from(tasksTable)
-    .where(eq(tasksTable.id, taskId))
+    .where(
+      and(
+        eq(tasksTable.id, taskId),
+        eq(tasksTable.projectId, projectId)
+      )
+    )
     .then((rows) => rows[0])
-  return task ?? null
+
+  if (!task) returnActionError("NOT_FOUND")
 }
 
-export const getTaskComments = sessionAction
-  .metadata({ permission: { module: "projects", action: "view" } })
-  .inputSchema(z.object({ taskId: z.uuid() }))
+export const getTaskComments = projectAction(
+  z.object({ projectId: z.uuid(), taskId: z.uuid() })
+)
+  .metadata({})
   .outputSchema(z.array(TaskCommentWithAuthorSchema))
-  .action(async ({ parsedInput, ctx }) => {
-    const { taskId } = parsedInput
-    const session = ctx.session
-
-    const task = await getTaskContext(taskId)
-    if (!task) returnActionError("NOT_FOUND")
-
-    const access = await verifyProjectAccess(
-      task!.projectId,
-      session.user.id,
-      session.user.role ?? null
-    )
-    const isAssignee = task!.assigneeId === session.user.id
-    if (!access.hasAccess && !isAssignee) returnActionError("NOT_FOUND")
+  .action(async ({ parsedInput }) => {
+    const { projectId, taskId } = parsedInput
+    await assertTaskInProject(taskId, projectId)
 
     return db
       .select({
@@ -72,26 +66,14 @@ export const getTaskComments = sessionAction
       .orderBy(asc(taskCommentsTable.createdAt))
   })
 
-export const createComment = sessionAction
-  .inputSchema(CreateTaskCommentSchema)
-  .metadata({
-    permission: { module: "projects", action: "view" },
-  })
+export const createComment = projectAction(CreateTaskCommentSchema)
+  .metadata({})
   .outputSchema(TaskCommentResultSchema)
   .action(async ({ parsedInput, ctx }) => {
-    const { taskId, content } = parsedInput
+    const { projectId, taskId, content } = parsedInput
     const session = ctx.session
 
-    const task = await getTaskContext(taskId)
-    if (!task) returnActionError("NOT_FOUND")
-
-    const access = await verifyProjectAccess(
-      task!.projectId,
-      session.user.id,
-      session.user.role ?? null
-    )
-    const isAssignee = task!.assigneeId === session.user.id
-    if (!access.hasAccess && !isAssignee) returnActionError("NOT_FOUND")
+    await assertTaskInProject(taskId, projectId)
 
     const [inserted] = await db
       .insert(taskCommentsTable)
@@ -122,34 +104,27 @@ export const createComment = sessionAction
     }
   })
 
-export const updateComment = sessionAction
-  .inputSchema(UpdateTaskCommentSchema)
-  .metadata({
-    permission: { module: "projects", action: "view" },
-  })
+export const updateComment = projectAction(UpdateTaskCommentSchema)
+  .metadata({})
   .outputSchema(TaskCommentResultSchema)
   .action(async ({ parsedInput, ctx }) => {
-    const { commentId, taskId, content } = parsedInput
+    const { projectId, commentId, taskId, content } = parsedInput
     const session = ctx.session
 
-    const task = await getTaskContext(taskId)
-    if (!task) returnActionError("NOT_FOUND")
-
-    const access = await verifyProjectAccess(
-      task!.projectId,
-      session.user.id,
-      session.user.role ?? null
-    )
-    const isAssignee = task!.assigneeId === session.user.id
-    if (!access.hasAccess && !isAssignee) returnActionError("NOT_FOUND")
+    await assertTaskInProject(taskId, projectId)
 
     const comment = await db
-      .select({ authorId: taskCommentsTable.authorId })
+      .select({
+        authorId: taskCommentsTable.authorId,
+        taskId: taskCommentsTable.taskId,
+      })
       .from(taskCommentsTable)
       .where(eq(taskCommentsTable.id, commentId))
       .then((rows) => rows[0])
 
-    if (!comment) returnActionError("NOT_FOUND")
+    if (!comment || comment.taskId !== taskId) {
+      returnActionError("NOT_FOUND")
+    }
 
     if (comment.authorId !== session.user.id)
       returnActionError("FORBIDDEN")
@@ -182,37 +157,30 @@ export const updateComment = sessionAction
     }
   })
 
-export const deleteComment = sessionAction
-  .inputSchema(DeleteTaskCommentSchema)
-  .metadata({
-    permission: { module: "projects", action: "view" },
-  })
+export const deleteComment = projectAction(DeleteTaskCommentSchema)
+  .metadata({})
   .outputSchema(DeleteTaskCommentResultSchema)
   .action(async ({ parsedInput, ctx }) => {
-    const { commentId, taskId } = parsedInput
+    const { projectId, commentId, taskId } = parsedInput
     const session = ctx.session
 
-    const task = await getTaskContext(taskId)
-    if (!task) returnActionError("NOT_FOUND")
-
-    const access = await verifyProjectAccess(
-      task!.projectId,
-      session.user.id,
-      session.user.role ?? null
-    )
-    const isAssignee = task!.assigneeId === session.user.id
-    if (!access.hasAccess && !isAssignee) returnActionError("NOT_FOUND")
+    await assertTaskInProject(taskId, projectId)
 
     const comment = await db
-      .select({ authorId: taskCommentsTable.authorId })
+      .select({
+        authorId: taskCommentsTable.authorId,
+        taskId: taskCommentsTable.taskId,
+      })
       .from(taskCommentsTable)
       .where(eq(taskCommentsTable.id, commentId))
       .then((rows) => rows[0])
 
-    if (!comment) returnActionError("NOT_FOUND")
+    if (!comment || comment.taskId !== taskId) {
+      returnActionError("NOT_FOUND")
+    }
 
     const canDelete =
-      comment.authorId === session.user.id || access.isOwner
+      comment.authorId === session.user.id || ctx.isProjectOwner
     if (!canDelete) returnActionError("FORBIDDEN")
 
     await db

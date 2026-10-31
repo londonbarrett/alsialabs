@@ -115,6 +115,7 @@ describe("invoices actions", () => {
     vi.clearAllMocks()
     mockVerifyProjectAccess.mockResolvedValue({
       hasAccess: true,
+      role: "owner",
       isOwner: true,
     })
     state.mock.resetMocks()
@@ -662,6 +663,7 @@ describe("invoices actions", () => {
     it("returns FORBIDDEN when project access is denied", async () => {
       mockVerifyProjectAccess.mockResolvedValue({
         hasAccess: false,
+        role: null,
         isOwner: false,
       })
 

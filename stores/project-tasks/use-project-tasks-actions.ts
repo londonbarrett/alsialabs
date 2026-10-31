@@ -70,9 +70,9 @@ export function useProjectTasksActions() {
 
   /** Fetch, not mutation: pends and commits directly so no loading bar. */
   const loadComments = useCallback(
-    async (taskId: string): Promise<void> => {
+    async (projectId: string, taskId: string): Promise<void> => {
       try {
-        const result = await getTaskComments({ taskId })
+        const result = await getTaskComments({ projectId, taskId })
         const comments = result.data ?? []
         const id = store
           .getState()
@@ -206,6 +206,7 @@ export function useProjectTasksActions() {
   }
 
   async function createComment(
+    projectId: string,
     taskId: string,
     content: string,
     authorId: string
@@ -231,7 +232,7 @@ export function useProjectTasksActions() {
 
     const result = await run(
       { type: "createComment", taskId, comment: tempComment },
-      () => createCommentAction({ taskId, content }),
+      () => createCommentAction({ projectId, taskId, content }),
       {
         commitAction: (r) =>
           r.data
@@ -248,21 +249,28 @@ export function useProjectTasksActions() {
   }
 
   async function updateComment(
+    projectId: string,
     taskId: string,
     commentId: string,
     content: string
   ) {
     const result = await run(
       { type: "updateComment", taskId, commentId, content },
-      () => updateCommentAction({ commentId, taskId, content })
+      () =>
+        updateCommentAction({ projectId, commentId, taskId, content })
     )
     settle(result, t("projects.tasks.comments.commentUpdated"))
   }
 
-  async function deleteComment(taskId: string, commentId: string) {
+  async function deleteComment(
+    projectId: string,
+    taskId: string,
+    commentId: string
+  ) {
     const result = await run(
       { type: "deleteComment", taskId, commentId },
-      () => deleteCommentAction({ commentId, taskId })
+      () =>
+        deleteCommentAction({ projectId, commentId, taskId })
     )
     settle(result, t("projects.tasks.comments.commentDeleted"))
   }

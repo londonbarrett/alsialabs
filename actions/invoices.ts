@@ -29,7 +29,7 @@ import {
   projectsTable,
 } from "@/lib/drizzle/schema"
 import {
-  projectScopedAction,
+  projectAction,
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
@@ -407,12 +407,10 @@ export const bindInvoiceToProject = sessionAction
     return updated
   })
 
-export const getProjectInvoices = projectScopedAction(
+export const getProjectInvoices = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({
-    permission: { module: "expenses", action: "view" },
-  })
+  .metadata({})
   .outputSchema(z.array(ProjectInvoiceSchema))
   .action(async ({ parsedInput }) => {
     return db

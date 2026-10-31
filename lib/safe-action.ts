@@ -81,7 +81,7 @@ function resolveRevalidatePaths(
 // Authenticates the session, optionally checks permission, and handles
 // revalidation (supports templates like "/app/proyectos/:projectId" interpolated
 // from input/data AFTER the action commits). Ownership is domain-specific
-// and enforced separately (e.g. projectAction via verifyProjectAccess,
+// and enforced separately (e.g. projectAction and projectResolvedAction via verifyProjectAccess,
 // storeAction via store scoping).
 
 export const sessionAction = actionClient.use(
@@ -136,31 +136,12 @@ export const storeAction = sessionAction.use(async ({ next }) => {
 })
 
 // ---------- projectAction ----------
-
-export const projectAction = sessionAction
-  .inputSchema(
-    z.object({
-      projectId: z.uuid(),
-    })
-  )
-  .useValidated(async ({ parsedInput, ctx, next }) => {
-    const access = await verifyProjectAccess(
-      parsedInput.projectId,
-      ctx.session.user.id,
-      ctx.session.user.role
-    )
-    if (!access.hasAccess) {
-      returnActionError("FORBIDDEN")
-    }
-    return next({ ctx: { ...ctx, isProjectOwner: access.isOwner } })
-  })
-
-// ---------- projectScopedAction ----------
 // Factory for project-scoped actions. Callers provide their own input schema,
-// which must include a `projectId` field; this verifies project ownership via
-// verifyProjectAccess and injects `isProjectOwner` into context.
+// which must include a `projectId` field; this verifies project access via
+// verifyProjectAccess and injects `projectRole` and `isProjectOwner` into
+// context.
 
-export function projectScopedAction<Schema extends z.ZodTypeAny>(
+export function projectAction<Schema extends z.ZodTypeAny>(
   schema: Schema
 ) {
   return sessionAction
@@ -168,13 +149,18 @@ export function projectScopedAction<Schema extends z.ZodTypeAny>(
     .use(async ({ clientInput, ctx, next }) => {
       const access = await verifyProjectAccess(
         (clientInput as { projectId: string }).projectId,
-        ctx.session.user.id,
-        ctx.session.user.role
+        ctx.session.user.id
       )
       if (!access.hasAccess) {
         returnActionError("FORBIDDEN")
       }
-      return next({ ctx: { ...ctx, isProjectOwner: access.isOwner } })
+      return next({
+      ctx: {
+        ...ctx,
+        projectRole: access.role,
+        isProjectOwner: access.isOwner,
+      },
+    })
     })
 }
 

@@ -198,6 +198,7 @@ export function MyTasksList({
 
       <MyTaskCommentsPanel
         key={commentsTask?.id ?? "empty"}
+        projectId={commentsTask?.projectId ?? ""}
         taskId={commentsTask?.id ?? ""}
         taskName={commentsTask?.name ?? ""}
         description={commentsTask?.description}

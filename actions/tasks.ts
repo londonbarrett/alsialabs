@@ -1,6 +1,5 @@
 "use server"
 
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
 import { createNextRoutineTask } from "@/actions/routines"
 import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
@@ -13,7 +12,7 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import {
-  projectScopedAction,
+  projectAction,
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
@@ -35,10 +34,10 @@ import { z } from "zod"
 
 // ---------- Queries ----------
 
-export const getTasks = projectScopedAction(
+export const getTasks = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(z.array(TaskWithCommentCountSchema))
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
@@ -200,11 +199,8 @@ export const getMyTasks = sessionAction
 
 // ---------- Mutations ----------
 
-export const createTask = projectScopedAction(CreateTaskSchema)
-  .metadata({
-    permission: { module: "projects", action: "edit" },
-    revalidate: ["/app/proyectos/:projectId"],
-  })
+export const createTask = projectAction(CreateTaskSchema)
+  .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(TaskWithCommentCountSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
@@ -243,11 +239,8 @@ export const createTask = projectScopedAction(CreateTaskSchema)
     }
   })
 
-export const updateTask = projectScopedAction(UpdateTaskSchema)
-  .metadata({
-    permission: { module: "projects", action: "edit" },
-    revalidate: ["/app/proyectos/:projectId"],
-  })
+export const updateTask = projectAction(UpdateTaskSchema)
+  .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(TaskWithCommentCountSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
@@ -294,19 +287,17 @@ export const updateTask = projectScopedAction(UpdateTaskSchema)
     }
   })
 
-export const updateTaskStatus = sessionAction
-  .inputSchema(
-    z.object({
-      projectId: z.uuid(),
-      taskId: z.uuid(),
-      status: z.string(),
-    })
-  )
+export const updateTaskStatus = projectAction(
+  z.object({
+    projectId: z.uuid(),
+    taskId: z.uuid(),
+    status: z.string(),
+  })
+)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(TaskStatusResultSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId, taskId, status } = parsedInput
-    const session = ctx.session
 
     const currentTask = await db
       .select({
@@ -328,18 +319,7 @@ export const updateTaskStatus = sessionAction
       returnActionError("NOT_FOUND")
     }
 
-    const isAssignee = currentTask.assigneeId === session.user.id
-    const access = await verifyProjectAccess(
-      projectId,
-      session.user.id,
-      session.user.role ?? null
-    )
-
-    if (!access.hasAccess && !isAssignee) {
-      returnActionError("NOT_FOUND")
-    }
-
-    const isOwner = access.isOwner
+    const isOwner = ctx.isProjectOwner
 
     if (!isOwner) {
       if (
@@ -384,6 +364,7 @@ export const updateTaskStatus = sessionAction
       (status === "done" || status === "cancelled")
     ) {
       const spawned = await createNextRoutineTask({
+        projectId,
         routineId: currentTask.routineId,
         after: currentTask.dueDate,
       })
@@ -393,17 +374,14 @@ export const updateTaskStatus = sessionAction
     return { nextTask }
   })
 
-export const updateTaskPriority = projectScopedAction(
+export const updateTaskPriority = projectAction(
   z.object({
     projectId: z.uuid(),
     taskId: z.uuid(),
     priority: z.string().nullable(),
   })
 )
-  .metadata({
-    permission: { module: "projects", action: "edit" },
-    revalidate: ["/app/proyectos/:projectId"],
-  })
+  .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {
@@ -429,16 +407,13 @@ export const updateTaskPriority = projectScopedAction(
     return { success: true }
   })
 
-export const deleteTask = projectScopedAction(
+export const deleteTask = projectAction(
   z.object({
     projectId: z.uuid(),
     taskId: z.uuid(),
   })
 )
-  .metadata({
-    permission: { module: "projects", action: "delete" },
-    revalidate: ["/app/proyectos/:projectId"],
-  })
+  .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!ctx.isProjectOwner) {

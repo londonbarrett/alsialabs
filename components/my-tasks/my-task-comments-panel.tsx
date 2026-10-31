@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
  * delta upward through `MyTasksList`.
  */
 export function MyTaskCommentsPanel({
+  projectId,
   taskId,
   taskName,
   description,
@@ -26,6 +27,7 @@ export function MyTaskCommentsPanel({
    * Empty while the Sheet plays its close animation; the parent keeps it
    * mounted for ~300ms after clearing the selected task.
    */
+  projectId: string
   taskId: string
   taskName: string
   description?: string | null
@@ -43,8 +45,8 @@ export function MyTaskCommentsPanel({
   const refresh = useCallback(() => {
     if (!taskId) return
     setLoading(true)
-    void loadComments(taskId).finally(() => setLoading(false))
-  }, [loadComments, taskId])
+    void loadComments(projectId, taskId).finally(() => setLoading(false))
+  }, [loadComments, projectId, taskId])
 
   // Fetch on the open *transition* only. Depending on `refresh` alone would
   // refetch on every render, since the action hook is not referentially stable.
@@ -65,13 +67,13 @@ export function MyTaskCommentsPanel({
       onOpenChange={onOpenChange}
       onRefresh={refresh}
       onCreate={(content) => {
-        if (taskId) createComment(taskId, content, currentUserId)
+        if (taskId) createComment(projectId, taskId, content, currentUserId)
       }}
       onEdit={(commentId, content) => {
-        if (taskId) updateComment(taskId, commentId, content)
+        if (taskId) updateComment(projectId, taskId, commentId, content)
       }}
       onDelete={(commentId) => {
-        if (taskId) deleteComment(taskId, commentId)
+        if (taskId) deleteComment(projectId, taskId, commentId)
       }}
     />
   )

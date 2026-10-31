@@ -1,48 +1,49 @@
 "use server"
 
-import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
-  projectCollaboratorsTable,
-  projectOwnersTable,
+  projectMembershipTable,
+  projectsTable,
 } from "@/lib/drizzle/schema"
+import type { ProjectAccess } from "@/lib/project-roles"
 import { and, eq } from "drizzle-orm"
 
-import type { ProjectAccessResultDTO } from "@/actions/schemas/project"
-
+/**
+ * Resolves the caller's role on a project. The owner is stored on the project
+ * itself and never in the membership table; super users get no override.
+ */
 export async function verifyProjectAccess(
   projectId: string,
-  sessionUserId: string,
-  sessionRole: string | null
-): Promise<ProjectAccessResultDTO> {
-  const session = { user: { role: sessionRole } }
-  if (isSuperUser(session)) return { hasAccess: true, isOwner: true }
+  sessionUserId: string
+): Promise<ProjectAccess> {
+  const project = await db
+    .select({ primaryOwnerId: projectsTable.primaryOwnerId })
+    .from(projectsTable)
+    .where(eq(projectsTable.id, projectId))
+    .then((rows) => rows[0])
 
-  const owner = await db
-    .select()
-    .from(projectOwnersTable)
+  if (!project) {
+    return { hasAccess: false, role: null, isOwner: false }
+  }
+
+  if (project.primaryOwnerId === sessionUserId) {
+    return { hasAccess: true, role: "owner", isOwner: true }
+  }
+
+  const membership = await db
+    .select({ role: projectMembershipTable.role })
+    .from(projectMembershipTable)
     .where(
       and(
-        eq(projectOwnersTable.projectId, projectId),
-        eq(projectOwnersTable.userId, sessionUserId)
+        eq(projectMembershipTable.projectId, projectId),
+        eq(projectMembershipTable.userId, sessionUserId)
       )
     )
     .then((rows) => rows[0])
 
-  if (owner) return { hasAccess: true, isOwner: true }
+  if (!membership) {
+    return { hasAccess: false, role: null, isOwner: false }
+  }
 
-  const collaborator = await db
-    .select()
-    .from(projectCollaboratorsTable)
-    .where(
-      and(
-        eq(projectCollaboratorsTable.projectId, projectId),
-        eq(projectCollaboratorsTable.userId, sessionUserId)
-      )
-    )
-    .then((rows) => rows[0])
-
-  if (collaborator) return { hasAccess: true, isOwner: false }
-
-  return { hasAccess: false, isOwner: false }
+  return { hasAccess: true, role: membership.role, isOwner: false }
 }

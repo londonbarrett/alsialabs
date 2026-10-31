@@ -72,6 +72,7 @@ export const DeleteRoutineSchema = z.object({
 })
 
 export const SpawnRoutineTaskSchema = z.object({
+  projectId: z.uuid(),
   routineId: z.uuid(),
   after: z.coerce.date().nullable().optional(),
 })
