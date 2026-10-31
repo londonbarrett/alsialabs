@@ -27,7 +27,6 @@ interface TaskFormProps {
   onSubmit: (data: {
     name: string
     description: string
-    cost: string
     priority: string | null
     assigneeIds: string[]
     startDate: string | null
@@ -50,7 +49,6 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [step1Done, setStep1Done] = useState(false)
   const [name, setName] = useState(task?.name ?? "")
   const [description, setDescription] = useState(task?.description ?? "")
-  const [cost, setCost] = useState(task?.cost ?? "")
   const [priority, setPriority] = useState<TaskPriorityDTO>(
     task?.priority ?? null
   )
@@ -136,7 +134,6 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
     onSubmit({
       name: name.trim(),
       description: description.trim(),
-      cost: cost.trim(),
       priority,
       assigneeIds: assigneeId ? [assigneeId] : [],
       startDate: repeat || !start ? null : start.toISOString(),
@@ -162,7 +159,6 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         <TaskFormDetailsStep
           name={name}
           description={description}
-          cost={cost}
           priority={priority}
           assigneeId={assigneeId}
           startDate={startDate}
@@ -173,7 +169,6 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
           errors={errors}
           onNameChange={setName}
           onDescriptionChange={setDescription}
-          onCostChange={setCost}
           onPriorityChange={setPriority}
           onAssigneeChange={setAssigneeId}
           onStartDateChange={setStartDate}

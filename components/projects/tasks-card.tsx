@@ -103,7 +103,6 @@ export function TasksCard() {
       daysOfWeek: editingTask?.daysOfWeek ?? null,
       startTime: editingTask?.startTime ?? null,
       endTime: editingTask?.endTime ?? null,
-      cost: data.cost || null,
       createdAt: editingTask?.createdAt ?? new Date(),
       updatedAt: new Date(),
       assignments,

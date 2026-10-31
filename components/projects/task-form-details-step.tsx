@@ -2,7 +2,6 @@
 
 import type { TaskPriorityDTO } from "@/actions/schemas/task"
 import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
-import { MoneyInput } from "@/components/common/money-input"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -19,7 +18,6 @@ import { TaskPrioritySelect } from "./task-priority-select"
 export function TaskFormDetailsStep({
   name,
   description,
-  cost,
   priority,
   assigneeId,
   startDate,
@@ -30,7 +28,6 @@ export function TaskFormDetailsStep({
   errors,
   onNameChange,
   onDescriptionChange,
-  onCostChange,
   onPriorityChange,
   onAssigneeChange,
   onStartDateChange,
@@ -42,7 +39,6 @@ export function TaskFormDetailsStep({
 }: {
   name: string
   description: string
-  cost: string
   priority: TaskPriorityDTO
   assigneeId: string
   startDate: string
@@ -53,7 +49,6 @@ export function TaskFormDetailsStep({
   errors: Record<string, string>
   onNameChange: (value: string) => void
   onDescriptionChange: (value: string) => void
-  onCostChange: (value: string) => void
   onPriorityChange: (value: TaskPriorityDTO) => void
   onAssigneeChange: (value: string) => void
   onStartDateChange: (value: string) => void
@@ -86,10 +81,6 @@ export function TaskFormDetailsStep({
           value={description}
           onChange={(e) => onDescriptionChange(e.target.value)}
         />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="cost">{t("common.cost")}</FieldLabel>
-        <MoneyInput id="cost" value={cost} onChange={onCostChange} />
       </Field>
       <Field>
         <FieldLabel htmlFor="priority">{t("common.priority")}</FieldLabel>

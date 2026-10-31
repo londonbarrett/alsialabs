@@ -30,7 +30,6 @@ function makeTask(
     projectId: "project-1",
     name: "Fix the roof",
     description: null,
-    cost: "10.00",
     priority: null,
     startDate: null,
     endDate: null,

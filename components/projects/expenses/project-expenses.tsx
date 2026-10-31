@@ -12,30 +12,15 @@ import {
 import { Progress } from "@/components/ui/progress"
 import type { Expense } from "@/lib/drizzle/schema"
 import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
-import {
-  type TaskAssignmentDTO,
-  type TaskPriorityDTO,
-  type TaskWithAssignmentsDTO,
-} from "@/actions/schemas/task"
 import { useExpensesActions } from "@/stores/expenses/use-expenses-actions"
 import { useExpensesState } from "@/stores/expenses/use-expenses-state"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
-import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
-import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
 import { cn } from "cn"
 import { Plus, Receipt, Wallet } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useCallback, useState } from "react"
-import { TaskDialog, type TaskFormValues } from "../task-dialog"
 import { ExpenseDialog } from "./expense-dialog"
 import { ExpensesTable } from "./expenses-table"
-
-function formatDate(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
 
 interface ProjectExpensesProps {
   categories: { id: string; slug: string; name: string }[]
@@ -43,7 +28,7 @@ interface ProjectExpensesProps {
 
 export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const t = useTranslations()
-  const { project, projectId, members, isOwner, isAdmin } =
+  const { project, projectId, isOwner, isAdmin } =
     useProjectContextState()
   const budget = project.budget ?? null
   const canEditProject = useHasPermission("projects:edit")
@@ -56,82 +41,10 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const { expenses, invoices } = useExpensesState()
   const { saveExpense, deleteExpense, unbindInvoice } =
     useExpensesActions()
-  const { tasks } = useProjectTasksState()
-  const { createTask, updateTask, deleteTask } =
-    useProjectTasksActions()
-
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<
     ExpenseWithCategoryDTO | undefined
   >()
-  const [editingTask, setEditingTask] = useState<
-    TaskWithAssignmentsDTO | undefined
-  >()
-  const [taskDialogOpen, setTaskDialogOpen] = useState(false)
-
-  function handleTaskSubmit(data: TaskFormValues) {
-    setEditingTask(undefined)
-    setTaskDialogOpen(false)
-    const taskPriority = data.priority as TaskPriorityDTO
-    const tempId = editingTask?.id ?? `temp-${Date.now()}`
-    const startDate = data.startDate ? new Date(data.startDate) : null
-    const endDate = data.endDate ? new Date(data.endDate) : null
-
-    const assignments: TaskAssignmentDTO[] = data.assigneeIds.map(
-      (userId, index) => {
-        const member = members.find((m) => m.userId === userId)
-        const existing = editingTask?.assignments.find(
-          (a) => a.userId === userId
-        )
-        return {
-          id: existing?.id ?? `temp-assignment-${tempId}-${index}`,
-          taskId: tempId,
-          userId,
-          userName: member?.userName ?? existing?.userName ?? null,
-          userEmail: member?.userEmail ?? existing?.userEmail ?? null,
-          userImage: member?.userImage ?? existing?.userImage ?? null,
-          status: existing?.status ?? "todo",
-          comment: existing?.comment ?? null,
-          startDate: existing?.startDate ?? startDate,
-          endDate: existing?.endDate ?? endDate,
-        }
-      }
-    )
-
-    const optimisticTask: TaskWithAssignmentsDTO = {
-      id: tempId,
-      projectId,
-      name: data.name,
-      description: data.description || null,
-      priority: taskPriority,
-      startDate,
-      endDate,
-      recurrence: editingTask?.recurrence ?? null,
-      interval: editingTask?.interval ?? 1,
-      daysOfWeek: editingTask?.daysOfWeek ?? null,
-      startTime: editingTask?.startTime ?? null,
-      endTime: editingTask?.endTime ?? null,
-      cost: data.cost || null,
-      createdAt: editingTask?.createdAt ?? new Date(),
-      updatedAt: new Date(),
-      assignments,
-      commentCount: editingTask
-        ? (tasks.find((t) => t.id === editingTask.id)?.commentCount ??
-          0)
-        : 0,
-    }
-
-    if (editingTask) {
-      updateTask({
-        projectId,
-        taskId: editingTask.id,
-        values: data,
-        optimisticTask,
-      })
-    } else {
-      createTask({ projectId, values: data, optimisticTask })
-    }
-  }
 
   function openNew() {
     setEditingExpense(undefined)
@@ -143,23 +56,9 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     setDialogOpen(true)
   }
 
-  function openEditTask(task: TaskWithAssignmentsDTO) {
-    setEditingTask(task)
-    setTaskDialogOpen(true)
-  }
-
-  function handleTaskDialogOpenChange(open: boolean) {
-    setTaskDialogOpen(open)
-    if (!open) setEditingTask(undefined)
-  }
-
   function handleOpenChange(open: boolean) {
     setDialogOpen(open)
     if (!open) setEditingExpense(undefined)
-  }
-
-  function handleDeleteTask(taskId: string) {
-    deleteTask(projectId, taskId)
   }
 
   function handleDeleteExpense(expenseId: string) {
@@ -177,22 +76,16 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     saveExpense({ data, categories, editingExpense })
   }
 
-  const taskCosts = tasks.filter((t) => t.cost && Number(t.cost) > 0)
   const expenseTotal = expenses.reduce(
     (sum, e) => sum + Number(e.amount),
-    0
-  )
-  const taskCostTotal = taskCosts.reduce(
-    (sum, t) => sum + Number(t.cost),
     0
   )
   const invoicePaidTotal = invoices.reduce(
     (sum, i) => sum + Number(i.paidAmount),
     0
   )
-  const total = expenseTotal + taskCostTotal + invoicePaidTotal
-  const hasItems =
-    expenses.length > 0 || taskCosts.length > 0 || invoices.length > 0
+  const total = expenseTotal + invoicePaidTotal
+  const hasItems = expenses.length > 0 || invoices.length > 0
   const budgetNum = budget ? Number(budget) : 0
   const spendPct =
     budgetNum > 0
@@ -201,14 +94,6 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const overBudget = budgetNum > 0 && total > budgetNum
 
   const rows = [
-    ...taskCosts.map((task) => ({
-      key: `task-${task.id}`,
-      type: "task" as const,
-      task,
-      date: task.createdAt
-        ? formatDate(new Date(task.createdAt))
-        : "9999-12-31",
-    })),
     ...expenses.map((expense) => ({
       key: expense.id,
       type: "expense" as const,
@@ -286,9 +171,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
               canEdit={canEdit}
               canDelete={canDelete}
               onEditExpense={openEdit}
-              onEditTask={openEditTask}
               onDeleteExpense={handleDeleteExpense}
-              onDeleteTask={handleDeleteTask}
               onUnbindInvoice={handleUnbindInvoice}
             />
             <div className="mt-4 flex justify-end">
@@ -315,13 +198,6 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
           setEditingExpense(undefined)
           handleExpenseSubmit(data)
         }}
-      />
-
-      <TaskDialog
-        task={editingTask}
-        open={taskDialogOpen}
-        onOpenChange={handleTaskDialogOpenChange}
-        onSubmit={handleTaskSubmit}
       />
     </Card>
   )

@@ -75,7 +75,6 @@ function toTaskRecord(
     daysOfWeek: row.daysOfWeek,
     startTime: row.startTime,
     endTime: row.endTime,
-    cost: row.cost,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
@@ -337,7 +336,6 @@ export const createTask = projectAction(CreateTaskV2Schema)
       daysOfWeek,
       startTime,
       endTime,
-      cost,
     } = parsedInput
 
     const uniqueIds = [...new Set(assigneeIds)]
@@ -359,7 +357,6 @@ export const createTask = projectAction(CreateTaskV2Schema)
           daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
           startTime: startTime || null,
           endTime: endTime || null,
-          cost: cost || null,
         })
         .returning()
 
@@ -405,7 +402,6 @@ export const updateTask = projectAction(UpdateTaskV2Schema)
       daysOfWeek,
       startTime,
       endTime,
-      cost,
     } = parsedInput
 
     const uniqueIds = [...new Set(assigneeIds)]
@@ -424,7 +420,6 @@ export const updateTask = projectAction(UpdateTaskV2Schema)
         daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
         startTime: startTime || null,
         endTime: endTime || null,
-        cost: cost || null,
       })
       .where(
         and(

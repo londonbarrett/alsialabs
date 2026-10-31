@@ -239,7 +239,7 @@ describe("projects actions", () => {
   })
 
   describe("getProjectsWithDetails", () => {
-    it("counts invoice paidAmount toward project spend", async () => {
+    it("counts only expenses and paid invoices toward project spend", async () => {
       mockIsSuperUser.mockReturnValue(false)
       const PROJECT: ProjectDetailDTO = {
         id: PROJECT_ID,
@@ -272,15 +272,15 @@ describe("projects actions", () => {
               ]
             : [PROJECT]
         )
+      const taskSqls: string[] = []
       state.mock
         .onSelect(schema.tasksTable)
-        .respondWith((sql) =>
-          sql.includes("count(")
+        .respondWith((sql) => {
+          taskSqls.push(sql)
+          return sql.includes("count(")
             ? [{ projectId: PROJECT.id, total: 2, completed: 1 }]
-            : sql.includes("cost")
-              ? [{ projectId: PROJECT.id, total: "40" }]
-              : []
-        )
+            : []
+        })
       state.mock
         .onSelect(schema.expensesTable)
         .respond([{ projectId: PROJECT.id, total: "50" }])
@@ -293,7 +293,9 @@ describe("projects actions", () => {
 
       const result = await getProjectsWithDetails()
 
-      expect(result.data?.[0]?.expenses).toBe(120) // 50 expenses + 40 tasks + 30 invoices
+      // 50 expenses + 30 paid invoices: task costs never reach spend.
+      expect(result.data?.[0]?.expenses).toBe(80)
+      expect(taskSqls.some((sql) => sql.includes("cost"))).toBe(false)
       expect(invoiceSql).toContain("paid_amount")
       expect(invoiceSql).not.toContain("grand_total")
     })

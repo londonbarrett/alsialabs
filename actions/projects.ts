@@ -123,7 +123,6 @@ export const getProjectsWithDetails = sessionAction
     const [
       taskAggs,
       expenseAggs,
-      taskCostAggs,
       invoicePaidAggs,
       inProgressTasks,
       ownerData,
@@ -146,14 +145,6 @@ export const getProjectsWithDetails = sessionAction
         .from(expensesTable)
         .where(inArray(expensesTable.projectId, projectIds))
         .groupBy(expensesTable.projectId),
-      db
-        .select({
-          projectId: tasksTable.projectId,
-          total: sql<string>`coalesce(sum(${tasksTable.cost}), '0')`,
-        })
-        .from(tasksTable)
-        .where(inArray(tasksTable.projectId, projectIds))
-        .groupBy(tasksTable.projectId),
       db
         .select({
           projectId: invoicesTable.projectId,
@@ -223,10 +214,6 @@ export const getProjectsWithDetails = sessionAction
     for (const agg of expenseAggs) {
       expenseMap.set(agg.projectId, Number(agg.total))
     }
-    const taskCostMap = new Map<string, number>()
-    for (const agg of taskCostAggs) {
-      taskCostMap.set(agg.projectId, Number(agg.total))
-    }
     const invoicePaidMap = new Map<string, number>()
     for (const agg of invoicePaidAggs) {
       if (agg.projectId === null) continue
@@ -286,9 +273,7 @@ export const getProjectsWithDetails = sessionAction
     return filteredProjects.map((p) => {
       const tasks = taskMap.get(p.id) ?? { total: 0, completed: 0 }
       const expenses =
-        (expenseMap.get(p.id) ?? 0) +
-        (taskCostMap.get(p.id) ?? 0) +
-        (invoicePaidMap.get(p.id) ?? 0)
+        (expenseMap.get(p.id) ?? 0) + (invoicePaidMap.get(p.id) ?? 0)
       const budget = p.budget ? Number(p.budget) : 0
       return {
         id: p.id,

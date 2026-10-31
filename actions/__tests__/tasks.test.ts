@@ -70,7 +70,6 @@ function makeTaskRow(overrides: Record<string, unknown> = {}) {
     projectId: PROJECT_ID,
     name: "Fix the roof",
     description: null,
-    cost: null,
     status: "todo",
     priority: null,
     routineId: null,
@@ -118,7 +117,6 @@ const validTask = {
   daysOfWeek: [] as string[],
   startTime: "",
   endTime: "",
-  cost: "",
 }
 
 beforeEach(() => {

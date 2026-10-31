@@ -46,7 +46,6 @@ function toTaskPayload(
     daysOfWeek: values.daysOfWeek,
     startTime: values.startTime,
     endTime: values.endTime,
-    cost: values.cost,
   }
 }
 

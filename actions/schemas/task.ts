@@ -92,8 +92,6 @@ const TaskFormBaseSchema = z.object({
   daysOfWeek: z.array(z.string()).optional().default([]),
   startTime: z.string().optional().default(""),
   endTime: z.string().optional().default(""),
-  /** Temporary compatibility field; Task 11 removes task costs. */
-  cost: z.string().optional().default(""),
 })
 
 type TaskFormValue = z.infer<typeof TaskFormBaseSchema>
@@ -202,8 +200,6 @@ export const TaskRecordV2Schema = z.object({
   daysOfWeek: z.array(z.string()).nullable(),
   startTime: z.string().nullable(),
   endTime: z.string().nullable(),
-  /** Temporary compatibility field; Task 11 removes task costs. */
-  cost: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
