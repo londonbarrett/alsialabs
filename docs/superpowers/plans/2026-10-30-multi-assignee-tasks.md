@@ -420,7 +420,7 @@ git commit -m "feat(projects): scope the project list and actions to owner and a
 - `TaskFormSchema`: `name`, `description`, `priority` (nullable), `assigneeIds: z.array(z.string().min(1)).default([])`, `startDate`/`endDate` (ISO strings, nullable), `recurrence: z.enum(["daily","weekly"]).nullable().optional()`, `interval: z.coerce.number().int().min(1).max(365).default(1)`, `daysOfWeek: z.array(z.string()).default([])`, `startTime`/`endTime` (strings, default `""`).
 - Refinements: non-repeating requires `startDate` and `endDate`, `endDate >= startDate`, and both on the same calendar day; repeating requires `startTime`.
 - `CreateTaskV2Schema = TaskFormSchema.extend({ projectId: z.uuid() })`, `UpdateTaskV2Schema = TaskFormSchema.extend({ projectId: z.uuid(), taskId: z.uuid() })`.
-- DTO schemas: `TaskAssignmentSchema`, `TaskRecordV2Schema`, `TaskWithAssignmentsSchema`, `MyTaskSchema`, `AssignmentStatusResultSchema = { assignment, nextAssignment: nullable }` plus their inferred types, exactly as specified.
+- DTO schemas: `TaskAssignmentSchema`, `TaskRecordV2Schema`, `TaskWithAssignmentsSchema`, `MyAssignmentSchema` (named to avoid colliding with the legacy `MyTaskSchema` still used by `getMyTasks`), `AssignmentStatusResultSchema = { assignment, nextAssignment: nullable }` plus their inferred types.
 - `computeNextOccurrence(task: Pick<Task, "recurrence"|"interval"|"daysOfWeek"|"startTime">, after: Date): Date | null` — null when recurrence is null, `startTime` is empty, or `computeScheduledFor` is null; otherwise the next occurrence date.
 
 - [ ] **Step 1: Write the failing recurrence tests**, including the Review Focus cases (empty `startTime` returns null; an anchor later than today's `startTime` moves to the next slot, never the past).
