@@ -1,145 +1,69 @@
-import type {
-  CalendarEvent,
-} from "../types"
-import type {
-  CalendarRoutineDataDTO,
-  CalendarTaskDataDTO,
-} from "@/actions/schemas/calendar"
-import { startOfDay, type ScheduleConfig } from "@/lib/util/schedule"
-import { occurrencesInRange } from "./schedule"
+import type { CalendarEvent } from "../types"
+import type { CalendarAssignmentDTO } from "@/actions/schemas/calendar"
+import { startOfDay } from "@/lib/util/schedule"
 
 const HOUR_MS = 60 * 60 * 1000
 
-function buildTaskEvents(
-  tasks: CalendarTaskDataDTO[],
-  from: Date,
-  to: Date
-): CalendarEvent[] {
-  const events: CalendarEvent[] = []
-  for (const task of tasks) {
-    if (!task.dueDate) continue
-    const due = task.dueDate
-    if (due.getTime() < from.getTime() || due.getTime() > to.getTime()) {
-      continue
-    }
-    const isAllDay = due.getHours() === 0 && due.getMinutes() === 0
-    const end = isAllDay
-      ? new Date(due.getFullYear(), due.getMonth(), due.getDate() + 1)
-      : new Date(due.getTime() + HOUR_MS)
-
-    events.push({
-      id: `task-${task.id}`,
-      title: task.name,
-      description: task.projectName,
-      start: due,
-      end,
-      allDay: isAllDay,
-      color: task.projectColor,
-      meta: {
-        kind: "task",
-        taskId: task.id,
-        projectId: task.projectId,
-        projectName: task.projectName,
-        projectOwnerName: task.projectOwnerName ?? null,
-        status: task.status,
-        priority: task.priority,
-        assigneeName: task.assigneeName,
-        dueDateIso: task.dueDate?.toISOString() ?? null,
-        description: task.description,
-        cost: task.cost,
-        commentCount: task.commentCount,
-        routineId: task.routineId ?? undefined,
-      },
-    })
-  }
-  return events
-}
-
-function buildRoutineEvents(
-  routines: CalendarRoutineDataDTO[],
-  from: Date,
-  to: Date
-): CalendarEvent[] {
-  const events: CalendarEvent[] = []
-  for (const routine of routines) {
-    const schedule: ScheduleConfig = {
-      recurrence: routine.recurrence,
-      interval: routine.interval,
-      daysOfWeek: routine.daysOfWeek ?? [],
-      time: routine.time,
-      startDate: routine.startDate ?? undefined,
-      endDate: routine.endDate ?? undefined,
-    }
-    for (const occurrence of occurrencesInRange(schedule, from, to)) {
-      const isAllDay = !routine.time
-      const end = isAllDay
-        ? new Date(
-            occurrence.getFullYear(),
-            occurrence.getMonth(),
-            occurrence.getDate() + 1
-          )
-        : new Date(occurrence.getTime() + HOUR_MS)
-      events.push({
-        id: `routine-${routine.id}-${occurrence.getTime()}`,
-        title: routine.name,
-        start: occurrence,
-        end,
-        allDay: isAllDay,
-        color: routine.projectColor,
-        meta: {
-          kind: "routine",
-          routineId: routine.id,
-          projectId: routine.projectId,
-          projectName: routine.projectName,
-          projectOwnerName: routine.projectOwnerName ?? null,
-          assigneeName: routine.assigneeName ?? null,
-          description: routine.description,
-          cost: routine.cost ? routine.cost.toString() : null,
-          recurrence: routine.recurrence,
-          interval: routine.interval,
-          daysOfWeek: routine.daysOfWeek ?? [],
-          time: routine.time,
-          startDate: routine.startDate ?? null,
-          endDate: routine.endDate ?? null,
-        },
-      })
-    }
-  }
-  return events
-}
-
 /**
- * Builds the events for a visible range entirely on the client.
- * Routine chips are hidden on days where a task spawned by the same
- * routine already has a due date.
+ * One event per task per day. An assignment carries its own date, so two
+ * assignees of the same task can legitimately be on different days and are
+ * never merged across them.
  */
 export function buildCalendarEvents(
-  tasks: CalendarTaskDataDTO[],
-  routines: CalendarRoutineDataDTO[],
+  assignments: CalendarAssignmentDTO[],
   from: Date,
   to: Date
 ): CalendarEvent[] {
-  const events = [
-    ...buildTaskEvents(tasks, from, to),
-    ...buildRoutineEvents(routines, from, to),
-  ]
+  const groups = new Map<string, CalendarAssignmentDTO[]>()
 
-  const taskRoutineDays = new Map<string, Set<number>>()
-  for (const task of tasks) {
-    if (!task.routineId || !task.dueDate) continue
-    let days = taskRoutineDays.get(task.routineId)
-    if (!days) {
-      days = new Set<number>()
-      taskRoutineDays.set(task.routineId, days)
+  for (const assignment of assignments) {
+    if (!assignment.startDate) continue
+    if (
+      assignment.startDate.getTime() < from.getTime() ||
+      assignment.startDate.getTime() > to.getTime()
+    ) {
+      continue
     }
-    days.add(startOfDay(task.dueDate).getTime())
+    const key = `${assignment.taskId}|${startOfDay(assignment.startDate).getTime()}`
+    const list = groups.get(key) ?? []
+    list.push(assignment)
+    groups.set(key, list)
   }
 
-  return events.filter((event) => {
-    if (event.meta?.kind !== "routine") return true
-    const routineId = event.meta.routineId
-    if (!routineId) return true
-    const routineDay = startOfDay(event.start).getTime()
-    return !taskRoutineDays.get(routineId)?.has(routineDay)
+  return [...groups.entries()].map(([key, group]) => {
+    const first = group[0]
+    const start = first.startDate!
+    const end = first.endDate ?? new Date(start.getTime() + HOUR_MS)
+    const isAllDay = start.getHours() === 0 && start.getMinutes() === 0
+
+    return {
+      id: `assignment-group-${key}`,
+      title: first.taskName,
+      description: first.projectName,
+      start,
+      end,
+      allDay: isAllDay,
+      color: first.projectColor,
+      meta: {
+        kind: "task",
+        taskId: first.taskId,
+        projectId: first.projectId,
+        projectName: first.projectName,
+        projectOwnerName: first.projectOwnerName,
+        priority: first.priority,
+        status: first.status,
+        assigneeName: first.userName,
+        commentCount: first.commentCount,
+        recurrence: first.recurrence,
+        startDateIso: start.toISOString(),
+        endDateIso: first.endDate?.toISOString() ?? null,
+        assignees: group.map((assignment) => ({
+          name: assignment.userName,
+          image: assignment.userImage,
+          status: assignment.status,
+          comment: assignment.comment,
+        })),
+      },
+    } satisfies CalendarEvent
   })
 }

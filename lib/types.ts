@@ -25,26 +25,27 @@ export type RoutineSubmitData = {
 }
 
 /** App-level metadata carried by calendar events. */
+export type CalendarEventAssignee = {
+  name: string | null
+  image: string | null
+  status: string
+  comment: string | null
+}
+
 export type CalendarEventMeta = {
-  kind?: "task" | "routine"
+  kind?: "task"
   taskId?: string
-  routineId?: string
   projectId?: string
   projectName?: string
   projectOwnerName?: string | null
-  status?: string
   priority?: string | null
+  status?: string
   assigneeName?: string | null
-  dueDateIso?: string | null
-  description?: string | null
-  cost?: string | null
   commentCount?: number
-  recurrence?: string
-  interval?: number
-  daysOfWeek?: string[]
-  time?: string | null
-  startDate?: string | null
-  endDate?: string | null
+  recurrence?: string | null
+  startDateIso?: string | null
+  endDateIso?: string | null
+  assignees?: CalendarEventAssignee[]
 }
 
 /**

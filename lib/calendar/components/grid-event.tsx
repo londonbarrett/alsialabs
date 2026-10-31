@@ -2,7 +2,6 @@
 
 import { EventDetailDialog } from "@/components/calendar/event-detail-dialog"
 import { cn } from "cn"
-import { RefreshCw } from "lucide-react"
 import { memo, useState } from "react"
 import type { CalendarEvent, GridEventPosition } from "../types"
 import { formatTime } from "../util/date"
@@ -52,12 +51,6 @@ export const GridEvent = memo(function GridEvent({
         )}
       >
         <span className="flex min-w-0 items-center gap-1 text-xs leading-tight font-medium">
-          {event.meta?.kind === "routine" && (
-            <RefreshCw
-              aria-hidden
-              className="size-3 shrink-0 text-muted-foreground"
-            />
-          )}
           <span
             className={cn(
               "truncate",
