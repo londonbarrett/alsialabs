@@ -52,7 +52,6 @@ function grantAccess(role: ProjectRole = "collaborator") {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: true,
     role,
-    isOwner: role === "owner",
   })
 }
 

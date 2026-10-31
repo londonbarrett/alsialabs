@@ -5,7 +5,6 @@ export type ProjectRole = "owner" | "admin" | "collaborator"
 export type ProjectAccess = {
   hasAccess: boolean
   role: ProjectRole | null
-  isOwner: boolean
 }
 
 /** The project list and the project route are owner/admin surfaces. */
@@ -18,7 +17,7 @@ export function canManageProject(role: ProjectRole | null): boolean {
   return role === "owner"
 }
 
-/** Tasks, routines, and expenses. */
+/** Tasks and expenses. */
 export function canManageWork(role: ProjectRole | null): boolean {
   return role === "owner" || role === "admin"
 }

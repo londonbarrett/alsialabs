@@ -80,7 +80,7 @@ export function occurrencesInRange(
 
   if (schedule.recurrence === "daily") {
     // Align the iteration to the schedule's own origin so every-N-day
-    // routines land on the same days regardless of the queried range.
+    // occurrences land on the same days regardless of the queried range.
     const base = startOfDay(windowStart)
     const offsetDays = Math.round(
       (startOfDay(from).getTime() - base.getTime()) / DAY_MS

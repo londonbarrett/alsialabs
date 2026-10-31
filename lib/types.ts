@@ -6,24 +6,6 @@
  * metadata, settle results) belong here.
  */
 
-/**
- * The submit contract `RoutineDialog` `components/projects/routines/routine-dialog.tsx`
- * requires. The two-step form hands its fields over as plain strings, so the
- * action hook coerces `recurrence`/`interval` before parsing server-side.
- */
-export type RoutineSubmitData = {
-  name: string
-  description: string
-  cost: string
-  recurrence: string
-  interval: string
-  daysOfWeek: string[]
-  time: string
-  startDate: string
-  endDate: string
-  assigneeId: string | null
-}
-
 /** App-level metadata carried by calendar events. */
 export type CalendarEventAssignee = {
   name: string | null

@@ -38,7 +38,6 @@ describe("verifyProjectAccess", () => {
     ).resolves.toEqual({
       hasAccess: true,
       role: "owner",
-      isOwner: true,
     })
   })
 
@@ -55,7 +54,6 @@ describe("verifyProjectAccess", () => {
     ).resolves.toEqual({
       hasAccess: true,
       role: "admin",
-      isOwner: false,
     })
   })
 
@@ -72,7 +70,6 @@ describe("verifyProjectAccess", () => {
     ).resolves.toEqual({
       hasAccess: true,
       role: "collaborator",
-      isOwner: false,
     })
   })
 
@@ -84,7 +81,7 @@ describe("verifyProjectAccess", () => {
 
     await expect(
       verifyProjectAccess(PROJECT_ID, USER_ID)
-    ).resolves.toEqual({ hasAccess: false, role: null, isOwner: false })
+    ).resolves.toEqual({ hasAccess: false, role: null })
   })
 
   it("grants no implicit super user access", async () => {
@@ -95,7 +92,7 @@ describe("verifyProjectAccess", () => {
 
     await expect(
       verifyProjectAccess(PROJECT_ID, "super-user")
-    ).resolves.toEqual({ hasAccess: false, role: null, isOwner: false })
+    ).resolves.toEqual({ hasAccess: false, role: null })
   })
 
   it("returns no access when the project does not exist", async () => {
@@ -103,6 +100,6 @@ describe("verifyProjectAccess", () => {
 
     await expect(
       verifyProjectAccess(PROJECT_ID, USER_ID)
-    ).resolves.toEqual({ hasAccess: false, role: null, isOwner: false })
+    ).resolves.toEqual({ hasAccess: false, role: null })
   })
 })

@@ -116,7 +116,6 @@ describe("invoices actions", () => {
     mockVerifyProjectAccess.mockResolvedValue({
       hasAccess: true,
       role: "owner",
-      isOwner: true,
     })
     state.mock.resetMocks()
     mockAuth.mockResolvedValue({
@@ -664,7 +663,6 @@ describe("invoices actions", () => {
       mockVerifyProjectAccess.mockResolvedValue({
         hasAccess: false,
         role: null,
-        isOwner: false,
       })
 
       const result = await getProjectInvoices({ projectId: PROJECT_ID })

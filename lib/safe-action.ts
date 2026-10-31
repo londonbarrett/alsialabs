@@ -138,7 +138,7 @@ export const storeAction = sessionAction.use(async ({ next }) => {
 // ---------- projectAction ----------
 // Factory for project-scoped actions. Callers provide their own input schema,
 // which must include a `projectId` field; this verifies project access via
-// verifyProjectAccess and injects `projectRole` and `isProjectOwner` into
+// verifyProjectAccess and injects `projectRole` into
 // context.
 
 export function projectAction<Schema extends z.ZodTypeAny>(
@@ -158,7 +158,6 @@ export function projectAction<Schema extends z.ZodTypeAny>(
       ctx: {
         ...ctx,
         projectRole: access.role,
-        isProjectOwner: access.isOwner,
       },
     })
     })

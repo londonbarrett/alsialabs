@@ -23,11 +23,11 @@ export async function verifyProjectAccess(
     .then((rows) => rows[0])
 
   if (!project) {
-    return { hasAccess: false, role: null, isOwner: false }
+    return { hasAccess: false, role: null }
   }
 
   if (project.primaryOwnerId === sessionUserId) {
-    return { hasAccess: true, role: "owner", isOwner: true }
+    return { hasAccess: true, role: "owner" }
   }
 
   const membership = await db
@@ -42,8 +42,8 @@ export async function verifyProjectAccess(
     .then((rows) => rows[0])
 
   if (!membership) {
-    return { hasAccess: false, role: null, isOwner: false }
+    return { hasAccess: false, role: null }
   }
 
-  return { hasAccess: true, role: membership.role, isOwner: false }
+  return { hasAccess: true, role: membership.role }
 }
