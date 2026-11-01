@@ -4,6 +4,7 @@ import type {
   TaskWithAssignmentsDTO,
 } from "@/actions/schemas/task"
 import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import { sortAssignments } from "@/lib/tasks/assignments"
 
 export const EMPTY_COMMENTS: TaskCommentWithAuthorDTO[] = []
 
@@ -151,7 +152,7 @@ export function projectTasksReducer(
               ? [...withAssignment, action.nextAssignment]
               : withAssignment
 
-          return { ...task, assignments: withNext }
+          return { ...task, assignments: sortAssignments(withNext) }
         }),
       }
 

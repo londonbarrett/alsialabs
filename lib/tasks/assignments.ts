@@ -1,9 +1,30 @@
 import type { Task, TaskStatus } from "@/lib/drizzle/schema"
 import type { TaskAssignmentDTO } from "@/actions/schemas/task"
+import { isTerminalStatus } from "@/lib/project-roles"
 import {
   computeScheduledFor,
   type ScheduleConfig,
 } from "@/lib/util/schedule"
+
+/**
+ * Open occurrences first, earliest start first. Consumers that read
+ * `assignments[0]` (the project task list, the edit form's assignee) must
+ * bind to live work: after a repeat spawns, the closed row can otherwise sit
+ * at index 0 and hide the open occurrence behind a read-only badge.
+ */
+export function sortAssignments<
+  T extends { status: string; startDate: Date | null },
+>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const aRank = isTerminalStatus(a.status as TaskStatus) ? 1 : 0
+    const bRank = isTerminalStatus(b.status as TaskStatus) ? 1 : 0
+    if (aRank !== bRank) return aRank - bRank
+
+    const aStart = a.startDate?.getTime() ?? Number.MAX_SAFE_INTEGER
+    const bStart = b.startDate?.getTime() ?? Number.MAX_SAFE_INTEGER
+    return aStart - bStart
+  })
+}
 
 export function atTime(date: Date, time: string | null): Date {
   if (!time) return new Date(date)

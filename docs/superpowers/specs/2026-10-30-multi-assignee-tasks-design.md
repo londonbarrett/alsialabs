@@ -185,6 +185,8 @@ Status rules:
 - Collaborators may set only `in_progress`, `blocked`, `in_review` on their own assignment, and only while it is open. Once an assignment is `done` or `cancelled`, a collaborator cannot change it.
 - Only owners and admins can set `done` or `cancelled`.
 
+> **Deferred (2026-11-01, agreed with the user):** the assignment-note UI — an owner/admin editor and the note rendered on Past rows — is on hold for the next session. The `updateAssignmentComment` action and its store hook ship now, but no screen writes or reads the note yet; the matrix row above remains the target behavior.
+
 **Global permissions no longer apply inside projects.** Project-scoped actions authorize solely by project role and declare no `metadata.permission`; the global `projects:*` and `expenses:*` codes gate only non-project modules. The seeded global `projects:*` and `expenses:*` permissions stop gating in-project actions. This removes a live inconsistency where task mutations required the global `projects:edit` (`actions/tasks.ts:191`) while the seeded global `admin` role holds only `projects:view` (`lib/drizzle/seed.ts:104`).
 
 ## Server actions

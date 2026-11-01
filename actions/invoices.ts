@@ -1,6 +1,7 @@
 "use server"
 
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { canViewProject } from "@/lib/project-roles"
 import { SuccessSchema } from "@/actions/schemas/common"
 import {
   BindInvoiceResultSchema,
@@ -410,7 +411,13 @@ export const getProjectInvoices = projectAction(
 )
   .metadata({})
   .outputSchema(z.array(ProjectInvoiceSchema))
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    // Collaborators are invisible to the project surface, so they must not
+    // read its invoices either.
+    if (!canViewProject(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     return db
       .select({
         id: invoicesTable.id,

@@ -18,9 +18,24 @@ const state = vi.hoisted(() => ({
         fn: (sql: string, params: unknown[]) => unknown
       ): unknown
     }
-    onInsert(table: unknown): { respond(data: unknown): unknown }
-    onUpdate(table: unknown): { respond(data: unknown): unknown }
-    onDelete(table: unknown): { respond(data: unknown): unknown }
+    onInsert(table: unknown): {
+      respond(data: unknown): unknown
+      respondWith(
+        fn: (sql: string, params: unknown[]) => unknown
+      ): unknown
+    }
+    onUpdate(table: unknown): {
+      respond(data: unknown): unknown
+      respondWith(
+        fn: (sql: string, params: unknown[]) => unknown
+      ): unknown
+    }
+    onDelete(table: unknown): {
+      respond(data: unknown): unknown
+      respondWith(
+        fn: (sql: string, params: unknown[]) => unknown
+      ): unknown
+    }
   },
 }))
 
@@ -187,6 +202,82 @@ describe("createTask", () => {
 })
 
 describe("updateTask", () => {
+  it("diffs open assignments, keeping closed rows out of the diff", async () => {
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: USER_ID }])
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: "user-3" }])
+    state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    let openSql = ""
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respondWith((sql) => {
+        openSql = sql
+        return [{ id: "open-assignment", userId: USER_ID }]
+      })
+    let deleteParams: unknown[] = []
+    state.mock
+      .onDelete(schema.taskAssignmentsTable)
+      .respondWith((_sql, params) => {
+        deleteParams = params
+        return []
+      })
+    let insertParams: unknown[] = []
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respondWith((_sql, params) => {
+        insertParams = params
+        return [{ id: "new-assignment" }]
+      })
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+
+    const result = await updateTask({
+      ...validTask,
+      taskId: TASK_ID,
+      assigneeIds: ["user-3"],
+    })
+
+    expect(result.serverError).toBeUndefined()
+    // Only open rows enter the diff; the query filters closed ones out.
+    expect(openSql).toContain("not in")
+    expect(deleteParams).toContain("open-assignment")
+    expect(insertParams).toContain("user-3")
+  })
+
+  it("collapses duplicate assignee ids into a single insert", async () => {
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: USER_ID }])
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: USER_ID }])
+    state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    let insertParams: unknown[] = []
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respondWith((_sql, params) => {
+        insertParams = params
+        return [{ id: "new-assignment" }]
+      })
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+
+    const result = await updateTask({
+      ...validTask,
+      taskId: TASK_ID,
+      assigneeIds: [USER_ID, USER_ID],
+    })
+
+    expect(result.serverError).toBeUndefined()
+    const occurrences =
+      JSON.stringify(insertParams).split(USER_ID).length - 1
+    expect(occurrences).toBe(1)
+  })
+
   it("forbids a collaborator", async () => {
     grantAccess("collaborator")
     const result = await updateTask({ ...validTask, taskId: TASK_ID })
@@ -318,6 +409,35 @@ describe("updateAssignmentStatus", () => {
         daysOfWeek: null,
         startTime: null,
         endTime: null,
+      },
+    ])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "done" })])
+
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID,
+      assignmentId: ASSIGNMENT_ID,
+      status: "done",
+    })
+
+    expect(result.data?.nextAssignment).toBeNull()
+  })
+
+  it("does not spawn a second occurrence when re-completing a done assignment", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      {
+        id: ASSIGNMENT_ID,
+        userId: USER_ID,
+        status: "done",
+        endDate: new Date("2026-10-30T11:00:00"),
+        taskId: TASK_ID,
+        recurrence: "daily",
+        interval: 1,
+        daysOfWeek: null,
+        startTime: "09:00",
+        endTime: "11:00",
       },
     ])
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])

@@ -659,6 +659,17 @@ describe("invoices actions", () => {
       expect(result.data).toEqual(rows)
     })
 
+    it("forbids a collaborator from reading project invoices", async () => {
+      mockVerifyProjectAccess.mockResolvedValue({
+        hasAccess: true,
+        role: "collaborator",
+      })
+
+      const result = await getProjectInvoices({ projectId: PROJECT_ID })
+
+      expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    })
+
     it("returns FORBIDDEN when project access is denied", async () => {
       mockVerifyProjectAccess.mockResolvedValue({
         hasAccess: false,

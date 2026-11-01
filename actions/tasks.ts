@@ -40,6 +40,7 @@ import {
 import {
   atTime,
   firstAssignmentWindow,
+  sortAssignments,
   toTaskAssignmentDTO,
 } from "@/lib/tasks/assignments"
 import { computeNextOccurrence } from "@/lib/tasks/recurrence"
@@ -130,8 +131,17 @@ async function loadTaskWithAssignments(
 
   return {
     record: toTaskRecord(row!),
-    assignments: assignmentRows.map(toTaskAssignmentDTO),
+    assignments: sortAssignments(assignmentRows.map(toTaskAssignmentDTO)),
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
+  )
 }
 
 // ---------- Queries ----------
@@ -186,7 +196,7 @@ export const getTasks = projectAction(
 
     return taskRows.map((row) => ({
       ...toTaskRecord(row),
-      assignments: assignmentsByTask.get(row.id) ?? [],
+      assignments: sortAssignments(assignmentsByTask.get(row.id) ?? []),
       commentCount: counts.get(row.id) ?? 0,
     }))
   })
@@ -538,10 +548,58 @@ export const updateAssignmentStatus = projectAction(
       returnActionError("VALIDATION_FAILED")
     }
 
-    await db
-      .update(taskAssignmentsTable)
-      .set({ status: status as TaskStatus })
-      .where(eq(taskAssignmentsTable.id, assignmentId))
+    /**
+     * The cascade runs inside the status write's transaction (spec), and only
+     * when an OPEN row actually crosses into a terminal status: re-completing
+     * a done row would spawn a second successor, and reopening one whose
+     * successor exists would trip `task_assignment_open_unique`.
+     */
+    const wasOpen = !isTerminalStatus(row.status)
+    const crossesToTerminal =
+      wasOpen && isTerminalStatus(status as TaskStatus)
+    let spawnedId: string | null = null
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(taskAssignmentsTable)
+          .set({ status: status as TaskStatus })
+          .where(eq(taskAssignmentsTable.id, assignmentId))
+
+        if (crossesToTerminal && row.recurrence) {
+          const next = computeNextOccurrence(
+            {
+              recurrence: row.recurrence,
+              interval: row.interval,
+              daysOfWeek: row.daysOfWeek,
+              startTime: row.startTime,
+            },
+            row.endDate ?? new Date()
+          )
+
+          if (next) {
+            const [inserted] = await tx
+              .insert(taskAssignmentsTable)
+              .values({
+                taskId: row.taskId,
+                userId: row.userId,
+                status: "todo",
+                startDate: next,
+                endDate: atTime(next, row.endTime),
+              })
+              .returning()
+            spawnedId = inserted.id
+          }
+        }
+      })
+    } catch (error) {
+      // A reopen that races an existing open successor (double submit,
+      // reopened parent) is a conflict, not a crash.
+      if (isUniqueViolation(error)) {
+        returnActionError("VALIDATION_FAILED")
+      }
+      throw error
+    }
 
     const viewRow = await db
       .select(ASSIGNMENT_VIEW_COLUMNS)
@@ -553,44 +611,18 @@ export const updateAssignmentStatus = projectAction(
 
     let nextAssignment: TaskAssignmentDTO | null = null
 
-    if (
-      (status === "done" || status === "cancelled") &&
-      row.recurrence
-    ) {
-      const next = computeNextOccurrence(
-        {
-          recurrence: row.recurrence,
-          interval: row.interval,
-          daysOfWeek: row.daysOfWeek,
-          startTime: row.startTime,
-        },
-        row.endDate ?? new Date()
-      )
+    if (spawnedId) {
+      const nextView = await db
+        .select(ASSIGNMENT_VIEW_COLUMNS)
+        .from(taskAssignmentDetailView)
+        .where(
+          eq(taskAssignmentDetailView.assignmentId, spawnedId)
+        )
+        .then((rows) => rows[0])
 
-      if (next) {
-        const [inserted] = await db
-          .insert(taskAssignmentsTable)
-          .values({
-            taskId: row.taskId,
-            userId: row.userId,
-            status: "todo",
-            startDate: next,
-            endDate: atTime(next, row.endTime),
-          })
-          .returning()
-
-        const nextView = await db
-          .select(ASSIGNMENT_VIEW_COLUMNS)
-          .from(taskAssignmentDetailView)
-          .where(
-            eq(taskAssignmentDetailView.assignmentId, inserted.id)
-          )
-          .then((rows) => rows[0])
-
-        nextAssignment = nextView
-          ? toTaskAssignmentDTO(nextView)
-          : null
-      }
+      nextAssignment = nextView
+        ? toTaskAssignmentDTO(nextView)
+        : null
     }
 
     return {
