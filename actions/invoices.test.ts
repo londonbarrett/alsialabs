@@ -535,8 +535,8 @@ describe("invoices actions", () => {
         },
       ])
       state.mock
-        .onSelect(schema.projectOwnersTable)
-        .respond([{ projectId: PROJECT_ID }])
+        .onSelect(schema.projectsTable)
+        .respond([{ id: PROJECT_ID }])
       state.mock.onUpdate(schema.invoicesTable).respond([
         {
           id: INVOICE_ID,
@@ -623,7 +623,7 @@ describe("invoices actions", () => {
           clientId: CLIENT_ID,
         },
       ])
-      state.mock.onSelect(schema.projectOwnersTable).respond([])
+      state.mock.onSelect(schema.projectsTable).respond([])
 
       const result = await bindInvoiceToProject({
         invoiceId: INVOICE_ID,

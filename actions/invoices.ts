@@ -24,7 +24,6 @@ import {
   invoicePaymentsTable,
   invoicesTable,
   productsTable,
-  projectOwnersTable,
   projectsTable,
 } from "@/lib/drizzle/schema"
 import {
@@ -380,12 +379,12 @@ export const bindInvoiceToProject = sessionAction
 
     if (projectId !== null) {
       const ownerRows = await db
-        .select({ projectId: projectOwnersTable.projectId })
-        .from(projectOwnersTable)
+        .select({ id: projectsTable.id })
+        .from(projectsTable)
         .where(
           and(
-            eq(projectOwnersTable.projectId, projectId),
-            eq(projectOwnersTable.userId, session.user.id)
+            eq(projectsTable.id, projectId),
+            eq(projectsTable.primaryOwnerId, session.user.id)
           )
         )
         .limit(1)

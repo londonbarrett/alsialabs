@@ -30,7 +30,7 @@ it("adds the assignment and membership tables", () => {
   expect(taskAssignmentDetailView).toBeDefined()
 })
 
-it("adds the recurring fields without removing the legacy ones", () => {
+it("keeps the schedule fields and drops the legacy task columns", () => {
   const taskColumns = getTableColumns(tasksTable)
   for (const column of [
     "startDate",
@@ -40,11 +40,10 @@ it("adds the recurring fields without removing the legacy ones", () => {
     "daysOfWeek",
     "startTime",
     "endTime",
-    "cost",
-    "status",
-    "assigneeId",
-    "routineId",
   ]) {
     expect(taskColumns).toHaveProperty(column)
+  }
+  for (const column of ["cost", "status", "assigneeId", "routineId", "dueDate"]) {
+    expect(taskColumns).not.toHaveProperty(column)
   }
 })

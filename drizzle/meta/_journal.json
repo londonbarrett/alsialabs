@@ -176,6 +176,20 @@
       "when": 1793400146592,
       "tag": "0024_nappy_ezekiel_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793490781161,
+      "tag": "0025_cultured_shinobi_shaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793490821537,
+      "tag": "0026_truncate_disposable_data",
+      "breakpoints": true
     }
   ]
 }

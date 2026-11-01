@@ -21,6 +21,7 @@ import {
   invoicesTable,
   projectMembershipTable,
   projectsTable,
+  taskAssignmentsTable,
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
@@ -131,8 +132,20 @@ export const getProjectsWithDetails = sessionAction
       db
         .select({
           projectId: tasksTable.projectId,
-          total: sql<number>`(count(*) filter (where ${tasksTable.status} <> 'cancelled'))::int`,
-          completed: sql<number>`(count(*) filter (where ${tasksTable.status} = 'done'))::int`,
+          total: sql<number>`count(*)::int`,
+          // Completed means every assignment is terminal; a task with an
+          // open occurrence is not, and one with no assignments never is.
+          completed: sql<number>`(count(*) filter (
+            where exists (
+              select 1 from ${taskAssignmentsTable}
+              where ${taskAssignmentsTable.taskId} = ${tasksTable.id}
+            )
+            and not exists (
+              select 1 from ${taskAssignmentsTable}
+              where ${taskAssignmentsTable.taskId} = ${tasksTable.id}
+              and ${taskAssignmentsTable.status} not in ('done', 'cancelled')
+            )
+          ))::int`,
         })
         .from(tasksTable)
         .where(inArray(tasksTable.projectId, projectIds))
@@ -158,15 +171,16 @@ export const getProjectsWithDetails = sessionAction
           id: tasksTable.id,
           projectId: tasksTable.projectId,
           name: tasksTable.name,
-          assigneeName: usersTable.name,
-          assigneeImage: usersTable.image,
         })
         .from(tasksTable)
-        .leftJoin(usersTable, eq(tasksTable.assigneeId, usersTable.id))
         .where(
           and(
             inArray(tasksTable.projectId, projectIds),
-            inArray(tasksTable.status, inProgressStatuses)
+            sql`exists (
+              select 1 from ${taskAssignmentsTable}
+              where ${taskAssignmentsTable.taskId} = ${tasksTable.id}
+              and ${taskAssignmentsTable.status} in ('in_progress', 'in_review', 'blocked')
+            )`
           )
         )
         .orderBy(tasksTable.createdAt)
@@ -200,6 +214,40 @@ export const getProjectsWithDetails = sessionAction
         .where(inArray(projectMembershipTable.projectId, projectIds)),
     ])
 
+    const inProgressIds = inProgressTasks.map((task) => task.id)
+    const assigneeRows =
+      inProgressIds.length > 0
+        ? await db
+            .select({
+              taskId: taskAssignmentsTable.taskId,
+              assigneeName: usersTable.name,
+              assigneeImage: usersTable.image,
+            })
+            .from(taskAssignmentsTable)
+            .innerJoin(
+              usersTable,
+              eq(taskAssignmentsTable.userId, usersTable.id)
+            )
+            .where(
+              and(
+                inArray(taskAssignmentsTable.taskId, inProgressIds),
+                inArray(taskAssignmentsTable.status, inProgressStatuses)
+              )
+            )
+        : []
+    const assigneeByTask = new Map<
+      string,
+      { name: string | null; image: string | null }
+    >()
+    for (const row of assigneeRows) {
+      if (!assigneeByTask.has(row.taskId)) {
+        assigneeByTask.set(row.taskId, {
+          name: row.assigneeName,
+          image: row.assigneeImage,
+        })
+      }
+    }
+
     const taskMap = new Map<
       string,
       { total: number; completed: number }
@@ -230,11 +278,12 @@ export const getProjectsWithDetails = sessionAction
     >()
     for (const task of inProgressTasks) {
       const list = inProgressMap.get(task.projectId) ?? []
+      const assignee = assigneeByTask.get(task.id)
       list.push({
         id: task.id,
         title: task.name,
-        assignee: task.assigneeName ?? "",
-        assigneeImage: task.assigneeImage,
+        assignee: assignee?.name ?? "",
+        assigneeImage: assignee?.image ?? null,
       })
       inProgressMap.set(task.projectId, list)
     }

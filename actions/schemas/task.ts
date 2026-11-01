@@ -13,63 +13,11 @@ export type TaskStatus = (typeof TASK_STATUSES)[number]
 export type CollaboratorTaskStatus =
   (typeof COLLABORATOR_TASK_STATUSES)[number]
 
-export const TaskSchema = z.object({
-  name: z
-    .string()
-    .min(1, { message: "NAME_REQUIRED" })
-    .transform((v) => v.trim()),
-  description: z
-    .string()
-    .transform((v) => v.trim())
-    .optional()
-    .default(""),
-  cost: z.string().optional().default(""),
-  status: z.enum(TASK_STATUSES).optional().default("todo"),
-  priority: z.enum(TASK_PRIORITIES).nullable().optional(),
-  dueDate: z.string().nullable().optional(),
-  assigneeId: z.string().nullable().optional(),
-})
-
-export const CreateTaskSchema = TaskSchema.extend({
-  projectId: z.uuid(),
-})
-
-export const UpdateTaskSchema = TaskSchema.extend({
-  projectId: z.uuid(),
-  taskId: z.uuid(),
-})
-
 export const TaskPrioritySchema = z.enum(TASK_PRIORITIES).nullable()
 
 export type TaskPriorityDTO = z.infer<typeof TaskPrioritySchema>
-export type CreateTaskDTO = z.infer<typeof CreateTaskSchema>
-export type UpdateTaskDTO = z.infer<typeof UpdateTaskSchema>
 
 // ---------- Response schemas ----------
-
-export const TaskRecordSchema = z.object({
-  id: z.string(),
-  projectId: z.string(),
-  name: z.string(),
-  description: z.string().nullable(),
-  cost: z.string().nullable(),
-  status: z.enum(ALL_TASK_STATUSES),
-  priority: z.enum(["urgent", "high"]).nullable(),
-  routineId: z.string().nullable(),
-  dueDate: z.date().nullable(),
-  startDate: z.date().nullable(),
-  endDate: z.date().nullable(),
-  recurrence: z.enum(["daily", "weekly"]).nullable(),
-  interval: z.number(),
-  daysOfWeek: z.array(z.string()).nullable(),
-  startTime: z.string().nullable(),
-  endTime: z.string().nullable(),
-  assigneeId: z.string().nullable(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-})
-
-export type TaskRecordDTO = z.infer<typeof TaskRecordSchema>
 
 // ---------- Assignment-era task schemas ----------
 
