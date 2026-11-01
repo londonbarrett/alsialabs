@@ -103,6 +103,7 @@ describe("assignment dates from the detail view", () => {
       role: "collaborator",
       status: "todo",
       comment: null,
+      recurrence: null,
       commentCount: 0,
       ...rawDates,
     })

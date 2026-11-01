@@ -21,6 +21,10 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: BASE_URL,
+    // Specs drive the UI by its labels, which are locale-dependent; pin the
+    // browser to the app's default locale so they do not depend on the
+    // runner's ambient Accept-Language.
+    locale: "es-ES",
   },
   projects: [
     {

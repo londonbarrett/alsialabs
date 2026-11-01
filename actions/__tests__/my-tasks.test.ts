@@ -49,6 +49,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     comment: null,
     startDate: new Date("2026-10-30T09:00:00"),
     endDate: new Date("2026-10-30T11:00:00"),
+    recurrence: null,
     ...overrides,
   }
 }
@@ -138,6 +139,16 @@ describe("getMyTasks", () => {
     expect(past.data?.map((a) => a.assignmentId)).toEqual([
       "orphan-closed",
     ])
+  })
+
+  it("carries the recurrence so the list can badge repeating work", async () => {
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
+      makeRow({ recurrence: "weekly" }),
+    ])
+
+    const result = await getMyTasks({ view: "active" })
+
+    expect(result.data?.[0]?.recurrence).toBe("weekly")
   })
 
   it("includes an open assignment the caller still owns", async () => {

@@ -235,6 +235,41 @@ describe("projects actions", () => {
       expect(projectSql).toContain("project_membership")
       expect(projectSql).toContain("primary_owner_id")
     })
+
+    it("scopes the list to owners and admins, never plain collaborators", async () => {
+      let projectSql = ""
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respondWith((sql) => {
+          projectSql = sql
+          return []
+        })
+
+      const result = await getProjects()
+
+      expect(result.data).toEqual([])
+      expect(projectSql).toContain(`"role" = 'admin'`)
+    })
+
+    it("scopes the detail list the same way", async () => {
+      let projectSql = ""
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respondWith((sql) => {
+          if (sql.includes('inner join "user"')) return []
+          projectSql = sql
+          return []
+        })
+      state.mock.onSelect(schema.tasksTable).respond([])
+      state.mock.onSelect(schema.expensesTable).respond([])
+      state.mock.onSelect(schema.invoicesTable).respond([])
+      state.mock.onSelect(schema.projectMembershipTable).respond([])
+
+      const result = await getProjectsWithDetails()
+
+      expect(result.data).toEqual([])
+      expect(projectSql).toContain(`"role" = 'admin'`)
+    })
   })
 
   describe("getProjectsWithDetails", () => {

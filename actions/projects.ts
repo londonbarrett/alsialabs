@@ -70,7 +70,7 @@ export const getProjects = sessionAction
       .where(
         or(
           eq(projectsTable.primaryOwnerId, session.user.id),
-          sql`exists (select 1 from ${projectMembershipTable} where ${projectMembershipTable.projectId} = ${projectsTable.id} and ${projectMembershipTable.userId} = ${session.user.id})`
+          sql`exists (select 1 from ${projectMembershipTable} where ${projectMembershipTable.projectId} = ${projectsTable.id} and ${projectMembershipTable.userId} = ${session.user.id} and ${projectMembershipTable.role} = 'admin')`
         )
       )
       .orderBy(desc(projectsTable.createdAt))
@@ -107,7 +107,7 @@ export const getProjectsWithDetails = sessionAction
       .where(
         or(
           eq(projectsTable.primaryOwnerId, session.user.id),
-          sql`exists (select 1 from ${projectMembershipTable} where ${projectMembershipTable.projectId} = ${projectsTable.id} and ${projectMembershipTable.userId} = ${session.user.id})`
+          sql`exists (select 1 from ${projectMembershipTable} where ${projectMembershipTable.projectId} = ${projectsTable.id} and ${projectMembershipTable.userId} = ${session.user.id} and ${projectMembershipTable.role} = 'admin')`
         )
       )
       .orderBy(desc(projectsTable.createdAt))
@@ -435,7 +435,8 @@ export const updateProject = projectAction(UpdateProjectSchema)
       budget,
       color,
     } = parsedInput
-    if (!canManageProject(ctx.projectRole)) returnActionError("FORBIDDEN")
+    if (!canManageProject(ctx.projectRole))
+      returnActionError("FORBIDDEN")
     const [updated] = await db
       .update(projectsTable)
       .set({

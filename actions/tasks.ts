@@ -217,6 +217,7 @@ export const getMyTasks = sessionAction
         comment: taskAssignmentDetailView.comment,
         startDate: taskAssignmentDetailView.startDate,
         endDate: taskAssignmentDetailView.endDate,
+        recurrence: taskAssignmentDetailView.taskRecurrence,
       })
       .from(taskAssignmentDetailView)
       .where(eq(taskAssignmentDetailView.userId, userId))

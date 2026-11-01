@@ -22,6 +22,7 @@ function makeAssignment(
     comment: null,
     startDate: null,
     endDate: null,
+    recurrence: null,
     commentCount: 0,
     ...overrides,
   }

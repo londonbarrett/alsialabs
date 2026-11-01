@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { isTaskOverdue } from "@/lib/util/tasks"
-import { MessageSquare } from "lucide-react"
+import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { MyTaskCommentsPanel } from "./my-task-comments-panel"
@@ -109,7 +109,18 @@ export function MyTasksList({
                     >
                       <TableCell className="font-medium">
                         <div>
-                          <p>{assignment.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p>{assignment.name}</p>
+                            {assignment.recurrence && (
+                              <Badge
+                                variant="outline"
+                                className="gap-1 text-xs"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                                {t("projects.tasks.recurring")}
+                              </Badge>
+                            )}
+                          </div>
                           {assignment.description && (
                             <p className="mt-0.5 text-xs text-muted-foreground">
                               {assignment.description}

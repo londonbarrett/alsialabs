@@ -175,6 +175,7 @@ export const MyAssignmentSchema = z.object({
   comment: z.string().nullable(),
   startDate: z.coerce.date().nullable(),
   endDate: z.coerce.date().nullable(),
+  recurrence: z.enum(["daily", "weekly"]).nullable(),
   commentCount: z.number(),
 })
 
