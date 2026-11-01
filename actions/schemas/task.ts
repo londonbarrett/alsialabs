@@ -108,11 +108,11 @@ export const TaskFormSchema = TaskFormBaseSchema.superRefine(
   refineTaskWindow
 )
 
-export const CreateTaskV2Schema = TaskFormBaseSchema.extend({
+export const CreateTaskSchema = TaskFormBaseSchema.extend({
   projectId: z.uuid(),
 }).superRefine(refineTaskWindow)
 
-export const UpdateTaskV2Schema = TaskFormBaseSchema.extend({
+export const UpdateTaskSchema = TaskFormBaseSchema.extend({
   projectId: z.uuid(),
   taskId: z.uuid(),
 }).superRefine(refineTaskWindow)
@@ -135,7 +135,7 @@ export const TaskAssignmentSchema = z.object({
   endDate: z.coerce.date().nullable(),
 })
 
-export const TaskRecordV2Schema = z.object({
+export const TaskRecordSchema = z.object({
   id: z.string(),
   projectId: z.string(),
   name: z.string(),
@@ -152,7 +152,7 @@ export const TaskRecordV2Schema = z.object({
   updatedAt: z.date(),
 })
 
-export const TaskWithAssignmentsSchema = TaskRecordV2Schema.extend({
+export const TaskWithAssignmentsSchema = TaskRecordSchema.extend({
   assignments: z.array(TaskAssignmentSchema),
   commentCount: z.number(),
 })
@@ -185,10 +185,10 @@ export const AssignmentStatusResultSchema = z.object({
 })
 
 export type TaskFormDTO = z.infer<typeof TaskFormSchema>
-export type CreateTaskV2DTO = z.infer<typeof CreateTaskV2Schema>
-export type UpdateTaskV2DTO = z.infer<typeof UpdateTaskV2Schema>
+export type CreateTaskDTO = z.infer<typeof CreateTaskSchema>
+export type UpdateTaskDTO = z.infer<typeof UpdateTaskSchema>
 export type TaskAssignmentDTO = z.infer<typeof TaskAssignmentSchema>
-export type TaskRecordV2DTO = z.infer<typeof TaskRecordV2Schema>
+export type TaskRecordDTO = z.infer<typeof TaskRecordSchema>
 export type TaskWithAssignmentsDTO = z.infer<
   typeof TaskWithAssignmentsSchema
 >

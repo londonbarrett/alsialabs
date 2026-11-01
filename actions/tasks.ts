@@ -21,15 +21,15 @@ import {
   ALL_TASK_STATUSES,
   AssignmentStatusResultSchema,
   COLLABORATOR_TASK_STATUSES,
-  CreateTaskV2Schema,
+  CreateTaskSchema,
   MyAssignmentSchema,
   MyTasksTabSchema,
   TaskAssignmentSchema,
   TaskPrioritySchema,
   TaskWithAssignmentsSchema,
-  UpdateTaskV2Schema,
+  UpdateTaskSchema,
   type TaskAssignmentDTO,
-  type TaskRecordV2DTO,
+  type TaskRecordDTO,
 } from "@/actions/schemas/task"
 import {
   canChangeAnyAssignment,
@@ -61,7 +61,7 @@ const ASSIGNMENT_VIEW_COLUMNS = {
 
 function toTaskRecord(
   row: typeof tasksTable.$inferSelect
-): TaskRecordV2DTO {
+): TaskRecordDTO {
   return {
     id: row.id,
     projectId: row.projectId,
@@ -112,7 +112,7 @@ async function assertAssignees(
 async function loadTaskWithAssignments(
   taskId: string
 ): Promise<{
-  record: TaskRecordV2DTO
+  record: TaskRecordDTO
   assignments: TaskAssignmentDTO[]
 }> {
   const row = await db
@@ -316,7 +316,7 @@ export const getMyTasks = sessionAction
 
 // ---------- Mutations ----------
 
-export const createTask = projectAction(CreateTaskV2Schema)
+export const createTask = projectAction(CreateTaskSchema)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(TaskWithAssignmentsSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -381,7 +381,7 @@ export const createTask = projectAction(CreateTaskV2Schema)
     return { ...loaded.record, assignments: loaded.assignments, commentCount: 0 }
   })
 
-export const updateTask = projectAction(UpdateTaskV2Schema)
+export const updateTask = projectAction(UpdateTaskSchema)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(TaskWithAssignmentsSchema)
   .action(async ({ parsedInput, ctx }) => {

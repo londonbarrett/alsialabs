@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { CalendarAssignmentSchema } from "@/actions/schemas/calendar"
 import {
-  CreateTaskV2Schema,
+  CreateTaskSchema,
   MyAssignmentSchema,
   TaskAssignmentSchema,
   TaskFormSchema,
@@ -69,7 +69,7 @@ describe("task window schema", () => {
   })
 
   it("extends to the create schema with a project id", () => {
-    const result = CreateTaskV2Schema.safeParse({
+    const result = CreateTaskSchema.safeParse({
       ...base,
       ...window,
       projectId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
