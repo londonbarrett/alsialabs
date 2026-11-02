@@ -2,7 +2,6 @@
 
 import { EventDetailDialog } from "@/components/calendar/event-detail-dialog"
 import { cn } from "cn"
-import { RefreshCw } from "lucide-react"
 import { memo, useState } from "react"
 import type { CalendarEvent } from "../types"
 import { formatTime } from "../util/date"
@@ -52,12 +51,6 @@ export const MonthEvent = memo(function MonthEvent({
       >
         {event.meta?.kind === "task" && (
           <TaskStatusIcon event={event} />
-        )}
-        {event.meta?.kind === "routine" && (
-          <RefreshCw
-            aria-hidden
-            className="size-3 shrink-0 text-muted-foreground"
-          />
         )}
         {showTime && isTimed && !event.meta && (
           <span className="shrink-0 text-muted-foreground tabular-nums">

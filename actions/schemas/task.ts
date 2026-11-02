@@ -13,7 +13,15 @@ export type TaskStatus = (typeof TASK_STATUSES)[number]
 export type CollaboratorTaskStatus =
   (typeof COLLABORATOR_TASK_STATUSES)[number]
 
-export const TaskSchema = z.object({
+export const TaskPrioritySchema = z.enum(TASK_PRIORITIES).nullable()
+
+export type TaskPriorityDTO = z.infer<typeof TaskPrioritySchema>
+
+// ---------- Response schemas ----------
+
+// ---------- Assignment-era task schemas ----------
+
+const TaskFormBaseSchema = z.object({
   name: z
     .string()
     .min(1, { message: "NAME_REQUIRED" })
@@ -23,70 +31,182 @@ export const TaskSchema = z.object({
     .transform((v) => v.trim())
     .optional()
     .default(""),
-  cost: z.string().optional().default(""),
-  status: z.enum(TASK_STATUSES).optional().default("todo"),
   priority: z.enum(TASK_PRIORITIES).nullable().optional(),
-  dueDate: z.string().nullable().optional(),
-  assigneeId: z.string().nullable().optional(),
+  assigneeIds: z.array(z.string().min(1)).optional().default([]),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
+  recurrence: z.enum(["daily", "weekly"]).nullable().optional(),
+  interval: z.coerce.number().int().min(1).max(365).default(1),
+  daysOfWeek: z.array(z.string()).optional().default([]),
+  startTime: z.string().optional().default(""),
+  endTime: z.string().optional().default(""),
 })
 
-export const CreateTaskSchema = TaskSchema.extend({
-  projectId: z.uuid(),
-})
+type TaskFormValue = z.infer<typeof TaskFormBaseSchema>
 
-export const UpdateTaskSchema = TaskSchema.extend({
-  projectId: z.uuid(),
-  taskId: z.uuid(),
-})
+function refineTaskWindow(
+  value: TaskFormValue,
+  ctx: z.RefinementCtx
+): void {
+  if (!value.recurrence) {
+    if (!value.startDate) {
+      ctx.addIssue({
+        code: "custom",
+        message: "START_REQUIRED",
+        path: ["startDate"],
+      })
+    }
+    if (!value.endDate) {
+      ctx.addIssue({
+        code: "custom",
+        message: "END_REQUIRED",
+        path: ["endDate"],
+      })
+    }
+    if (value.startDate && value.endDate) {
+      const start = new Date(value.startDate)
+      const end = new Date(value.endDate)
+      if (
+        Number.isNaN(start.getTime()) ||
+        Number.isNaN(end.getTime())
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: "INVALID_DATE",
+          path: ["startDate"],
+        })
+        return
+      }
+      if (end.getTime() < start.getTime()) {
+        ctx.addIssue({
+          code: "custom",
+          message: "END_BEFORE_START",
+          path: ["endDate"],
+        })
+      }
+      if (start.toDateString() !== end.toDateString()) {
+        ctx.addIssue({
+          code: "custom",
+          message: "SAME_DAY_REQUIRED",
+          path: ["endDate"],
+        })
+      }
+    }
+    return
+  }
 
-export const OwnerStatusSchema = z.enum(ALL_TASK_STATUSES)
+  if (!value.startTime) {
+    ctx.addIssue({
+      code: "custom",
+      message: "START_TIME_REQUIRED",
+      path: ["startTime"],
+    })
+  }
 
-export const CollaboratorStatusSchema = z.enum(
-  COLLABORATOR_TASK_STATUSES
+  // The end date is an optional "until" for the schedule — compared at day
+  // precision, since its stored time is the occurrence time, not a deadline.
+  if (
+    value.startDate &&
+    value.endDate &&
+    value.endDate.slice(0, 10) < value.startDate.slice(0, 10)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message: "END_BEFORE_START",
+      path: ["endDate"],
+    })
+  }
+}
+
+export const TaskFormSchema = TaskFormBaseSchema.superRefine(
+  refineTaskWindow
 )
 
-export const TaskPrioritySchema = z.enum(TASK_PRIORITIES).nullable()
+export const CreateTaskSchema = TaskFormBaseSchema.extend({
+  projectId: z.uuid(),
+}).superRefine(refineTaskWindow)
 
-export type TaskPriorityDTO = z.infer<typeof TaskPrioritySchema>
-export type CreateTaskDTO = z.infer<typeof CreateTaskSchema>
-export type UpdateTaskDTO = z.infer<typeof UpdateTaskSchema>
+export const UpdateTaskSchema = TaskFormBaseSchema.extend({
+  projectId: z.uuid(),
+  taskId: z.uuid(),
+}).superRefine(refineTaskWindow)
 
-// ---------- Response schemas ----------
+/**
+ * The detail view's date columns are `sql<>`-typed, so drizzle hands them
+ * back as the driver's raw timestamp strings instead of Dates: every schema
+ * that validates a view row coerces them.
+ */
+export const TaskAssignmentSchema = z.object({
+  id: z.string(),
+  taskId: z.string(),
+  userId: z.string(),
+  userName: z.string().nullable(),
+  userEmail: z.string().nullable(),
+  userImage: z.string().nullable(),
+  status: z.enum(TASK_STATUSES),
+  comment: z.string().nullable(),
+  startDate: z.coerce.date().nullable(),
+  endDate: z.coerce.date().nullable(),
+})
 
 export const TaskRecordSchema = z.object({
   id: z.string(),
   projectId: z.string(),
   name: z.string(),
   description: z.string().nullable(),
-  cost: z.string().nullable(),
-  status: z.enum(ALL_TASK_STATUSES),
-  priority: z.enum(["urgent", "high"]).nullable(),
-  routineId: z.string().nullable(),
-  dueDate: z.date().nullable(),
-  assigneeId: z.string().nullable(),
+  priority: z.enum(TASK_PRIORITIES).nullable(),
+  startDate: z.date().nullable(),
+  endDate: z.date().nullable(),
+  recurrence: z.enum(["daily", "weekly"]).nullable(),
+  interval: z.number(),
+  daysOfWeek: z.array(z.string()).nullable(),
+  startTime: z.string().nullable(),
+  endTime: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
 
-export const TaskWithCommentCountSchema = TaskRecordSchema.extend({
-  assigneeName: z.string().nullable(),
+export const TaskWithAssignmentsSchema = TaskRecordSchema.extend({
+  assignments: z.array(TaskAssignmentSchema),
   commentCount: z.number(),
 })
 
-export const MyTaskSchema = TaskWithCommentCountSchema.extend({
+export const MyTasksTabSchema = z.enum(["active", "past"])
+export type MyTasksTab = z.infer<typeof MyTasksTabSchema>
+
+export const MyAssignmentSchema = z.object({
+  assignmentId: z.string(),
+  taskId: z.string(),
+  projectId: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  priority: z.enum(TASK_PRIORITIES).nullable(),
   projectName: z.string(),
   projectColor: z.string(),
   projectOwnerName: z.string().nullable(),
-  isOwner: z.boolean(),
+  role: z.enum(["owner", "admin", "collaborator"]),
+  status: z.enum(TASK_STATUSES),
+  comment: z.string().nullable(),
+  startDate: z.coerce.date().nullable(),
+  endDate: z.coerce.date().nullable(),
+  recurrence: z.enum(["daily", "weekly"]).nullable(),
+  commentCount: z.number(),
 })
 
-export const TaskStatusResultSchema = z.object({
-  nextTask: TaskRecordSchema.optional(),
+export const AssignmentStatusResultSchema = z.object({
+  assignment: TaskAssignmentSchema,
+  nextAssignment: TaskAssignmentSchema.nullable(),
 })
 
+export type TaskFormDTO = z.infer<typeof TaskFormSchema>
+export type CreateTaskDTO = z.infer<typeof CreateTaskSchema>
+export type UpdateTaskDTO = z.infer<typeof UpdateTaskSchema>
+export type TaskAssignmentDTO = z.infer<typeof TaskAssignmentSchema>
 export type TaskRecordDTO = z.infer<typeof TaskRecordSchema>
-export type TaskWithCommentCountDTO = z.infer<
-  typeof TaskWithCommentCountSchema
+export type TaskWithAssignmentsDTO = z.infer<
+  typeof TaskWithAssignmentsSchema
 >
-export type MyTaskDTO = z.infer<typeof MyTaskSchema>
-export type TaskStatusResultDTO = z.infer<typeof TaskStatusResultSchema>
+export type MyAssignmentDTO = z.infer<typeof MyAssignmentSchema>
+export type AssignmentStatusResultDTO = z.infer<
+  typeof AssignmentStatusResultSchema
+>

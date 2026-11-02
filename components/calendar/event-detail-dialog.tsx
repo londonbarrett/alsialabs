@@ -1,16 +1,13 @@
 "use client"
 
 import { Dialog } from "@/components/common/dialog"
-import { Money } from "@/components/common/money"
-import { RoutineScheduleSummary } from "@/components/projects/routines/routine-schedule-summary"
 import { taskPriorityColors } from "@/components/projects/task-priority-select"
 import { taskStatusColors } from "@/components/projects/task-status-select"
 import { Badge } from "@/components/ui/badge"
 import type { CalendarEvent } from "@/lib/calendar"
 import { formatWhen } from "@/lib/calendar/util/date"
-import type { CalendarEventMeta } from "@/lib/types"
+import type { CalendarEventAssignee, CalendarEventMeta } from "@/lib/types"
 import { cn } from "cn"
-import { isTaskOverdue } from "@/lib/util/tasks"
 import { AlertTriangle, CalendarClock, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { memo } from "react"
@@ -37,33 +34,36 @@ const Row = memo(function Row({
   )
 })
 
-const BaseRows = memo(function BaseRows({
-  meta,
+const AssigneeRow = memo(function AssigneeRow({
+  assignee,
 }: {
-  meta: CalendarEventMeta | undefined
+  assignee: CalendarEventAssignee
 }) {
   const t = useTranslations()
   return (
-    <>
-      <Row
-        label={t("common.project")}
-        value={meta?.projectName ?? "—"}
-      />
-      <Row
-        label={t("common.owner")}
-        value={meta?.projectOwnerName ?? "—"}
-      />
-      <Row
-        label={t("calendar.responsible")}
-        value={
-          meta?.assigneeName
-            ? meta.assigneeName
-            : t("common.unassigned")
-        }
-      />
-    </>
+    <div className="flex flex-col gap-1 py-2 text-sm">
+      <div className="flex items-center justify-between gap-4">
+        <span>{assignee.name ?? t("common.unassigned")}</span>
+        <Badge className={taskStatusColors[assignee.status]}>
+          {t(`projects.tasks.status.${assignee.status}`)}
+        </Badge>
+      </div>
+      {assignee.comment && (
+        <p className="text-xs text-muted-foreground">
+          {assignee.comment}
+        </p>
+      )}
+    </div>
   )
 })
+
+function isOverdue(meta: CalendarEventMeta | undefined): boolean {
+  if (!meta?.endDateIso || !meta.assignees?.length) return false
+  const open = meta.assignees.some(
+    (a) => a.status !== "done" && a.status !== "cancelled"
+  )
+  return open && new Date(meta.endDateIso).getTime() < Date.now()
+}
 
 export function EventDetailDialog({
   event,
@@ -76,31 +76,21 @@ export function EventDetailDialog({
   if (!event) return null
 
   const meta = event.meta
-  const isTask = meta?.kind === "task"
-  const isRoutine = meta?.kind === "routine"
-  const overdue =
-    isTask && meta?.status && meta?.dueDateIso
-      ? isTaskOverdue(meta.status, meta.dueDateIso)
-      : false
+  const overdue = isOverdue(meta)
 
   return (
     <Dialog
       title={
         <div className="flex flex-wrap items-center gap-2 pr-8">
           <span>{event.title}</span>
-          {isRoutine ? (
+          {meta?.recurrence && (
             <Badge variant="outline" className="gap-1 text-xs">
               <RefreshCw className="h-3 w-3" />
-              {t("projects.routines.routine")}
+              {t("projects.tasks.recurring")}
             </Badge>
-          ) : isTask && meta?.status ? (
-            <Badge className={taskStatusColors[meta.status]}>
-              {t(`projects.tasks.status.${meta.status}`)}
-            </Badge>
-          ) : null}
+          )}
         </div>
       }
-      description={meta?.description ? meta.description : undefined}
       open={open}
       onOpenChange={onOpenChange}
       className="sm:max-w-lg"
@@ -130,40 +120,36 @@ export function EventDetailDialog({
           </span>
         </div>
 
-        {isTask || isRoutine ? (
-          <dl className="divide-y">
-            <BaseRows meta={meta} />
-            {isTask ? (
-              <Row
-                label={t("common.priority")}
-                value={
-                  <Badge
-                    className={
-                      meta?.priority
-                        ? taskPriorityColors[meta.priority]
-                        : ""
-                    }
-                  >
-                    {meta?.priority
-                      ? t(`projects.tasks.priority.${meta.priority}`)
-                      : t("projects.tasks.priority.none")}
-                  </Badge>
+        <dl className="divide-y">
+          <Row
+            label={t("common.project")}
+            value={meta?.projectName ?? "—"}
+          />
+          <Row
+            label={t("common.owner")}
+            value={meta?.projectOwnerName ?? "—"}
+          />
+          <Row
+            label={t("common.priority")}
+            value={
+              <Badge
+                className={
+                  meta?.priority ? taskPriorityColors[meta.priority] : ""
                 }
-              />
-            ) : isRoutine ? (
-              <Row
-                label={t("projects.routines.recurrenceLabel")}
-                value={<RoutineScheduleSummary routine={meta} />}
-              />
-            ) : null}
-            {meta?.cost ? (
-              <Row
-                label={t("common.cost")}
-                value={<Money value={meta.cost} />}
-              />
-            ) : null}
-          </dl>
-        ) : null}
+              >
+                {meta?.priority
+                  ? t(`projects.tasks.priority.${meta.priority}`)
+                  : t("projects.tasks.priority.none")}
+              </Badge>
+            }
+          />
+          {meta?.assignees?.map((assignee, index) => (
+            <AssigneeRow
+              key={`${assignee.name ?? "assignee"}-${index}`}
+              assignee={assignee}
+            />
+          ))}
+        </dl>
       </div>
     </Dialog>
   )

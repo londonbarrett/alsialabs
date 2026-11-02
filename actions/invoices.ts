@@ -1,6 +1,7 @@
 "use server"
 
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { canViewProject } from "@/lib/project-roles"
 import { SuccessSchema } from "@/actions/schemas/common"
 import {
   BindInvoiceResultSchema,
@@ -17,7 +18,6 @@ import {
   ProjectInvoiceSchema,
   UpdateInvoiceSchema,
 } from "@/actions/schemas/invoice"
-import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
   clientsTable,
@@ -25,11 +25,10 @@ import {
   invoicePaymentsTable,
   invoicesTable,
   productsTable,
-  projectOwnersTable,
   projectsTable,
 } from "@/lib/drizzle/schema"
 import {
-  projectScopedAction,
+  projectAction,
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
@@ -379,14 +378,14 @@ export const bindInvoiceToProject = sessionAction
     if (!uniqueIds.includes(invoice.clientId))
       returnActionError("FORBIDDEN")
 
-    if (projectId !== null && !isSuperUser(session)) {
+    if (projectId !== null) {
       const ownerRows = await db
-        .select({ projectId: projectOwnersTable.projectId })
-        .from(projectOwnersTable)
+        .select({ id: projectsTable.id })
+        .from(projectsTable)
         .where(
           and(
-            eq(projectOwnersTable.projectId, projectId),
-            eq(projectOwnersTable.userId, session.user.id)
+            eq(projectsTable.id, projectId),
+            eq(projectsTable.primaryOwnerId, session.user.id)
           )
         )
         .limit(1)
@@ -407,14 +406,18 @@ export const bindInvoiceToProject = sessionAction
     return updated
   })
 
-export const getProjectInvoices = projectScopedAction(
+export const getProjectInvoices = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({
-    permission: { module: "expenses", action: "view" },
-  })
+  .metadata({})
   .outputSchema(z.array(ProjectInvoiceSchema))
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    // Collaborators are invisible to the project surface, so they must not
+    // read its invoices either.
+    if (!canViewProject(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     return db
       .select({
         id: invoicesTable.id,

@@ -1,10 +1,10 @@
-import type { TaskWithCommentCountDTO } from "@/actions/schemas/task"
+import type { TaskWithAssignmentsDTO } from "@/actions/schemas/task"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
 import { projectTasksReducer } from "./project-tasks-reducer"
 
 export function createProjectTasksStore(
-  tasks: TaskWithCommentCountDTO[]
+  tasks: TaskWithAssignmentsDTO[]
 ) {
   /**
    * `tasks` is the server's slice. `commentsByTask` is not: comments load per

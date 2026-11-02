@@ -10,7 +10,6 @@ import {
   ListTodo,
   MapPin,
   Receipt,
-  RefreshCw,
   Users,
 } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -44,12 +43,6 @@ export function ProjectView({ children }: ProjectViewProps) {
       label: t("common.tasks"),
       icon: ListTodo,
       active: pathname === basePath,
-    },
-    {
-      href: `${basePath}/rutinas`,
-      label: t("projects.routines.title"),
-      icon: RefreshCw,
-      active: pathname === `${basePath}/rutinas`,
     },
     {
       href: `${basePath}/detalles`,

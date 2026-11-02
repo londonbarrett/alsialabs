@@ -1,10 +1,7 @@
 "use server"
 
 import { getProjectCategories } from "@/actions/categories"
-import {
-  getProjectCollaborators,
-  getProjectOwners,
-} from "@/actions/project-people"
+import { getProjectMembers } from "@/actions/project-membership"
 import { SuccessSchema } from "@/actions/schemas/common"
 import {
   CreateProjectSchema,
@@ -14,27 +11,27 @@ import {
   ProjectRecordSchema,
   ProjectSummarySchema,
   UpdateProjectSchema,
-  type ProjectDetailDTO,
 } from "@/actions/schemas/project"
-import { getUserPermissions, isSuperUser } from "@/lib/auth"
+import { getUserPermissions } from "@/lib/auth"
+import { canManageProject, canViewProject } from "@/lib/project-roles"
 import { db } from "@/lib/drizzle/client"
 import {
   categoryTable,
   expensesTable,
   invoicesTable,
-  projectCollaboratorsTable,
-  projectOwnersTable,
+  projectMembershipTable,
   projectsTable,
+  taskAssignmentsTable,
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
 import {
-  projectScopedAction,
+  projectAction,
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
 import { unwrapResponse } from "@/lib/util/unwrap"
-import { and, desc, eq, inArray, sql } from "drizzle-orm"
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm"
 import { z } from "zod"
 
 export const getProjects = sessionAction
@@ -42,37 +39,6 @@ export const getProjects = sessionAction
   .outputSchema(z.array(ProjectOptionSchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
-    if (isSuperUser(session as { user: { role: string | null } })) {
-      return db
-        .select({
-          id: projectsTable.id,
-          primaryOwnerId: projectsTable.primaryOwnerId,
-          categoryId: projectsTable.categoryId,
-          name: projectsTable.name,
-          description: projectsTable.description,
-          status: projectsTable.status,
-          startDate: projectsTable.startDate,
-          endDate: projectsTable.endDate,
-          location: projectsTable.location,
-          budget: projectsTable.budget,
-          color: projectsTable.color,
-          createdAt: projectsTable.createdAt,
-          updatedAt: projectsTable.updatedAt,
-          categorySlug: categoryTable.slug,
-          categoryName: categoryTable.name,
-          ownerName: usersTable.name,
-        })
-        .from(projectsTable)
-        .leftJoin(
-          categoryTable,
-          eq(projectsTable.categoryId, categoryTable.id)
-        )
-        .leftJoin(
-          usersTable,
-          eq(projectsTable.primaryOwnerId, usersTable.id)
-        )
-        .orderBy(desc(projectsTable.createdAt))
-    }
     return db
       .select({
         id: projectsTable.id,
@@ -102,72 +68,49 @@ export const getProjects = sessionAction
         eq(projectsTable.primaryOwnerId, usersTable.id)
       )
       .where(
-        sql`exists (select 1 from ${projectOwnersTable} where ${projectOwnersTable.projectId} = ${projectsTable.id} and ${projectOwnersTable.userId} = ${session.user.id})`
+        or(
+          eq(projectsTable.primaryOwnerId, session.user.id),
+          sql`exists (select 1 from ${projectMembershipTable} where ${projectMembershipTable.projectId} = ${projectsTable.id} and ${projectMembershipTable.userId} = ${session.user.id} and ${projectMembershipTable.role} = 'admin')`
+        )
       )
       .orderBy(desc(projectsTable.createdAt))
   })
 
 export const getProjectsWithDetails = sessionAction
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(z.array(ProjectSummarySchema))
   .action(async ({ ctx }) => {
     const session = ctx.session
-    let filteredProjects: ProjectDetailDTO[]
-
-    if (isSuperUser(session as { user: { role: string | null } })) {
-      filteredProjects = await db
-        .select({
-          id: projectsTable.id,
-          primaryOwnerId: projectsTable.primaryOwnerId,
-          categoryId: projectsTable.categoryId,
-          name: projectsTable.name,
-          description: projectsTable.description,
-          status: projectsTable.status,
-          startDate: projectsTable.startDate,
-          endDate: projectsTable.endDate,
-          location: projectsTable.location,
-          budget: projectsTable.budget,
-          color: projectsTable.color,
-          createdAt: projectsTable.createdAt,
-          updatedAt: projectsTable.updatedAt,
-          categorySlug: categoryTable.slug,
-          categoryName: categoryTable.name,
-        })
-        .from(projectsTable)
-        .leftJoin(
-          categoryTable,
-          eq(projectsTable.categoryId, categoryTable.id)
+    const filteredProjects = await db
+      .select({
+        id: projectsTable.id,
+        primaryOwnerId: projectsTable.primaryOwnerId,
+        categoryId: projectsTable.categoryId,
+        name: projectsTable.name,
+        description: projectsTable.description,
+        status: projectsTable.status,
+        startDate: projectsTable.startDate,
+        endDate: projectsTable.endDate,
+        location: projectsTable.location,
+        budget: projectsTable.budget,
+        color: projectsTable.color,
+        createdAt: projectsTable.createdAt,
+        updatedAt: projectsTable.updatedAt,
+        categorySlug: categoryTable.slug,
+        categoryName: categoryTable.name,
+      })
+      .from(projectsTable)
+      .leftJoin(
+        categoryTable,
+        eq(projectsTable.categoryId, categoryTable.id)
+      )
+      .where(
+        or(
+          eq(projectsTable.primaryOwnerId, session.user.id),
+          sql`exists (select 1 from ${projectMembershipTable} where ${projectMembershipTable.projectId} = ${projectsTable.id} and ${projectMembershipTable.userId} = ${session.user.id} and ${projectMembershipTable.role} = 'admin')`
         )
-        .orderBy(desc(projectsTable.createdAt))
-    } else {
-      filteredProjects = await db
-        .select({
-          id: projectsTable.id,
-          primaryOwnerId: projectsTable.primaryOwnerId,
-          categoryId: projectsTable.categoryId,
-          name: projectsTable.name,
-          description: projectsTable.description,
-          status: projectsTable.status,
-          startDate: projectsTable.startDate,
-          endDate: projectsTable.endDate,
-          location: projectsTable.location,
-          budget: projectsTable.budget,
-          color: projectsTable.color,
-          createdAt: projectsTable.createdAt,
-          updatedAt: projectsTable.updatedAt,
-          categorySlug: categoryTable.slug,
-          categoryName: categoryTable.name,
-        })
-        .from(projectsTable)
-        .leftJoin(
-          categoryTable,
-          eq(projectsTable.categoryId, categoryTable.id)
-        )
-        .where(
-          sql`exists (select 1 from ${projectOwnersTable} where ${projectOwnersTable.projectId} = ${projectsTable.id} and ${projectOwnersTable.userId} = ${session.user.id})`
-        )
-        .orderBy(desc(projectsTable.createdAt))
-    }
+      )
+      .orderBy(desc(projectsTable.createdAt))
 
     const projectIds = filteredProjects.map((p) => p.id)
     if (projectIds.length === 0) return []
@@ -181,17 +124,28 @@ export const getProjectsWithDetails = sessionAction
     const [
       taskAggs,
       expenseAggs,
-      taskCostAggs,
       invoicePaidAggs,
       inProgressTasks,
       ownerData,
-      collaboratorData,
+      memberData,
     ] = await Promise.all([
       db
         .select({
           projectId: tasksTable.projectId,
-          total: sql<number>`(count(*) filter (where ${tasksTable.status} <> 'cancelled'))::int`,
-          completed: sql<number>`(count(*) filter (where ${tasksTable.status} = 'done'))::int`,
+          total: sql<number>`count(*)::int`,
+          // Completed means every assignment is terminal; a task with an
+          // open occurrence is not, and one with no assignments never is.
+          completed: sql<number>`(count(*) filter (
+            where exists (
+              select 1 from ${taskAssignmentsTable}
+              where ${taskAssignmentsTable.taskId} = ${tasksTable.id}
+            )
+            and not exists (
+              select 1 from ${taskAssignmentsTable}
+              where ${taskAssignmentsTable.taskId} = ${tasksTable.id}
+              and ${taskAssignmentsTable.status} not in ('done', 'cancelled')
+            )
+          ))::int`,
         })
         .from(tasksTable)
         .where(inArray(tasksTable.projectId, projectIds))
@@ -206,14 +160,6 @@ export const getProjectsWithDetails = sessionAction
         .groupBy(expensesTable.projectId),
       db
         .select({
-          projectId: tasksTable.projectId,
-          total: sql<string>`coalesce(sum(${tasksTable.cost}), '0')`,
-        })
-        .from(tasksTable)
-        .where(inArray(tasksTable.projectId, projectIds))
-        .groupBy(tasksTable.projectId),
-      db
-        .select({
           projectId: invoicesTable.projectId,
           total: sql<string>`coalesce(sum(${invoicesTable.paidAmount}), '0')`,
         })
@@ -225,48 +171,82 @@ export const getProjectsWithDetails = sessionAction
           id: tasksTable.id,
           projectId: tasksTable.projectId,
           name: tasksTable.name,
-          assigneeName: usersTable.name,
-          assigneeImage: usersTable.image,
         })
         .from(tasksTable)
-        .leftJoin(usersTable, eq(tasksTable.assigneeId, usersTable.id))
         .where(
           and(
             inArray(tasksTable.projectId, projectIds),
-            inArray(tasksTable.status, inProgressStatuses)
+            sql`exists (
+              select 1 from ${taskAssignmentsTable}
+              where ${taskAssignmentsTable.taskId} = ${tasksTable.id}
+              and ${taskAssignmentsTable.status} in ('in_progress', 'in_review', 'blocked')
+            )`
           )
         )
         .orderBy(tasksTable.createdAt)
         .limit(3),
       db
         .select({
-          projectId: projectOwnersTable.projectId,
+          projectId: projectsTable.id,
           userId: usersTable.id,
           name: usersTable.name,
           image: usersTable.image,
         })
-        .from(projectOwnersTable)
+        .from(projectsTable)
         .innerJoin(
           usersTable,
-          eq(projectOwnersTable.userId, usersTable.id)
+          eq(projectsTable.primaryOwnerId, usersTable.id)
         )
-        .where(inArray(projectOwnersTable.projectId, projectIds)),
+        .where(inArray(projectsTable.id, projectIds)),
       db
         .select({
-          projectId: projectCollaboratorsTable.projectId,
-          userId: usersTable.id,
+          projectId: projectMembershipTable.projectId,
+          userId: projectMembershipTable.userId,
+          role: projectMembershipTable.role,
           name: usersTable.name,
           image: usersTable.image,
         })
-        .from(projectCollaboratorsTable)
+        .from(projectMembershipTable)
         .innerJoin(
           usersTable,
-          eq(projectCollaboratorsTable.userId, usersTable.id)
+          eq(projectMembershipTable.userId, usersTable.id)
         )
-        .where(
-          inArray(projectCollaboratorsTable.projectId, projectIds)
-        ),
+        .where(inArray(projectMembershipTable.projectId, projectIds)),
     ])
+
+    const inProgressIds = inProgressTasks.map((task) => task.id)
+    const assigneeRows =
+      inProgressIds.length > 0
+        ? await db
+            .select({
+              taskId: taskAssignmentsTable.taskId,
+              assigneeName: usersTable.name,
+              assigneeImage: usersTable.image,
+            })
+            .from(taskAssignmentsTable)
+            .innerJoin(
+              usersTable,
+              eq(taskAssignmentsTable.userId, usersTable.id)
+            )
+            .where(
+              and(
+                inArray(taskAssignmentsTable.taskId, inProgressIds),
+                inArray(taskAssignmentsTable.status, inProgressStatuses)
+              )
+            )
+        : []
+    const assigneeByTask = new Map<
+      string,
+      { name: string | null; image: string | null }
+    >()
+    for (const row of assigneeRows) {
+      if (!assigneeByTask.has(row.taskId)) {
+        assigneeByTask.set(row.taskId, {
+          name: row.assigneeName,
+          image: row.assigneeImage,
+        })
+      }
+    }
 
     const taskMap = new Map<
       string,
@@ -281,10 +261,6 @@ export const getProjectsWithDetails = sessionAction
     const expenseMap = new Map<string, number>()
     for (const agg of expenseAggs) {
       expenseMap.set(agg.projectId, Number(agg.total))
-    }
-    const taskCostMap = new Map<string, number>()
-    for (const agg of taskCostAggs) {
-      taskCostMap.set(agg.projectId, Number(agg.total))
     }
     const invoicePaidMap = new Map<string, number>()
     for (const agg of invoicePaidAggs) {
@@ -302,43 +278,51 @@ export const getProjectsWithDetails = sessionAction
     >()
     for (const task of inProgressTasks) {
       const list = inProgressMap.get(task.projectId) ?? []
+      const assignee = assigneeByTask.get(task.id)
       list.push({
         id: task.id,
         title: task.name,
-        assignee: task.assigneeName ?? "",
-        assigneeImage: task.assigneeImage,
+        assignee: assignee?.name ?? "",
+        assigneeImage: assignee?.image ?? null,
       })
       inProgressMap.set(task.projectId, list)
     }
-    const ownerMap = new Map<
+    const memberMap = new Map<
       string,
-      { id: string; name: string; image: string | null }[]
+      {
+        id: string
+        name: string
+        image: string | null
+        role: "owner" | "admin" | "collaborator"
+      }[]
     >()
     for (const o of ownerData) {
-      const list = ownerMap.get(o.projectId) ?? []
-      if (!list.find((x) => x.id === o.userId)) {
-        list.push({ id: o.userId, name: o.name ?? "", image: o.image })
-      }
-      ownerMap.set(o.projectId, list)
+      memberMap.set(o.projectId, [
+        {
+          id: o.userId,
+          name: o.name ?? "",
+          image: o.image,
+          role: "owner",
+        },
+      ])
     }
-    const collaboratorMap = new Map<
-      string,
-      { id: string; name: string; image: string | null }[]
-    >()
-    for (const c of collaboratorData) {
-      const list = collaboratorMap.get(c.projectId) ?? []
-      if (!list.find((x) => x.id === c.userId)) {
-        list.push({ id: c.userId, name: c.name ?? "", image: c.image })
+    for (const m of memberData) {
+      const list = memberMap.get(m.projectId) ?? []
+      if (!list.find((x) => x.id === m.userId)) {
+        list.push({
+          id: m.userId,
+          name: m.name ?? "",
+          image: m.image,
+          role: m.role,
+        })
       }
-      collaboratorMap.set(c.projectId, list)
+      memberMap.set(m.projectId, list)
     }
 
     return filteredProjects.map((p) => {
       const tasks = taskMap.get(p.id) ?? { total: 0, completed: 0 }
       const expenses =
-        (expenseMap.get(p.id) ?? 0) +
-        (taskCostMap.get(p.id) ?? 0) +
-        (invoicePaidMap.get(p.id) ?? 0)
+        (expenseMap.get(p.id) ?? 0) + (invoicePaidMap.get(p.id) ?? 0)
       const budget = p.budget ? Number(p.budget) : 0
       return {
         id: p.id,
@@ -356,16 +340,15 @@ export const getProjectsWithDetails = sessionAction
         tasksTotal: tasks.total,
         tasksCompleted: tasks.completed,
         inProgressTasks: inProgressMap.get(p.id) ?? [],
-        owners: ownerMap.get(p.id) ?? [],
-        collaborators: collaboratorMap.get(p.id) ?? [],
+        members: memberMap.get(p.id) ?? [],
       }
     })
   })
 
-export const getProjectById = projectScopedAction(
+export const getProjectById = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(ProjectDetailSchema)
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
@@ -399,10 +382,7 @@ export const getProjectById = projectScopedAction(
   })
 
 export const createProject = sessionAction
-  .metadata({
-    permission: { module: "projects", action: "create" },
-    revalidate: ["/app/proyectos"],
-  })
+  .metadata({ revalidate: ["/app/proyectos"] })
   .inputSchema(CreateProjectSchema)
   .outputSchema(ProjectRecordSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -433,15 +413,11 @@ export const createProject = sessionAction
         color,
       })
       .returning()
-    await db
-      .insert(projectOwnersTable)
-      .values({ projectId: created.id, userId: session.user.id })
     return created
   })
 
-export const updateProject = projectScopedAction(UpdateProjectSchema)
+export const updateProject = projectAction(UpdateProjectSchema)
   .metadata({
-    permission: { module: "projects", action: "edit" },
     // :projectId interpolated from input AFTER the action commits
     revalidate: ["/app/proyectos", "/app/proyectos/:projectId"],
   })
@@ -459,7 +435,8 @@ export const updateProject = projectScopedAction(UpdateProjectSchema)
       budget,
       color,
     } = parsedInput
-    if (!ctx.isProjectOwner) returnActionError("FORBIDDEN")
+    if (!canManageProject(ctx.projectRole))
+      returnActionError("FORBIDDEN")
     const [updated] = await db
       .update(projectsTable)
       .set({
@@ -479,10 +456,10 @@ export const updateProject = projectScopedAction(UpdateProjectSchema)
     return updated
   })
 
-export const getProjectForEdit = projectScopedAction(
+export const getProjectForEdit = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({ permission: { module: "projects", action: "view" } })
+  .metadata({})
   .outputSchema(ProjectRecordSchema)
   .action(async ({ parsedInput }) => {
     const { projectId } = parsedInput
@@ -509,13 +486,10 @@ export const getProjectForEdit = projectScopedAction(
     return project
   })
 
-export const deleteProject = projectScopedAction(
+export const deleteProject = projectAction(
   z.object({ projectId: z.uuid() })
 )
-  .metadata({
-    permission: { module: "projects", action: "delete" },
-    revalidate: ["/app/proyectos"],
-  })
+  .metadata({ revalidate: ["/app/proyectos"] })
   .outputSchema(SuccessSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId } = parsedInput
@@ -525,10 +499,7 @@ export const deleteProject = projectScopedAction(
       .where(eq(projectsTable.id, projectId))
       .then((rows) => rows[0])
     if (!project) returnActionError("NOT_FOUND")
-    if (
-      project.primaryOwnerId !== ctx.session.user.id &&
-      !isSuperUser(ctx.session as { user: { role: string | null } })
-    ) {
+    if (!canManageProject(ctx.projectRole)) {
       returnActionError("FORBIDDEN")
     }
     await db
@@ -537,13 +508,18 @@ export const deleteProject = projectScopedAction(
     return { success: true }
   })
 
-export const getProjectContext = sessionAction
-  .metadata({ permission: { module: "projects", action: "view" } })
-  .inputSchema(z.object({ projectId: z.uuid() }))
+export const getProjectContext = projectAction(
+  z.object({ projectId: z.uuid() })
+)
+  .metadata({})
   .outputSchema(ProjectContextSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { projectId } = parsedInput
     const session = ctx.session
+    if (!canViewProject(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     const projectResult = await getProjectById({ projectId })
     if (projectResult.serverError?.code === "FORBIDDEN") {
       returnActionError("FORBIDDEN")
@@ -552,22 +528,18 @@ export const getProjectContext = sessionAction
       returnActionError("NOT_FOUND")
     }
     const project = projectResult.data!
-    const [owners, collaborators, permissions, categoriesResult] =
-      await Promise.all([
-        getProjectOwners({ projectId }),
-        getProjectCollaborators({ projectId }),
-        getUserPermissions(session.user.id),
-        getProjectCategories(),
-      ])
+    const [members, permissions, categoriesResult] = await Promise.all([
+      getProjectMembers({ projectId }),
+      getUserPermissions(session.user.id),
+      getProjectCategories(),
+    ])
     return {
       project,
-      owners: unwrapResponse(owners),
-      collaborators: unwrapResponse(collaborators),
+      members: unwrapResponse(members),
       permissions,
       session,
-      isCurrentUserAdmin: isSuperUser(
-        session as { user: { role: string | null } }
-      ),
+      currentRole: ctx.projectRole!,
+      currentUserId: session.user.id,
       categories: unwrapResponse(categoriesResult),
     }
   })

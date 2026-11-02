@@ -17,18 +17,13 @@ import type {
 import { clientsTable } from "@/lib/drizzle/schema"
 import { eq } from "drizzle-orm"
 import { getTranslations } from "next-intl/server"
-import { redirect } from "next/navigation"
 
 export default async function ProfilePage() {
   const session = await auth()
   const t = await getTranslations()
 
-  if (!session?.user) {
-    redirect("/login")
-  }
-
-  const isUser = session.user.role === "user"
-  const permissions = await getUserPermissions(session.user.id)
+  const isUser = session!.user.role === "user"
+  const permissions = await getUserPermissions(session!.user.id)
   const canView = permissions.includes("client-activity:view")
 
   let client: Client | null = null
@@ -52,7 +47,7 @@ export default async function ProfilePage() {
     }
   } else {
     const clientResult = await getClientByUserId({
-      userId: session.user.id,
+      userId: session!.user.id,
     })
     client = clientResult.data ?? null
 
@@ -82,7 +77,7 @@ export default async function ProfilePage() {
               {t("common.name")}
             </p>
             <p className="text-base font-medium">
-              {session.user.name ?? "—"}
+              {session!.user.name ?? "—"}
             </p>
           </div>
           <div>
@@ -90,7 +85,7 @@ export default async function ProfilePage() {
               {t("common.email")}
             </p>
             <p className="text-base font-medium">
-              {session.user.email ?? "—"}
+              {session!.user.email ?? "—"}
             </p>
           </div>
           <div>
@@ -98,7 +93,7 @@ export default async function ProfilePage() {
               {t("common.role")}
             </p>
             <p className="text-base font-medium capitalize">
-              {session.user.role ?? "—"}
+              {session!.user.role ?? "—"}
             </p>
           </div>
         </div>

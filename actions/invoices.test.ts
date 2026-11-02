@@ -115,7 +115,7 @@ describe("invoices actions", () => {
     vi.clearAllMocks()
     mockVerifyProjectAccess.mockResolvedValue({
       hasAccess: true,
-      isOwner: true,
+      role: "owner",
     })
     state.mock.resetMocks()
     mockAuth.mockResolvedValue({
@@ -535,8 +535,8 @@ describe("invoices actions", () => {
         },
       ])
       state.mock
-        .onSelect(schema.projectOwnersTable)
-        .respond([{ projectId: PROJECT_ID }])
+        .onSelect(schema.projectsTable)
+        .respond([{ id: PROJECT_ID }])
       state.mock.onUpdate(schema.invoicesTable).respond([
         {
           id: INVOICE_ID,
@@ -623,7 +623,7 @@ describe("invoices actions", () => {
           clientId: CLIENT_ID,
         },
       ])
-      state.mock.onSelect(schema.projectOwnersTable).respond([])
+      state.mock.onSelect(schema.projectsTable).respond([])
 
       const result = await bindInvoiceToProject({
         invoiceId: INVOICE_ID,
@@ -659,10 +659,21 @@ describe("invoices actions", () => {
       expect(result.data).toEqual(rows)
     })
 
+    it("forbids a collaborator from reading project invoices", async () => {
+      mockVerifyProjectAccess.mockResolvedValue({
+        hasAccess: true,
+        role: "collaborator",
+      })
+
+      const result = await getProjectInvoices({ projectId: PROJECT_ID })
+
+      expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    })
+
     it("returns FORBIDDEN when project access is denied", async () => {
       mockVerifyProjectAccess.mockResolvedValue({
         hasAccess: false,
-        isOwner: false,
+        role: null,
       })
 
       const result = await getProjectInvoices({ projectId: PROJECT_ID })

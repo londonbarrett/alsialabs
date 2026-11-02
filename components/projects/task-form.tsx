@@ -1,259 +1,286 @@
 "use client"
 
-import { MoneyInput } from "@/components/common/money-input"
-import { Button } from "@/components/ui/button"
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import type { Task } from "@/lib/drizzle/schema"
 import type {
   TaskPriorityDTO,
-  TaskStatus,
+  TaskWithAssignmentsDTO,
 } from "@/actions/schemas/task"
+import { Button } from "@/components/ui/button"
+import {
+  validateRepeatingWindow,
+  validateTaskDetails,
+  validateTaskName,
+} from "@/lib/tasks/form-validation"
+import type { TaskDetailsIssue, TaskDetailsValues } from "@/lib/tasks/form-validation"
 import { combineDateTime } from "@/lib/util/schedule"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
-import { TaskPrioritySelect } from "./task-priority-select"
-import { TaskStatusSelect } from "./task-status-select"
+import { TaskFormDetailsStep } from "./task-form-details-step"
+import { TaskFormScheduleStep } from "./task-form-schedule-step"
+import { TaskStepIndicator } from "./task-step-indicator"
 
 function toDateInput(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
 }
 
 function toTimeInput(date: Date): string {
-  return `${String(date.getHours()).padStart(2, "0")}:${String(
-    date.getMinutes()
-  ).padStart(2, "0")}`
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
 }
 
 interface TaskFormProps {
-  task?: Task
+  task?: TaskWithAssignmentsDTO
   onSubmit: (data: {
     name: string
     description: string
-    cost: string
-    status: string
     priority: string | null
-    dueDate: string | null
-    assigneeId: string | null
+    assigneeIds: string[]
+    startDate: string | null
+    endDate: string | null
+    recurrence: "daily" | "weekly" | null
+    interval: number
+    daysOfWeek: string[]
+    startTime: string
+    endTime: string
   }) => void
   onCancel: () => void
 }
 
-const taskStatuses: TaskStatus[] = [
-  "todo",
-  "in_progress",
-  "in_review",
-  "blocked",
-  "done",
-]
-
 export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const t = useTranslations()
   const { members } = useProjectContextState()
+  const firstAssignment = task?.assignments[0]
+
+  const [step, setStep] = useState(1)
+  const [step1Done, setStep1Done] = useState(false)
   const [name, setName] = useState(task?.name ?? "")
-  const [description, setDescription] = useState(
-    task?.description ?? ""
-  )
-  const [cost, setCost] = useState(task?.cost ?? "")
-  const [status, setStatus] = useState<TaskStatus>(
-    task?.status ?? "todo"
-  )
+  const [description, setDescription] = useState(task?.description ?? "")
   const [priority, setPriority] = useState<TaskPriorityDTO>(
     task?.priority ?? null
   )
-  const [dueDate, setDueDate] = useState(
-    task?.dueDate ? toDateInput(task.dueDate) : ""
+  const [assigneeId, setAssigneeId] = useState(
+    firstAssignment?.userId ?? ""
   )
-  const [dueTime, setDueTime] = useState(
-    task?.dueDate ? toTimeInput(task.dueDate) : ""
+  const [startDate, setStartDate] = useState(
+    task?.startDate
+      ? toDateInput(task.startDate)
+      : task?.recurrence
+        ? // Repeating work without a stored anchor begins today.
+          toDateInput(new Date())
+        : ""
   )
-  const [assigneeId, setAssigneeId] = useState<string>(
-    task?.assigneeId ?? ""
+  const [startTime, setStartTime] = useState(
+    task?.startDate ? toTimeInput(task.startDate) : ""
   )
+  const [endDate, setEndDate] = useState(
+    task?.endDate ? toDateInput(task.endDate) : ""
+  )
+  const [endTime, setEndTime] = useState(
+    task?.endDate ? toTimeInput(task.endDate) : ""
+  )
+  const [repeat, setRepeat] = useState(Boolean(task?.recurrence))
+  const [recurrence, setRecurrence] = useState<"daily" | "weekly">(
+    task?.recurrence === "daily" ? "daily" : "weekly"
+  )
+  const [interval, setInterval] = useState(String(task?.interval ?? 1))
+  const [daysOfWeek, setDaysOfWeek] = useState<string[]>(
+    task?.daysOfWeek ?? []
+  )
+  const [occurrenceStart, setOccurrenceStart] = useState(
+    task?.startTime ?? ""
+  )
+  const [occurrenceEnd, setOccurrenceEnd] = useState(task?.endTime ?? "")
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  function validate() {
+  function toggleDay(day: string) {
+    setDaysOfWeek((prev) =>
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : [...prev, day]
+    )
+  }
+
+  const detailsValues: TaskDetailsValues = {
+    name,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+  }
+
+  function mapDetailsIssues(issues: TaskDetailsIssue[]) {
     const fieldErrors: Record<string, string> = {}
-    if (!name.trim())
-      fieldErrors.name = t("projects.tasks.nameRequired")
-    setErrors(fieldErrors)
-    return Object.keys(fieldErrors).length === 0
+    for (const issue of issues) {
+      if (issue === "NAME_REQUIRED") {
+        fieldErrors.name = t("projects.tasks.nameRequired")
+      } else if (issue === "START_DATE_REQUIRED") {
+        fieldErrors.startDate = t("common.dateRequired")
+      } else if (issue === "END_DATE_REQUIRED") {
+        fieldErrors.endDate = t("common.dateRequired")
+      } else {
+        fieldErrors.endDate = t("projects.routines.endBeforeStart")
+      }
+    }
+    return fieldErrors
+  }
+
+  /**
+   * The schedule step stays locked until step 1 is clean — a name is always
+   * required, and a window that was started must be a complete, same-day one.
+   * An untouched window may pass: a repeating task fills it later or never.
+   */
+  function goNext() {
+    // The schedule step owns the dates now, so only the details step's own
+    // fields gate the transition.
+    const issues = validateTaskName(name)
+    if (issues.length > 0) {
+      setErrors(mapDetailsIssues(issues))
+      return
+    }
+    setErrors({})
+    setStep1Done(true)
+    setStep(2)
+  }
+
+  function handleRepeatChange(value: boolean) {
+    setRepeat(value)
+    setErrors({})
+    if (value && !startDate) setStartDate(toDateInput(new Date()))
+  }
+
+  function handleStepSelect(n: number) {
+    if (n === 2) {
+      goNext()
+      return
+    }
+    setStep(n)
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!validate()) return
+    const effectiveStartDate =
+      repeat && !startDate ? toDateInput(new Date()) : startDate
+    const issues = repeat
+      ? [
+          ...validateTaskName(name),
+          ...validateRepeatingWindow({
+            startDate: effectiveStartDate,
+            endDate,
+          }),
+        ]
+      : validateTaskDetails(detailsValues, { requireWindow: true })
+    const fieldErrors = mapDetailsIssues(issues)
 
-    const combinedDueDate = combineDateTime(dueDate, dueTime)
+    if (repeat) {
+      if (!occurrenceStart)
+        fieldErrors.startTime = t("projects.routines.startNotPast")
+      if (recurrence === "weekly" && daysOfWeek.length === 0)
+        fieldErrors.daysOfWeek = t("projects.routines.atLeastOneDay")
+    }
+
+    setErrors(fieldErrors)
+    if (Object.keys(fieldErrors).length > 0) {
+      // The name lives on step 1 — bounce back so its message is visible;
+      // window errors already render in place on the schedule step.
+      if (issues.includes("NAME_REQUIRED")) setStep(1)
+      return
+    }
+
+    // Repeating work is anchored from its start date (today when the user
+    // never picked one); its optional end date bounds the schedule — each
+    // occurrence's own window still comes from the schedule.
+    const start = combineDateTime(
+      effectiveStartDate,
+      repeat ? occurrenceStart : startTime
+    )
+    const repeatEnd = combineDateTime(endDate, occurrenceEnd)
+    const end = combineDateTime(endDate, endTime)
 
     onSubmit({
       name: name.trim(),
       description: description.trim(),
-      cost: cost.trim(),
-      status,
       priority,
-      dueDate: combinedDueDate ? combinedDueDate.toISOString() : null,
-      assigneeId: assigneeId || null,
+      assigneeIds: assigneeId ? [assigneeId] : [],
+      startDate: start ? start.toISOString() : null,
+      endDate: repeat
+        ? repeatEnd
+          ? repeatEnd.toISOString()
+          : null
+        : end
+          ? end.toISOString()
+          : null,
+      recurrence: repeat ? recurrence : null,
+      interval: Number(interval) || 1,
+      daysOfWeek: repeat ? daysOfWeek : [],
+      startTime: repeat ? occurrenceStart : "",
+      endTime: repeat ? occurrenceEnd : "",
     })
   }
 
   return (
     <form onSubmit={handleSubmit}>
-      <FieldGroup>
-        <Field data-invalid={!!errors.name || undefined}>
-          <FieldLabel htmlFor="name">
-            {t("projects.tasks.name")}
-          </FieldLabel>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            aria-invalid={!!errors.name || undefined}
+      <TaskStepIndicator
+        current={step}
+        editMode={Boolean(task)}
+        step1Done={step1Done}
+        onSelect={handleStepSelect}
+      />
+
+      {step === 1 ? (
+        <TaskFormDetailsStep
+          name={name}
+          description={description}
+          priority={priority}
+          assigneeId={assigneeId}
+          members={members}
+          errors={errors}
+          onNameChange={setName}
+          onDescriptionChange={setDescription}
+          onPriorityChange={setPriority}
+          onAssigneeChange={setAssigneeId}
+          onNext={goNext}
+          onCancel={onCancel}
+        />
+      ) : (
+        <div className="flex flex-col gap-6">
+          <TaskFormScheduleStep
+            startDate={startDate}
+            startTime={startTime}
+            endDate={endDate}
+            endTime={endTime}
+            repeat={repeat}
+            recurrence={recurrence}
+            interval={interval}
+            daysOfWeek={daysOfWeek}
+            occurrenceStartTime={occurrenceStart}
+            occurrenceEndTime={occurrenceEnd}
+            errors={errors}
+            onStartDateChange={setStartDate}
+            onStartTimeChange={setStartTime}
+            onEndDateChange={setEndDate}
+            onEndTimeChange={setEndTime}
+            onRepeatChange={handleRepeatChange}
+            onRecurrenceChange={setRecurrence}
+            onIntervalChange={setInterval}
+            onDayToggle={toggleDay}
+            onOccurrenceStartTimeChange={setOccurrenceStart}
+            onOccurrenceEndTimeChange={setOccurrenceEnd}
           />
-          {errors.name && <FieldError>{errors.name}</FieldError>}
-        </Field>
-        <Field data-invalid={!!errors.description || undefined}>
-          <FieldLabel htmlFor="description">
-            {t("common.description")}
-          </FieldLabel>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            aria-invalid={!!errors.description || undefined}
-          />
-          {errors.description && (
-            <FieldError>{errors.description}</FieldError>
-          )}
-        </Field>
-        <Field data-invalid={!!errors.cost || undefined}>
-          <FieldLabel htmlFor="cost">
-            {t("common.cost")}
-          </FieldLabel>
-          <MoneyInput
-            id="cost"
-            value={cost}
-            onChange={setCost}
-            aria-invalid={!!errors.cost || undefined}
-          />
-          {errors.cost && <FieldError>{errors.cost}</FieldError>}
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="status">
-            {t("common.status")}
-          </FieldLabel>
-          <TaskStatusSelect
-            id="status"
-            status={status}
-            allowedStatuses={taskStatuses}
-            onStatusChange={setStatus}
-            fullWidth
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="priority">
-            {t("common.priority")}
-          </FieldLabel>
-          <TaskPrioritySelect
-            id="priority"
-            priority={priority}
-            onPriorityChange={setPriority}
-            fullWidth
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="dueDate">
-            {t("common.dueDate")}
-          </FieldLabel>
-          <div className="flex gap-3">
-            <Input
-              id="dueDate"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-            <Input
-              id="dueTime"
-              type="time"
-              value={dueTime}
-              onChange={(e) => setDueTime(e.target.value)}
-            />
+          <div className="flex justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStep(1)}
+            >
+              {t("common.back")}
+            </Button>
+            <Button type="submit">
+              {task
+                ? t("common.saveChanges")
+                : t("projects.tasks.createTask")}
+            </Button>
           </div>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="assignee">
-            {t("common.assignee")}
-          </FieldLabel>
-          <Select
-            value={assigneeId}
-            onValueChange={(value) => {
-              if (value !== null) setAssigneeId(value as string)
-            }}
-            items={[
-              { value: "", label: t("common.unassigned") },
-              ...members.map(
-                (m: {
-                  userId: string
-                  userName: string | null
-                  userEmail: string | null
-                }) => ({
-                  value: m.userId,
-                  label: m.userName || m.userEmail || m.userId,
-                })
-              ),
-            ]}
-          >
-            <SelectTrigger id="assignee" className="w-full">
-              <SelectValue
-                placeholder={t("common.unassigned")}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">
-                {t("common.unassigned")}
-              </SelectItem>
-              {members.map(
-                (m: {
-                  userId: string
-                  userName: string | null
-                  userEmail: string | null
-                }) => (
-                  <SelectItem key={m.userId} value={m.userId}>
-                    {m.userName || m.userEmail || m.userId}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field orientation="horizontal">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            {t("common.cancel")}
-          </Button>
-          <Button type="submit">
-            {task
-              ? t("common.saveChanges")
-              : t("projects.tasks.createTask")}
-          </Button>
-        </Field>
-      </FieldGroup>
+        </div>
+      )}
     </form>
   )
 }

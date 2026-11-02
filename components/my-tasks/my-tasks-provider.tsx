@@ -1,6 +1,6 @@
 "use client"
 
-import type { MyTaskDTO } from "@/actions/schemas/task"
+import type { MyAssignmentDTO } from "@/actions/schemas/task"
 import { useServerReseed } from "@/hooks/use-server-reseed"
 import {
   createMyTasksStore,
@@ -9,14 +9,15 @@ import {
 import { useState } from "react"
 
 export function MyTasksProvider({
-  tasks,
+  assignments,
   children,
 }: {
-  tasks: MyTaskDTO[]
+  /** The rows for the tab this page was rendered with. */
+  assignments: MyAssignmentDTO[]
   children: React.ReactNode
 }) {
-  const [store] = useState(() => createMyTasksStore(tasks))
-  useServerReseed(store, tasks)
+  const [store] = useState(() => createMyTasksStore({ assignments }))
+  useServerReseed(store, assignments)
 
   return (
     <MyTasksStoreContext value={store}>{children}</MyTasksStoreContext>

@@ -1,7 +1,16 @@
 "use client"
 
+import type {
+  TaskAssignmentDTO,
+  TaskPriorityDTO,
+  TaskStatus,
+  TaskWithAssignmentsDTO,
+} from "@/actions/schemas/task"
+import {
+  ALL_TASK_STATUSES,
+  COLLABORATOR_TASK_STATUSES,
+} from "@/actions/schemas/task"
 import { ActionMenu } from "@/components/common/action-menu"
-import { Money } from "@/components/common/money"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,14 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { Task } from "@/lib/drizzle/schema"
-import {
-  ALL_TASK_STATUSES,
-  COLLABORATOR_TASK_STATUSES,
-  type TaskPriorityDTO,
-  type TaskStatus,
-  type TaskWithCommentCountDTO,
-} from "@/actions/schemas/task"
+import { isTerminalStatus } from "@/lib/project-roles"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { MessageSquare, RefreshCw } from "lucide-react"
@@ -33,12 +35,16 @@ import {
 } from "./task-status-select"
 
 interface TasksTableProps {
-  tasks: TaskWithCommentCountDTO[]
-  onStatusChange: (taskId: string, status: TaskStatus) => void
+  tasks: TaskWithAssignmentsDTO[]
+  onStatusChange: (
+    taskId: string,
+    assignmentId: string,
+    status: TaskStatus
+  ) => void
   onPriorityChange: (taskId: string, priority: TaskPriorityDTO) => void
   onDelete: (taskId: string) => Promise<void>
-  onEdit: (task: TaskWithCommentCountDTO) => void
-  onComments: (task: TaskWithCommentCountDTO) => void
+  onEdit: (task: TaskWithAssignmentsDTO) => void
+  onComments: (task: TaskWithAssignmentsDTO) => void
 }
 
 export function TasksTable({
@@ -50,26 +56,34 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
-  const { members, currentUserId, isOwner, isCollaborator } =
+  const { members, currentUserId, isOwner, isAdmin, isCollaborator } =
     useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
-  const canEdit = isOwner && canEditProject
+  const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
-  const canMutate = isOwner && (canEdit || canDeleteProject)
+  const canMutate =
+    (isOwner || isAdmin) && (canEdit || canDeleteProject)
 
-  function getTaskAllowedStatuses(task: Task) {
-    if (isOwner) return ALL_TASK_STATUSES
-    if (task.status === "done" || task.status === "cancelled")
-      return null
-    if (isCollaborator && task.assigneeId === currentUserId)
+  function getAllowedStatuses(assignment: TaskAssignmentDTO) {
+    if (isOwner || isAdmin) return ALL_TASK_STATUSES
+    if (isTerminalStatus(assignment.status)) return null
+    if (isCollaborator && assignment.userId === currentUserId) {
       return COLLABORATOR_TASK_STATUSES
+    }
     return null
   }
 
-  function getAssigneeName(task: TaskWithCommentCountDTO) {
-    if (task.assigneeName) return task.assigneeName
-    const member = members.find((m) => m.userId === task.assigneeId)
-    return member?.userEmail ?? task.assigneeId
+  function assignmentName(assignment: TaskAssignmentDTO) {
+    if (assignment.userName) return assignment.userName
+    return assignmentEmail(assignment) ?? assignment.userId
+  }
+
+  function assignmentEmail(assignment: TaskAssignmentDTO) {
+    if (assignment.userEmail) return assignment.userEmail
+    return (
+      members.find((m) => m.userId === assignment.userId)?.userEmail ??
+      null
+    )
   }
 
   return (
@@ -83,7 +97,6 @@ export function TasksTable({
             <TableHead scope="col">{t("common.assignee")}</TableHead>
             <TableHead scope="col">{t("common.status")}</TableHead>
             <TableHead scope="col">{t("common.priority")}</TableHead>
-            <TableHead scope="col">{t("common.cost")}</TableHead>
             <TableHead scope="col">{t("common.dueDate")}</TableHead>
             <TableHead scope="col" className="w-12" />
             {canMutate && (
@@ -93,7 +106,10 @@ export function TasksTable({
         </TableHeader>
         <TableBody>
           {tasks.map((task) => {
-            const allowed = getTaskAllowedStatuses(task)
+            const assignment = task.assignments[0]
+            const allowed = assignment
+              ? getAllowedStatuses(assignment)
+              : null
             return (
               <TableRow
                 key={task.id}
@@ -103,13 +119,13 @@ export function TasksTable({
                   <div>
                     <div className="flex items-center gap-2">
                       <p>{task.name}</p>
-                      {task.routineId && (
+                      {task.recurrence && (
                         <Badge
                           variant="outline"
                           className="gap-1 text-xs"
                         >
                           <RefreshCw className="h-3 w-3" />
-                          {t("projects.routines.routine")}
+                          {t("projects.tasks.recurring")}
                         </Badge>
                       )}
                     </div>
@@ -121,9 +137,16 @@ export function TasksTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {task.assigneeId ? (
-                    <span className="text-sm">
-                      {getAssigneeName(task)}
+                  {assignment ? (
+                    <span className="flex flex-col">
+                      <span className="text-sm">
+                        {assignmentName(assignment)}
+                      </span>
+                      {assignment.userName && assignmentEmail(assignment) && (
+                        <span className="text-xs text-muted-foreground">
+                          {assignmentEmail(assignment)}
+                        </span>
+                      )}
                     </span>
                   ) : (
                     <span className="text-xs text-muted-foreground">
@@ -132,20 +155,26 @@ export function TasksTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  {allowed ? (
+                  {assignment && allowed ? (
                     <TaskStatusSelect
-                      status={task.status}
+                      status={assignment.status}
                       allowedStatuses={allowed}
-                      onStatusChange={(v) => onStatusChange(task.id, v)}
+                      onStatusChange={(v) =>
+                        onStatusChange(task.id, assignment.id, v)
+                      }
                     />
-                  ) : (
-                    <Badge className={taskStatusColors[task.status]}>
-                      {t(`projects.tasks.status.${task.status}`)}
+                  ) : assignment ? (
+                    <Badge
+                      className={taskStatusColors[assignment.status]}
+                    >
+                      {t(`projects.tasks.status.${assignment.status}`)}
                     </Badge>
+                  ) : (
+                    "—"
                   )}
                 </TableCell>
                 <TableCell>
-                  {isOwner && canEdit ? (
+                  {(isOwner || isAdmin) && canEdit ? (
                     <TaskPrioritySelect
                       priority={task.priority}
                       onPriorityChange={(p) =>
@@ -161,12 +190,16 @@ export function TasksTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  {task.cost ? <Money value={task.cost} /> : "—"}
-                </TableCell>
-                <TableCell>
                   <DueDate
-                    date={task.dueDate}
-                    overdue={isTaskOverdue(task.status, task.dueDate)}
+                    date={assignment?.endDate ?? null}
+                    overdue={
+                      assignment
+                        ? isTaskOverdue(
+                            assignment.status,
+                            assignment.endDate
+                          )
+                        : false
+                    }
                     overdueLabel={t("common.overdue")}
                   />
                 </TableCell>

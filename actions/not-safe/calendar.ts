@@ -1,268 +1,159 @@
 "use server"
 
-import type {
-  CalendarRoutineDataDTO,
-  CalendarTaskDataDTO,
-} from "@/actions/schemas/calendar"
 import {
-  CalendarRoutineDataSchema,
-  CalendarTaskDataSchema,
+  CalendarAssignmentSchema,
+  type CalendarAssignmentDTO,
 } from "@/actions/schemas/calendar"
 import { runAction, throwActionError } from "@/lib/action-result"
-import { auth, isSuperUser, requirePermission } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
-  projectOwnersTable,
+  projectMembershipTable,
   projectsTable,
-  routinesTable,
+  taskAssignmentDetailView,
   taskCommentsTable,
-  tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { endOfDay, parseISODate, startOfDay } from "@/lib/util/schedule"
-import { and, eq, exists, or, sql } from "drizzle-orm"
+import { parseISODate, startOfDay } from "@/lib/util/schedule"
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm"
 
 const RANGE_DAYS = 90
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
-function parseRangeDate(value: string | undefined): Date | null {
-  if (!value || !ISO_DATE_PATTERN.test(value)) return null
-  return parseISODate(value)
+function parseRangeDate(value?: string): Date | null {
+  if (!value) return null
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const date = parseISODate(value)
+  if (Number.isNaN(date.getTime())) return null
+  return startOfDay(date)
 }
 
-/**
- * Returns the tasks with a due date inside the requested range. Raw rows
- * only; event building happens on the client.
- */
-export async function getCalendarTasks(range?: {
+export async function getCalendarAssignments(range?: {
   from?: string
   to?: string
-}) {
-  return runAction<CalendarTaskDataDTO[]>(async () => {
-    try {
-      await requirePermission("projects", "view")
-    } catch {
-      throwActionError("FORBIDDEN")
-    }
-
+}): Promise<ReturnType<typeof runAction<CalendarAssignmentDTO[]>>> {
+  return runAction<CalendarAssignmentDTO[]>(async () => {
     const session = await auth()
     const userId = session?.user?.id
     if (!userId) throwActionError("UNAUTHORIZED")
 
-    const defaultFrom = startOfDay(new Date())
-    defaultFrom.setDate(defaultFrom.getDate() - RANGE_DAYS)
-    const defaultTo = endOfDay(new Date())
-    defaultTo.setDate(defaultTo.getDate() + RANGE_DAYS)
+    const from =
+      parseRangeDate(range?.from) ??
+      (() => {
+        const date = startOfDay(new Date())
+        date.setDate(date.getDate() - RANGE_DAYS)
+        return date
+      })()
+    const to =
+      parseRangeDate(range?.to) ??
+      (() => {
+        const date = startOfDay(new Date())
+        date.setDate(date.getDate() + RANGE_DAYS)
+        date.setHours(23, 59, 59, 999)
+        return date
+      })()
 
-    const from = parseRangeDate(range?.from) ?? defaultFrom
-    const parsedTo = parseRangeDate(range?.to)
-    const to = parsedTo ? endOfDay(parsedTo) : defaultTo
-
-    const tasks = await getVisibleTasks(userId)
-    const filtered = tasks.filter((task) => {
-      if (!task.dueDate) return false
-      const time = task.dueDate.getTime()
-      return time >= from.getTime() && time <= to.getTime()
-    })
-    return filtered.map((t) => CalendarTaskDataSchema.parse(t))
-  })
-}
-
-/**
- * Tasks assigned to the user or belonging to projects they own
- * (co-owners included); superusers see everything.
- */
-async function getVisibleTasks(userId: string) {
-  const session = await auth()
-  if (!session?.user) return []
-  const isSuper = isSuperUser(session)
-
-  const conditions = []
-  if (!isSuper) {
-    conditions.push(
-      or(
-        eq(tasksTable.assigneeId, userId),
-        exists(
-          db
-            .select({ one: sql`1` })
-            .from(projectOwnersTable)
-            .where(
-              and(
-                eq(projectOwnersTable.projectId, tasksTable.projectId),
-                eq(projectOwnersTable.userId, userId)
-              )
-            )
+    /**
+     * Drizzle emits the detail view's columns unqualified, so the view query
+     * stands alone — joining `project` or `project_membership` (shared column
+     * names) here would make the statement ambiguous. Visibility against the
+     * project comes from a keyed lookup instead.
+     */
+    const viewRows = await db
+      .select({
+        assignmentId: taskAssignmentDetailView.assignmentId,
+        taskId: taskAssignmentDetailView.taskId,
+        taskName: taskAssignmentDetailView.taskName,
+        status: taskAssignmentDetailView.status,
+        priority: taskAssignmentDetailView.taskPriority,
+        startDate: taskAssignmentDetailView.startDate,
+        endDate: taskAssignmentDetailView.endDate,
+        projectId: taskAssignmentDetailView.projectId,
+        userId: taskAssignmentDetailView.userId,
+        comment: taskAssignmentDetailView.comment,
+        userName: taskAssignmentDetailView.userName,
+        userImage: taskAssignmentDetailView.userImage,
+        recurrence: taskAssignmentDetailView.taskRecurrence,
+      })
+      .from(taskAssignmentDetailView)
+      .where(
+        and(
+          isNotNull(taskAssignmentDetailView.startDate),
+          // The view's date columns carry no type for drizzle, so a Date
+          // parameter cannot be serialized against them: the bounds cross as
+          // ISO strings, which Postgres compares as timestamps.
+          sql`${taskAssignmentDetailView.startDate} >= ${from.toISOString()}`,
+          sql`${taskAssignmentDetailView.startDate} <= ${to.toISOString()}`
         )
       )
-    )
-  }
+      .orderBy(asc(taskAssignmentDetailView.startDate))
 
-  const commentCounts = db
-    .select({
-      taskId: taskCommentsTable.taskId,
-      cnt: sql<number>`count(*)::int`.as("cnt"),
-    })
-    .from(taskCommentsTable)
-    .groupBy(taskCommentsTable.taskId)
-    .as("task_comment_counts")
+    if (viewRows.length === 0) return []
 
-  const primaryOwners = db
-    .select({
-      projectId: projectOwnersTable.projectId,
-      userId: sql<string>`min(${projectOwnersTable.userId})`.as(
-        "userId"
-      ),
-    })
-    .from(projectOwnersTable)
-    .groupBy(projectOwnersTable.projectId)
-    .as("primary_owners")
+    const projectIds = [
+      ...new Set(viewRows.map((row) => row.projectId)),
+    ]
+    const taskIds = [...new Set(viewRows.map((row) => row.taskId))]
 
-  const ownerUsers = db
-    .select({
-      userId: usersTable.id,
-      userName: usersTable.name,
-      userEmail: usersTable.email,
-    })
-    .from(usersTable)
-    .as("owner_users")
-
-  return db
-    .select({
-      id: tasksTable.id,
-      name: tasksTable.name,
-      projectId: tasksTable.projectId,
-      projectName: projectsTable.name,
-      projectColor: projectsTable.color,
-      projectOwnerName: sql<
-        string | null
-      >`coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail})`,
-      description: tasksTable.description,
-      cost: tasksTable.cost,
-      status: tasksTable.status,
-      priority: tasksTable.priority,
-      routineId: tasksTable.routineId,
-      dueDate: tasksTable.dueDate,
-      assigneeName: sql<
-        string | null
-      >`coalesce(${usersTable.name}, ${usersTable.email})`,
-      commentCount: sql<number>`coalesce(${commentCounts.cnt}, 0)`,
-    })
-    .from(tasksTable)
-    .innerJoin(
-      projectsTable,
-      eq(tasksTable.projectId, projectsTable.id)
-    )
-    .leftJoin(usersTable, eq(tasksTable.assigneeId, usersTable.id))
-    .leftJoin(commentCounts, eq(tasksTable.id, commentCounts.taskId))
-    .leftJoin(
-      primaryOwners,
-      eq(tasksTable.projectId, primaryOwners.projectId)
-    )
-    .leftJoin(ownerUsers, eq(primaryOwners.userId, ownerUsers.userId))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-}
-
-/**
- * Returns the raw routine rows visible to the current user. Occurrence
- * expansion happens on the client so navigation never hits the server.
- */
-export async function getCalendarRoutines() {
-  return runAction<CalendarRoutineDataDTO[]>(async () => {
-    try {
-      await requirePermission("projects", "view")
-    } catch {
-      throwActionError("FORBIDDEN")
-    }
-
-    const session = await auth()
-    const userId = session?.user?.id
-    if (!userId) throwActionError("UNAUTHORIZED")
-
-    const routines = await getVisibleRoutines(userId)
-    return routines.map((r) => CalendarRoutineDataSchema.parse(r))
-  })
-}
-
-async function getVisibleRoutines(userId: string) {
-  const session = await auth()
-  if (!session?.user) return []
-  const isSuper = isSuperUser(session)
-
-  const conditions = []
-  if (!isSuper) {
-    conditions.push(
-      or(
-        eq(routinesTable.assigneeId, userId),
-        exists(
-          db
-            .select({ one: sql`1` })
-            .from(projectOwnersTable)
-            .where(
-              and(
-                eq(
-                  projectOwnersTable.projectId,
-                  routinesTable.projectId
-                ),
-                eq(projectOwnersTable.userId, userId)
-              )
-            )
+    const [projectRows, countRows] = await Promise.all([
+      db
+        .select({
+          id: projectsTable.id,
+          projectName: projectsTable.name,
+          projectColor: projectsTable.color,
+          primaryOwnerId: projectsTable.primaryOwnerId,
+          projectOwnerName: sql<
+            string | null
+          >`coalesce(${usersTable.name}, ${usersTable.email})`,
+          memberRole: projectMembershipTable.role,
+        })
+        .from(projectsTable)
+        .leftJoin(
+          usersTable,
+          eq(projectsTable.primaryOwnerId, usersTable.id)
         )
+        .leftJoin(
+          projectMembershipTable,
+          and(
+            eq(projectMembershipTable.projectId, projectsTable.id),
+            eq(projectMembershipTable.userId, userId)
+          )
+        )
+        .where(inArray(projectsTable.id, projectIds)),
+      db
+        .select({
+          taskId: taskCommentsTable.taskId,
+          cnt: sql<number>`count(*)::int`,
+        })
+        .from(taskCommentsTable)
+        .where(inArray(taskCommentsTable.taskId, taskIds))
+        .groupBy(taskCommentsTable.taskId),
+    ])
+
+    const projectsById = new Map(
+      projectRows.map((row) => [row.id, row])
+    )
+    const countsByTask = new Map(
+      countRows.map((row) => [row.taskId, row.cnt])
+    )
+
+    const visible = viewRows.filter((row) => {
+      const project = projectsById.get(row.projectId)
+      return (
+        row.userId === userId ||
+        project?.primaryOwnerId === userId ||
+        project?.memberRole === "admin"
       )
-    )
-  }
-
-  const primaryOwners = db
-    .select({
-      projectId: projectOwnersTable.projectId,
-      userId: sql<string>`min(${projectOwnersTable.userId})`.as(
-        "userId"
-      ),
     })
-    .from(projectOwnersTable)
-    .groupBy(projectOwnersTable.projectId)
-    .as("primary_owners")
 
-  const ownerUsers = db
-    .select({
-      userId: usersTable.id,
-      userName: usersTable.name,
-      userEmail: usersTable.email,
+    return visible.map((row) => {
+      const project = projectsById.get(row.projectId)
+      return CalendarAssignmentSchema.parse({
+        ...row,
+        projectName: project?.projectName ?? "",
+        projectColor: project?.projectColor ?? "",
+        projectOwnerName: project?.projectOwnerName ?? null,
+        commentCount: countsByTask.get(row.taskId) ?? 0,
+      })
     })
-    .from(usersTable)
-    .as("owner_users")
-
-  return db
-    .select({
-      id: routinesTable.id,
-      name: routinesTable.name,
-      description: routinesTable.description,
-      cost: routinesTable.cost,
-      projectId: routinesTable.projectId,
-      projectName: projectsTable.name,
-      projectColor: projectsTable.color,
-      projectOwnerName: sql<
-        string | null
-      >`coalesce(${ownerUsers.userName}, ${ownerUsers.userEmail})`,
-      assigneeName: sql<
-        string | null
-      >`coalesce(${usersTable.name}, ${usersTable.email})`,
-      recurrence: routinesTable.recurrence,
-      interval: routinesTable.interval,
-      daysOfWeek: routinesTable.daysOfWeek,
-      time: routinesTable.time,
-      startDate: routinesTable.startDate,
-      endDate: routinesTable.endDate,
-    })
-    .from(routinesTable)
-    .innerJoin(
-      projectsTable,
-      eq(routinesTable.projectId, projectsTable.id)
-    )
-    .leftJoin(usersTable, eq(routinesTable.assigneeId, usersTable.id))
-    .leftJoin(
-      primaryOwners,
-      eq(routinesTable.projectId, primaryOwners.projectId)
-    )
-    .leftJoin(ownerUsers, eq(primaryOwners.userId, ownerUsers.userId))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+  })
 }

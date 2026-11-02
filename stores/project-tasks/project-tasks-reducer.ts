@@ -1,35 +1,37 @@
 import type {
+  TaskAssignmentDTO,
   TaskPriorityDTO,
-  TaskStatus,
-  TaskWithCommentCountDTO,
+  TaskWithAssignmentsDTO,
 } from "@/actions/schemas/task"
 import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import { sortAssignments } from "@/lib/tasks/assignments"
 
-/**
- * Stable empty list for a task whose comments have never been loaded, so
- * unopened rows share one identity and never trigger a re-render.
- */
 export const EMPTY_COMMENTS: TaskCommentWithAuthorDTO[] = []
 
 export type ProjectTasksState = {
-  tasks: TaskWithCommentCountDTO[]
+  tasks: TaskWithAssignmentsDTO[]
   commentsByTask: Record<string, TaskCommentWithAuthorDTO[]>
 }
 
 export type ProjectTaskAction =
-  | { type: "addTask"; task: TaskWithCommentCountDTO }
-  | { type: "updateTask"; task: TaskWithCommentCountDTO }
+  | { type: "addTask"; task: TaskWithAssignmentsDTO }
+  | { type: "updateTask"; task: TaskWithAssignmentsDTO }
   | {
       type: "replaceTempTask"
       tempId: string
-      task: TaskWithCommentCountDTO
+      task: TaskWithAssignmentsDTO
     }
   | { type: "deleteTask"; taskId: string }
-  | { type: "updateTaskStatus"; taskId: string; status: TaskStatus }
   | {
       type: "updateTaskPriority"
       taskId: string
       priority: TaskPriorityDTO
+    }
+  | {
+      type: "upsertAssignment"
+      taskId: string
+      assignment: TaskAssignmentDTO
+      nextAssignment?: TaskAssignmentDTO | null
     }
   | {
       type: "setComments"
@@ -55,19 +57,11 @@ export type ProjectTaskAction =
     }
   | { type: "deleteComment"; taskId: string; commentId: string }
 
-/**
- * `commentCount` lives on the task row because `getTasks` seeds it, but every
- * comment mutation adjusts it in the *same* action. That keeps the count and
- * the comment list from drifting, and because a failed action is discarded as
- * a unit, a rejected comment also rolls its count back. Previously the panel
- * reported a delta through a callback after the server call, leaving a window
- * where the count disagreed with the list.
- */
 function bumpCommentCount(
-  tasks: TaskWithCommentCountDTO[],
+  tasks: TaskWithAssignmentsDTO[],
   taskId: string,
   delta: number
-): TaskWithCommentCountDTO[] {
+): TaskWithAssignmentsDTO[] {
   return tasks.map((t) =>
     t.id === taskId
       ? { ...t, commentCount: Math.max(0, t.commentCount + delta) }
@@ -75,12 +69,11 @@ function bumpCommentCount(
   )
 }
 
-/** Reconciles the seeded count with an authoritative fetch. */
 function setCommentCount(
-  tasks: TaskWithCommentCountDTO[],
+  tasks: TaskWithAssignmentsDTO[],
   taskId: string,
   count: number
-): TaskWithCommentCountDTO[] {
+): TaskWithAssignmentsDTO[] {
   return tasks.map((t) =>
     t.id === taskId ? { ...t, commentCount: count } : t
   )
@@ -126,14 +119,6 @@ export function projectTasksReducer(
         commentsByTask: omitKey(state.commentsByTask, action.taskId),
       }
 
-    case "updateTaskStatus":
-      return {
-        ...state,
-        tasks: state.tasks.map((t) =>
-          t.id === action.taskId ? { ...t, status: action.status } : t
-        ),
-      }
-
     case "updateTaskPriority":
       return {
         ...state,
@@ -142,6 +127,33 @@ export function projectTasksReducer(
             ? { ...t, priority: action.priority }
             : t
         ),
+      }
+
+    case "upsertAssignment":
+      return {
+        ...state,
+        tasks: state.tasks.map((task) => {
+          if (task.id !== action.taskId) return task
+          const withAssignment = task.assignments.some(
+            (a) => a.id === action.assignment.id
+          )
+            ? task.assignments.map((a) =>
+                a.id === action.assignment.id
+                  ? action.assignment
+                  : a
+              )
+            : [...task.assignments, action.assignment]
+
+          const withNext =
+            action.nextAssignment &&
+            !withAssignment.some(
+              (a) => a.id === action.nextAssignment!.id
+            )
+              ? [...withAssignment, action.nextAssignment]
+              : withAssignment
+
+          return { ...task, assignments: sortAssignments(withNext) }
+        }),
       }
 
     case "setComments":

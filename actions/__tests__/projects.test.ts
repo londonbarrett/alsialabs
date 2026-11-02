@@ -83,7 +83,7 @@ function makeProjectRow(overrides: Record<string, unknown> = {}) {
 function grantAccess(isOwner = true) {
   mockVerifyProjectAccess.mockResolvedValue({
     hasAccess: true,
-    isOwner,
+    role: isOwner ? "owner" : "collaborator",
   })
 }
 
@@ -105,7 +105,6 @@ describe("projects actions", () => {
       state.mock
         .onInsert(schema.projectsTable)
         .respond([makeProjectRow()])
-      state.mock.onInsert(schema.projectOwnersTable).respond([])
 
       const result = await createProject({
         name: "New Project",
@@ -222,15 +221,59 @@ describe("projects actions", () => {
         categoryName: null,
         ownerName: "Jane Doe",
       }
-      state.mock.onSelect(schema.projectsTable).respond([row])
+      let projectSql = ""
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respondWith((sql) => {
+          projectSql = sql
+          return [row]
+        })
       const result = await getProjects()
       expect(result.data).toHaveLength(1)
       expect(mockHasPermission).not.toHaveBeenCalled()
+      expect(mockIsSuperUser).not.toHaveBeenCalled()
+      expect(projectSql).toContain("project_membership")
+      expect(projectSql).toContain("primary_owner_id")
+    })
+
+    it("scopes the list to owners and admins, never plain collaborators", async () => {
+      let projectSql = ""
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respondWith((sql) => {
+          projectSql = sql
+          return []
+        })
+
+      const result = await getProjects()
+
+      expect(result.data).toEqual([])
+      expect(projectSql).toContain(`"role" = 'admin'`)
+    })
+
+    it("scopes the detail list the same way", async () => {
+      let projectSql = ""
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respondWith((sql) => {
+          if (sql.includes('inner join "user"')) return []
+          projectSql = sql
+          return []
+        })
+      state.mock.onSelect(schema.tasksTable).respond([])
+      state.mock.onSelect(schema.expensesTable).respond([])
+      state.mock.onSelect(schema.invoicesTable).respond([])
+      state.mock.onSelect(schema.projectMembershipTable).respond([])
+
+      const result = await getProjectsWithDetails()
+
+      expect(result.data).toEqual([])
+      expect(projectSql).toContain(`"role" = 'admin'`)
     })
   })
 
   describe("getProjectsWithDetails", () => {
-    it("counts invoice paidAmount toward project spend", async () => {
+    it("counts only expenses and paid invoices toward project spend", async () => {
       mockIsSuperUser.mockReturnValue(false)
       const PROJECT: ProjectDetailDTO = {
         id: PROJECT_ID,
@@ -249,16 +292,29 @@ describe("projects actions", () => {
         categorySlug: null,
         categoryName: null,
       }
-      state.mock.onSelect(schema.projectsTable).respond([PROJECT])
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respondWith((sql) =>
+          sql.includes('inner join "user"')
+            ? [
+                {
+                  projectId: PROJECT.id,
+                  userId: "user-1",
+                  name: "Owner",
+                  image: null,
+                },
+              ]
+            : [PROJECT]
+        )
+      const taskSqls: string[] = []
       state.mock
         .onSelect(schema.tasksTable)
-        .respondWith((sql) =>
-          sql.includes("count(")
+        .respondWith((sql) => {
+          taskSqls.push(sql)
+          return sql.includes("count(")
             ? [{ projectId: PROJECT.id, total: 2, completed: 1 }]
-            : sql.includes("cost")
-              ? [{ projectId: PROJECT.id, total: "40" }]
-              : []
-        )
+            : []
+        })
       state.mock
         .onSelect(schema.expensesTable)
         .respond([{ projectId: PROJECT.id, total: "50" }])
@@ -267,12 +323,13 @@ describe("projects actions", () => {
         invoiceSql = sql
         return [{ projectId: PROJECT.id, total: "30" }]
       })
-      state.mock.onSelect(schema.projectOwnersTable).respond([])
-      state.mock.onSelect(schema.projectCollaboratorsTable).respond([])
+      state.mock.onSelect(schema.projectMembershipTable).respond([])
 
       const result = await getProjectsWithDetails()
 
-      expect(result.data?.[0]?.expenses).toBe(120) // 50 expenses + 40 tasks + 30 invoices
+      // 50 expenses + 30 paid invoices: task costs never reach spend.
+      expect(result.data?.[0]?.expenses).toBe(80)
+      expect(taskSqls.some((sql) => sql.includes("cost"))).toBe(false)
       expect(invoiceSql).toContain("paid_amount")
       expect(invoiceSql).not.toContain("grand_total")
     })

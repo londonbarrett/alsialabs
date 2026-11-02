@@ -8,7 +8,7 @@ import {
   getTaskComments,
   updateComment as updateCommentAction,
 } from "@/actions/task-comments"
-import { updateTaskStatus as updateTaskStatusAction } from "@/actions/tasks"
+import { updateAssignmentStatus as updateAssignmentStatusAction } from "@/actions/tasks"
 import { useSettle } from "@/hooks/use-settle"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
@@ -32,14 +32,14 @@ export function useMyTasksActions() {
   const { run } = useOptimisticAction(store)
 
   const { executeAsync: executeStatus } = useAction(
-    updateTaskStatusAction
+    updateAssignmentStatusAction
   )
 
   /** Fetch, not mutation: pends and commits directly so no loading bar. */
   const loadComments = useCallback(
-    async (taskId: string): Promise<void> => {
+    async (projectId: string, taskId: string): Promise<void> => {
       try {
-        const result = await getTaskComments({ taskId })
+        const result = await getTaskComments({ projectId, taskId })
         const comments = result.data ?? []
         const id = store
           .getState()
@@ -57,31 +57,42 @@ export function useMyTasksActions() {
     [store, t]
   )
 
-  async function updateTaskStatus(
+  async function updateAssignment(
     projectId: string,
-    taskId: string,
+    assignmentId: string,
     status: TaskStatus
   ) {
+    const state = store.getState().optimistic
+    const current = state.assignments.find(
+      (assignment) => assignment.assignmentId === assignmentId
+    )
+    if (!current) return
+
     const result = await run(
-      { type: "updateTaskStatus", taskId, status },
-      () => executeStatus({ projectId, taskId, status }),
+      { type: "updateAssignment", assignmentId, status },
+      () => executeStatus({ projectId, assignmentId, status }),
       {
-        // Completing a recurring task can spawn its next occurrence.
+        // Completing a recurring assignment can spawn its next occurrence;
+        // the source row already left the list, so it rides along here.
         commitAction: (r) => {
-          const nextTask = r?.data?.nextTask
-          if (!nextTask) return undefined
-          return { type: "addNextTask", sourceTaskId: taskId, nextTask }
+          const nextAssignment = r?.data?.nextAssignment
+          if (!nextAssignment) return undefined
+          return {
+            type: "insertNextAssignment",
+            source: current,
+            assignment: nextAssignment,
+          }
         },
       }
     )
     settle(result, t("projects.tasks.statusChanged"))
-    const nextTask = result?.data?.nextTask
-    if (nextTask) {
+    if (result?.data?.nextAssignment) {
       toast.success(t("projects.routines.nextOccurrenceCreated"))
     }
   }
 
   async function createComment(
+    projectId: string,
     taskId: string,
     content: string,
     authorId: string
@@ -107,7 +118,7 @@ export function useMyTasksActions() {
 
     const result = await run(
       { type: "createComment", taskId, comment: tempComment },
-      () => createCommentAction({ taskId, content }),
+      () => createCommentAction({ projectId, taskId, content }),
       {
         commitAction: (r) =>
           r.data
@@ -124,28 +135,35 @@ export function useMyTasksActions() {
   }
 
   async function updateComment(
+    projectId: string,
     taskId: string,
     commentId: string,
     content: string
   ) {
     const result = await run(
       { type: "updateComment", taskId, commentId, content },
-      () => updateCommentAction({ commentId, taskId, content })
+      () =>
+        updateCommentAction({ projectId, commentId, taskId, content })
     )
     settle(result, t("projects.tasks.comments.commentUpdated"))
   }
 
-  async function deleteComment(taskId: string, commentId: string) {
+  async function deleteComment(
+    projectId: string,
+    taskId: string,
+    commentId: string
+  ) {
     const result = await run(
       { type: "deleteComment", taskId, commentId },
-      () => deleteCommentAction({ commentId, taskId })
+      () =>
+        deleteCommentAction({ projectId, commentId, taskId })
     )
     settle(result, t("projects.tasks.comments.commentDeleted"))
   }
 
   return {
     loadComments,
-    updateTaskStatus,
+    updateAssignment,
     createComment,
     updateComment,
     deleteComment,

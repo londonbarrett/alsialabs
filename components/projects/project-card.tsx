@@ -90,8 +90,8 @@ type ProjectCardProps = {
 export function ProjectCard({ project, isPending }: ProjectCardProps) {
   const t = useTranslations()
   const status = statusConfig[project.status]
-  const primaryOwner = project.owners.find(
-    (o) => o.id === project.primaryOwnerId
+  const primaryOwner = project.members.find(
+    (member) => member.id === project.primaryOwnerId
   )
   const spendPct =
     project.budget > 0
@@ -108,7 +108,7 @@ export function ProjectCard({ project, isPending }: ProjectCardProps) {
       : 0
   const tasksRemaining = project.tasksTotal - project.tasksCompleted
 
-  const allPeople = [...project.owners, ...project.collaborators]
+  const allPeople = project.members
   const visiblePeople = allPeople.slice(0, 4)
   const extraPeople = allPeople.length - visiblePeople.length
 

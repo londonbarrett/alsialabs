@@ -7,10 +7,11 @@ import {
   taxonomyTable,
 } from "@/lib/drizzle/schema"
 import {
-  projectScopedAction,
+  projectAction,
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
+import { canManageWork, canViewProject } from "@/lib/project-roles"
 import {
   CreateExpenseSchema,
   ExpenseCategoryOptionSchema,
@@ -43,14 +44,17 @@ export const getExpenseCategories = sessionAction
       .orderBy(categoryTable.name)
   })
 
-export const getExpensesByProjectId = projectScopedAction(
+export const getExpensesByProjectId = projectAction(
   z.object({ projectId: z.uuid() })
 )
   .metadata({
-    permission: { module: "expenses", action: "view" },
   })
   .outputSchema(z.array(ExpenseWithCategorySchema))
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canViewProject(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     return db
       .select({
         id: expensesTable.id,
@@ -75,12 +79,15 @@ export const getExpensesByProjectId = projectScopedAction(
 
 // ---------- Mutation actions ----------
 
-export const createExpense = projectScopedAction(CreateExpenseSchema)
+export const createExpense = projectAction(CreateExpenseSchema)
   .metadata({
-    permission: { module: "expenses", action: "create" },
   })
   .outputSchema(ExpenseRecordSchema)
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canManageWork(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     const { description, categoryId, amount, expenseDate } = parsedInput
 
     const [created] = await db
@@ -97,12 +104,15 @@ export const createExpense = projectScopedAction(CreateExpenseSchema)
     return created
   })
 
-export const updateExpense = projectScopedAction(UpdateExpenseSchema)
+export const updateExpense = projectAction(UpdateExpenseSchema)
   .metadata({
-    permission: { module: "expenses", action: "edit" },
   })
   .outputSchema(ExpenseRecordSchema)
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canManageWork(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     const { id, description, categoryId, amount, expenseDate } =
       parsedInput
 
@@ -124,17 +134,20 @@ export const updateExpense = projectScopedAction(UpdateExpenseSchema)
     return updated
   })
 
-export const deleteExpense = projectScopedAction(
+export const deleteExpense = projectAction(
   z.object({
     projectId: z.uuid(),
     id: z.uuid(),
   })
 )
   .metadata({
-    permission: { module: "expenses", action: "delete" },
   })
   .outputSchema(SuccessSchema)
-  .action(async ({ parsedInput }) => {
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canManageWork(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
     const [deleted] = await db
       .delete(expensesTable)
       .where(

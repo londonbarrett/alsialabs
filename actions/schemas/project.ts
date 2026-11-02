@@ -2,10 +2,7 @@ import { type ProjectStatus as ProjectStatusType } from "@/lib/drizzle/schema"
 import { z } from "zod"
 import { PROJECT_COLORS } from "@/components/projects/colors"
 import { CategoryOptionSchema } from "@/actions/schemas/category"
-import {
-  ProjectMemberSchema,
-  ProjectOwnerSchema,
-} from "@/actions/schemas/project-people"
+import { ProjectMemberRowSchema } from "@/actions/schemas/project-membership"
 
 export const ProjectSchema = z.object({
   name: z
@@ -42,7 +39,7 @@ export const UpdateProjectSchema = ProjectSchema.extend({
 
 export const ProjectAccessResultSchema = z.object({
   hasAccess: z.boolean(),
-  isOwner: z.boolean(),
+  role: z.enum(["owner", "admin", "collaborator"]).nullable(),
 })
 
 export type ProjectDTO = z.infer<typeof ProjectSchema>
@@ -116,8 +113,11 @@ export const ProjectSummarySchema = z.object({
   tasksTotal: z.number(),
   tasksCompleted: z.number(),
   inProgressTasks: z.array(ProjectInProgressTaskSchema),
-  owners: z.array(ProjectPersonSchema),
-  collaborators: z.array(ProjectPersonSchema),
+  members: z.array(
+    ProjectPersonSchema.extend({
+      role: z.enum(["owner", "admin", "collaborator"]),
+    })
+  ),
 })
 
 export const ProjectSessionSchema = z.object({
@@ -133,11 +133,11 @@ export const ProjectSessionSchema = z.object({
 
 export const ProjectContextSchema = z.object({
   project: ProjectDetailSchema,
-  owners: z.array(ProjectOwnerSchema),
-  collaborators: z.array(ProjectMemberSchema),
+  members: z.array(ProjectMemberRowSchema),
   permissions: z.array(z.string()),
   session: ProjectSessionSchema,
-  isCurrentUserAdmin: z.boolean(),
+  currentRole: z.enum(["owner", "admin", "collaborator"]),
+  currentUserId: z.string(),
   categories: z.array(CategoryOptionSchema),
 })
 

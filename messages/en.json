@@ -206,28 +206,6 @@
     "project": "Project Categories",
     "expense": "Expense Categories"
   },
-  "routineTemplates": {
-    "irrigation": {
-      "name": "Irrigation",
-      "description": "Water the crop area following the irrigation schedule."
-    },
-    "fertilization": {
-      "name": "Fertilization",
-      "description": "Apply fertilizer to maintain soil nutrients."
-    },
-    "pestMonitoring": {
-      "name": "Pest Monitoring",
-      "description": "Inspect crops for pests and report any findings."
-    },
-    "weeding": {
-      "name": "Weeding",
-      "description": "Remove weeds from the planted areas."
-    },
-    "harvest": {
-      "name": "Harvest",
-      "description": "Collect ripe produce and prepare it for processing."
-    }
-  },
   "projects": {
     "subtitle": "Track progress, budgets, and teams across all active initiatives.",
     "addProject": "Add Project",
@@ -310,7 +288,11 @@
         "commentUpdated": "Comment updated",
         "commentDeleted": "Comment deleted",
         "edited": "edited"
-      }
+      },
+      "recurring": "Recurring",
+      "repeat": "Repeat this task",
+      "stepDetails": "Details",
+      "stepScheduling": "Scheduling"
     },
     "expenses": {
       "addExpense": "Add Expense",
@@ -325,45 +307,17 @@
       "amountRequired": "Amount is required"
     },
     "routines": {
-      "title": "Routines",
-      "addRoutine": "Add Routine",
-      "editRoutine": "Edit Routine",
-      "createRoutine": "Create Routine",
-      "fillDetails": "Fill in the details to create a new routine.",
-      "updateDetails": "Update the routine details below.",
-      "stepDetails": "Details",
-      "stepScheduling": "Scheduling",
-      "noRoutines": "No routines yet",
-      "name": "Routine Name",
-      "description": "Description",
-      "cost": "Cost",
-      "assignee": "Assignee",
-      "unassigned": "Unassigned",
-      "actions": "Actions",
-      "template": "Start from template",
-      "noTemplate": "Custom",
       "recurrenceLabel": "Recurrence",
       "recurrence": {
         "daily": "Daily",
         "weekly": "Weekly"
       },
       "intervalLabel": "Repeat every",
-      "day": "day",
-      "days": "days",
-      "week": "week",
-      "weeks": "weeks",
       "weekdaysLabel": "Days of week",
       "performAt": "Perform at",
-      "startDate": "Start date",
-      "endDate": "End date",
       "startNotPast": "Start date cannot be in the past",
-      "endFuture": "End date must be in the future",
       "endBeforeStart": "End date must be after start date",
       "atLeastOneDay": "Select at least one day",
-      "everyDay": "every day",
-      "everyNDays": "every {n} days",
-      "everyWeek": "every week",
-      "everyNWeeks": "every {n} weeks",
       "dayShort": {
         "monday": "Mon",
         "tuesday": "Tue",
@@ -373,12 +327,7 @@
         "saturday": "Sat",
         "sunday": "Sun"
       },
-      "routine": "Routine",
-      "routineCreated": "Routine created",
-      "routineUpdated": "Routine updated",
-      "routineDeleted": "Routine deleted",
-      "nextOccurrenceCreated": "Next occurrence created",
-      "nameRequired": "Routine name is required"
+      "nextOccurrenceCreated": "Next occurrence created"
     },
     "owners": "Co-owners",
     "collaborators": "Collaborators",
@@ -387,12 +336,22 @@
     "noCollaborators": "No collaborators yet",
     "noAdditionalOwners": "No additional owners",
     "searchUser": "Search user...",
-    "noUsersFound": "No users found"
+    "noUsersFound": "No users found",
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "collaborator": "Collaborator",
+      "makeAdmin": "Make admin",
+      "makeCollaborator": "Make collaborator"
+    }
   },
   "myTasks": {
     "subtitle": "All tasks assigned to you across all projects.",
     "allProjects": "All projects",
-    "noTasks": "No tasks assigned to you"
+    "noTasks": "No tasks assigned to you",
+    "active": "Active",
+    "past": "Past",
+    "noPast": "No finished tasks yet"
   },
   "myInvoices": {
     "subtitle": "View your invoices, line items, and payment history.",
@@ -413,7 +372,7 @@
     "noOwnedProjects": "You don't own any projects yet."
   },
   "calendar": {
-    "subtitle": "Your tasks and routines across all projects.",
+    "subtitle": "Your tasks across all projects.",
     "today": "Today",
     "month": "Month",
     "week": "Week",

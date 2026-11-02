@@ -18,11 +18,7 @@ type CategoryItem = {
 export default async function CategoriesPage() {
   const session = await auth()
 
-  if (!session?.user?.id) {
-    forbidden()
-  }
-
-  const permissions = await getUserPermissions(session.user.id)
+  const permissions = await getUserPermissions(session!.user.id)
 
   if (!permissions.includes("categories:view")) {
     forbidden()

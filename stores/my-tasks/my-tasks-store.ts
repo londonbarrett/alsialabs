@@ -1,20 +1,18 @@
-import type { MyTaskDTO } from "@/actions/schemas/task"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
-import { myTasksReducer } from "./my-tasks-reducer"
+import { myTasksReducer, type MyTasksSeed } from "./my-tasks-reducer"
 
-export function createMyTasksStore(tasks: MyTaskDTO[]) {
+export function createMyTasksStore(seed: MyTasksSeed) {
   /**
-   * `tasks` is the server's slice. `commentsByTask` is not: comments load per
-   * task when the panel opens, so a reseed keeps them rather than making the
-   * open panel reload. `getMyTasks({})` always seeds the full, unfiltered set,
-   * so a fresh seed is a valid base for whatever filters are active.
+   * `assignments` is the server's slice: the rows for the tab the page seeded.
+   * `commentsByTask` is not — comments load per task when the panel opens, so
+   * a reseed keeps them rather than making the open panel reload. Switching
+   * tabs reseeds the list with the other view's rows.
    */
   return createOptimisticStore({
-    // Comments load per task when the panel opens, so nothing is seeded here.
-    initialState: { tasks, commentsByTask: {} },
+    initialState: { ...seed, commentsByTask: {} },
     reducer: myTasksReducer,
-    serverSlice: "tasks",
+    serverSlice: "assignments",
   })
 }
 

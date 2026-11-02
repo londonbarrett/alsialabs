@@ -19,8 +19,17 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   reporter: "list",
+  // The suite drives a dev server: a cold route compile can push a test past
+  // the 30s default without any product fault, so give tests more room and
+  // one retry before calling it a failure.
+  timeout: 45_000,
+  retries: 1,
   use: {
     baseURL: BASE_URL,
+    // Specs drive the UI by its labels, which are locale-dependent; pin the
+    // browser to the app's default locale so they do not depend on the
+    // runner's ambient Accept-Language.
+    locale: "es-ES",
   },
   projects: [
     {

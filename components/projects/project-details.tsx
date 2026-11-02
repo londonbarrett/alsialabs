@@ -40,17 +40,13 @@ import { ProjectDialog } from "./project-dialog"
 
 export function ProjectDetails() {
   const t = useTranslations()
-  const {
-    project,
-    categories,
-    primaryOwner,
-    isOwner,
-    isPrimaryOwner,
-    isCurrentUserAdmin,
-  } = useProjectContextState()
+  const { project, categories, members, isOwner } =
+    useProjectContextState()
+  const primaryOwner =
+    members.find((member) => member.isPrimaryOwner) ?? null
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = isOwner && canEditProject
-  const canDelete = isPrimaryOwner || isCurrentUserAdmin
+  const canDelete = isOwner
   const { deleteProject, updateProject } = useProjectActions()
   const { start: startLoading, stop: stopLoading } =
     useLoadingIndicator()

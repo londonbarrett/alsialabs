@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl"
 
 const steps = ["stepDetails", "stepScheduling"] as const
 
-export function StepIndicator({
+export function TaskStepIndicator({
   current,
   editMode,
   step1Done,
@@ -17,7 +17,7 @@ export function StepIndicator({
   step1Done: boolean
   onSelect: (n: number) => void
 }) {
-  const t = useTranslations("projects.routines")
+  const t = useTranslations("projects.tasks")
   return (
     <ol className="mb-6 grid grid-cols-2 gap-4">
       {steps.map((step, i) => {
@@ -50,9 +50,7 @@ export function StepIndicator({
               <span
                 className={cn(
                   "text-sm",
-                  active || done
-                    ? "text-foreground"
-                    : "text-muted-foreground"
+                  active || done ? "text-foreground" : "text-muted-foreground"
                 )}
               >
                 {t(step)}

@@ -1,10 +1,7 @@
 "use client"
 
-import { getCalendarTasks } from "@/actions/not-safe/calendar"
-import type {
-  CalendarRoutineDataDTO,
-  CalendarTaskDataDTO,
-} from "@/actions/schemas/calendar"
+import { getCalendarAssignments } from "@/actions/not-safe/calendar"
+import type { CalendarAssignmentDTO } from "@/actions/schemas/calendar"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type {
   CalendarLabels,
@@ -17,21 +14,14 @@ import { toDateKey } from "@/lib/util/schedule"
 import { useCallback, useMemo, useRef, useState } from "react"
 
 export interface CalendarViewProps {
-  tasks: CalendarTaskDataDTO[]
-  routines: CalendarRoutineDataDTO[]
   labels: Partial<CalendarLabels>
 }
 
-export function CalendarView({
-  tasks,
-  routines,
-  labels,
-}: CalendarViewProps) {
-  const [tasksState, setTasks] = useState(tasks)
-  const routineRows = routines
+export function CalendarView({ labels }: CalendarViewProps) {
+  const [assignments, setAssignments] = useState<
+    CalendarAssignmentDTO[]
+  >([])
   const [isFetching, setIsFetching] = useState(false)
-  // Start with a wide window so the first paint has data; the first
-  // visible-range callback narrows it to what is actually rendered.
   const [range, setRange] = useState(() => {
     const from = new Date()
     from.setHours(0, 0, 0, 0)
@@ -60,18 +50,17 @@ export function CalendarView({
       if (key === lastRangeKey.current) return
       const isFirstFetch = lastRangeKey.current === null
       lastRangeKey.current = key
-      // Stale tasks from another range would be misleading while loading.
-      if (!isFirstFetch) setTasks([])
+      if (!isFirstFetch) setAssignments([])
       const id = ++requestId.current
       startLoading()
       setIsFetching(true)
       try {
-        const result = await getCalendarTasks({
+        const result = await getCalendarAssignments({
           from: toDateKey(padded.from),
           to: toDateKey(padded.to),
         })
         if (requestId.current !== id) return
-        setTasks(result.data ?? [])
+        setAssignments(result.data ?? [])
       } finally {
         stopLoading()
         if (requestId.current === id) setIsFetching(false)
@@ -81,14 +70,8 @@ export function CalendarView({
   )
 
   const events = useMemo(
-    () =>
-      buildCalendarEvents(
-        tasksState,
-        routineRows,
-        range.from,
-        range.to
-      ),
-    [tasksState, routineRows, range]
+    () => buildCalendarEvents(assignments, range.from, range.to),
+    [assignments, range]
   )
 
   return (

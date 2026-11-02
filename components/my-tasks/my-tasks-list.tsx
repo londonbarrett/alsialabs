@@ -1,7 +1,6 @@
 "use client"
 
-import type { MyTaskDTO, TaskStatus } from "@/actions/schemas/task"
-import { Money } from "@/components/common/money"
+import type { MyAssignmentDTO, TaskStatus } from "@/actions/schemas/task"
 import { DueDate } from "@/components/projects/due-date"
 import { taskPriorityColors } from "@/components/projects/task-priority-select"
 import {
@@ -10,7 +9,11 @@ import {
 } from "@/components/projects/task-status-select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -26,38 +29,48 @@ import { useState } from "react"
 import { MyTaskCommentsPanel } from "./my-task-comments-panel"
 
 interface MyTasksListProps {
-  tasks: MyTaskDTO[]
+  /** The tab strip lives in the header so it labels the table it switches. */
+  header: React.ReactNode
+  emptyLabel: string
+  assignments: MyAssignmentDTO[]
   statuses: Record<string, readonly TaskStatus[] | null>
   isPending: boolean
   currentUserId: string
-  isSuperUser: boolean
-  onStatusChange: (
-    taskId: string,
+  readOnly?: boolean
+  onStatusChange?: (
     projectId: string,
+    assignmentId: string,
     status: TaskStatus
   ) => void
 }
 
 export function MyTasksList({
-  tasks,
+  header,
+  emptyLabel,
+  assignments,
   statuses,
   isPending,
   currentUserId,
-  isSuperUser,
+  readOnly = false,
   onStatusChange,
 }: MyTasksListProps) {
   const t = useTranslations()
-  const [commentsTask, setCommentsTask] = useState<
-    MyTaskDTO | undefined
+  const [commentsAssignment, setCommentsAssignment] = useState<
+    MyAssignmentDTO | undefined
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
 
   return (
     <Card>
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          {header}
+        </div>
+      </CardHeader>
       <CardContent>
-        {tasks.length === 0 ? (
+        {assignments.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            {isPending ? t("common.loading") : t("myTasks.noTasks")}
+            {isPending ? t("common.loading") : emptyLabel}
           </p>
         ) : (
           <div className="overflow-auto rounded-md border">
@@ -74,7 +87,6 @@ export function MyTasksList({
                   <TableHead scope="col">
                     {t("common.priority")}
                   </TableHead>
-                  <TableHead scope="col">{t("common.cost")}</TableHead>
                   <TableHead scope="col">
                     {t("common.dueDate")}
                   </TableHead>
@@ -82,135 +94,153 @@ export function MyTasksList({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tasks.map((task) => (
-                  <TableRow
-                    key={task.id}
-                    onDoubleClick={() => setCommentsTask(task)}
-                  >
-                    <TableCell className="font-medium">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p>{task.name}</p>
-                          {task.routineId && (
-                            <Badge
-                              variant="outline"
-                              className="gap-1 text-xs"
-                            >
-                              <RefreshCw className="h-3 w-3" />
-                              {t("projects.routines.routine")}
-                            </Badge>
+                {assignments.map((assignment) => {
+                  const allowed = readOnly
+                    ? null
+                    : statuses[assignment.assignmentId] ?? null
+                  return (
+                    <TableRow
+                      key={assignment.assignmentId}
+                      onDoubleClick={() => {
+                        if (readOnly) return
+                        setCommentsAssignment(assignment)
+                        setIsCommentsOpen(true)
+                      }}
+                    >
+                      <TableCell className="font-medium">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p>{assignment.name}</p>
+                            {assignment.recurrence && (
+                              <Badge
+                                variant="outline"
+                                className="gap-1 text-xs"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                                {t("projects.tasks.recurring")}
+                              </Badge>
+                            )}
+                          </div>
+                          {assignment.description && (
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {assignment.description}
+                            </p>
                           )}
                         </div>
-                        {task.description && (
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {task.description}
-                          </p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
-                        {task.projectName}
-                        {task.projectOwnerName
-                          ? ` (${task.projectOwnerName})`
-                          : ""}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const allowed = statuses[task.id]
-                        if (!allowed) {
-                          return (
-                            <Badge
-                              className={taskStatusColors[task.status]}
-                            >
-                              {t(
-                                `projects.tasks.status.${task.status}`
-                              )}
-                            </Badge>
-                          )
-                        }
-                        return (
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {assignment.projectName}
+                          {assignment.projectOwnerName
+                            ? ` (${assignment.projectOwnerName})`
+                            : ""}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {allowed ? (
                           <TaskStatusSelect
-                            status={task.status}
+                            status={assignment.status}
                             allowedStatuses={allowed}
-                            onStatusChange={(v) =>
-                              onStatusChange(task.id, task.projectId, v)
+                            onStatusChange={(value) =>
+                              onStatusChange?.(
+                                assignment.projectId,
+                                assignment.assignmentId,
+                                value
+                              )
                             }
                           />
-                        )
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      {task.priority ? (
-                        <Badge
-                          className={taskPriorityColors[task.priority]}
-                        >
-                          {t(
-                            `projects.tasks.priority.${task.priority}`
-                          )}
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          {t("projects.tasks.priority.none")}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {task.cost ? (
-                        <Money value={task.cost} />
-                      ) : (
-                        "\u2014"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <DueDate
-                        date={task.dueDate}
-                        overdue={isTaskOverdue(
-                          task.status,
-                          task.dueDate
+                        ) : (
+                          <Badge
+                            className={taskStatusColors[assignment.status]}
+                          >
+                            {t(
+                              `projects.tasks.status.${assignment.status}`
+                            )}
+                          </Badge>
                         )}
-                        overdueLabel={t("common.overdue")}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setCommentsTask(task)
-                          setIsCommentsOpen(true)
-                        }}
-                        className="gap-1.5"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        <span className="text-xs text-muted-foreground">
-                          {task.commentCount}
-                        </span>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell>
+                        {assignment.priority ? (
+                          <Badge
+                            className={
+                              taskPriorityColors[assignment.priority]
+                            }
+                          >
+                            {t(
+                              `projects.tasks.priority.${assignment.priority}`
+                            )}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            {t("projects.tasks.priority.none")}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <DueDate
+                          date={assignment.endDate}
+                          overdue={isTaskOverdue(
+                            assignment.status,
+                            assignment.endDate
+                          )}
+                          overdueLabel={t("common.overdue")}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {readOnly ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <MessageSquare className="h-4 w-4" />
+                            {assignment.commentCount}
+                          </span>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            onClick={() => {
+                              setCommentsAssignment(assignment)
+                              setIsCommentsOpen(true)
+                            }}
+                            className="gap-1.5"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            <span className="text-xs text-muted-foreground">
+                              {assignment.commentCount}
+                            </span>
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>
         )}
       </CardContent>
 
-      <MyTaskCommentsPanel
-        key={commentsTask?.id ?? "empty"}
-        taskId={commentsTask?.id ?? ""}
-        taskName={commentsTask?.name ?? ""}
-        description={commentsTask?.description}
-        open={isCommentsOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsCommentsOpen(false)
-            setTimeout(() => setCommentsTask(undefined), 300)
+      {!readOnly && (
+        <MyTaskCommentsPanel
+          key={commentsAssignment?.assignmentId ?? "empty"}
+          projectId={commentsAssignment?.projectId ?? ""}
+          taskId={commentsAssignment?.taskId ?? ""}
+          taskName={commentsAssignment?.name ?? ""}
+          description={commentsAssignment?.description}
+          open={isCommentsOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsCommentsOpen(false)
+              setTimeout(
+                () => setCommentsAssignment(undefined),
+                300
+              )
+            }
+          }}
+          currentUserId={currentUserId}
+          canModerate={
+            commentsAssignment?.role === "owner" ||
+            commentsAssignment?.role === "admin"
           }
-        }}
-        currentUserId={currentUserId}
-        isOwner={isSuperUser || commentsTask?.isOwner || false}
-      />
+        />
+      )}
     </Card>
   )
 }

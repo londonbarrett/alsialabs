@@ -20,7 +20,6 @@ import type {
 } from "@/lib/drizzle/schema"
 import { Users } from "lucide-react"
 import { getTranslations } from "next-intl/server"
-import { forbidden } from "next/navigation"
 
 export default async function ClientProfilePage({
   params,
@@ -30,10 +29,6 @@ export default async function ClientProfilePage({
   const { clientId } = await params
   const session = await auth()
   const t = await getTranslations()
-
-  if (!session?.user?.id) {
-    forbidden()
-  }
 
   const clientResult = await getClientByClientId({ id: clientId })
   const client = clientResult.data
@@ -52,7 +47,7 @@ export default async function ClientProfilePage({
   }
 
   const canView = await hasPermission(
-    session.user.id,
+    session!.user.id,
     "client-activity",
     "view"
   )

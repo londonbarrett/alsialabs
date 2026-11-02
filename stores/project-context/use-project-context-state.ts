@@ -12,39 +12,18 @@ export function useProjectContextState() {
   const store = useProjectContextStore()
   const context = useStore(store, (s: StoreType) => s.optimistic)
 
-  const project = context.project
-  const owners = context.owners
-  const collaborators = context.collaborators
-  const categories = context.categories
-  const isCurrentUserAdmin = context.isCurrentUserAdmin
-  const currentUserId = context.session?.user?.id ?? ""
-
-  const members = [...owners, ...collaborators]
-  const primaryOwner =
-    owners.find((o) => o.userId === project.primaryOwnerId) ?? null
-  const additionalOwners = owners.filter(
-    (o) => o.userId !== project.primaryOwnerId
-  )
-
-  const isOwner =
-    owners.some((o) => o.userId === currentUserId) || isCurrentUserAdmin
-  const isPrimaryOwner = project.primaryOwnerId === currentUserId
-  const isCollaborator =
-    !isOwner && collaborators.some((c) => c.userId === currentUserId)
+  const { project, members, categories, currentRole, currentUserId } =
+    context
 
   return {
     project,
     projectId: project.id,
-    owners,
-    primaryOwner,
-    additionalOwners,
-    collaborators,
     members,
     categories,
+    currentRole,
     currentUserId,
-    isCurrentUserAdmin,
-    isOwner,
-    isPrimaryOwner,
-    isCollaborator,
+    isOwner: currentRole === "owner",
+    isAdmin: currentRole === "admin",
+    isCollaborator: currentRole === "collaborator",
   }
 }

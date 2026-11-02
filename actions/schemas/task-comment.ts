@@ -8,15 +8,18 @@ export const TaskCommentSchema = z.object({
 })
 
 export const CreateTaskCommentSchema = TaskCommentSchema.extend({
+  projectId: z.uuid(),
   taskId: z.uuid(),
 })
 
 export const UpdateTaskCommentSchema = TaskCommentSchema.extend({
+  projectId: z.uuid(),
   taskId: z.uuid(),
   commentId: z.uuid(),
 })
 
 export const DeleteTaskCommentSchema = z.object({
+  projectId: z.uuid(),
   taskId: z.uuid(),
   commentId: z.uuid(),
 })

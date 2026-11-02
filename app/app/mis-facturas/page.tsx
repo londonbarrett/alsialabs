@@ -4,11 +4,9 @@ import { MyInvoicesView } from "@/components/my-invoices/my-invoices-view"
 import { MyInvoicesProvider } from "@/components/my-invoices/my-invoices-provider"
 import { getMyInvoices } from "@/actions/invoices"
 import { getProjects } from "@/actions/projects"
-import { auth } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { Receipt } from "lucide-react"
 import { getTranslations } from "next-intl/server"
-import { redirect } from "next/navigation"
 
 async function MyInvoicesContent() {
   const [myResult, projectsResult] = await Promise.all([
@@ -27,12 +25,6 @@ async function MyInvoicesContent() {
 }
 
 export default async function MyInvoicesPage() {
-  const session = await auth()
-
-  if (!session?.user) {
-    redirect("/login")
-  }
-
   const t = await getTranslations()
 
   return (

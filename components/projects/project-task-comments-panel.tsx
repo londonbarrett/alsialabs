@@ -1,7 +1,8 @@
 "use client"
 
-import type { TaskWithCommentCountDTO } from "@/actions/schemas/task"
+import type { TaskWithAssignmentsDTO } from "@/actions/schemas/task"
 import { TaskCommentPanel } from "@/components/common/task-comment-panel"
+import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -25,12 +26,13 @@ export function ProjectTaskCommentsPanel({
    * Undefined only while the Sheet plays its close animation; the parent keeps
    * it mounted for ~300ms after clearing the selected task.
    */
-  task?: TaskWithCommentCountDTO
+  task?: TaskWithAssignmentsDTO
   open: boolean
   onOpenChange: (open: boolean) => void
   currentUserId: string
   isOwner: boolean
 }) {
+  const { projectId } = useProjectContextState()
   const { getComments } = useProjectTasksState()
   const { loadComments, createComment, updateComment, deleteComment } =
     useProjectTasksActions()
@@ -41,8 +43,8 @@ export function ProjectTaskCommentsPanel({
   const refresh = useCallback(() => {
     if (!taskId) return
     setLoading(true)
-    void loadComments(taskId).finally(() => setLoading(false))
-  }, [loadComments, taskId])
+    void loadComments(projectId, taskId).finally(() => setLoading(false))
+  }, [loadComments, projectId, taskId])
 
   // Fetch on the open *transition* only. Depending on `refresh` alone would
   // refetch on every render, since the action hook is not referentially stable.
@@ -63,13 +65,13 @@ export function ProjectTaskCommentsPanel({
       onOpenChange={onOpenChange}
       onRefresh={refresh}
       onCreate={(content) => {
-        if (taskId) createComment(taskId, content, currentUserId)
+        if (taskId) createComment(projectId, taskId, content, currentUserId)
       }}
       onEdit={(commentId, content) => {
-        if (taskId) updateComment(taskId, commentId, content)
+        if (taskId) updateComment(projectId, taskId, commentId, content)
       }}
       onDelete={(commentId) => {
-        if (taskId) deleteComment(taskId, commentId)
+        if (taskId) deleteComment(projectId, taskId, commentId)
       }}
     />
   )
