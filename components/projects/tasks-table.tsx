@@ -75,11 +75,14 @@ export function TasksTable({
 
   function assignmentName(assignment: TaskAssignmentDTO) {
     if (assignment.userName) return assignment.userName
-    const member = members.find((m) => m.userId === assignment.userId)
+    return assignmentEmail(assignment) ?? assignment.userId
+  }
+
+  function assignmentEmail(assignment: TaskAssignmentDTO) {
+    if (assignment.userEmail) return assignment.userEmail
     return (
-      member?.userEmail ??
-      assignment.userEmail ??
-      assignment.userId
+      members.find((m) => m.userId === assignment.userId)?.userEmail ??
+      null
     )
   }
 
@@ -135,8 +138,15 @@ export function TasksTable({
                 </TableCell>
                 <TableCell>
                   {assignment ? (
-                    <span className="text-sm">
-                      {assignmentName(assignment)}
+                    <span className="flex flex-col">
+                      <span className="text-sm">
+                        {assignmentName(assignment)}
+                      </span>
+                      {assignment.userName && assignmentEmail(assignment) && (
+                        <span className="text-xs text-muted-foreground">
+                          {assignmentEmail(assignment)}
+                        </span>
+                      )}
                     </span>
                   ) : (
                     <span className="text-xs text-muted-foreground">

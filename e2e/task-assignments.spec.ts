@@ -21,10 +21,13 @@ test("a collaborator's assignment moves from active to past, read-only", async (
   await page.getByRole("option", { name: "En progreso" }).click()
   await expect(row.getByRole("combobox")).toContainText("En progreso")
 
-  // The owner completes that assignment from the project task list.
+  // The owner completes that assignment from the project task list, which
+  // shows the assignee's name with their email underneath.
   await signInAs("admin")
   await page.goto(PROJECT_URL)
   const ownerRow = page.getByRole("row", { name: new RegExp(TASK_NAME) })
+  await expect(ownerRow.getByText("E2E Collaborator")).toBeVisible()
+  await expect(ownerRow.getByText("user2@test.local")).toBeVisible()
   await ownerRow.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
   // Optimistic UI flips immediately; the toast waits for the server commit.

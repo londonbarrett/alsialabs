@@ -98,11 +98,14 @@ export function TasksCard() {
       priority: data.priority as TaskPriorityDTO,
       startDate,
       endDate,
-      recurrence: editingTask?.recurrence ?? null,
-      interval: editingTask?.interval ?? 1,
-      daysOfWeek: editingTask?.daysOfWeek ?? null,
-      startTime: editingTask?.startTime ?? null,
-      endTime: editingTask?.endTime ?? null,
+      // The form owns the schedule it just submitted — taking it from
+      // `editingTask` showed a freshly created repeating task as plain
+      // (and made an immediate re-edit open with the window).
+      recurrence: data.recurrence,
+      interval: Number(data.interval) || 1,
+      daysOfWeek: data.daysOfWeek.length > 0 ? data.daysOfWeek : null,
+      startTime: data.startTime || null,
+      endTime: data.endTime || null,
       createdAt: editingTask?.createdAt ?? new Date(),
       updatedAt: new Date(),
       assignments,
