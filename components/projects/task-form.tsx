@@ -5,13 +5,18 @@ import type {
   TaskWithAssignmentsDTO,
 } from "@/actions/schemas/task"
 import { Button } from "@/components/ui/button"
-import { FieldError } from "@/components/ui/field"
+import {
+  validateRepeatingWindow,
+  validateTaskDetails,
+  validateTaskName,
+} from "@/lib/tasks/form-validation"
+import type { TaskDetailsIssue, TaskDetailsValues } from "@/lib/tasks/form-validation"
 import { combineDateTime } from "@/lib/util/schedule"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { TaskFormDetailsStep } from "./task-form-details-step"
-import { TaskFormRepeatStep } from "./task-form-repeat-step"
+import { TaskFormScheduleStep } from "./task-form-schedule-step"
 import { TaskStepIndicator } from "./task-step-indicator"
 
 function toDateInput(date: Date): string {
@@ -56,7 +61,12 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
     firstAssignment?.userId ?? ""
   )
   const [startDate, setStartDate] = useState(
-    task?.startDate ? toDateInput(task.startDate) : ""
+    task?.startDate
+      ? toDateInput(task.startDate)
+      : task?.recurrence
+        ? // Repeating work without a stored anchor begins today.
+          toDateInput(new Date())
+        : ""
   )
   const [startTime, setStartTime] = useState(
     task?.startDate ? toTimeInput(task.startDate) : ""
@@ -89,9 +99,41 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
     )
   }
 
+  const detailsValues: TaskDetailsValues = {
+    name,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+  }
+
+  function mapDetailsIssues(issues: TaskDetailsIssue[]) {
+    const fieldErrors: Record<string, string> = {}
+    for (const issue of issues) {
+      if (issue === "NAME_REQUIRED") {
+        fieldErrors.name = t("projects.tasks.nameRequired")
+      } else if (issue === "START_DATE_REQUIRED") {
+        fieldErrors.startDate = t("common.dateRequired")
+      } else if (issue === "END_DATE_REQUIRED") {
+        fieldErrors.endDate = t("common.dateRequired")
+      } else {
+        fieldErrors.endDate = t("projects.routines.endBeforeStart")
+      }
+    }
+    return fieldErrors
+  }
+
+  /**
+   * The schedule step stays locked until step 1 is clean — a name is always
+   * required, and a window that was started must be a complete, same-day one.
+   * An untouched window may pass: a repeating task fills it later or never.
+   */
   function goNext() {
-    if (!name.trim()) {
-      setErrors({ name: t("projects.tasks.nameRequired") })
+    // The schedule step owns the dates now, so only the details step's own
+    // fields gate the transition.
+    const issues = validateTaskName(name)
+    if (issues.length > 0) {
+      setErrors(mapDetailsIssues(issues))
       return
     }
     setErrors({})
@@ -99,36 +141,58 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
     setStep(2)
   }
 
+  function handleRepeatChange(value: boolean) {
+    setRepeat(value)
+    setErrors({})
+    if (value && !startDate) setStartDate(toDateInput(new Date()))
+  }
+
+  function handleStepSelect(n: number) {
+    if (n === 2) {
+      goNext()
+      return
+    }
+    setStep(n)
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const fieldErrors: Record<string, string> = {}
-    if (!name.trim()) fieldErrors.name = t("projects.tasks.nameRequired")
+    const effectiveStartDate =
+      repeat && !startDate ? toDateInput(new Date()) : startDate
+    const issues = repeat
+      ? [
+          ...validateTaskName(name),
+          ...validateRepeatingWindow({
+            startDate: effectiveStartDate,
+            endDate,
+          }),
+        ]
+      : validateTaskDetails(detailsValues, { requireWindow: true })
+    const fieldErrors = mapDetailsIssues(issues)
 
     if (repeat) {
       if (!occurrenceStart)
         fieldErrors.startTime = t("projects.routines.startNotPast")
       if (recurrence === "weekly" && daysOfWeek.length === 0)
         fieldErrors.daysOfWeek = t("projects.routines.atLeastOneDay")
-    } else {
-      const start = combineDateTime(startDate, startTime)
-      const end = combineDateTime(endDate, endTime)
-      if (!start) fieldErrors.startDate = t("common.dateRequired")
-      if (!end) fieldErrors.endDate = t("common.dateRequired")
-      if (start && end && end.getTime() < start.getTime()) {
-        fieldErrors.endDate = t("projects.routines.endBeforeStart")
-      } else if (
-        start &&
-        end &&
-        start.toDateString() !== end.toDateString()
-      ) {
-        fieldErrors.endDate = t("projects.routines.endBeforeStart")
-      }
     }
 
     setErrors(fieldErrors)
-    if (Object.keys(fieldErrors).length > 0) return
+    if (Object.keys(fieldErrors).length > 0) {
+      // The name lives on step 1 — bounce back so its message is visible;
+      // window errors already render in place on the schedule step.
+      if (issues.includes("NAME_REQUIRED")) setStep(1)
+      return
+    }
 
-    const start = combineDateTime(startDate, startTime)
+    // Repeating work is anchored from its start date (today when the user
+    // never picked one); its optional end date bounds the schedule — each
+    // occurrence's own window still comes from the schedule.
+    const start = combineDateTime(
+      effectiveStartDate,
+      repeat ? occurrenceStart : startTime
+    )
+    const repeatEnd = combineDateTime(endDate, occurrenceEnd)
     const end = combineDateTime(endDate, endTime)
 
     onSubmit({
@@ -136,8 +200,14 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
       description: description.trim(),
       priority,
       assigneeIds: assigneeId ? [assigneeId] : [],
-      startDate: repeat || !start ? null : start.toISOString(),
-      endDate: repeat || !end ? null : end.toISOString(),
+      startDate: start ? start.toISOString() : null,
+      endDate: repeat
+        ? repeatEnd
+          ? repeatEnd.toISOString()
+          : null
+        : end
+          ? end.toISOString()
+          : null,
       recurrence: repeat ? recurrence : null,
       interval: Number(interval) || 1,
       daysOfWeek: repeat ? daysOfWeek : [],
@@ -152,7 +222,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         current={step}
         editMode={Boolean(task)}
         step1Done={step1Done}
-        onSelect={setStep}
+        onSelect={handleStepSelect}
       />
 
       {step === 1 ? (
@@ -161,44 +231,40 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
           description={description}
           priority={priority}
           assigneeId={assigneeId}
-          startDate={startDate}
-          startTime={startTime}
-          endDate={endDate}
-          endTime={endTime}
           members={members}
           errors={errors}
           onNameChange={setName}
           onDescriptionChange={setDescription}
           onPriorityChange={setPriority}
           onAssigneeChange={setAssigneeId}
-          onStartDateChange={setStartDate}
-          onStartTimeChange={setStartTime}
-          onEndDateChange={setEndDate}
-          onEndTimeChange={setEndTime}
           onNext={goNext}
           onCancel={onCancel}
         />
       ) : (
         <div className="flex flex-col gap-6">
-          <TaskFormRepeatStep
+          <TaskFormScheduleStep
+            startDate={startDate}
+            startTime={startTime}
+            endDate={endDate}
+            endTime={endTime}
             repeat={repeat}
             recurrence={recurrence}
             interval={interval}
             daysOfWeek={daysOfWeek}
-            startTime={occurrenceStart}
-            endTime={occurrenceEnd}
-            onRepeatChange={setRepeat}
+            occurrenceStartTime={occurrenceStart}
+            occurrenceEndTime={occurrenceEnd}
+            errors={errors}
+            onStartDateChange={setStartDate}
+            onStartTimeChange={setStartTime}
+            onEndDateChange={setEndDate}
+            onEndTimeChange={setEndTime}
+            onRepeatChange={handleRepeatChange}
             onRecurrenceChange={setRecurrence}
             onIntervalChange={setInterval}
             onDayToggle={toggleDay}
-            onStartTimeChange={setOccurrenceStart}
-            onEndTimeChange={setOccurrenceEnd}
+            onOccurrenceStartTimeChange={setOccurrenceStart}
+            onOccurrenceEndTimeChange={setOccurrenceEnd}
           />
-          {(errors.startTime || errors.daysOfWeek) && (
-            <FieldError>
-              {errors.startTime ?? errors.daysOfWeek}
-            </FieldError>
-          )}
           <div className="flex justify-between">
             <Button
               type="button"

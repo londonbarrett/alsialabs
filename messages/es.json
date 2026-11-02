@@ -292,7 +292,7 @@
       "recurring": "Recurrente",
       "repeat": "Repetir esta tarea",
       "stepDetails": "Detalles",
-      "stepRepeat": "Repetición"
+      "stepScheduling": "Programación"
     },
     "expenses": {
       "addExpense": "Agregar Gasto",

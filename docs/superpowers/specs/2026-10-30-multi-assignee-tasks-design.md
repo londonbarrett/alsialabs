@@ -143,7 +143,7 @@ A repeating task's open assignment carries the occurrence datetime. When that as
 
 1. Compute the next occurrence date from the assignment's `end_date` using `computeScheduledFor` and the task's schedule (`startTime` supplies the time of day).
 2. Insert a new assignment for the same user, status `todo`, with `start_date` = that date at `startTime`, `end_date` = that date at `endTime`, and an empty comment.
-3. Repeat until the task's recurrence is turned off or the task is deleted; there is no global end date.
+3. Repeat from its start date (the form defaults it to today) until its optional end date — inclusive through that whole day — or until the recurrence is turned off or the task is deleted. (Updated 2026-11-01 with the user: repeating tasks gained an end date; an earlier rule of "no global end date" applied when blank.)
 
 The old row is retained as history. This is per-person: with several assignees each person's chain advances on their own completion, which is why the dates live on the assignment.
 

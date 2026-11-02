@@ -56,3 +56,49 @@ describe("computeNextOccurrence", () => {
     expect(next?.getDate()).toBe(2)
   })
 })
+
+describe("computeNextOccurrence end date", () => {
+  const dailyTask = {
+    recurrence: "daily" as const,
+    interval: 1,
+    daysOfWeek: null,
+    startTime: "09:00",
+  }
+
+  it("keeps a slot that lands inside the end date's day", () => {
+    // 2026-10-26 is a Monday; the end date is Wednesday the 28th.
+    const next = computeNextOccurrence(
+      { ...dailyTask, endDate: new Date(2026, 9, 28) },
+      new Date(2026, 9, 27, 12, 0)
+    )
+
+    expect(next).toEqual(new Date(2026, 9, 28, 9, 0))
+  })
+
+  it("treats the end date as inclusive through its whole day", () => {
+    const next = computeNextOccurrence(
+      { ...dailyTask, endDate: new Date(2026, 9, 28) },
+      new Date(2026, 9, 28, 8, 0)
+    )
+
+    expect(next).toEqual(new Date(2026, 9, 28, 9, 0))
+  })
+
+  it("returns null once the next slot falls after the end date", () => {
+    const next = computeNextOccurrence(
+      { ...dailyTask, endDate: new Date(2026, 9, 28) },
+      new Date(2026, 9, 28, 12, 0)
+    )
+
+    expect(next).toBeNull()
+  })
+
+  it("repeats without limit when no end date is set", () => {
+    const next = computeNextOccurrence(
+      { ...dailyTask, endDate: null },
+      new Date(2026, 9, 28, 12, 0)
+    )
+
+    expect(next).toEqual(new Date(2026, 9, 29, 9, 0))
+  })
+})

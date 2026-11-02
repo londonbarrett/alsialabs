@@ -1,6 +1,6 @@
 import crypto from "crypto"
 import { spawnSync } from "child_process"
-import { count, eq, inArray } from "drizzle-orm"
+import { count, eq, inArray, like, or } from "drizzle-orm"
 import { db } from "./client"
 import {
   categoryTable,
@@ -90,6 +90,17 @@ async function seedRolesProject(): Promise<void> {
     console.error("No project category seeded")
     process.exit(1)
   }
+
+  // Tasks the wizard specs create accumulate run over run; clear them so
+  // name-based locators stay unambiguous (the fixtures below are untouched).
+  await db
+    .delete(tasksTable)
+    .where(
+      or(
+        like(tasksTable.name, "E2E wizard gate%"),
+        like(tasksTable.name, "E2E repeat gate%")
+      )
+    )
 
   // Idempotent delete-by-id: assignments, tasks, membership, then the project.
   await db
@@ -221,6 +232,11 @@ async function seedE2E(): Promise<void> {
       .values({ userId: user.id, roleId: roleRow.id })
       .onConflictDoNothing()
   }
+
+  await db
+    .update(usersTable)
+    .set({ name: "E2E Collaborator" })
+    .where(eq(usersTable.email, "user2@test.local"))
 
   await seedRolesProject()
 

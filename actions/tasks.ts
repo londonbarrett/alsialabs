@@ -361,8 +361,12 @@ export const createTask = projectAction(CreateTaskSchema)
           name,
           description: description || null,
           priority: priority ?? null,
-          startDate: recurrence ? null : new Date(startDate!),
-          endDate: recurrence ? null : new Date(endDate!),
+          startDate: startDate
+            ? new Date(startDate)
+            : recurrence
+              ? new Date()
+              : null,
+          endDate: endDate ? new Date(endDate) : null,
           recurrence: recurrence ?? null,
           interval,
           daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
@@ -424,8 +428,12 @@ export const updateTask = projectAction(UpdateTaskSchema)
         name,
         description: description || null,
         priority: priority ?? null,
-        startDate: recurrence ? null : new Date(startDate!),
-        endDate: recurrence ? null : new Date(endDate!),
+        startDate: startDate
+          ? new Date(startDate)
+          : recurrence
+            ? new Date()
+            : null,
+        endDate: endDate ? new Date(endDate) : null,
         recurrence: recurrence ?? null,
         interval,
         daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
@@ -507,6 +515,7 @@ export const updateAssignmentStatus = projectAction(
         status: taskAssignmentsTable.status,
         endDate: taskAssignmentsTable.endDate,
         taskId: tasksTable.id,
+        taskEndDate: tasksTable.endDate,
         recurrence: tasksTable.recurrence,
         interval: tasksTable.interval,
         daysOfWeek: tasksTable.daysOfWeek,
@@ -573,6 +582,7 @@ export const updateAssignmentStatus = projectAction(
               interval: row.interval,
               daysOfWeek: row.daysOfWeek,
               startTime: row.startTime,
+              endDate: row.taskEndDate,
             },
             row.endDate ?? new Date()
           )

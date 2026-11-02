@@ -292,7 +292,7 @@
       "recurring": "Recurring",
       "repeat": "Repeat this task",
       "stepDetails": "Details",
-      "stepRepeat": "Repeat"
+      "stepScheduling": "Scheduling"
     },
     "expenses": {
       "addExpense": "Add Expense",

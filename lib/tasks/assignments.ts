@@ -3,6 +3,7 @@ import type { TaskAssignmentDTO } from "@/actions/schemas/task"
 import { isTerminalStatus } from "@/lib/project-roles"
 import {
   computeScheduledFor,
+  startOfDay,
   type ScheduleConfig,
 } from "@/lib/util/schedule"
 
@@ -13,16 +14,23 @@ import {
  * at index 0 and hide the open occurrence behind a read-only badge.
  */
 export function sortAssignments<
-  T extends { status: string; startDate: Date | null },
+  T extends { status: string; startDate: Date | string | null },
 >(rows: T[]): T[] {
+  // The detail view hands its date columns back as raw driver strings (the
+  // schemas coerce them later), so sorting must understand both shapes.
+  const start = (value: Date | string | null): number => {
+    if (!value) return Number.MAX_SAFE_INTEGER
+    const time =
+      value instanceof Date ? value.getTime() : Date.parse(value)
+    return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time
+  }
+
   return [...rows].sort((a, b) => {
     const aRank = isTerminalStatus(a.status as TaskStatus) ? 1 : 0
     const bRank = isTerminalStatus(b.status as TaskStatus) ? 1 : 0
     if (aRank !== bRank) return aRank - bRank
 
-    const aStart = a.startDate?.getTime() ?? Number.MAX_SAFE_INTEGER
-    const bStart = b.startDate?.getTime() ?? Number.MAX_SAFE_INTEGER
-    return aStart - bStart
+    return start(a.startDate) - start(b.startDate)
   })
 }
 
@@ -68,7 +76,13 @@ export function firstAssignmentWindow(
     daysOfWeek: task.daysOfWeek ?? [],
     time: task.startTime ?? null,
   }
-  const occurrence = computeScheduledFor(new Date(), schedule)
+  // A future start date anchors the schedule (the form defaults it to today);
+  // anything else anchors at "now" so the first occurrence is never in the past.
+  const anchor = task.startDate ? startOfDay(task.startDate) : null
+  const occurrence = computeScheduledFor(
+    anchor && anchor.getTime() > Date.now() ? anchor : new Date(),
+    schedule
+  )
   if (!occurrence) return { startDate: null, endDate: null }
 
   return {

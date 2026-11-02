@@ -4,7 +4,7 @@ import { cn } from "cn"
 import { CheckIcon } from "lucide-react"
 import { useTranslations } from "next-intl"
 
-const steps = ["stepDetails", "stepRepeat"] as const
+const steps = ["stepDetails", "stepScheduling"] as const
 
 export function TaskStepIndicator({
   current,

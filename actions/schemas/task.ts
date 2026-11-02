@@ -102,6 +102,20 @@ function refineTaskWindow(
       path: ["startTime"],
     })
   }
+
+  // The end date is an optional "until" for the schedule — compared at day
+  // precision, since its stored time is the occurrence time, not a deadline.
+  if (
+    value.startDate &&
+    value.endDate &&
+    value.endDate.slice(0, 10) < value.startDate.slice(0, 10)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message: "END_BEFORE_START",
+      path: ["endDate"],
+    })
+  }
 }
 
 export const TaskFormSchema = TaskFormBaseSchema.superRefine(

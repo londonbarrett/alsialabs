@@ -20,20 +20,12 @@ export function TaskFormDetailsStep({
   description,
   priority,
   assigneeId,
-  startDate,
-  startTime,
-  endDate,
-  endTime,
   members,
   errors,
   onNameChange,
   onDescriptionChange,
   onPriorityChange,
   onAssigneeChange,
-  onStartDateChange,
-  onStartTimeChange,
-  onEndDateChange,
-  onEndTimeChange,
   onNext,
   onCancel,
 }: {
@@ -41,20 +33,12 @@ export function TaskFormDetailsStep({
   description: string
   priority: TaskPriorityDTO
   assigneeId: string
-  startDate: string
-  startTime: string
-  endDate: string
-  endTime: string
   members: ProjectMemberRowDTO[]
   errors: Record<string, string>
   onNameChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onPriorityChange: (value: TaskPriorityDTO) => void
   onAssigneeChange: (value: string) => void
-  onStartDateChange: (value: string) => void
-  onStartTimeChange: (value: string) => void
-  onEndDateChange: (value: string) => void
-  onEndTimeChange: (value: string) => void
   onNext: () => void
   onCancel: () => void
 }) {
@@ -98,46 +82,6 @@ export function TaskFormDetailsStep({
           onChange={onAssigneeChange}
           members={members}
         />
-      </Field>
-      <Field data-invalid={!!errors.startDate || undefined}>
-        <FieldLabel htmlFor="startDate">
-          {t("projects.startDate")}
-        </FieldLabel>
-        <div className="flex gap-3">
-          <Input
-            id="startDate"
-            type="date"
-            value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
-            aria-invalid={!!errors.startDate || undefined}
-          />
-          <Input
-            id="startTime"
-            type="time"
-            value={startTime}
-            onChange={(e) => onStartTimeChange(e.target.value)}
-          />
-        </div>
-        {errors.startDate && <FieldError>{errors.startDate}</FieldError>}
-      </Field>
-      <Field data-invalid={!!errors.endDate || undefined}>
-        <FieldLabel htmlFor="endDate">{t("common.dueDate")}</FieldLabel>
-        <div className="flex gap-3">
-          <Input
-            id="endDate"
-            type="date"
-            value={endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
-            aria-invalid={!!errors.endDate || undefined}
-          />
-          <Input
-            id="endTime"
-            type="time"
-            value={endTime}
-            onChange={(e) => onEndTimeChange(e.target.value)}
-          />
-        </div>
-        {errors.endDate && <FieldError>{errors.endDate}</FieldError>}
       </Field>
       <Field orientation="horizontal">
         <Button type="button" variant="outline" onClick={onCancel}>
