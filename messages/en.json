@@ -581,7 +581,10 @@
     "MISSING_REQUIRED_COLUMNS": "Missing required columns",
     "NO_VALID_ROWS": "No valid rows found in CSV",
     "INVALID_LIMIT": "Invalid limit",
-    "INVALID_DAYS": "Invalid days"
+    "INVALID_DAYS": "Invalid days",
+    "BACKUP_FAILED": "The backup could not be created",
+    "RESTORE_FAILED": "The backup could not be restored",
+    "INVALID_TABLE_SELECTION": "Some selected tables no longer exist"
   },
   "invoice": {
     "issueDate": "Issue Date",
@@ -597,6 +600,24 @@
     "noInvoicesYet": "No invoices yet",
     "product": "Product",
     "service": "Service"
+  },
+  "backups": {
+    "title": "Backups",
+    "selectAll": "Select all",
+    "create": "Create backup",
+    "creating": "Creating backup…",
+    "empty": "No backups yet",
+    "date": "Date",
+    "size": "Size",
+    "tables": "Tables",
+    "tablesCount": "{count} tables",
+    "tablesUnknown": "Unknown",
+    "download": "Download",
+    "restore": "Restore",
+    "restoreTitle": "Restore backup",
+    "restorePrompt": "Type the file name to confirm",
+    "created": "Backup created",
+    "restored": "Backup restored"
   },
   "nav": {
     "calendario": "Calendar",
@@ -614,6 +635,7 @@
     "perfil": "Profile",
     "help": "Help",
     "support": "Support",
+    "backups": "Backups",
     "sections": {
       "navigation": "Navigation",
       "auxiliary": "Auxiliary",

@@ -46,3 +46,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database backups — may contain live secrets (OAuth tokens); never commit
+/backups/

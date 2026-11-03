@@ -581,7 +581,10 @@
     "MISSING_REQUIRED_COLUMNS": "Faltan columnas requeridas",
     "NO_VALID_ROWS": "No se encontraron filas válidas en el CSV",
     "INVALID_LIMIT": "Límite inválido",
-    "INVALID_DAYS": "Días inválidos"
+    "INVALID_DAYS": "Días inválidos",
+    "BACKUP_FAILED": "No se pudo crear el respaldo",
+    "RESTORE_FAILED": "No se pudo restaurar el respaldo",
+    "INVALID_TABLE_SELECTION": "Algunas tablas seleccionadas ya no existen"
   },
   "invoice": {
     "issueDate": "Fecha de emisión",
@@ -597,6 +600,24 @@
     "noInvoicesYet": "Aún no hay facturas",
     "product": "Producto",
     "service": "Servicio"
+  },
+  "backups": {
+    "title": "Respaldos",
+    "selectAll": "Seleccionar todo",
+    "create": "Crear respaldo",
+    "creating": "Creando respaldo…",
+    "empty": "Aún no hay respaldos",
+    "date": "Fecha",
+    "size": "Tamaño",
+    "tables": "Tablas",
+    "tablesCount": "{count} tablas",
+    "tablesUnknown": "Desconocidas",
+    "download": "Descargar",
+    "restore": "Restaurar",
+    "restoreTitle": "Restaurar respaldo",
+    "restorePrompt": "Escribe el nombre del archivo para confirmar",
+    "created": "Respaldo creado",
+    "restored": "Respaldo restaurado"
   },
   "nav": {
     "calendario": "Calendario",
@@ -614,6 +635,7 @@
     "perfil": "Perfil",
     "help": "Ayuda",
     "support": "Soporte",
+    "backups": "Respaldos",
     "sections": {
       "navigation": "Navegación",
       "auxiliary": "Auxiliar",
