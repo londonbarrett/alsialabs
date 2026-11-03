@@ -2,6 +2,7 @@ import {
   BellRing,
   CalendarDays,
   ChartNoAxesCombined,
+  DatabaseBackup,
   FolderKanban,
   FolderTree,
   LifeBuoy,
@@ -21,6 +22,7 @@ export interface SidebarItem {
   icon: LucideIcon
   url: string
   requiredPermission?: string | string[]
+  requiredRole?: string
 }
 
 export interface SidebarSection {
@@ -74,7 +76,10 @@ function storeSection(permissions?: string[]): SidebarSection[] {
   return [{ label: "store", items: visible, showStoreSwitcher: true }]
 }
 
-function adminSections(permissions?: string[]): SidebarSection[] {
+function adminSections(
+  role?: string | null,
+  permissions?: string[]
+): SidebarSection[] {
   const items: SidebarItem[] = [
     {
       label: "users",
@@ -94,10 +99,18 @@ function adminSections(permissions?: string[]): SidebarSection[] {
       url: "/app/categorias",
       requiredPermission: "categories:view",
     },
+    {
+      label: "backups",
+      icon: DatabaseBackup,
+      url: "/app/backups",
+      requiredRole: "super",
+    },
   ]
 
-  const visible = items.filter((item) =>
-    hasPermission(item, permissions)
+  const visible = items.filter(
+    (item) =>
+      (item.requiredRole === undefined || item.requiredRole === role) &&
+      hasPermission(item, permissions)
   )
 
   if (visible.length === 0) return []
@@ -154,11 +167,11 @@ function auxiliarySection(): SidebarSection[] {
 }
 
 export function getSidebarMenu(
-  _role: string | null | undefined,
+  role?: string | null,
   permissions?: string[]
 ): SidebarSection[] {
   const sections = [
-    ...adminSections(permissions),
+    ...adminSections(role, permissions),
     ...storeSection(permissions),
     ...navigationSection(permissions),
     ...auxiliarySection(),

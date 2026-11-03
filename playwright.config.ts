@@ -18,6 +18,9 @@ Object.assign(process.env, testEnv)
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // The dev server compiles on demand; eight parallel workers can starve
+  // route compilation past the per-test timeout on a loaded machine.
+  workers: 2,
   reporter: "list",
   // The suite drives a dev server: a cold route compile can push a test past
   // the 30s default without any product fault, so give tests more room and
@@ -35,6 +38,16 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: /backups\.spec\.ts/,
+    },
+    {
+      // The backups spec restores a dump onto the shared test DB — dropping
+      // and recreating every public table — so it must not run concurrently
+      // with the rest of the suite. It depends on chromium and runs after it.
+      name: "backups",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /backups\.spec\.ts/,
+      dependencies: ["chromium"],
     },
   ],
   webServer: {

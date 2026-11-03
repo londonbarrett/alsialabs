@@ -57,6 +57,11 @@ export const ActionError = {
   // Reports
   INVALID_LIMIT: "INVALID_LIMIT",
   INVALID_DAYS: "INVALID_DAYS",
+
+  // Backups
+  BACKUP_FAILED: "BACKUP_FAILED",
+  RESTORE_FAILED: "RESTORE_FAILED",
+  INVALID_TABLE_SELECTION: "INVALID_TABLE_SELECTION",
 } as const
 
 export type ActionErrorCode =
