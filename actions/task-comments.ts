@@ -15,11 +15,8 @@ import {
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import {
-  canManageWork,
-  canViewProject,
-  type ProjectRole,
-} from "@/lib/project-roles"
+import type { ProjectRole } from "@/lib/types"
+import { canManageWork, canViewProject } from "@/lib/util/project-roles"
 import { projectAction, returnActionError } from "@/lib/safe-action"
 import { and, asc, eq, notInArray } from "drizzle-orm"
 import { z } from "zod"

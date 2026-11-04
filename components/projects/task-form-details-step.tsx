@@ -1,7 +1,7 @@
 "use client"
 
 import type { TaskPriorityDTO } from "@/actions/schemas/task"
-import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
+import type { ProjectMemberRowDTO } from "@/actions/projects/schemas"
 import { Button } from "@/components/ui/button"
 import {
   Field,

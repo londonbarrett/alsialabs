@@ -23,8 +23,8 @@ vi.mock("@/actions/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
-vi.mock("@/actions/not-safe/project-access", () => ({
-  verifyProjectAccess: vi.fn(),
+vi.mock("@/actions/projects/util", () => ({
+  resolveProjectAccess: vi.fn(),
 }))
 
 vi.mock("@/lib/backup/tables", () => ({

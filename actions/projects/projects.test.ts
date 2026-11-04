@@ -4,10 +4,15 @@ vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
   hasPermission: vi.fn(),
   isSuperUser: vi.fn(),
+  getUserPermissions: vi.fn(),
 }))
 
-vi.mock("@/actions/not-safe/project-access", () => ({
-  verifyProjectAccess: vi.fn(),
+vi.mock("@/actions/categories", () => ({
+  getProjectCategories: vi.fn(),
+}))
+
+vi.mock("@/actions/projects/util", () => ({
+  resolveProjectAccess: vi.fn(),
 }))
 
 vi.mock("next/cache", () => ({
@@ -40,23 +45,33 @@ vi.mock("@/lib/drizzle/client", async () => {
 })
 
 import * as schema from "@/lib/drizzle/schema"
-import { auth, hasPermission, isSuperUser } from "@/lib/auth"
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
+import {
+  auth,
+  hasPermission,
+  isSuperUser,
+  getUserPermissions,
+} from "@/lib/auth"
+import { getProjectCategories } from "@/actions/categories"
+import { resolveProjectAccess } from "@/actions/projects/util"
 import type {
   ProjectDetailDTO,
   ProjectOptionDTO,
-} from "@/actions/schemas/project"
+} from "@/actions/projects/schemas"
 import {
   createProject,
   getProjects,
   getProjectsWithDetails,
   updateProject,
+  getProjectForEdit,
+  getProjectContext,
 } from "@/actions/projects"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
 const mockIsSuperUser = vi.mocked(isSuperUser)
-const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
+const mockGetUserPermissions = vi.mocked(getUserPermissions)
+const mockGetProjectCategories = vi.mocked(getProjectCategories)
+const mockResolveAccess = vi.mocked(resolveProjectAccess)
 
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a00"
 const CATEGORY_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22"
@@ -81,7 +96,7 @@ function makeProjectRow(overrides: Record<string, unknown> = {}) {
 }
 
 function grantAccess(isOwner = true) {
-  mockVerifyProjectAccess.mockResolvedValue({
+  mockResolveAccess.mockResolvedValue({
     hasAccess: true,
     role: isOwner ? "owner" : "collaborator",
   })
@@ -97,6 +112,8 @@ describe("projects actions", () => {
     })
     mockHasPermission.mockResolvedValue(true)
     mockIsSuperUser.mockReturnValue(false)
+    mockGetUserPermissions.mockResolvedValue([])
+    mockGetProjectCategories.mockResolvedValue({ data: [] } as never)
     grantAccess(true)
   })
 
@@ -222,12 +239,10 @@ describe("projects actions", () => {
         ownerName: "Jane Doe",
       }
       let projectSql = ""
-      state.mock
-        .onSelect(schema.projectsTable)
-        .respondWith((sql) => {
-          projectSql = sql
-          return [row]
-        })
+      state.mock.onSelect(schema.projectsTable).respondWith((sql) => {
+        projectSql = sql
+        return [row]
+      })
       const result = await getProjects()
       expect(result.data).toHaveLength(1)
       expect(mockHasPermission).not.toHaveBeenCalled()
@@ -238,12 +253,10 @@ describe("projects actions", () => {
 
     it("scopes the list to owners and admins, never plain collaborators", async () => {
       let projectSql = ""
-      state.mock
-        .onSelect(schema.projectsTable)
-        .respondWith((sql) => {
-          projectSql = sql
-          return []
-        })
+      state.mock.onSelect(schema.projectsTable).respondWith((sql) => {
+        projectSql = sql
+        return []
+      })
 
       const result = await getProjects()
 
@@ -253,13 +266,11 @@ describe("projects actions", () => {
 
     it("scopes the detail list the same way", async () => {
       let projectSql = ""
-      state.mock
-        .onSelect(schema.projectsTable)
-        .respondWith((sql) => {
-          if (sql.includes('inner join "user"')) return []
-          projectSql = sql
-          return []
-        })
+      state.mock.onSelect(schema.projectsTable).respondWith((sql) => {
+        if (sql.includes('inner join "user"')) return []
+        projectSql = sql
+        return []
+      })
       state.mock.onSelect(schema.tasksTable).respond([])
       state.mock.onSelect(schema.expensesTable).respond([])
       state.mock.onSelect(schema.invoicesTable).respond([])
@@ -292,29 +303,25 @@ describe("projects actions", () => {
         categorySlug: null,
         categoryName: null,
       }
-      state.mock
-        .onSelect(schema.projectsTable)
-        .respondWith((sql) =>
-          sql.includes('inner join "user"')
-            ? [
-                {
-                  projectId: PROJECT.id,
-                  userId: "user-1",
-                  name: "Owner",
-                  image: null,
-                },
-              ]
-            : [PROJECT]
-        )
+      state.mock.onSelect(schema.projectsTable).respondWith((sql) =>
+        sql.includes('inner join "user"')
+          ? [
+              {
+                projectId: PROJECT.id,
+                userId: "user-1",
+                name: "Owner",
+                image: null,
+              },
+            ]
+          : [PROJECT]
+      )
       const taskSqls: string[] = []
-      state.mock
-        .onSelect(schema.tasksTable)
-        .respondWith((sql) => {
-          taskSqls.push(sql)
-          return sql.includes("count(")
-            ? [{ projectId: PROJECT.id, total: 2, completed: 1 }]
-            : []
-        })
+      state.mock.onSelect(schema.tasksTable).respondWith((sql) => {
+        taskSqls.push(sql)
+        return sql.includes("count(")
+          ? [{ projectId: PROJECT.id, total: 2, completed: 1 }]
+          : []
+      })
       state.mock
         .onSelect(schema.expensesTable)
         .respond([{ projectId: PROJECT.id, total: "50" }])
@@ -332,6 +339,56 @@ describe("projects actions", () => {
       expect(taskSqls.some((sql) => sql.includes("cost"))).toBe(false)
       expect(invoiceSql).toContain("paid_amount")
       expect(invoiceSql).not.toContain("grand_total")
+    })
+  })
+
+  describe("getProjectForEdit", () => {
+    it("returns the record without the shared query's category fields", async () => {
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respond([
+          makeProjectRow({ categorySlug: "dev", categoryName: "Dev" }),
+        ])
+
+      const result = await getProjectForEdit({ projectId: PROJECT_ID })
+
+      expect(result.serverError).toBeUndefined()
+      expect(result.data?.id).toBe(PROJECT_ID)
+      expect(result.data && "categorySlug" in result.data).toBe(false)
+      expect(result.data && "categoryName" in result.data).toBe(false)
+    })
+  })
+
+  describe("getProjectContext", () => {
+    it("returns the project, members, permissions and categories", async () => {
+      grantAccess(true)
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respond([
+          makeProjectRow({ categorySlug: null, categoryName: null }),
+        ])
+      state.mock.onSelect(schema.usersTable).respond([])
+      state.mock.onSelect(schema.projectMembershipTable).respond([])
+
+      const result = await getProjectContext({ projectId: PROJECT_ID })
+
+      expect(result.serverError).toBeUndefined()
+      expect(result.data?.project.id).toBe(PROJECT_ID)
+      expect(result.data?.currentUserId).toBe("user-1")
+      expect(Array.isArray(result.data?.members)).toBe(true)
+      expect(Array.isArray(result.data?.permissions)).toBe(true)
+      expect(Array.isArray(result.data?.categories)).toBe(true)
+    })
+
+    it("returns FORBIDDEN when the caller has no project access", async () => {
+      mockResolveAccess.mockResolvedValue({
+        hasAccess: false,
+        role: null,
+      })
+
+      const result = await getProjectContext({ projectId: PROJECT_ID })
+
+      expect(result.serverError).toEqual({ code: "FORBIDDEN" })
     })
   })
 })

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn(), hasPermission: vi.fn() }))
-vi.mock("@/actions/not-safe/project-access", () => ({
-  verifyProjectAccess: vi.fn(),
+vi.mock("@/actions/projects/util", () => ({
+  resolveProjectAccess: vi.fn(),
 }))
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -35,12 +35,12 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
-import type { ProjectRole } from "@/lib/project-roles"
+import { resolveProjectAccess } from "@/actions/projects/util"
+import type { ProjectRole } from "@/lib/types"
 import { deleteComment, getTaskComments } from "@/actions/task-comments"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
-const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
+const mockResolveAccess = vi.mocked(resolveProjectAccess)
 
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const TASK_ID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
@@ -49,7 +49,7 @@ const USER_ID = "user-1"
 const OTHER_ID = "user-2"
 
 function grantAccess(role: ProjectRole = "collaborator") {
-  mockVerifyProjectAccess.mockResolvedValue({
+  mockResolveAccess.mockResolvedValue({
     hasAccess: true,
     role,
   })

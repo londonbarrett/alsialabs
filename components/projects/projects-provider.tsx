@@ -1,6 +1,6 @@
 "use client"
 
-import type { ProjectSummaryDTO } from "@/actions/schemas/project"
+import type { ProjectSummaryDTO } from "@/actions/projects/schemas"
 import { useServerReseed } from "@/hooks/use-server-reseed"
 import {
   createProjectsStore,

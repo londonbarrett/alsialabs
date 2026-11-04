@@ -11,7 +11,7 @@ import {
   returnActionError,
   sessionAction,
 } from "@/lib/safe-action"
-import { canManageWork, canViewProject } from "@/lib/project-roles"
+import { canManageWork, canViewProject } from "@/lib/util/project-roles"
 import {
   CreateExpenseSchema,
   ExpenseCategoryOptionSchema,

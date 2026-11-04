@@ -3,7 +3,7 @@
 import type { ProjectFormValues } from "@/components/projects/project-form"
 import { useSettle } from "@/hooks/use-settle"
 import { createProject } from "@/actions/projects"
-import type { ProjectSummaryDTO } from "@/actions/schemas/project"
+import type { ProjectSummaryDTO } from "@/actions/projects/schemas"
 import {
   nextOptimisticProjectId,
   type ProjectsAction,

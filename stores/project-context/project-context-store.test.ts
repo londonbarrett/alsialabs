@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import type { ProjectContextDTO } from "@/actions/schemas/project"
-import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
+import type { ProjectContextDTO } from "@/actions/projects/schemas"
+import type { ProjectMemberRowDTO } from "@/actions/projects/schemas"
 import {
   projectContextReducer,
   type ProjectContextAction,

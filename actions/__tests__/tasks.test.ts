@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn(), hasPermission: vi.fn() }))
-vi.mock("@/actions/not-safe/project-access", () => ({
-  verifyProjectAccess: vi.fn(),
+vi.mock("@/actions/projects/util", () => ({
+  resolveProjectAccess: vi.fn(),
 }))
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -50,8 +50,8 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
-import type { ProjectRole } from "@/lib/project-roles"
+import { resolveProjectAccess } from "@/actions/projects/util"
+import type { ProjectRole } from "@/lib/types"
 import {
   createTask,
   deleteTask,
@@ -63,7 +63,7 @@ import {
 } from "@/actions/tasks"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
-const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
+const mockResolveAccess = vi.mocked(resolveProjectAccess)
 
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const TASK_ID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
@@ -72,7 +72,7 @@ const USER_ID = "user-1"
 const OTHER_ID = "user-2"
 
 function grantAccess(role: ProjectRole = "owner") {
-  mockVerifyProjectAccess.mockResolvedValue({
+  mockResolveAccess.mockResolvedValue({
     hasAccess: true,
     role,
   })
@@ -181,9 +181,9 @@ describe("createTask", () => {
   })
 
   it("rejects an assignee outside the project", async () => {
-    state.mock.onSelect(schema.projectsTable).respond([
-      { primaryOwnerId: "owner-1" },
-    ])
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: "owner-1" }])
     state.mock.onSelect(schema.projectMembershipTable).respond([])
 
     const result = await createTask({
@@ -287,9 +287,9 @@ describe("updateTask", () => {
 
 describe("updateAssignmentStatus", () => {
   function mockAssignmentRow(status = "todo", userId = USER_ID) {
-    state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      { id: ASSIGNMENT_ID, userId, status },
-    ])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ id: ASSIGNMENT_ID, userId, status }])
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
     state.mock
       .onSelect(schema.taskAssignmentDetailView)
@@ -297,9 +297,11 @@ describe("updateAssignmentStatus", () => {
   }
 
   it("lets a manager set done on any assignment", async () => {
-    state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      { id: ASSIGNMENT_ID, userId: OTHER_ID, status: "todo" },
-    ])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([
+        { id: ASSIGNMENT_ID, userId: OTHER_ID, status: "todo" },
+      ])
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
     state.mock
       .onSelect(schema.taskAssignmentDetailView)
@@ -370,9 +372,9 @@ describe("updateAssignmentStatus", () => {
       },
     ])
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
-    state.mock.onInsert(schema.taskAssignmentsTable).respond([
-      { id: "next-assignment" },
-    ])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "next-assignment" }])
     state.mock
       .onSelect(schema.taskAssignmentDetailView)
       .respondWith((_sql, params) =>
@@ -469,9 +471,9 @@ describe("updateAssignmentStatus", () => {
 
 describe("updateAssignmentComment", () => {
   it("lets a manager edit another assignee's note", async () => {
-    state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      { userId: OTHER_ID, status: "todo" },
-    ])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ userId: OTHER_ID, status: "todo" }])
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
     state.mock
       .onSelect(schema.taskAssignmentDetailView)
@@ -488,9 +490,9 @@ describe("updateAssignmentComment", () => {
   })
 
   it("forbids a collaborator from editing another assignee's note", async () => {
-    state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      { userId: OTHER_ID, status: "todo" },
-    ])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ userId: OTHER_ID, status: "todo" }])
     grantAccess("collaborator")
 
     const result = await updateAssignmentComment({
@@ -503,9 +505,9 @@ describe("updateAssignmentComment", () => {
   })
 
   it("forbids a collaborator from editing their own note", async () => {
-    state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      { userId: USER_ID, status: "todo" },
-    ])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ userId: USER_ID, status: "todo" }])
     grantAccess("collaborator")
 
     const result = await updateAssignmentComment({
@@ -521,7 +523,10 @@ describe("updateAssignmentComment", () => {
 describe("guards", () => {
   it("forbids a collaborator from deleting a task", async () => {
     grantAccess("collaborator")
-    const result = await deleteTask({ projectId: PROJECT_ID, taskId: TASK_ID })
+    const result = await deleteTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
   })
 

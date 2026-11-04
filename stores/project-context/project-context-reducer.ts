@@ -1,8 +1,8 @@
 import type {
   ProjectContextDTO,
   ProjectDetailDTO,
-} from "@/actions/schemas/project"
-import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
+} from "@/actions/projects/schemas"
+import type { ProjectMemberRowDTO } from "@/actions/projects/schemas"
 
 export type ProjectContextAction =
   | { type: "patchProject"; patch: Partial<ProjectDetailDTO> }

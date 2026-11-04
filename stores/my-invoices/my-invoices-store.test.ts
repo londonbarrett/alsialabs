@@ -1,5 +1,5 @@
 import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
-import type { ProjectOptionDTO } from "@/actions/schemas/project"
+import type { ProjectOptionDTO } from "@/actions/projects/schemas"
 import { describe, expect, it } from "vitest"
 import {
   myInvoicesReducer,

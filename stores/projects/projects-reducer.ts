@@ -1,4 +1,4 @@
-import type { ProjectSummaryDTO } from "@/actions/schemas/project"
+import type { ProjectSummaryDTO } from "@/actions/projects/schemas"
 
 export type ProjectsAction =
   | { type: "add"; project: ProjectSummaryDTO }
