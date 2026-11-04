@@ -1,7 +1,7 @@
 "use client"
 
 import { Dialog } from "@/components/common/dialog"
-import type { TaskWithAssignmentsDTO } from "@/actions/schemas/task"
+import type { TaskWithAssignmentsDTO } from "@/actions/tasks/schemas"
 import { useTranslations } from "next-intl"
 import { TaskForm } from "./task-form"
 

@@ -4,7 +4,7 @@ import {
   createProjectTasksStore,
   ProjectTasksStoreContext,
 } from "@/stores/project-tasks/project-tasks-store"
-import type { TaskWithAssignmentsDTO } from "@/actions/schemas/task"
+import type { TaskWithAssignmentsDTO } from "@/actions/tasks/schemas"
 import { useServerReseed } from "@/hooks/use-server-reseed"
 import { useState } from "react"
 

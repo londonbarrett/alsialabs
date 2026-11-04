@@ -4,11 +4,11 @@ import type {
   MyAssignmentDTO,
   MyTasksTab,
   TaskStatus,
-} from "@/actions/schemas/task"
+} from "@/actions/tasks/schemas"
 import {
   ALL_TASK_STATUSES,
   COLLABORATOR_TASK_STATUSES,
-} from "@/actions/schemas/task"
+} from "@/actions/tasks/schemas"
 import { PageHeader } from "@/components/common/page-header"
 import { MyTasksList } from "@/components/my-tasks/my-tasks-list"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"

@@ -1,6 +1,6 @@
 "use client"
 
-import type { TaskWithAssignmentsDTO } from "@/actions/schemas/task"
+import type { TaskWithAssignmentsDTO } from "@/actions/tasks/schemas"
 import { TaskCommentPanel } from "@/components/common/task-comment-panel"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"

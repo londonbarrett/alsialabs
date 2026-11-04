@@ -6,7 +6,7 @@ import {
   MyAssignmentSchema,
   TaskAssignmentSchema,
   TaskFormSchema,
-} from "@/actions/schemas/task"
+} from "@/actions/tasks/schemas"
 
 const base = {
   name: "Task",
