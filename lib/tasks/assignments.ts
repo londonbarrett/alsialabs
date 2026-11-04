@@ -1,5 +1,5 @@
 import type { Task, TaskStatus } from "@/lib/drizzle/schema"
-import type { TaskAssignmentDTO } from "@/actions/schemas/task"
+import type { TaskAssignmentDTO } from "@/actions/tasks/schemas"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import {
   computeScheduledFor,

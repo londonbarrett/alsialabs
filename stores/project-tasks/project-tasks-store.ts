@@ -1,4 +1,4 @@
-import type { TaskWithAssignmentsDTO } from "@/actions/schemas/task"
+import type { TaskWithAssignmentsDTO } from "@/actions/tasks/schemas"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
 import { projectTasksReducer } from "./project-tasks-reducer"

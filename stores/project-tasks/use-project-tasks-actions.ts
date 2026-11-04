@@ -4,7 +4,7 @@ import {
   type TaskPriorityDTO,
   type TaskStatus,
   type TaskWithAssignmentsDTO,
-} from "@/actions/schemas/task"
+} from "@/actions/tasks/schemas"
 import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 import {
   createComment as createCommentAction,

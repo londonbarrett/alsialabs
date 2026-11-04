@@ -5,11 +5,11 @@ import type {
   TaskPriorityDTO,
   TaskStatus,
   TaskWithAssignmentsDTO,
-} from "@/actions/schemas/task"
+} from "@/actions/tasks/schemas"
 import {
   ALL_TASK_STATUSES,
   COLLABORATOR_TASK_STATUSES,
-} from "@/actions/schemas/task"
+} from "@/actions/tasks/schemas"
 import { ActionMenu } from "@/components/common/action-menu"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Badge } from "@/components/ui/badge"

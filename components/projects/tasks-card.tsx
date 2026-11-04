@@ -4,7 +4,7 @@ import type {
   TaskAssignmentDTO,
   TaskPriorityDTO,
   TaskWithAssignmentsDTO,
-} from "@/actions/schemas/task"
+} from "@/actions/tasks/schemas"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Button } from "@/components/ui/button"
 import {

@@ -1,6 +1,6 @@
 "use client"
 
-import type { TaskStatus } from "@/actions/schemas/task"
+import type { TaskStatus } from "@/actions/tasks/schemas"
 import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
 import {
   createComment as createCommentAction,

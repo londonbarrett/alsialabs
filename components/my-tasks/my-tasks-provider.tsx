@@ -1,6 +1,6 @@
 "use client"
 
-import type { MyAssignmentDTO } from "@/actions/schemas/task"
+import type { MyAssignmentDTO } from "@/actions/tasks/schemas"
 import { useServerReseed } from "@/hooks/use-server-reseed"
 import {
   createMyTasksStore,

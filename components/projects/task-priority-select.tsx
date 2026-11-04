@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { useTranslations } from "next-intl"
-import type { TaskPriorityDTO } from "@/actions/schemas/task"
+import type { TaskPriorityDTO } from "@/actions/tasks/schemas"
 
 const taskPriorityColors: Record<string, string> = {
   urgent:

@@ -1,6 +1,6 @@
 "use client"
 
-import type { MyAssignmentDTO, TaskStatus } from "@/actions/schemas/task"
+import type { MyAssignmentDTO, TaskStatus } from "@/actions/tasks/schemas"
 import { DueDate } from "@/components/projects/due-date"
 import { taskPriorityColors } from "@/components/projects/task-priority-select"
 import {

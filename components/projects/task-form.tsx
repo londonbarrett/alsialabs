@@ -3,7 +3,7 @@
 import type {
   TaskPriorityDTO,
   TaskWithAssignmentsDTO,
-} from "@/actions/schemas/task"
+} from "@/actions/tasks/schemas"
 import { Button } from "@/components/ui/button"
 import {
   validateRepeatingWindow,

@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useTranslations } from "next-intl"
-import type { TaskStatus } from "@/actions/schemas/task"
+import type { TaskStatus } from "@/actions/tasks/schemas"
 
 const taskStatusColors: Record<string, string> = {
   todo: "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400",
