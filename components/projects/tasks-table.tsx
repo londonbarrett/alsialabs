@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { isTerminalStatus } from "@/lib/project-roles"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { MessageSquare, RefreshCw } from "lucide-react"

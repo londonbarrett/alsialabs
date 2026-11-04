@@ -1,10 +1,19 @@
 /**
- * Client-only contracts.
+ * Shared app types.
  *
- * Server response shapes live next to their actions in `actions/schemas/*`;
- * only types that exist purely for client UI state (submit contracts, event
- * metadata, settle results) belong here.
+ * Rule of thumb: a type used in several places belongs here. Exceptions:
+ * `ComponentProps` stay with their component, and DTOs stay next to their
+ * schemas in `actions/<domain>/schemas.ts`.
  */
+
+/** Project roles, as resolved by `resolveProjectAccess` and checked by the capability helpers in `lib/util/project-roles.ts`. */
+export type ProjectRole = "owner" | "admin" | "collaborator"
+
+/** Whether a caller may touch a project, and in what role. */
+export type ProjectAccess = {
+  hasAccess: boolean
+  role: ProjectRole | null
+}
 
 /** App-level metadata carried by calendar events. */
 export type CalendarEventAssignee = {

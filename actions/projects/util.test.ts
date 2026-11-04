@@ -17,7 +17,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 })
 
 import * as schema from "@/lib/drizzle/schema"
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
+import { resolveProjectAccess } from "@/actions/projects/util"
 
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const USER_ID = "user-1"
@@ -26,7 +26,7 @@ beforeEach(() => {
   state.mock.resetMocks()
 })
 
-describe("verifyProjectAccess", () => {
+describe("resolveProjectAccess", () => {
   it("returns owner for the primary owner", async () => {
     state.mock
       .onSelect(schema.projectsTable)
@@ -34,7 +34,7 @@ describe("verifyProjectAccess", () => {
     state.mock.onSelect(schema.projectMembershipTable).respond([])
 
     await expect(
-      verifyProjectAccess(PROJECT_ID, USER_ID)
+      resolveProjectAccess(PROJECT_ID, USER_ID)
     ).resolves.toEqual({
       hasAccess: true,
       role: "owner",
@@ -50,7 +50,7 @@ describe("verifyProjectAccess", () => {
       .respond([{ role: "admin" }])
 
     await expect(
-      verifyProjectAccess(PROJECT_ID, USER_ID)
+      resolveProjectAccess(PROJECT_ID, USER_ID)
     ).resolves.toEqual({
       hasAccess: true,
       role: "admin",
@@ -66,7 +66,7 @@ describe("verifyProjectAccess", () => {
       .respond([{ role: "collaborator" }])
 
     await expect(
-      verifyProjectAccess(PROJECT_ID, USER_ID)
+      resolveProjectAccess(PROJECT_ID, USER_ID)
     ).resolves.toEqual({
       hasAccess: true,
       role: "collaborator",
@@ -80,7 +80,7 @@ describe("verifyProjectAccess", () => {
     state.mock.onSelect(schema.projectMembershipTable).respond([])
 
     await expect(
-      verifyProjectAccess(PROJECT_ID, USER_ID)
+      resolveProjectAccess(PROJECT_ID, USER_ID)
     ).resolves.toEqual({ hasAccess: false, role: null })
   })
 
@@ -91,7 +91,7 @@ describe("verifyProjectAccess", () => {
     state.mock.onSelect(schema.projectMembershipTable).respond([])
 
     await expect(
-      verifyProjectAccess(PROJECT_ID, "super-user")
+      resolveProjectAccess(PROJECT_ID, "super-user")
     ).resolves.toEqual({ hasAccess: false, role: null })
   })
 
@@ -99,7 +99,7 @@ describe("verifyProjectAccess", () => {
     state.mock.onSelect(schema.projectsTable).respond([])
 
     await expect(
-      verifyProjectAccess(PROJECT_ID, USER_ID)
+      resolveProjectAccess(PROJECT_ID, USER_ID)
     ).resolves.toEqual({ hasAccess: false, role: null })
   })
 })

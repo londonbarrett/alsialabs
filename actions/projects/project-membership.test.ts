@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }))
-vi.mock("@/actions/not-safe/project-access", () => ({
-  verifyProjectAccess: vi.fn(),
+vi.mock("@/actions/projects/util", () => ({
+  resolveProjectAccess: vi.fn(),
 }))
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -30,8 +30,8 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
-import type { ProjectRole } from "@/lib/project-roles"
+import { resolveProjectAccess } from "@/actions/projects/util"
+import type { ProjectRole } from "@/lib/types"
 import {
   addProjectAdmin,
   addProjectCollaborator,
@@ -39,18 +39,18 @@ import {
   removeProjectAdmin,
   removeProjectCollaborator,
   setProjectMemberRole,
-  transferPrimaryOwner,
-} from "@/actions/project-membership"
+  transferProjectPrimaryOwner,
+} from "@/actions/projects"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
-const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
+const mockResolveAccess = vi.mocked(resolveProjectAccess)
 
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const OWNER_ID = "owner-1"
 const USER_ID = "user-1"
 
 function grantRole(role: ProjectRole) {
-  mockVerifyProjectAccess.mockResolvedValue({
+  mockResolveAccess.mockResolvedValue({
     hasAccess: true,
     role,
   })
@@ -73,15 +73,13 @@ describe("membership actions", () => {
       .onSelect(schema.projectsTable)
       .respond([{ primaryOwnerId: OWNER_ID }])
     state.mock.onSelect(schema.projectMembershipTable).respond([])
-    state.mock
-      .onInsert(schema.projectMembershipTable)
-      .respond([
-        {
-          projectId: PROJECT_ID,
-          userId: USER_ID,
-          role: "collaborator",
-        },
-      ])
+    state.mock.onInsert(schema.projectMembershipTable).respond([
+      {
+        projectId: PROJECT_ID,
+        userId: USER_ID,
+        role: "collaborator",
+      },
+    ])
 
     const result = await addProjectCollaborator({
       projectId: PROJECT_ID,
@@ -250,7 +248,7 @@ describe("membership actions", () => {
       .onUpdate(schema.projectsTable)
       .respond([{ primaryOwnerId: USER_ID }])
 
-    const result = await transferPrimaryOwner({
+    const result = await transferProjectPrimaryOwner({
       projectId: PROJECT_ID,
       newOwnerId: "user-2",
     })
@@ -265,7 +263,7 @@ describe("membership actions", () => {
       .respond([{ primaryOwnerId: OWNER_ID }])
     state.mock.onSelect(schema.projectMembershipTable).respond([])
 
-    const result = await transferPrimaryOwner({
+    const result = await transferProjectPrimaryOwner({
       projectId: PROJECT_ID,
       newOwnerId: "stranger",
     })

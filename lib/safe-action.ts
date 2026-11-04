@@ -5,7 +5,7 @@ import {
 import { z } from "zod"
 import { auth, isSuperUser, hasPermission } from "@/lib/auth"
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
+import { resolveProjectAccess } from "@/actions/projects/util"
 import { revalidatePath, updateTag } from "next/cache"
 import type { ActionErrorCode } from "@/actions/error-codes"
 import { ActionError as ActionErrorCodes } from "@/actions/error-codes"
@@ -17,8 +17,12 @@ import {
 
 // ---------- Helpers ----------
 
-export const returnActionError = (code: ActionErrorCode): never =>
-  throwActionError(code)
+// Annotated at the variable: TypeScript only treats a call as never-returning
+// (and narrows after `if (!x) returnActionError(...)`) when the variable has
+// an explicit type annotation — a `: never` on the arrow alone is not enough.
+export const returnActionError: (code: ActionErrorCode) => never = (
+  code
+) => throwActionError(code)
 
 function toServerError(error: unknown): ServerError {
   if (error instanceof ActionError) {
@@ -81,7 +85,7 @@ function resolveRevalidatePaths(
 // Authenticates the session, optionally checks permission, and handles
 // revalidation (supports templates like "/app/proyectos/:projectId" interpolated
 // from input/data AFTER the action commits). Ownership is domain-specific
-// and enforced separately (e.g. projectAction and projectResolvedAction via verifyProjectAccess,
+// and enforced separately (e.g. projectAction and projectResolvedAction via resolveProjectAccess,
 // storeAction via store scoping).
 
 export const sessionAction = actionClient.use(
@@ -138,7 +142,7 @@ export const storeAction = sessionAction.use(async ({ next }) => {
 // ---------- projectAction ----------
 // Factory for project-scoped actions. Callers provide their own input schema,
 // which must include a `projectId` field; this verifies project access via
-// verifyProjectAccess and injects `projectRole` into
+// resolveProjectAccess and injects `projectRole` into
 // context.
 
 export function projectAction<Schema extends z.ZodTypeAny>(
@@ -147,7 +151,7 @@ export function projectAction<Schema extends z.ZodTypeAny>(
   return sessionAction
     .inputSchema(schema)
     .use(async ({ clientInput, ctx, next }) => {
-      const access = await verifyProjectAccess(
+      const access = await resolveProjectAccess(
         (clientInput as { projectId: string }).projectId,
         ctx.session.user.id
       )
@@ -155,11 +159,11 @@ export function projectAction<Schema extends z.ZodTypeAny>(
         returnActionError("FORBIDDEN")
       }
       return next({
-      ctx: {
-        ...ctx,
-        projectRole: access.role,
-      },
-    })
+        ctx: {
+          ...ctx,
+          projectRole: access.role,
+        },
+      })
     })
 }
 

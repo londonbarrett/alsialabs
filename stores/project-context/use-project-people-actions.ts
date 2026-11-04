@@ -6,8 +6,8 @@ import {
   removeProjectAdmin,
   removeProjectCollaborator,
   setProjectMemberRole,
-} from "@/actions/project-membership"
-import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
+} from "@/actions/projects"
+import type { ProjectMemberRowDTO } from "@/actions/projects/schemas"
 import type { UserOptionDTO } from "@/actions/schemas/user"
 import { useSettle } from "@/hooks/use-settle"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
@@ -41,14 +41,17 @@ export function useProjectPeopleActions() {
   const { run } = useOptimisticAction(useProjectContextStore())
 
   const { executeAsync: executeAddAdmin } = useAction(addProjectAdmin)
-  const { executeAsync: executeRemoveAdmin } = useAction(removeProjectAdmin)
+  const { executeAsync: executeRemoveAdmin } =
+    useAction(removeProjectAdmin)
   const { executeAsync: executeAddCollaborator } = useAction(
     addProjectCollaborator
   )
   const { executeAsync: executeRemoveCollaborator } = useAction(
     removeProjectCollaborator
   )
-  const { executeAsync: executeSetRole } = useAction(setProjectMemberRole)
+  const { executeAsync: executeSetRole } = useAction(
+    setProjectMemberRole
+  )
 
   async function addAdmin(user: UserOptionDTO) {
     const result = await run(

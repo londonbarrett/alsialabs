@@ -5,8 +5,8 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/actions/not-safe/project-access", () => ({
-  verifyProjectAccess: vi.fn(),
+vi.mock("@/actions/projects/util", () => ({
+  resolveProjectAccess: vi.fn(),
 }))
 
 vi.mock("@/actions/not-safe/stores", () => ({
@@ -39,7 +39,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
+import { resolveProjectAccess } from "@/actions/projects/util"
 import {
   getExpenseCategories,
   getExpensesByProjectId,
@@ -50,21 +50,21 @@ import {
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
-const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
+const mockResolveAccess = vi.mocked(resolveProjectAccess)
 
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a00"
 const EXPENSE_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const CATEGORY_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22"
 
 function grantAccess(isOwner = true) {
-  mockVerifyProjectAccess.mockResolvedValue({
+  mockResolveAccess.mockResolvedValue({
     hasAccess: true,
     role: isOwner ? "owner" : "collaborator",
   })
 }
 
 function denyAccess() {
-  mockVerifyProjectAccess.mockResolvedValue({
+  mockResolveAccess.mockResolvedValue({
     hasAccess: false,
     role: null,
   })
@@ -178,7 +178,7 @@ describe("expenses actions", () => {
 
       expect(result.serverError).toBeUndefined()
       expect(result.data).toEqual(fakeExpense)
-      expect(mockVerifyProjectAccess).toHaveBeenCalledWith(
+      expect(mockResolveAccess).toHaveBeenCalledWith(
         PROJECT_ID,
         "user-1"
       )
@@ -237,9 +237,7 @@ describe("expenses actions", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       }
-      state.mock
-        .onUpdate(schema.expensesTable)
-        .respond([fakeExpense])
+      state.mock.onUpdate(schema.expensesTable).respond([fakeExpense])
 
       const result = await updateExpense({
         projectId: PROJECT_ID,

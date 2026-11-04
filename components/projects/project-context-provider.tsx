@@ -1,6 +1,6 @@
 "use client"
 
-import type { ProjectContextDTO } from "@/actions/schemas/project"
+import type { ProjectContextDTO } from "@/actions/projects/schemas"
 import { useServerReseed } from "@/hooks/use-server-reseed"
 import {
   createProjectContextStore,

@@ -15,7 +15,7 @@ import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import {
   canChangeAnyAssignment,
   isTerminalStatus,
-} from "@/lib/project-roles"
+} from "@/lib/util/project-roles"
 import { useMyTasksActions } from "@/stores/my-tasks/use-my-tasks-actions"
 import { useMyTasksState } from "@/stores/my-tasks/use-my-tasks-state"
 import { ListTodo } from "lucide-react"

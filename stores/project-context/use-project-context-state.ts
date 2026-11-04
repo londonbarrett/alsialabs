@@ -1,6 +1,6 @@
 "use client"
 
-import type { ProjectContextDTO } from "@/actions/schemas/project"
+import type { ProjectContextDTO } from "@/actions/projects/schemas"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 import { useStore } from "zustand"
 import type { ProjectContextAction } from "./project-context-reducer"

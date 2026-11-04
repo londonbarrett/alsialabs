@@ -1,7 +1,7 @@
 "use server"
 
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
-import { canViewProject } from "@/lib/project-roles"
+import { canViewProject } from "@/lib/util/project-roles"
 import { SuccessSchema } from "@/actions/schemas/common"
 import {
   BindInvoiceResultSchema,

@@ -1,11 +1,5 @@
+import type { ProjectRole } from "@/lib/types"
 import type { TaskStatus } from "@/lib/drizzle/schema"
-
-export type ProjectRole = "owner" | "admin" | "collaborator"
-
-export type ProjectAccess = {
-  hasAccess: boolean
-  role: ProjectRole | null
-}
 
 /** The project list and the project route are owner/admin surfaces. */
 export function canViewProject(role: ProjectRole | null): boolean {

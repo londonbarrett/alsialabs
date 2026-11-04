@@ -36,7 +36,7 @@ import {
   canManageWork,
   canViewProject,
   isTerminalStatus,
-} from "@/lib/project-roles"
+} from "@/lib/util/project-roles"
 import {
   atTime,
   firstAssignmentWindow,

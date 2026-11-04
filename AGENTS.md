@@ -34,7 +34,7 @@ Common triggers:
 ## Repository map
 
 - `app/` — Next.js App Router routes; authenticated app lives under `app/app/`
-- `actions/` — server actions (`actions/not-safe/` for plain actions without next-safe-action); Zod schemas in `actions/schemas/`
+- `actions/` — server actions, one folder per domain (`actions/<domain>/`); plain server actions without next-safe-action in `actions/not-safe/` until their domain migrates
 - `components/` — UI, grouped by route/domain; shadcn/ui primitives in `components/ui/`
 - `stores/` — page-scoped optimistic Zustand stores, one folder per domain
 - `hooks/` — shared React hooks and store infrastructure
@@ -47,11 +47,12 @@ Common triggers:
 
 ## Project Conventions
 
-- **Server actions** in `actions/` (safe actions via next-safe-action) and `actions/not-safe/` (plain server actions without next-safe-action) — auth-guarded, Zod validation via `actions/schemas/`, `revalidatePath` after mutations
+- **Server actions** — one folder per domain under `actions/<domain>/`; see the Server Actions section. Plain actions without next-safe-action stay in `actions/not-safe/` until their domain migrates
 - **Components** follow shadcn/ui patterns: `FieldGroup`/`Field` for forms, `data-invalid`/`aria-invalid` for validation, `cn()` for class merging
 - **One component per file** — split components into separate files; a file holds a single component
 - **Event handlers** — memoized with `useCallback` when the body is two lines or more; single-line handlers may stay inline
 - **Database** via Drizzle ORM with PostgreSQL — schema in `lib/drizzle/schema.ts`
+- **Types** — shared types used in several places live in `lib/types.ts`; exceptions: `ComponentProps` stay with their component, DTOs stay with their schemas in `actions/<domain>/schemas.ts`. As a rule of thumb, if a type is going to be used in several places, it belongs in `lib/types.ts`.
 - **State** — page-scoped optimistic stores in `stores/<domain>/` — see the Optimistic Stores section
 - **Auth** via NextAuth v5 — `auth()` from `@/lib/auth`
 - **Icons** from `lucide-react`
@@ -63,6 +64,55 @@ Common triggers:
 - `messages/en.json` and `messages/es.json` stay structurally identical — every key exists in both.
 - **Before adding a key, check whether the term already exists.** Search `messages/` first and reuse the shared namespace: `common.*` for generic UI labels, `invoice.*` for invoice terms shared by `sales` and `myInvoices`, `nav.*` for route labels. Add a domain-specific key only when the label genuinely differs by context.
 - Dynamic key-maps (`errors.*`, `sales.statuses.*`, `projects.status.*`, `projects.tasks.status.*`, `projects.tasks.priority.*`, `projects.colors.*`, `activity.*`, `activities.types.*`, `projects.routines.*`, `categoryNames.*`, `taxonomyNames.*`, `theme.*`) are looked up by value — never rename or merge their keys.
+
+## Server Actions
+
+**Every domain lives in one folder under `actions/<domain>/`.** Background: `docs/superpowers/specs/2026-10-16-safe-actions-design.md` (client chains, auth, metadata, revalidation) and `docs/superpowers/specs/2026-10-16-action-response-schemas-design.md` (output schemas, DTO inference). Domains still on the flat layout (`actions/<domain>.ts` + `actions/schemas/<domain>.ts`) migrate one per session — projects goes first; the rules below describe the target layout.
+
+### File layout
+
+    actions/<domain>/
+    ├── index.ts       barrel: named re-exports from ./actions only — NO "use server" (Turbopack rejects re-exports in a "use server" file; the directive on actions.ts is what marks the functions as server references)
+    ├── actions.ts     "use server" — safe actions (next-safe-action chains)
+    ├── queries.ts     every DB read/write for the domain; default-exports an object of query functions; NO "use server"
+    ├── schemas.ts     all Zod input + output schemas and inferred *DTO types; NO "use server"
+    ├── util.ts        internal helpers used by actions but never exported to the client; NO "use server"; never re-exported from index.ts
+    └── *.test.ts      vitest, beside the file it covers
+
+Shared non-DTO types do not live in the module — see the Types convention below (`lib/types.ts`).
+
+### Rules
+
+1. **`"use server"` only on `actions.ts`.** On `index.ts` it would make every re-export fail the build (Turbopack: "Only async functions are allowed to be exported in a `"use server"` file"); on `queries.ts`/`util.ts` it would turn every export into a browser-callable endpoint (this is the `verifyProjectAccess` role-probe bug the layout fixes). The barrel `index.ts` re-exports from `actions.ts` without the directive.
+2. **No direct DB queries inside actions.** `actions.ts` never imports `@/lib/drizzle/client` or `drizzle-orm` — it calls `queries.ts`. **A leaf query is exactly one DB call; a composed query contains zero direct `db` calls and only calls other queries** (e.g. `getProjectMembers` calls `getProjectPrimaryOwnerId` + `getUserById` + `getProjectMembershipRows`). The sole exception is a `db.transaction(...)`, which is one atomic unit.
+3. **Action and query naming is `[action][subject]`, plus a condition when needed** — `getProjectById`, `getProjects`, `createProject`, `updateProject`, `deleteProject`, `transferProjectOwnership`. Skip the condition when it's obvious from the subject (`getProjects`, not `getProjectsList`).
+4. **Ship the typical CRUD per module only where it's used** — `getResources`, `getResourceById`, `createResource`, `updateResource`, `deleteResource`. Never add an unused operation (no `patchResource` without a caller) and never a delete-all (`deleteResources`).
+5. **Action body order:** read `ctx` → permission guard (`canManageProject`, `canViewProject`, or `metadata.permission` via the client) → call queries → map `null`/`undefined` to `returnActionError("NOT_FOUND")` / `throwActionError(...)` → return the row.
+6. **Actions never call sibling safe actions.** Same-domain data comes through `queries.ts` directly (no nested wrapping, no `unwrapResponse` for same-module results). Calling another domain's action + `unwrapResponse` is allowed only until that domain migrates.
+7. **`util.ts` is for helpers used by actions (or other internal code) but not exposed to the client** — e.g. `resolveProjectAccess`. If the client needs it, it's an action instead. Never re-export `util.ts` from the barrel.
+8. **Schemas** — one `schemas.ts` per domain. Every action declares `.inputSchema(...)` (or an inline `z.object`) and `.outputSchema(...)` — including void mutations (`SuccessSchema`). Consumers infer with `import type { XDTO } from "@/actions/<domain>/schemas"`; never `Awaited<ReturnType<...>>`, never `as` casts on `result.data`.
+9. **Client chain** — pick the narrowest that fits: `sessionAction` (session), `projectAction(schema)` (session + project access + `ctx.projectRole`), `storeAction`, `adminAction`. Domain rules (`canManageProject` etc.) are enforced in the body, not the chain. `metadata.revalidate` uses templates (`"/app/proyectos/:projectId"`) interpolated after commit; `metadata.permission` only when a global module code gates the action.
+10. **Imports** — inside the folder: default import for queries (`import queries from "./queries"`, called as `queries.getProjectById(...)` — avoids name collisions with same-named actions), named for schemas/util. Absolute from outside: the barrel `@/actions/<domain>` for actions, explicit files for everything else (`@/actions/<domain>/schemas`, `@/actions/<domain>/util`).
+11. **Tests** live beside the code, mock `@/lib/drizzle/client` with `vitest-drizzle-mock`, and mock module helpers by their new path (`vi.mock("@/actions/<domain>/util", () => ({ resolveProjectAccess: vi.fn() }))`).
+
+### Action body template
+
+    // actions/<domain>/actions.ts
+    "use server"
+
+    import queries from "./queries"
+    import { SomeInputSchema, SomeOutputSchema } from "./schemas"
+    import { sessionAction, returnActionError } from "@/lib/safe-action"
+
+    export const getSomeThing = sessionAction
+      .metadata({})
+      .inputSchema(SomeInputSchema)        // omit for no-input reads
+      .outputSchema(SomeOutputSchema)      // always declared
+      .action(async ({ parsedInput, ctx }) => {
+        const row = await queries.getThingById(parsedInput.id)
+        if (!row) returnActionError("NOT_FOUND")
+        return row                          // validated against outputSchema
+      })
 
 ## Boundaries
 
@@ -87,7 +137,7 @@ Never:
 ## Testing
 
 - **E2E** (`e2e/*.spec.ts`, Playwright) — proves functionality works all together; drive it through the Next.js pages a user would interact with, never by invoking actions or helpers directly.
-- **Server actions and util functions** — covered by vitest unit tests (`actions/*.test.ts`, `actions/__tests__/`, beside-file `*.test.ts`), not by e2e.
+- **Server actions and util functions** — covered by vitest unit tests (beside-file `*.test.ts`, including `actions/<domain>/`; legacy locations `actions/*.test.ts` and `actions/__tests__/` until their domain migrates), not by e2e.
 - **Auth in e2e** — import `test`/`expect` from `./fixtures`, not `@playwright/test`, and call `signInAs("<role>")` (see `TEST_USERS`) for an authenticated context.
 - **Every behavioral change ships with tests** — superpowers adds e2e and/or unit coverage alongside features, fixes, and behavior edits; docs/config-only changes are exempt.
 

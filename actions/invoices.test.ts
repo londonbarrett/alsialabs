@@ -6,8 +6,8 @@ vi.mock("@/lib/auth", () => ({
   isSuperUser: vi.fn(),
 }))
 
-vi.mock("@/actions/not-safe/project-access", () => ({
-  verifyProjectAccess: vi.fn(),
+vi.mock("@/actions/projects/util", () => ({
+  resolveProjectAccess: vi.fn(),
 }))
 
 vi.mock("@/actions/not-safe/stores", () => ({
@@ -39,7 +39,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 })
 
 import { getEffectiveStoreId } from "@/actions/not-safe/stores"
-import { verifyProjectAccess } from "@/actions/not-safe/project-access"
+import { resolveProjectAccess } from "@/actions/projects/util"
 import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import * as schema from "@/lib/drizzle/schema"
 import {
@@ -59,7 +59,7 @@ const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)
 const mockIsSuperUser = vi.mocked(isSuperUser)
 const mockGetEffectiveStoreId = vi.mocked(getEffectiveStoreId)
-const mockVerifyProjectAccess = vi.mocked(verifyProjectAccess)
+const mockResolveAccess = vi.mocked(resolveProjectAccess)
 
 const USER_ID = "user-1"
 const CLIENT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
@@ -113,7 +113,7 @@ const myInvoiceFixture = {
 describe("invoices actions", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockVerifyProjectAccess.mockResolvedValue({
+    mockResolveAccess.mockResolvedValue({
       hasAccess: true,
       role: "owner",
     })
@@ -660,7 +660,7 @@ describe("invoices actions", () => {
     })
 
     it("forbids a collaborator from reading project invoices", async () => {
-      mockVerifyProjectAccess.mockResolvedValue({
+      mockResolveAccess.mockResolvedValue({
         hasAccess: true,
         role: "collaborator",
       })
@@ -671,7 +671,7 @@ describe("invoices actions", () => {
     })
 
     it("returns FORBIDDEN when project access is denied", async () => {
-      mockVerifyProjectAccess.mockResolvedValue({
+      mockResolveAccess.mockResolvedValue({
         hasAccess: false,
         role: null,
       })

@@ -1,13 +1,13 @@
 "use client"
 
-import type { ProjectDetailDTO } from "@/actions/schemas/project"
+import type { ProjectDetailDTO } from "@/actions/projects/schemas"
 import {
   deleteProject as deleteProjectAction,
   updateProject as updateProjectAction,
 } from "@/actions/projects"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import { useSettle } from "@/hooks/use-settle"
-import type { UpdateProjectDTO } from "@/actions/schemas/project"
+import type { UpdateProjectDTO } from "@/actions/projects/schemas"
 import { useProjectContextStore } from "./project-context-store"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useProjectContextState } from "./use-project-context-state"

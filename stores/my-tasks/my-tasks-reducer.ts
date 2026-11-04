@@ -4,7 +4,7 @@ import type {
   TaskStatus,
 } from "@/actions/schemas/task"
 import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
-import { isTerminalStatus } from "@/lib/project-roles"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 
 /**
  * Stable empty list for a task whose comments have never been loaded, so

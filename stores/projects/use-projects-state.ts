@@ -1,6 +1,6 @@
 "use client"
 
-import type { ProjectSummaryDTO } from "@/actions/schemas/project"
+import type { ProjectSummaryDTO } from "@/actions/projects/schemas"
 import type { OptimisticStore } from "@/lib/optimistic-store"
 import { useMemo } from "react"
 import { useStore } from "zustand"

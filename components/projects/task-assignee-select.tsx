@@ -1,6 +1,6 @@
 "use client"
 
-import type { ProjectMemberRowDTO } from "@/actions/schemas/project-membership"
+import type { ProjectMemberRowDTO } from "@/actions/projects/schemas"
 import {
   Avatar,
   AvatarFallback,
