@@ -1,6 +1,6 @@
 "use client"
 
-import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
+import type { MyInvoiceDTO } from "@/actions/invoices/schemas"
 import { Dialog } from "@/components/common/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

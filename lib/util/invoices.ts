@@ -1,7 +1,7 @@
 import type {
   InvoiceDTO,
   InvoiceWithClientNameDTO,
-} from "@/actions/schemas/invoice"
+} from "@/actions/invoices/schemas"
 import type { Invoice, InvoiceStatus } from "@/lib/drizzle/schema"
 
 export function computeLineTotal(

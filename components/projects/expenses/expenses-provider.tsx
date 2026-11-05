@@ -2,7 +2,7 @@
 
 import { useServerReseed } from "@/hooks/use-server-reseed"
 import type { ExpenseWithCategoryDTO } from "@/actions/expenses/schemas"
-import type { ProjectInvoiceDTO } from "@/actions/schemas/invoice"
+import type { ProjectInvoiceDTO } from "@/actions/invoices/schemas"
 import {
   createExpensesStore,
   ExpensesStoreContext,

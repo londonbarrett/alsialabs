@@ -1,4 +1,4 @@
-import type { MyInvoicesResultDTO } from "@/actions/schemas/invoice"
+import type { MyInvoicesResultDTO } from "@/actions/invoices/schemas"
 import type { ProjectOptionDTO } from "@/actions/projects/schemas"
 
 export type MyInvoicesState = MyInvoicesResultDTO & {

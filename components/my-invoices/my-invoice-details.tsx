@@ -1,6 +1,6 @@
 "use client"
 
-import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
+import type { MyInvoiceDTO } from "@/actions/invoices/schemas"
 import { formatCurrency } from "@/lib/util/money"
 import { formatISODate } from "@/lib/util/schedule"
 import { useTranslations } from "next-intl"

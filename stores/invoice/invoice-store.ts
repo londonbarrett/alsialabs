@@ -1,4 +1,4 @@
-import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
+import type { InvoiceWithClientNameDTO } from "@/actions/invoices/schemas"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
 import { salesReducer } from "./sales-reducer"

@@ -1,6 +1,6 @@
 "use client"
 
-import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
+import type { InvoiceWithClientNameDTO } from "@/actions/invoices/schemas"
 import {
   createInvoiceStore,
   InvoiceStoreContext,

@@ -18,7 +18,7 @@ import {
   updatePayment as updatePaymentAction,
 } from "@/actions/payments"
 import type { ActivityFormDTO } from "@/actions/schemas/activity"
-import type { InvoiceDTO } from "@/actions/schemas/invoice"
+import type { InvoiceDTO } from "@/actions/invoices/schemas"
 import type { PaymentFormValues } from "@/components/sales/payment-form"
 import { useSettle } from "@/hooks/use-settle"
 import type { Invoice } from "@/lib/drizzle/schema"

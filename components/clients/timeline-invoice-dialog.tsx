@@ -1,6 +1,6 @@
 "use client"
 
-import type { InvoiceDTO } from "@/actions/schemas/invoice"
+import type { InvoiceDTO } from "@/actions/invoices/schemas"
 import { Dialog } from "@/components/common/dialog"
 import { InvoiceForm } from "@/components/sales/invoice-form"
 import type { Invoice } from "@/lib/drizzle/schema"

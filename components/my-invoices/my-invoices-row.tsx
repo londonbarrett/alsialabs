@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
-import type { MyInvoiceDTO } from "@/actions/schemas/invoice"
+import type { MyInvoiceDTO } from "@/actions/invoices/schemas"
 import { getMyInvoiceDetails } from "@/actions/invoices"
 import type { InvoiceItem, InvoicePayment } from "@/lib/drizzle/schema"
 import { useMyInvoicesActions } from "@/stores/my-invoices/use-my-invoices-actions"

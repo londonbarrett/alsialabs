@@ -1,4 +1,4 @@
-import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
+import type { InvoiceWithClientNameDTO } from "@/actions/invoices/schemas"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
 import { invoiceReducer, type InvoiceAction } from "./invoice-reducer"
 import { paymentReducer, type PaymentAction } from "./payment-reducer"

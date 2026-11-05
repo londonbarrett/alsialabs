@@ -53,7 +53,7 @@ import {
   getMyInvoices,
   getProjectInvoices,
   updateInvoice,
-} from "./invoices"
+} from "@/actions/invoices"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)

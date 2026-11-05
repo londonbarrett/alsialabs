@@ -1,6 +1,6 @@
 "use client"
 
-import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
+import type { InvoiceWithClientNameDTO } from "@/actions/invoices/schemas"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { SalesActionMenu } from "@/components/sales/sales-action-menu"
 import { StatusBadge } from "@/components/sales/status-badge"
