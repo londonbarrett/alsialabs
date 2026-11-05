@@ -143,6 +143,27 @@ beforeEach(() => {
   grantAccess("owner")
 })
 
+describe("input validation", () => {
+  it("rejects a non-uuid projectId before the action runs", async () => {
+    const result = await getTasks({ projectId: "not-a-uuid" })
+
+    expect(result.validationErrors).toBeDefined()
+    expect(result.data).toBeUndefined()
+    expect(result.serverError).toBeUndefined()
+  })
+
+  it("applies the task window refinements to createTask input", async () => {
+    const result = await createTask({
+      ...validTask,
+      endDate: "2026-10-29T11:00:00",
+    })
+
+    expect(result.validationErrors).toBeDefined()
+    expect(result.data).toBeUndefined()
+    expect(result.serverError).toBeUndefined()
+  })
+})
+
 describe("getTasks", () => {
   it("returns tasks with their assignments", async () => {
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])

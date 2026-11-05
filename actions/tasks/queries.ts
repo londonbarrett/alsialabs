@@ -49,6 +49,17 @@ const ASSIGNMENT_VIEW_COLUMNS = {
   userImage: taskAssignmentDetailView.userImage,
 }
 
+const COMMENT_WITH_AUTHOR_COLUMNS = {
+  id: taskCommentsTable.id,
+  taskId: taskCommentsTable.taskId,
+  authorId: taskCommentsTable.authorId,
+  authorName: usersTable.name,
+  authorImage: usersTable.image,
+  content: taskCommentsTable.content,
+  createdAt: taskCommentsTable.createdAt,
+  updatedAt: taskCommentsTable.updatedAt,
+}
+
 function toTaskRecord(
   row: typeof tasksTable.$inferSelect
 ): TaskRecordDTO {
@@ -286,6 +297,79 @@ async function getProjectsForMyAssignments(
       )
     )
     .where(inArray(projectsTable.id, projectIds))
+}
+
+// ---------- Task comments ----------
+
+async function getTaskRowInProject(taskId: string, projectId: string) {
+  return db
+    .select({ id: tasksTable.id })
+    .from(tasksTable)
+    .where(
+      and(
+        eq(tasksTable.id, taskId),
+        eq(tasksTable.projectId, projectId)
+      )
+    )
+    .then((rows) => rows[0])
+}
+
+async function getOpenAssignmentId(taskId: string, userId: string) {
+  return db
+    .select({ id: taskAssignmentsTable.id })
+    .from(taskAssignmentsTable)
+    .where(
+      and(
+        eq(taskAssignmentsTable.taskId, taskId),
+        eq(taskAssignmentsTable.userId, userId),
+        notInArray(taskAssignmentsTable.status, ["done", "cancelled"])
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0])
+}
+
+async function getUserProfile(userId: string) {
+  return db
+    .select({ name: usersTable.name, image: usersTable.image })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .then((rows) => rows[0])
+}
+
+async function getCommentRow(commentId: string) {
+  return db
+    .select({
+      authorId: taskCommentsTable.authorId,
+      taskId: taskCommentsTable.taskId,
+    })
+    .from(taskCommentsTable)
+    .where(eq(taskCommentsTable.id, commentId))
+    .then((rows) => rows[0])
+}
+
+async function getTaskComments(taskId: string) {
+  return db
+    .select(COMMENT_WITH_AUTHOR_COLUMNS)
+    .from(taskCommentsTable)
+    .innerJoin(
+      usersTable,
+      eq(taskCommentsTable.authorId, usersTable.id)
+    )
+    .where(eq(taskCommentsTable.taskId, taskId))
+    .orderBy(asc(taskCommentsTable.createdAt))
+}
+
+async function getCommentWithAuthor(commentId: string) {
+  return db
+    .select(COMMENT_WITH_AUTHOR_COLUMNS)
+    .from(taskCommentsTable)
+    .innerJoin(
+      usersTable,
+      eq(taskCommentsTable.authorId, usersTable.id)
+    )
+    .where(eq(taskCommentsTable.id, commentId))
+    .then((rows) => rows[0])
 }
 
 // ---------- Composed queries ----------
@@ -616,6 +700,39 @@ async function deleteTask(
     )
 }
 
+async function createComment(
+  taskId: string,
+  authorId: string,
+  content: string
+) {
+  const [inserted] = await db
+    .insert(taskCommentsTable)
+    .values({
+      taskId,
+      authorId,
+      content,
+    })
+    .returning()
+
+  return inserted
+}
+
+async function updateCommentContent(
+  commentId: string,
+  content: string
+): Promise<void> {
+  await db
+    .update(taskCommentsTable)
+    .set({ content })
+    .where(eq(taskCommentsTable.id, commentId))
+}
+
+async function deleteComment(commentId: string): Promise<void> {
+  await db
+    .delete(taskCommentsTable)
+    .where(eq(taskCommentsTable.id, commentId))
+}
+
 const queries = {
   getProjectPrimaryOwnerId,
   getProjectMemberIds,
@@ -632,6 +749,15 @@ const queries = {
   updateAssignmentComment,
   updateTaskPriority,
   deleteTask,
+  getTaskRowInProject,
+  getOpenAssignmentId,
+  getUserProfile,
+  getCommentRow,
+  getTaskComments,
+  getCommentWithAuthor,
+  createComment,
+  updateCommentContent,
+  deleteComment,
 }
 
 export default queries

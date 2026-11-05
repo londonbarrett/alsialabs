@@ -21,16 +21,26 @@ import {
   ALL_TASK_STATUSES,
   AssignmentStatusResultSchema,
   COLLABORATOR_TASK_STATUSES,
+  CreateTaskCommentSchema,
   CreateTaskSchema,
+  DeleteTaskCommentResultSchema,
+  DeleteTaskCommentSchema,
   MyAssignmentSchema,
   MyTasksTabSchema,
   TaskAssignmentSchema,
+  TaskCommentResultSchema,
+  TaskCommentWithAuthorSchema,
   TaskPrioritySchema,
   TaskWithAssignmentsSchema,
+  UpdateTaskCommentSchema,
   UpdateTaskSchema,
   type TaskAssignmentDTO,
 } from "./schemas"
-import { assertAssignees, isUniqueViolation } from "./util"
+import {
+  assertAssignees,
+  assertCommentAccess,
+  isUniqueViolation,
+} from "./util"
 
 export const getTasks = projectAction(z.object({ projectId: z.uuid() }))
   .metadata({})
@@ -284,4 +294,121 @@ export const deleteTask = projectAction(
     await queries.deleteTask(taskId, projectId)
 
     return { success: true }
+  })
+
+// ---------- Task comments ----------
+
+export const getTaskComments = projectAction(
+  z.object({ projectId: z.uuid(), taskId: z.uuid() })
+)
+  .metadata({})
+  .outputSchema(z.array(TaskCommentWithAuthorSchema))
+  .action(async ({ parsedInput, ctx }) => {
+    const { projectId, taskId } = parsedInput
+    await assertCommentAccess(
+      taskId,
+      projectId,
+      ctx.session.user.id,
+      ctx.projectRole
+    )
+
+    return queries.getTaskComments(taskId)
+  })
+
+export const createComment = projectAction(CreateTaskCommentSchema)
+  .metadata({})
+  .outputSchema(TaskCommentResultSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { projectId, taskId, content } = parsedInput
+    const session = ctx.session
+
+    await assertCommentAccess(
+      taskId,
+      projectId,
+      session.user.id,
+      ctx.projectRole
+    )
+
+    const inserted = await queries.createComment(
+      taskId,
+      session.user.id,
+      content
+    )
+    const author = await queries.getUserProfile(session.user.id)
+
+    return {
+      comment: {
+        id: inserted.id,
+        taskId: inserted.taskId,
+        authorId: inserted.authorId,
+        authorName: author?.name ?? null,
+        authorImage: author?.image ?? null,
+        content: inserted.content,
+        createdAt: inserted.createdAt,
+        updatedAt: inserted.updatedAt,
+      },
+    }
+  })
+
+export const updateComment = projectAction(UpdateTaskCommentSchema)
+  .metadata({})
+  .outputSchema(TaskCommentResultSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { projectId, commentId, taskId, content } = parsedInput
+    const session = ctx.session
+
+    await assertCommentAccess(
+      taskId,
+      projectId,
+      session.user.id,
+      ctx.projectRole
+    )
+
+    const comment = await queries.getCommentRow(commentId)
+    if (!comment || comment.taskId !== taskId) {
+      returnActionError("NOT_FOUND")
+    }
+
+    if (comment.authorId !== session.user.id)
+      returnActionError("FORBIDDEN")
+
+    await queries.updateCommentContent(commentId, content)
+
+    const updated = await queries.getCommentWithAuthor(commentId)
+    if (!updated) returnActionError("NOT_FOUND")
+
+    return {
+      comment: updated,
+    }
+  })
+
+export const deleteComment = projectAction(DeleteTaskCommentSchema)
+  .metadata({})
+  .outputSchema(DeleteTaskCommentResultSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { projectId, commentId, taskId } = parsedInput
+    const session = ctx.session
+
+    await assertCommentAccess(
+      taskId,
+      projectId,
+      session.user.id,
+      ctx.projectRole
+    )
+
+    const comment = await queries.getCommentRow(commentId)
+    if (!comment || comment.taskId !== taskId) {
+      returnActionError("NOT_FOUND")
+    }
+
+    const canDelete =
+      comment.authorId === session.user.id ||
+      canManageWork(ctx.projectRole)
+    if (!canDelete) returnActionError("FORBIDDEN")
+
+    await queries.deleteComment(commentId)
+
+    return {
+      commentId,
+    }
   })

@@ -7,4 +7,8 @@ export {
   updateAssignmentComment,
   updateTaskPriority,
   deleteTask,
+  getTaskComments,
+  createComment,
+  updateComment,
+  deleteComment,
 } from "./actions"

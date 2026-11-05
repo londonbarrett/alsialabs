@@ -3,7 +3,7 @@ import type {
   TaskAssignmentDTO,
   TaskStatus,
 } from "@/actions/tasks/schemas"
-import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 
 /**

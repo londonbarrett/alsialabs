@@ -1,5 +1,5 @@
 import type { MyAssignmentDTO, TaskAssignmentDTO } from "@/actions/tasks/schemas"
-import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import { describe, expect, it } from "vitest"
 import type { MyTasksState } from "./my-tasks-reducer"
 import { createMyTasksStore } from "./my-tasks-store"

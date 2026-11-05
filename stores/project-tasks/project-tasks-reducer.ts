@@ -3,7 +3,7 @@ import type {
   TaskPriorityDTO,
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
-import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import { sortAssignments } from "@/lib/tasks/assignments"
 
 export const EMPTY_COMMENTS: TaskCommentWithAuthorDTO[] = []

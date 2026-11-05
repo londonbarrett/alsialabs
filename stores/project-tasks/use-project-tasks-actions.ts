@@ -5,18 +5,16 @@ import {
   type TaskStatus,
   type TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
-import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import {
   createComment as createCommentAction,
-  deleteComment as deleteCommentAction,
-  getTaskComments,
-  updateComment as updateCommentAction,
-} from "@/actions/task-comments"
-import {
   createTask as createTaskAction,
+  deleteComment as deleteCommentAction,
   deleteTask as deleteTaskAction,
+  getTaskComments,
   updateAssignmentComment as updateAssignmentCommentAction,
   updateAssignmentStatus as updateAssignmentStatusAction,
+  updateComment as updateCommentAction,
   updateTask as updateTaskAction,
   updateTaskPriority as updateTaskPriorityAction,
 } from "@/actions/tasks"
@@ -29,10 +27,7 @@ import { useCallback } from "react"
 import { toast } from "sonner"
 import { useProjectTasksStore } from "./project-tasks-store"
 
-function toTaskPayload(
-  projectId: string,
-  values: TaskFormValues
-) {
+function toTaskPayload(projectId: string, values: TaskFormValues) {
   return {
     projectId,
     name: values.name,
@@ -249,9 +244,9 @@ export function useProjectTasksActions() {
   ) {
     const existing = store
       .getState()
-      .optimistic.commentsByTask[
-        taskId
-      ]?.find((c) => c.authorId === authorId)
+      .optimistic.commentsByTask[taskId]?.find(
+        (c) => c.authorId === authorId
+      )
 
     const tempComment: TaskCommentWithAuthorDTO = {
       id: `temp-${Date.now()}`,
