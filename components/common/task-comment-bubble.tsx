@@ -1,6 +1,6 @@
 "use client"
 
-import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import {
   Avatar,
   AvatarFallback,

@@ -1,6 +1,6 @@
 "use client"
 
-import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import { TaskCommentBubble } from "@/components/common/task-comment-bubble"
 import { Button } from "@/components/ui/button"
 import {

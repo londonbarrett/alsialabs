@@ -1,14 +1,14 @@
 "use client"
 
 import type { TaskStatus } from "@/actions/tasks/schemas"
-import type { TaskCommentWithAuthorDTO } from "@/actions/schemas/task-comment"
+import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import {
   createComment as createCommentAction,
   deleteComment as deleteCommentAction,
   getTaskComments,
+  updateAssignmentStatus as updateAssignmentStatusAction,
   updateComment as updateCommentAction,
-} from "@/actions/task-comments"
-import { updateAssignmentStatus as updateAssignmentStatusAction } from "@/actions/tasks"
+} from "@/actions/tasks"
 import { useSettle } from "@/hooks/use-settle"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
@@ -101,9 +101,9 @@ export function useMyTasksActions() {
     // reuse it for the optimistic row rather than threading the user's profile.
     const existing = store
       .getState()
-      .optimistic.commentsByTask[
-        taskId
-      ]?.find((c) => c.authorId === authorId)
+      .optimistic.commentsByTask[taskId]?.find(
+        (c) => c.authorId === authorId
+      )
 
     const tempComment: TaskCommentWithAuthorDTO = {
       id: `temp-${Date.now()}`,
@@ -155,8 +155,7 @@ export function useMyTasksActions() {
   ) {
     const result = await run(
       { type: "deleteComment", taskId, commentId },
-      () =>
-        deleteCommentAction({ projectId, commentId, taskId })
+      () => deleteCommentAction({ projectId, commentId, taskId })
     )
     settle(result, t("projects.tasks.comments.commentDeleted"))
   }

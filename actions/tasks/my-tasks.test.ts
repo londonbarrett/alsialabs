@@ -78,11 +78,22 @@ beforeEach(() => {
 })
 
 describe("getMyTasks", () => {
+  it("rejects an unknown view before the action runs", async () => {
+    // @ts-expect-error simulating a raw client payload outside the enum
+    const result = await getMyTasks({ view: "someday" })
+
+    expect(result.validationErrors).toBeDefined()
+    expect(result.data).toBeUndefined()
+    expect(result.serverError).toBeUndefined()
+  })
+
   it("returns only open assignments for the active view", async () => {
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
-      makeRow({ assignmentId: "open" }),
-      makeRow({ assignmentId: "closed", status: "done" }),
-    ])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([
+        makeRow({ assignmentId: "open" }),
+        makeRow({ assignmentId: "closed", status: "done" }),
+      ])
 
     const result = await getMyTasks({ view: "active" })
 
@@ -92,10 +103,12 @@ describe("getMyTasks", () => {
   })
 
   it("returns only terminal assignments for the past view", async () => {
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
-      makeRow({ assignmentId: "open" }),
-      makeRow({ assignmentId: "closed", status: "done" }),
-    ])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([
+        makeRow({ assignmentId: "open" }),
+        makeRow({ assignmentId: "closed", status: "done" }),
+      ])
 
     const result = await getMyTasks({ view: "past" })
 
@@ -127,10 +140,12 @@ describe("getMyTasks", () => {
       // Not the owner, no membership row left: access is gone.
       makeProject({ primaryOwnerId: OWNER_ID, memberRole: null }),
     ])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
-      makeRow({ assignmentId: "orphan-open" }),
-      makeRow({ assignmentId: "orphan-closed", status: "cancelled" }),
-    ])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([
+        makeRow({ assignmentId: "orphan-open" }),
+        makeRow({ assignmentId: "orphan-closed", status: "cancelled" }),
+      ])
 
     const active = await getMyTasks({ view: "active" })
     const past = await getMyTasks({ view: "past" })
@@ -142,9 +157,9 @@ describe("getMyTasks", () => {
   })
 
   it("carries the recurrence so the list can badge repeating work", async () => {
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
-      makeRow({ recurrence: "weekly" }),
-    ])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeRow({ recurrence: "weekly" })])
 
     const result = await getMyTasks({ view: "active" })
 
@@ -152,12 +167,14 @@ describe("getMyTasks", () => {
   })
 
   it("includes an open assignment the caller still owns", async () => {
-    state.mock.onSelect(schema.projectsTable).respond([
-      makeProject({ primaryOwnerId: USER_ID, memberRole: null }),
-    ])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
-      makeRow(),
-    ])
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([
+        makeProject({ primaryOwnerId: USER_ID, memberRole: null }),
+      ])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeRow()])
 
     const result = await getMyTasks({ view: "active" })
 

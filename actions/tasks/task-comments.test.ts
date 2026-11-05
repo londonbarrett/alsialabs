@@ -37,7 +37,7 @@ import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
 import { resolveProjectAccess } from "@/actions/projects/util"
 import type { ProjectRole } from "@/lib/types"
-import { deleteComment, getTaskComments } from "@/actions/task-comments"
+import { deleteComment, getTaskComments } from "@/actions/tasks"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockResolveAccess = vi.mocked(resolveProjectAccess)
@@ -66,6 +66,17 @@ beforeEach(() => {
 })
 
 describe("getTaskComments access", () => {
+  it("rejects input that fails the schema before the action runs", async () => {
+    const result = await getTaskComments({
+      projectId: "not-a-uuid",
+      taskId: "not-a-uuid",
+    })
+
+    expect(result.validationErrors).toBeDefined()
+    expect(result.data).toBeUndefined()
+    expect(result.serverError).toBeUndefined()
+  })
+
   it("lets a collaborator with an open assignment read comments", async () => {
     state.mock.onSelect(schema.tasksTable).respond([{ id: TASK_ID }])
     state.mock
