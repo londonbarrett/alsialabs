@@ -20,6 +20,8 @@ export const UpdateExpenseSchema = ExpenseSchema.extend({
 })
 
 export type ExpenseDTO = z.infer<typeof ExpenseSchema>
+export type CreateExpenseDTO = z.infer<typeof CreateExpenseSchema>
+export type UpdateExpenseDTO = z.infer<typeof UpdateExpenseSchema>
 
 // ---------- Response schemas ----------
 

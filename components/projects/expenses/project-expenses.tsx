@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import type { Expense } from "@/lib/drizzle/schema"
-import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
+import type { ExpenseWithCategoryDTO } from "@/actions/expenses/schemas"
 import { useExpensesActions } from "@/stores/expenses/use-expenses-actions"
 import { useExpensesState } from "@/stores/expenses/use-expenses-state"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
