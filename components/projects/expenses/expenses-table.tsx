@@ -1,7 +1,7 @@
 "use client"
 
 import type { ExpenseWithCategoryDTO } from "@/actions/expenses/schemas"
-import type { ProjectInvoiceDTO } from "@/actions/schemas/invoice"
+import type { ProjectInvoiceDTO } from "@/actions/invoices/schemas"
 import { ActionMenu } from "@/components/common/action-menu"
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { Money } from "@/components/common/money"

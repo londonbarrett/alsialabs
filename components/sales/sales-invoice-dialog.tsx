@@ -3,7 +3,7 @@
 import { Dialog } from "@/components/common/dialog"
 import { InvoiceForm } from "@/components/sales/invoice-form"
 import type { Invoice } from "@/lib/drizzle/schema"
-import type { InvoiceDTO } from "@/actions/schemas/invoice"
+import type { InvoiceDTO } from "@/actions/invoices/schemas"
 import type { SettleResult } from "@/lib/types"
 import { useInvoiceActions } from "@/stores/invoice/use-invoice-actions"
 import { useTranslations } from "next-intl"

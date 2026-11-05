@@ -1,5 +1,5 @@
 import type { ActivityFormDTO } from "@/actions/schemas/activity"
-import type { InvoiceDTO } from "@/actions/schemas/invoice"
+import type { InvoiceDTO } from "@/actions/invoices/schemas"
 import type {
   ClientActivity,
   ClientReminder,

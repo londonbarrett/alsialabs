@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { createInvoiceStore } from "./invoice-store"
 import { invoiceReducer } from "./invoice-reducer"
-import type { InvoiceWithClientNameDTO } from "@/actions/schemas/invoice"
+import type { InvoiceWithClientNameDTO } from "@/actions/invoices/schemas"
 import type { InvoicePayment } from "@/lib/drizzle/schema"
 
 function makeInvoice(

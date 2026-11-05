@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import type { ExpenseWithCategoryDTO } from "@/actions/expenses/schemas"
-import type { ProjectInvoiceDTO } from "@/actions/schemas/invoice"
+import type { ProjectInvoiceDTO } from "@/actions/invoices/schemas"
 import { expenseReducer } from "./expense-reducer"
 import { createExpensesStore } from "./expense-store"
 

@@ -8,7 +8,7 @@ import {
   reopenInvoice as reopenInvoiceAction,
   updateInvoice as updateInvoiceAction,
 } from "@/actions/invoices"
-import type { InvoiceDTO } from "@/actions/schemas/invoice"
+import type { InvoiceDTO } from "@/actions/invoices/schemas"
 import { useSettle } from "@/hooks/use-settle"
 import type { Invoice } from "@/lib/drizzle/schema"
 import type { SettleResult } from "@/lib/types"
