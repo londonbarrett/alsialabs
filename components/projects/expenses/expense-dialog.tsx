@@ -4,7 +4,7 @@ import { Dialog } from "@/components/common/dialog"
 import { useTranslations } from "next-intl"
 import { ExpenseForm } from "./expense-form"
 import type { Expense } from "@/lib/drizzle/schema"
-import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
+import type { ExpenseWithCategoryDTO } from "@/actions/expenses/schemas"
 
 interface ExpenseDialogProps {
   expense?: ExpenseWithCategoryDTO

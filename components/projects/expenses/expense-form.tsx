@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Expense } from "@/lib/drizzle/schema"
-import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
+import type { ExpenseWithCategoryDTO } from "@/actions/expenses/schemas"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
 

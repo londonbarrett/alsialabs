@@ -11,7 +11,7 @@ import type { Expense } from "@/lib/drizzle/schema"
 import type {
   ExpenseCategoryOptionDTO,
   ExpenseWithCategoryDTO,
-} from "@/actions/schemas/expense"
+} from "@/actions/expenses/schemas"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"

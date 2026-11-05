@@ -1,7 +1,7 @@
 "use client"
 
 import { useServerReseed } from "@/hooks/use-server-reseed"
-import type { ExpenseWithCategoryDTO } from "@/actions/schemas/expense"
+import type { ExpenseWithCategoryDTO } from "@/actions/expenses/schemas"
 import type { ProjectInvoiceDTO } from "@/actions/schemas/invoice"
 import {
   createExpensesStore,
