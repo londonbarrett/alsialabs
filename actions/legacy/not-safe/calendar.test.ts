@@ -25,7 +25,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
-import { getCalendarAssignments } from "@/actions/not-safe/calendar"
+import { getCalendarAssignments } from "@/actions/legacy/not-safe/calendar"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 

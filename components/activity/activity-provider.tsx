@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
+import type { ReminderRecordDTO } from "@/actions/legacy/schemas/reminder"
 import {
   ActivityStoreContext,
   createActivityStore,

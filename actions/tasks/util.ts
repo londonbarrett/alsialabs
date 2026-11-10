@@ -1,4 +1,4 @@
-import { returnActionError } from "@/lib/safe-action"
+import { returnActionError } from "@/actions/safe-action"
 import type { ProjectRole } from "@/lib/types"
 import { canViewProject } from "@/lib/util/project-roles"
 import queries from "./queries"

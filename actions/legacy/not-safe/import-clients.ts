@@ -1,11 +1,11 @@
 "use server"
 
 import { auth } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
 import { db } from "@/lib/drizzle/client"
 import { clientsTable } from "@/lib/drizzle/schema"
 import { runAction, throwActionError } from "@/lib/action-result"
-import { CsvRecordSchema } from "@/actions/schemas/import"
+import { CsvRecordSchema } from "@/actions/legacy/schemas/import"
 import { inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import Papa from "papaparse"

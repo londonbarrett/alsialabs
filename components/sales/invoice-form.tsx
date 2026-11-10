@@ -1,7 +1,7 @@
 "use client"
 
 import { getInvoiceItems, getInvoiceProducts } from "@/actions/invoices"
-import type { ClientOptionDTO } from "@/actions/schemas/client"
+import type { ClientOptionDTO } from "@/actions/legacy/schemas/client"
 import type { InvoiceDTO } from "@/actions/invoices/schemas"
 import { ClientCombobox } from "@/components/clients/client-combobox"
 import { MoneyInput } from "@/components/common/money-input"

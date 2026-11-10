@@ -15,11 +15,11 @@ import {
   createProduct,
   updateProduct,
   checkSkuExists,
-} from "@/actions/products"
+} from "@/actions/legacy/products"
 import { useActionError } from "@/lib/util/action-errors"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import type { Product } from "@/lib/drizzle/schema"
-import type { StoreOptionDTO } from "@/actions/schemas/store"
+import type { StoreOptionDTO } from "@/actions/legacy/schemas/store"
 import { useAction } from "next-safe-action/hooks"
 import { useTranslations } from "next-intl"
 import { useCallback, useEffect, useRef, useState } from "react"

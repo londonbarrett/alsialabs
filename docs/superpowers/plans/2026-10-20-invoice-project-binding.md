@@ -464,7 +464,7 @@ Commit `feat(my-invoices): bind-to-project row action and dialog` (with permissi
 
 - [ ] **Step 1: Write the failing tests**
 
-In `actions/invoices.test.ts` add the project-access mock (copy from `actions/__tests__/expenses.test.ts:8-10,42,53`): `vi.mock("@/actions/not-safe/project-access", () => ({ verifyProjectAccess: vi.fn() }))`, `mockVerifyProjectAccess`, and in `beforeEach` (after `vi.clearAllMocks()`): `mockVerifyProjectAccess.mockResolvedValue({ hasAccess: true, isOwner: true })`.
+In `actions/invoices.test.ts` add the project-access mock (copy from `actions/__tests__/expenses.test.ts:8-10,42,53`): `vi.mock("@/actions/legacy/not-safe/project-access", () => ({ verifyProjectAccess: vi.fn() }))`, `mockVerifyProjectAccess`, and in `beforeEach` (after `vi.clearAllMocks()`): `mockVerifyProjectAccess.mockResolvedValue({ hasAccess: true, isOwner: true })`.
 
 ```ts
 describe("getProjectInvoices", () => {

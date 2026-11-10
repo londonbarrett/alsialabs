@@ -7,17 +7,17 @@ import {
 import {
   deleteActivity as deleteActivityAction,
   upsertActivity,
-} from "@/actions/not-safe/activities"
+} from "@/actions/legacy/not-safe/activities"
 import {
   completeReminder as completeReminderAction,
   deleteReminder as deleteReminderAction,
   upsertReminder,
-} from "@/actions/not-safe/reminders"
+} from "@/actions/legacy/not-safe/reminders"
 import {
   deletePayment as deletePaymentAction,
   updatePayment as updatePaymentAction,
-} from "@/actions/payments"
-import type { ActivityFormDTO } from "@/actions/schemas/activity"
+} from "@/actions/legacy/payments"
+import type { ActivityFormDTO } from "@/actions/legacy/schemas/activity"
 import type { InvoiceDTO } from "@/actions/invoices/schemas"
 import type { PaymentFormValues } from "@/components/sales/payment-form"
 import { useSettle } from "@/hooks/use-settle"

@@ -3,7 +3,7 @@
 import {
   createBackup as createBackupAction,
   restoreBackup as restoreBackupAction,
-} from "@/actions/backups"
+} from "@/actions/legacy/backups"
 import { useSettle } from "@/hooks/use-settle"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"

@@ -1,11 +1,11 @@
 "use server"
 
-import { SuccessSchema } from "@/actions/schemas/common"
+import { SuccessSchema } from "@/actions/legacy/schemas/common"
 import {
   projectAction,
   returnActionError,
   sessionAction,
-} from "@/lib/safe-action"
+} from "@/actions/safe-action"
 import { canManageWork, canViewProject } from "@/lib/util/project-roles"
 import { z } from "zod"
 import queries from "./queries"

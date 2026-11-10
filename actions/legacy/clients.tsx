@@ -6,7 +6,7 @@ import {
   userRolesTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { returnActionError, storeAction } from "@/lib/safe-action"
+import { returnActionError, storeAction } from "@/actions/safe-action"
 import {
   ClientOptionSchema,
   ClientRecordSchema,
@@ -14,12 +14,12 @@ import {
   InviteSchema,
   PhoneSchema,
   UpdateClientSchema,
-} from "@/actions/schemas/client"
+} from "@/actions/legacy/schemas/client"
 import {
   ExistsSchema,
   IdSchema,
   SuccessSchema,
-} from "@/actions/schemas/common"
+} from "@/actions/legacy/schemas/common"
 import { getRoleIdByName } from "@/lib/util/query-helpers"
 import crypto from "crypto"
 import { and, eq, ilike, or } from "drizzle-orm"

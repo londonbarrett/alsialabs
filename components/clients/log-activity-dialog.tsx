@@ -1,6 +1,6 @@
 "use client"
 
-import type { ActivityFormDTO } from "@/actions/schemas/activity"
+import type { ActivityFormDTO } from "@/actions/legacy/schemas/activity"
 import { Dialog } from "@/components/common/dialog"
 import { Field } from "@/components/form-field"
 import { Button } from "@/components/ui/button"

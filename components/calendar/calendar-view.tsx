@@ -1,7 +1,7 @@
 "use client"
 
-import { getCalendarAssignments } from "@/actions/not-safe/calendar"
-import type { CalendarAssignmentDTO } from "@/actions/schemas/calendar"
+import { getCalendarAssignments } from "@/actions/legacy/not-safe/calendar"
+import type { CalendarAssignmentDTO } from "@/actions/legacy/schemas/calendar"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import type {
   CalendarLabels,

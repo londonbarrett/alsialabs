@@ -39,7 +39,7 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
-} from "@/actions/categories"
+} from "@/actions/legacy/categories"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)

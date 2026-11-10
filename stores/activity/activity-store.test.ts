@@ -1,5 +1,5 @@
-import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
-import type { ClientTimelineEntryDTO } from "@/actions/schemas/client-timeline"
+import type { ReminderRecordDTO } from "@/actions/legacy/schemas/reminder"
+import type { ClientTimelineEntryDTO } from "@/actions/legacy/schemas/client-timeline"
 import {
   activityReducer,
   type ClientActivityList,

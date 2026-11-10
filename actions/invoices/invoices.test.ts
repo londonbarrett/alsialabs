@@ -10,7 +10,7 @@ vi.mock("@/actions/projects/util", () => ({
   resolveProjectAccess: vi.fn(),
 }))
 
-vi.mock("@/actions/not-safe/stores", () => ({
+vi.mock("@/actions/legacy/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -38,7 +38,7 @@ vi.mock("@/lib/drizzle/client", async () => {
   return { db }
 })
 
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
 import { resolveProjectAccess } from "@/actions/projects/util"
 import { auth, hasPermission, isSuperUser } from "@/lib/auth"
 import * as schema from "@/lib/drizzle/schema"

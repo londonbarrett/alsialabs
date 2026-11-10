@@ -6,7 +6,7 @@ import { getInvoices } from "@/actions/invoices"
 import {
   getMonthlyRevenue,
   getTopClientsByRevenue,
-} from "@/actions/sales"
+} from "@/actions/legacy/sales"
 import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { ChartNoAxesCombined } from "lucide-react"

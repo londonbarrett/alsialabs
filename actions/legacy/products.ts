@@ -6,14 +6,14 @@ import {
   returnActionError,
   sessionAction,
   storeAction,
-} from "@/lib/safe-action"
+} from "@/actions/safe-action"
 import {
   CreateProductSchema,
   ProductRecordSchema,
   ProductWithStoreSchema,
   UpdateProductSchema,
-} from "@/actions/schemas/product"
-import { ExistsSchema, IdSchema, SuccessSchema } from "@/actions/schemas/common"
+} from "@/actions/legacy/schemas/product"
+import { ExistsSchema, IdSchema, SuccessSchema } from "@/actions/legacy/schemas/common"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 

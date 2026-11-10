@@ -1,5 +1,5 @@
-import { getUserStores } from "@/actions/not-safe/stores"
-import { getProducts } from "@/actions/products"
+import { getUserStores } from "@/actions/legacy/not-safe/stores"
+import { getProducts } from "@/actions/legacy/products"
 import { ProductListView } from "@/components/products/product-list-view"
 import { auth, hasPermission } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"

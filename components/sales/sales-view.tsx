@@ -12,7 +12,7 @@ import {
 import type {
   MonthlyRevenueDTO,
   TopClientByRevenueDTO,
-} from "@/actions/schemas/sales"
+} from "@/actions/legacy/schemas/sales"
 import { useTranslations } from "next-intl"
 
 interface SalesViewProps {

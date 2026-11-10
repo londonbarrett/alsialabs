@@ -27,12 +27,12 @@ import { Plus, Trash2 } from "lucide-react"
 import {
   manageModule,
   togglePermission,
-} from "@/actions/not-safe/permissions"
+} from "@/actions/legacy/not-safe/permissions"
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { toast } from "sonner"
 import { useActionError } from "@/lib/util/action-errors"
 import { defaultIsSuccess } from "@/lib/util/action-result"
-import type { PermissionMatrixItemDTO } from "@/actions/schemas/permission"
+import type { PermissionMatrixItemDTO } from "@/actions/legacy/schemas/permission"
 
 type Role = { id: string; name: string }
 

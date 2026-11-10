@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/drizzle/client"
 import { categoryTable, taxonomyTable } from "@/lib/drizzle/schema"
-import { returnActionError, sessionAction } from "@/lib/safe-action"
+import { returnActionError, sessionAction } from "@/actions/safe-action"
 import {
   CategoryDetailSchema,
   CategoryOptionSchema,
@@ -10,8 +10,8 @@ import {
   SlugSchema,
   TaxonomySchema,
   UpdateCategorySchema,
-} from "@/actions/schemas/category"
-import { ExistsSchema, IdSchema, SuccessSchema } from "@/actions/schemas/common"
+} from "@/actions/legacy/schemas/category"
+import { ExistsSchema, IdSchema, SuccessSchema } from "@/actions/legacy/schemas/common"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 

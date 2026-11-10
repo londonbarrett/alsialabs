@@ -1,6 +1,6 @@
 "use server"
 
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
 import { auth, requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
@@ -11,11 +11,11 @@ import type { ClientReminder } from "@/lib/drizzle/schema"
 import type {
   ReminderRecordDTO,
   ReminderFormDTO,
-} from "@/actions/schemas/reminder"
+} from "@/actions/legacy/schemas/reminder"
 import {
   ReminderFormSchema,
   ReminderRecordSchema,
-} from "@/actions/schemas/reminder"
+} from "@/actions/legacy/schemas/reminder"
 import {
   runAction,
   throwActionError,

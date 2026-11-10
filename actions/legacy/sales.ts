@@ -1,17 +1,17 @@
 "use server"
 
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
 import { db } from "@/lib/drizzle/client"
 import {
   clientsTable,
   invoiceItemsTable,
   invoicesTable,
 } from "@/lib/drizzle/schema"
-import { sessionAction } from "@/lib/safe-action"
+import { sessionAction } from "@/actions/safe-action"
 import {
   MonthlyRevenueSchema,
   TopClientByRevenueSchema,
-} from "@/actions/schemas/sales"
+} from "@/actions/legacy/schemas/sales"
 import { and, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 

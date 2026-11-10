@@ -19,7 +19,7 @@ vi.mock("next/cache", () => ({
   updateTag: vi.fn(),
 }))
 
-vi.mock("@/actions/not-safe/stores", () => ({
+vi.mock("@/actions/legacy/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -55,7 +55,7 @@ import {
 } from "@/lib/backup/files"
 import { pgDump, restoreSql } from "@/lib/backup/exec"
 import { throwActionError } from "@/lib/action-result"
-import { createBackup, restoreBackup } from "@/actions/backups"
+import { createBackup, restoreBackup } from "@/actions/legacy/backups"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockIsSuperUser = vi.mocked(isSuperUser)

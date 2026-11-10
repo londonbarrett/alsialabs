@@ -9,7 +9,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import type { MonthlyRevenueDTO } from "@/actions/schemas/sales"
+import type { MonthlyRevenueDTO } from "@/actions/legacy/schemas/sales"
 import { useTranslations } from "next-intl"
 
 interface MonthlyRevenueChartProps {

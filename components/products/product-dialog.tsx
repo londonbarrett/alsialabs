@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import type { Product } from "@/lib/drizzle/schema"
-import type { StoreOptionDTO } from "@/actions/schemas/store"
+import type { StoreOptionDTO } from "@/actions/legacy/schemas/store"
 import { useTranslations } from "next-intl"
 
 interface ProductDialogProps {

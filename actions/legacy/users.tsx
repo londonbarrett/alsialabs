@@ -8,7 +8,7 @@ import {
   UserIdResultSchema,
   UserOptionSchema,
   UserWithRoleSchema,
-} from "@/actions/schemas/user"
+} from "@/actions/legacy/schemas/user"
 import { isSuperUser } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"
 import {
@@ -20,7 +20,7 @@ import {
   userRolesTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { returnActionError, sessionAction } from "@/lib/safe-action"
+import { returnActionError, sessionAction } from "@/actions/safe-action"
 import { eq, ilike, or } from "drizzle-orm"
 import { z } from "zod"
 

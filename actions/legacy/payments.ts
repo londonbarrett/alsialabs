@@ -2,9 +2,9 @@
 
 import { db } from "@/lib/drizzle/client"
 import { invoicePaymentsTable, invoicesTable } from "@/lib/drizzle/schema"
-import { returnActionError, sessionAction } from "@/lib/safe-action"
-import { SuccessSchema } from "@/actions/schemas/common"
-import { PaymentSchema } from "@/actions/schemas/payment"
+import { returnActionError, sessionAction } from "@/actions/safe-action"
+import { SuccessSchema } from "@/actions/legacy/schemas/common"
+import { PaymentSchema } from "@/actions/legacy/schemas/payment"
 import { and, eq, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 

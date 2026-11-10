@@ -1,6 +1,6 @@
 "use client"
 
-import type { ClientTimelineEntryDTO } from "@/actions/schemas/client-timeline"
+import type { ClientTimelineEntryDTO } from "@/actions/legacy/schemas/client-timeline"
 import { ActivityEntryRow } from "@/components/activity/activity-entry-row"
 import { ReminderEntryRow } from "@/components/activity/reminder-entry-row"
 

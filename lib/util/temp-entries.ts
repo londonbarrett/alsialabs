@@ -1,4 +1,4 @@
-import type { ActivityFormDTO } from "@/actions/schemas/activity"
+import type { ActivityFormDTO } from "@/actions/legacy/schemas/activity"
 import type { InvoiceDTO } from "@/actions/invoices/schemas"
 import type {
   ClientActivity,

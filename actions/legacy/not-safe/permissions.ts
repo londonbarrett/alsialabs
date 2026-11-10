@@ -15,12 +15,12 @@ import type {
   ManageModuleDTO,
   PermissionMatrixItemDTO,
   TogglePermissionDTO,
-} from "@/actions/schemas/permission"
+} from "@/actions/legacy/schemas/permission"
 import {
   ManageModuleSchema,
   PermissionMatrixItemSchema,
   TogglePermissionSchema,
-} from "@/actions/schemas/permission"
+} from "@/actions/legacy/schemas/permission"
 
 export async function getPermissions() {
   return runAction<{

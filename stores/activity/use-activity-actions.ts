@@ -1,14 +1,14 @@
 "use client"
 
-import { upsertActivity } from "@/actions/not-safe/activities"
-import { getClientTimelinePage } from "@/actions/not-safe/client-timeline"
+import { upsertActivity } from "@/actions/legacy/not-safe/activities"
+import { getClientTimelinePage } from "@/actions/legacy/not-safe/client-timeline"
 import {
   completeReminder as completeReminderAction,
   deleteReminder as deleteReminderAction,
   upsertReminder,
-} from "@/actions/not-safe/reminders"
-import type { ActivityFormDTO } from "@/actions/schemas/activity"
-import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
+} from "@/actions/legacy/not-safe/reminders"
+import type { ActivityFormDTO } from "@/actions/legacy/schemas/activity"
+import type { ReminderRecordDTO } from "@/actions/legacy/schemas/reminder"
 import { useSettle } from "@/hooks/use-settle"
 import type { ReminderSubmitData } from "@/lib/types"
 import {

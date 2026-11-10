@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import type { CalendarAssignmentDTO } from "@/actions/schemas/calendar"
+import type { CalendarAssignmentDTO } from "@/actions/legacy/schemas/calendar"
 import { buildCalendarEvents } from "./events"
 
 function assignment(

@@ -1,6 +1,6 @@
 "use server"
 
-import { SuccessSchema } from "@/actions/schemas/common"
+import { SuccessSchema } from "@/actions/legacy/schemas/common"
 import type { TaskStatus } from "@/lib/drizzle/schema"
 import {
   canChangeAnyAssignment,
@@ -12,7 +12,7 @@ import {
   projectAction,
   returnActionError,
   sessionAction,
-} from "@/lib/safe-action"
+} from "@/actions/safe-action"
 import { atTime, toTaskAssignmentDTO } from "@/lib/tasks/assignments"
 import { computeNextOccurrence } from "@/lib/tasks/recurrence"
 import { z } from "zod"

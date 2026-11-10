@@ -8,7 +8,7 @@ import {
   setProjectMemberRole,
 } from "@/actions/projects"
 import type { ProjectMemberRowDTO } from "@/actions/projects/schemas"
-import type { UserOptionDTO } from "@/actions/schemas/user"
+import type { UserOptionDTO } from "@/actions/legacy/schemas/user"
 import { useSettle } from "@/hooks/use-settle"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
