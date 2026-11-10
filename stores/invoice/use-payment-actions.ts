@@ -6,7 +6,7 @@ import {
   deletePayment as deletePaymentAction,
   recordPayment as recordPaymentAction,
   updatePayment as updatePaymentAction,
-} from "@/actions/payments"
+} from "@/actions/legacy/payments"
 import type { Invoice, InvoicePayment } from "@/lib/drizzle/schema"
 import { useActionError } from "@/lib/util/action-errors"
 import { useSettle } from "@/hooks/use-settle"

@@ -4,7 +4,7 @@ import {
 } from "next-safe-action"
 import { z } from "zod"
 import { auth, isSuperUser, hasPermission } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
 import { resolveProjectAccess } from "@/actions/projects/util"
 import { revalidatePath, updateTag } from "next/cache"
 import type { ActionErrorCode } from "@/actions/error-codes"

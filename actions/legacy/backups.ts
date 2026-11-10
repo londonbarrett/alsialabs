@@ -6,7 +6,7 @@ import {
   BackupEntrySchema,
   CreateBackupSchema,
   RestoreBackupSchema,
-} from "@/actions/schemas/backup"
+} from "@/actions/legacy/schemas/backup"
 import { throwActionError } from "@/lib/action-result"
 import { pgDump, restoreSql } from "@/lib/backup/exec"
 import {
@@ -18,7 +18,7 @@ import {
   listPublicTables,
   validateTableSelection,
 } from "@/lib/backup/tables"
-import { adminAction } from "@/lib/safe-action"
+import { adminAction } from "@/actions/safe-action"
 
 export const createBackup = adminAction
   .metadata({})

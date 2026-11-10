@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
+import type { ReminderRecordDTO } from "@/actions/legacy/schemas/reminder"
 import { Dialog } from "@/components/common/dialog"
 import { Button } from "@/components/ui/button"
 import {

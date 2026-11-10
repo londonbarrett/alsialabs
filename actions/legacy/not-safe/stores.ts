@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/drizzle/client"
 import { storesTable } from "@/lib/drizzle/schema"
-import type { StoreOptionDTO } from "@/actions/schemas/store"
+import type { StoreOptionDTO } from "@/actions/legacy/schemas/store"
 import { auth, isRetailer, requirePermission } from "@/lib/auth"
 import { runAction, throwActionError } from "@/lib/action-result"
 import { eq } from "drizzle-orm"

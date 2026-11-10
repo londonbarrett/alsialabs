@@ -1,7 +1,7 @@
 "use server"
 
-import { getProjectCategories } from "@/actions/categories"
-import { SuccessSchema } from "@/actions/schemas/common"
+import { getProjectCategories } from "@/actions/legacy/categories"
+import { SuccessSchema } from "@/actions/legacy/schemas/common"
 import { getUserPermissions } from "@/lib/auth"
 import { throwActionError } from "@/lib/action-result"
 import {
@@ -14,7 +14,7 @@ import {
   projectAction,
   returnActionError,
   sessionAction,
-} from "@/lib/safe-action"
+} from "@/actions/safe-action"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { z } from "zod"
 import queries from "./queries"

@@ -1,5 +1,5 @@
 import type { CalendarEvent } from "../types"
-import type { CalendarAssignmentDTO } from "@/actions/schemas/calendar"
+import type { CalendarAssignmentDTO } from "@/actions/legacy/schemas/calendar"
 import { startOfDay } from "@/lib/util/schedule"
 
 const HOUR_MS = 60 * 60 * 1000

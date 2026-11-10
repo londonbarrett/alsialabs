@@ -1,4 +1,4 @@
-import type { BackupEntry } from "@/actions/schemas/backup"
+import type { BackupEntry } from "@/actions/legacy/schemas/backup"
 import { createElement } from "react"
 import { renderToString } from "react-dom/server"
 import { describe, expect, it } from "vitest"

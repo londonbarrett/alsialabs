@@ -29,7 +29,7 @@
 
 1. **Barrel + `"use server"`** — Turbopack rejects re-exports (both `export *` and named `export { x } from`) from a `"use server"` file. Pinned in Task 3 by `pnpm build`; resolved by dropping the directive from `index.ts` (server references come from `action.ts`).
 2. **Circular import `lib/safe-action` → `actions/projects/util` → `queries`** — a cycle would fail at module init, often only at runtime. Pinned in Task 2 by running `actions/__tests__/safe-action.test.ts` (imports the chain) and in Task 3 by the full projects suite; `util.ts`/`queries.ts` must never import `@/lib/safe-action` or `./action`.
-3. **vi.mock path drift** — a test mocking the old path while code imports the new path either fails loudly (real DB call) or silently stops intercepting. Pinned in Task 2 by a grep step asserting zero matches for `@/actions/not-safe/project-access` and `verifyProjectAccess` outside docs, plus the full unit suite.
+3. **vi.mock path drift** — a test mocking the old path while code imports the new path either fails loudly (real DB call) or silently stops intercepting. Pinned in Task 2 by a grep step asserting zero matches for `@/actions/legacy/not-safe/project-access` and `verifyProjectAccess` outside docs, plus the full unit suite.
 4. **`getProjectContext` skips per-action output validation** — direct queries replace nested safe actions, so shape errors would surface only through the outer `ProjectContextSchema`. Pinned in Task 3 by new `getProjectContext` tests (happy path + FORBIDDEN) and by e2e project pages in Task 5.
 5. **`getProjectForEdit` shares `getProjectById`** — the query now returns `categorySlug`/`categoryName`, which `ProjectRecordSchema` must strip (Zod default), not reject. Pinned in Task 3 by a new `getProjectForEdit` test asserting success and no `categorySlug` key in `result.data`.
 
@@ -120,7 +120,7 @@ resolveProjectAccess(projectId: string, userId: string): Promise<ProjectAccess> 
 - Bodies are verbatim moves from `actions/projects.ts`, `actions/project-membership.ts`, and `actions/not-safe/project-access.ts`. Permission checks, `returnActionError`/`throwActionError`, and output shaping stay in the actions (still in their old files until Tasks 3–4) — queries return data or `undefined`/`null`.
 - `queries.ts` may import `./schema` for DTO types; `util.ts` imports `./queries` only. Neither may import `@/lib/safe-action` or `./action`.
 
-Test files whose `vi.mock("@/actions/not-safe/project-access")` must become `vi.mock("@/actions/projects/util")` with export `resolveProjectAccess` (and import/`vi.mocked` bindings renamed `verifyProjectAccess` → `resolveProjectAccess` where imported):
+Test files whose `vi.mock("@/actions/legacy/not-safe/project-access")` must become `vi.mock("@/actions/projects/util")` with export `resolveProjectAccess` (and import/`vi.mocked` bindings renamed `verifyProjectAccess` → `resolveProjectAccess` where imported):
 
 - `actions/__tests__/backups.test.ts` (mock only)
 - `actions/__tests__/safe-action.test.ts` (mock only)

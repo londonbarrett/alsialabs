@@ -13,7 +13,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
-import type { TopClientByRevenueDTO } from "@/actions/schemas/sales"
+import type { TopClientByRevenueDTO } from "@/actions/legacy/schemas/sales"
 import { useTranslations } from 'next-intl'
 
 interface TopClientsChartProps {

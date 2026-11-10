@@ -3,7 +3,7 @@
 import {
   CalendarAssignmentSchema,
   type CalendarAssignmentDTO,
-} from "@/actions/schemas/calendar"
+} from "@/actions/legacy/schemas/calendar"
 import { runAction, throwActionError } from "@/lib/action-result"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"

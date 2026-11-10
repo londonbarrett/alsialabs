@@ -9,7 +9,7 @@ vi.mock("@/actions/projects/util", () => ({
   resolveProjectAccess: vi.fn(),
 }))
 
-vi.mock("@/actions/not-safe/stores", () => ({
+vi.mock("@/actions/legacy/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 

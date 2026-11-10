@@ -39,7 +39,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
-} from "@/actions/users"
+} from "@/actions/legacy/users"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)

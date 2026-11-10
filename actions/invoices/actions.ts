@@ -1,12 +1,12 @@
 "use server"
 
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
-import { SuccessSchema } from "@/actions/schemas/common"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
+import { SuccessSchema } from "@/actions/legacy/schemas/common"
 import {
   projectAction,
   returnActionError,
   sessionAction,
-} from "@/lib/safe-action"
+} from "@/actions/safe-action"
 import { canViewProject } from "@/lib/util/project-roles"
 import { z } from "zod"
 import queries from "./queries"

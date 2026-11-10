@@ -1,7 +1,7 @@
 import { type ProjectStatus as ProjectStatusType } from "@/lib/drizzle/schema"
 import { z } from "zod"
 import { PROJECT_COLORS } from "@/components/projects/colors"
-import { CategoryOptionSchema } from "@/actions/schemas/category"
+import { CategoryOptionSchema } from "@/actions/legacy/schemas/category"
 
 export const ProjectMemberRoleSchema = z.enum([
   "owner",

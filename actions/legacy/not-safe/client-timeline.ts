@@ -1,12 +1,12 @@
 "use server"
 
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
 import type {
   ClientTimelineEntryDTO,
   ClientTimelinePageDTO,
-} from "@/actions/schemas/client-timeline"
-import { ClientTimelinePageInputSchema } from "@/actions/schemas/client-timeline"
-import { ClientActivityRecordSchema } from "@/actions/schemas/activity"
+} from "@/actions/legacy/schemas/client-timeline"
+import { ClientTimelinePageInputSchema } from "@/actions/legacy/schemas/client-timeline"
+import { ClientActivityRecordSchema } from "@/actions/legacy/schemas/activity"
 import { runAction } from "@/lib/action-result"
 import { requirePermission } from "@/lib/auth"
 import { db } from "@/lib/drizzle/client"

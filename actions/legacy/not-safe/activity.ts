@@ -1,7 +1,7 @@
 "use server"
 
 import { auth, requirePermission } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
 import { db } from "@/lib/drizzle/client"
 import {
   clientActivitiesTable,
@@ -9,7 +9,7 @@ import {
   invoicesTable,
 } from "@/lib/drizzle/schema"
 import { runAction, throwActionError } from "@/lib/action-result"
-import { InactiveClientsDaysSchema } from "@/actions/schemas/activity"
+import { InactiveClientsDaysSchema } from "@/actions/legacy/schemas/activity"
 import { eq, sql } from "drizzle-orm"
 
 export async function getInactiveClients(days: number | null) {

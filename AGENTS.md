@@ -34,7 +34,7 @@ Common triggers:
 ## Repository map
 
 - `app/` — Next.js App Router routes; authenticated app lives under `app/app/`
-- `actions/` — server actions, one folder per domain (`actions/<domain>/`); plain server actions without next-safe-action in `actions/not-safe/` until their domain migrates
+- `actions/` — server actions, one folder per domain (`actions/<domain>/`); unmigrated flat actions live in `actions/legacy/`, plain server actions without next-safe-action in `actions/legacy/not-safe/`
 - `components/` — UI, grouped by route/domain; shadcn/ui primitives in `components/ui/`
 - `stores/` — page-scoped optimistic Zustand stores, one folder per domain
 - `hooks/` — shared React hooks and store infrastructure
@@ -47,7 +47,7 @@ Common triggers:
 
 ## Project Conventions
 
-- **Server actions** — one folder per domain under `actions/<domain>/`; see the Server Actions section. Plain actions without next-safe-action stay in `actions/not-safe/` until their domain migrates
+- **Server actions** — one folder per domain under `actions/<domain>/`; see the Server Actions section. Plain actions without next-safe-action stay in `actions/legacy/not-safe/` until their domain migrates
 - **Components** follow shadcn/ui patterns: `FieldGroup`/`Field` for forms, `data-invalid`/`aria-invalid` for validation, `cn()` for class merging
 - **One component per file** — split components into separate files; a file holds a single component
 - **Event handlers** — memoized with `useCallback` when the body is two lines or more; single-line handlers may stay inline
@@ -67,7 +67,7 @@ Common triggers:
 
 ## Server Actions
 
-**Every domain lives in one folder under `actions/<domain>/`.** Background: `docs/superpowers/specs/2026-10-16-safe-actions-design.md` (client chains, auth, metadata, revalidation) and `docs/superpowers/specs/2026-10-16-action-response-schemas-design.md` (output schemas, DTO inference). Domains still on the flat layout (`actions/<domain>.ts` + `actions/schemas/<domain>.ts`) migrate one per session — projects goes first; the rules below describe the target layout.
+**Every domain lives in one folder under `actions/<domain>/`.** Background: `docs/superpowers/specs/2026-10-16-safe-actions-design.md` (client chains, auth, metadata, revalidation) and `docs/superpowers/specs/2026-10-16-action-response-schemas-design.md` (output schemas, DTO inference). Domains not yet migrated sit under `actions/legacy/` (with plain server actions in `actions/legacy/not-safe/`) and migrate one per session — the rules below describe the target layout.
 
 ### File layout
 
@@ -102,7 +102,7 @@ Shared non-DTO types do not live in the module — see the Types convention belo
 
     import queries from "./queries"
     import { SomeInputSchema, SomeOutputSchema } from "./schemas"
-    import { sessionAction, returnActionError } from "@/lib/safe-action"
+    import { sessionAction, returnActionError } from "@/actions/safe-action"
 
     export const getSomeThing = sessionAction
       .metadata({})
@@ -137,7 +137,7 @@ Never:
 ## Testing
 
 - **E2E** (`e2e/*.spec.ts`, Playwright) — proves functionality works all together; drive it through the Next.js pages a user would interact with, never by invoking actions or helpers directly.
-- **Server actions and util functions** — covered by vitest unit tests (beside-file `*.test.ts`, including `actions/<domain>/`; legacy locations `actions/*.test.ts` and `actions/__tests__/` until their domain migrates), not by e2e.
+- **Server actions and util functions** — covered by vitest unit tests (beside-file `*.test.ts`, including `actions/<domain>/`; legacy locations `actions/legacy/*.test.ts` and `actions/__tests__/` until their domain migrates), not by e2e.
 - **Auth in e2e** — import `test`/`expect` from `./fixtures`, not `@playwright/test`, and call `signInAs("<role>")` (see `TEST_USERS`) for an authenticated context.
 - **Every behavioral change ships with tests** — superpowers adds e2e and/or unit coverage alongside features, fixes, and behavior edits; docs/config-only changes are exempt.
 

@@ -7,7 +7,7 @@ vi.mock("@/lib/auth", () => ({
   getUserPermissions: vi.fn(),
 }))
 
-vi.mock("@/actions/categories", () => ({
+vi.mock("@/actions/legacy/categories", () => ({
   getProjectCategories: vi.fn(),
 }))
 
@@ -51,7 +51,7 @@ import {
   isSuperUser,
   getUserPermissions,
 } from "@/lib/auth"
-import { getProjectCategories } from "@/actions/categories"
+import { getProjectCategories } from "@/actions/legacy/categories"
 import { resolveProjectAccess } from "@/actions/projects/util"
 import type {
   ProjectDetailDTO,

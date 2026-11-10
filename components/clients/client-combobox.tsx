@@ -1,7 +1,7 @@
 "use client"
 
-import { searchClients } from "@/actions/clients"
-import type { ClientOptionDTO } from "@/actions/schemas/client"
+import { searchClients } from "@/actions/legacy/clients"
+import type { ClientOptionDTO } from "@/actions/legacy/schemas/client"
 import {
   Combobox,
   ComboboxContent,

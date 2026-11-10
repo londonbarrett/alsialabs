@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({
   hasPermission: vi.fn(),
 }))
 
-vi.mock("@/actions/not-safe/stores", () => ({
+vi.mock("@/actions/legacy/not-safe/stores", () => ({
   getEffectiveStoreId: vi.fn(),
 }))
 
@@ -35,7 +35,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth, hasPermission } from "@/lib/auth"
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
 import {
   getClients,
   createClient,
@@ -43,7 +43,7 @@ import {
   deleteClient,
   inviteClient,
   checkPhoneExists,
-} from "@/actions/clients"
+} from "@/actions/legacy/clients"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockHasPermission = vi.mocked(hasPermission)

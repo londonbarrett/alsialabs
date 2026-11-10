@@ -1,4 +1,4 @@
-import { getClientByUserId } from "@/actions/clients"
+import { getClientByUserId } from "@/actions/legacy/clients"
 import {
   getClientInvoices,
   getClientPayments,

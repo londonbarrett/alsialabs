@@ -1,12 +1,12 @@
 "use server"
 
-import { getEffectiveStoreId } from "@/actions/not-safe/stores"
+import { getEffectiveStoreId } from "@/actions/legacy/not-safe/stores"
 import {
   type ActivityFormDTO,
   ActivityFormSchema,
   type ClientActivityRecordDTO,
   ClientActivityRecordSchema,
-} from "@/actions/schemas/activity"
+} from "@/actions/legacy/schemas/activity"
 import {
   runAction,
   throwActionError,

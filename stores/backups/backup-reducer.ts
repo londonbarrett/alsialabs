@@ -1,4 +1,4 @@
-import type { BackupEntry } from "@/actions/schemas/backup"
+import type { BackupEntry } from "@/actions/legacy/schemas/backup"
 
 export type BackupStoreState = {
   backups: BackupEntry[]

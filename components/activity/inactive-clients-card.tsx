@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { getInactiveClients } from "@/actions/not-safe/activity"
+import { getInactiveClients } from "@/actions/legacy/not-safe/activity"
 import type { ActionResult } from "@/lib/action-result"
 import { unwrapResponse } from "@/lib/util/unwrap"
 import { useTranslations } from "next-intl"

@@ -1,6 +1,6 @@
 import { ProjectsProvider } from "@/components/projects/projects-provider"
 import { ProjectsView } from "@/components/projects/projects-view"
-import { getProjectCategories } from "@/actions/categories"
+import { getProjectCategories } from "@/actions/legacy/categories"
 import { getProjectsWithDetails } from "@/actions/projects"
 import { auth } from "@/lib/auth"
 import { unwrapResponse } from "@/lib/util/unwrap"

@@ -1,4 +1,4 @@
-import type { ReminderRecordDTO } from "@/actions/schemas/reminder"
+import type { ReminderRecordDTO } from "@/actions/legacy/schemas/reminder"
 import { createOptimisticStore } from "@/lib/optimistic-store"
 import { createContext, useContext } from "react"
 import { activityReducer } from "./activity-reducer"

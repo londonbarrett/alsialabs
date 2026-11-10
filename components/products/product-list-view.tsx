@@ -11,10 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { deleteProduct } from "@/actions/products"
+import { deleteProduct } from "@/actions/legacy/products"
 import { useActionError } from "@/lib/util/action-errors"
-import type { ProductWithStoreDTO } from "@/actions/schemas/product"
-import type { StoreOptionDTO } from "@/actions/schemas/store"
+import type { ProductWithStoreDTO } from "@/actions/legacy/schemas/product"
+import type { StoreOptionDTO } from "@/actions/legacy/schemas/store"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Plus } from "lucide-react"
 import { useTranslations } from "next-intl"

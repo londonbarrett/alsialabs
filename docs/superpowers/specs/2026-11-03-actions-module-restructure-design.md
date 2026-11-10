@@ -91,7 +91,7 @@ Merges `actions/schemas/project.ts` and `actions/schemas/project-membership.ts` 
 | `@/actions/project-membership`         | `@/actions/projects`        | 1 store, 1 test                          |
 | `@/actions/schemas/project`            | `@/actions/projects/schema` | stores, components, tests (type imports) |
 | `@/actions/schemas/project-membership` | `@/actions/projects/schema` | stores, components, tests                |
-| `@/actions/not-safe/project-access`    | `@/actions/projects/util`   | `lib/safe-action.ts` + 8 test files      |
+| `@/actions/legacy/not-safe/project-access`    | `@/actions/projects/util`   | `lib/safe-action.ts` + 8 test files      |
 
 Test mocks also rename `verifyProjectAccess` → `resolveProjectAccess` in the mock factory, `vi.mocked(...)` bindings, and call sites. The 8 files: `actions/__tests__/{backups,safe-action,project-membership,expenses,projects,tasks,task-comments}.test.ts` and `actions/invoices.test.ts` (membership/projects/access tests move into the module first, then update).
 
