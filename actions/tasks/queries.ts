@@ -591,7 +591,8 @@ async function updateTaskRow(
 async function syncTaskAssignments(
   taskId: string,
   assigneeIds: string[],
-  taskRow: typeof tasksTable.$inferSelect
+  taskRow: typeof tasksTable.$inferSelect,
+  removedOpenAs?: "done" | "cancelled"
 ): Promise<void> {
   const openAssignments = await getOpenAssignments(taskId)
 
@@ -604,7 +605,8 @@ async function syncTaskAssignments(
   await db.transaction(async (tx) => {
     if (toRemove.length > 0) {
       await tx
-        .delete(taskAssignmentsTable)
+        .update(taskAssignmentsTable)
+        .set({ status: removedOpenAs ?? "cancelled" })
         .where(inArray(taskAssignmentsTable.id, toRemove))
     }
     if (toAdd.length > 0) {
