@@ -10,7 +10,7 @@ import {
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm"
+import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm"
 
 async function getProjectOptions(userId: string) {
   return db
@@ -551,17 +551,37 @@ async function deleteProjectMembership(
   userId: string,
   role: "admin" | "collaborator"
 ) {
-  const [removed] = await db
-    .delete(projectMembershipTable)
-    .where(
-      and(
-        eq(projectMembershipTable.projectId, projectId),
-        eq(projectMembershipTable.userId, userId),
-        eq(projectMembershipTable.role, role)
+  return db.transaction(async (tx) => {
+    const [removed] = await tx
+      .delete(projectMembershipTable)
+      .where(
+        and(
+          eq(projectMembershipTable.projectId, projectId),
+          eq(projectMembershipTable.userId, userId),
+          eq(projectMembershipTable.role, role)
+        )
       )
-    )
-    .returning()
-  return removed
+      .returning()
+    if (!removed) return removed
+
+    await tx
+      .update(taskAssignmentsTable)
+      .set({ status: "cancelled" })
+      .where(
+        and(
+          eq(taskAssignmentsTable.userId, userId),
+          notInArray(taskAssignmentsTable.status, ["done", "cancelled"]),
+          inArray(
+            taskAssignmentsTable.taskId,
+            tx
+              .select({ id: tasksTable.id })
+              .from(tasksTable)
+              .where(eq(tasksTable.projectId, projectId))
+          )
+        )
+      )
+    return removed
+  })
 }
 
 async function updateProjectMembershipRole(

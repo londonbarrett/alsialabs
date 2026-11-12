@@ -16,6 +16,12 @@ const state = vi.hoisted(() => ({
     onInsert(table: unknown): { respond(data: unknown): unknown }
     onUpdate(table: unknown): { respond(data: unknown): unknown }
     onDelete(table: unknown): { respond(data: unknown): unknown }
+    onSqlContaining(substring: string): {
+      respond(data: unknown): unknown
+      respondWith(
+        fn: (sql: string, params: unknown[]) => unknown
+      ): unknown
+    }
   },
 }))
 
@@ -182,6 +188,7 @@ describe("membership actions", () => {
     state.mock
       .onDelete(schema.projectMembershipTable)
       .respond([{ projectId: PROJECT_ID, userId: USER_ID }])
+    state.mock.onSqlContaining('update "task_assignment"').respond([])
 
     const result = await removeProjectCollaborator({
       projectId: PROJECT_ID,
@@ -194,6 +201,30 @@ describe("membership actions", () => {
       userId: USER_ID,
       role: "collaborator",
     })
+  })
+
+  it("cancels the removed member's open assignments in that project", async () => {
+    grantRole("admin")
+    state.mock
+      .onDelete(schema.projectMembershipTable)
+      .respond([{ projectId: PROJECT_ID, userId: USER_ID }])
+    let updateParams: unknown[] = []
+    state.mock
+      .onSqlContaining('update "task_assignment"')
+      .respondWith((_sql, params) => {
+        updateParams = params
+        return []
+      })
+
+    const result = await removeProjectCollaborator({
+      projectId: PROJECT_ID,
+      userId: USER_ID,
+    })
+
+    expect(result.serverError).toBeUndefined()
+    expect(updateParams[0]).toBe("cancelled")
+    expect(updateParams).toContain(USER_ID)
+    expect(updateParams).toContain(PROJECT_ID)
   })
 
   it("returns the members with the owner first", async () => {
