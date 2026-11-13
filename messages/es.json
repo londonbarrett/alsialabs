@@ -292,7 +292,18 @@
       "recurring": "Recurrente",
       "repeat": "Repetir esta tarea",
       "stepDetails": "Detalles",
-      "stepScheduling": "Programación"
+      "stepScheduling": "Programación",
+      "openCount": "{count, plural, one {# abierta} other {# abiertas}}",
+      "blockedCount": "{count, plural, one {# bloqueada} other {# bloqueadas}}",
+      "reviewCount": "{count, plural, one {# en revisión} other {# en revisión}}",
+      "assignmentsToggle": "Detalles de asignados",
+      "addAssignee": "Agregar asignado",
+      "unassign": {
+        "title": "¿Quitar asignado?",
+        "message": "Esto cierra su asignación abierta. El historial completado se conserva y no se generarán más ocurrencias para ellos.",
+        "markDone": "Marcar como completado",
+        "markCancelled": "Marcar como cancelado"
+      }
     },
     "expenses": {
       "addExpense": "Agregar Gasto",
@@ -343,6 +354,12 @@
       "collaborator": "Colaborador",
       "makeAdmin": "Hacer administrador",
       "makeCollaborator": "Hacer colaborador"
+    },
+    "removeMember": {
+      "title": "¿Eliminar miembro?",
+      "message": "{name} será eliminado del proyecto. Sus asignaciones de tarea abiertas serán canceladas.",
+      "confirm": "Eliminar",
+      "removeButton": "Eliminar a {name}"
     }
   },
   "myTasks": {

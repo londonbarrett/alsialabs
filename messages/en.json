@@ -292,7 +292,18 @@
       "recurring": "Recurring",
       "repeat": "Repeat this task",
       "stepDetails": "Details",
-      "stepScheduling": "Scheduling"
+      "stepScheduling": "Scheduling",
+      "openCount": "{count, plural, one {# open} other {# open}}",
+      "blockedCount": "{count, plural, one {# blocked} other {# blocked}}",
+      "reviewCount": "{count, plural, one {# in review} other {# in review}}",
+      "assignmentsToggle": "Assignee details",
+      "addAssignee": "Add assignee",
+      "unassign": {
+        "title": "Remove assignee?",
+        "message": "This closes their open assignment. Completed history is kept and no more occurrences will spawn for them.",
+        "markDone": "Mark as done",
+        "markCancelled": "Mark as cancelled"
+      }
     },
     "expenses": {
       "addExpense": "Add Expense",
@@ -343,6 +354,12 @@
       "collaborator": "Collaborator",
       "makeAdmin": "Make admin",
       "makeCollaborator": "Make collaborator"
+    },
+    "removeMember": {
+      "title": "Remove member?",
+      "message": "{name} will be removed from the project. Their open task assignments will be cancelled.",
+      "confirm": "Remove",
+      "removeButton": "Remove {name}"
     }
   },
   "myTasks": {
