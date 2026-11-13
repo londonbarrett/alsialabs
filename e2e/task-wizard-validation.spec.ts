@@ -33,9 +33,16 @@ test("the wizard validates details before scheduling and dates on the schedule s
   await expect(dialog.getByLabel("Fecha de inicio")).toBeVisible()
   await expect(dialog.getByLabel("Fecha de vencimiento")).toBeVisible()
 
+  // Dates stay on today: the list predicate hides an unassigned task
+  // whose due date has passed, and the row-exists assertion needs this
+  // one visible (due today is end-of-day inclusive).
+  const today = toDateInput(new Date())
+
   // A broken window blocks the create, reported in place.
-  await dialog.getByLabel("Fecha de inicio").fill("2026-11-10")
-  await dialog.getByLabel("Fecha de vencimiento").fill("2026-11-09")
+  await dialog.getByLabel("Fecha de inicio").fill(today)
+  await dialog
+    .getByLabel("Fecha de vencimiento")
+    .fill(toDateInput(new Date(Date.now() - 86400000)))
   await dialog.getByRole("button", { name: "Crear Tarea" }).click()
   await expect(
     dialog.getByText(
@@ -45,7 +52,7 @@ test("the wizard validates details before scheduling and dates on the schedule s
   await expect(dialog).toBeVisible()
 
   // A fixed window goes through.
-  await dialog.getByLabel("Fecha de vencimiento").fill("2026-11-10")
+  await dialog.getByLabel("Fecha de vencimiento").fill(today)
   await dialog.getByRole("button", { name: "Crear Tarea" }).click()
   await expect(dialog).toBeHidden()
   await expect(

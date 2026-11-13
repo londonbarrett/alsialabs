@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { shouldShowTask } from "@/lib/tasks/filter"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
@@ -45,6 +46,10 @@ export function TasksCard() {
     TaskWithAssignmentsDTO | undefined
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
+
+  const visibleTasks = tasks.filter((task) =>
+    shouldShowTask(task, new Date())
+  )
 
   const openNew = () => {
     setEditingTask(undefined)
@@ -144,13 +149,13 @@ export function TasksCard() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {tasks.length === 0 ? (
+        {visibleTasks.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             {t("projects.tasks.noTasks")}
           </p>
         ) : (
           <TasksTable
-            tasks={tasks}
+            tasks={visibleTasks}
             onStatusChange={(taskId, assignmentId, status) =>
               updateAssignmentStatus(
                 projectId,

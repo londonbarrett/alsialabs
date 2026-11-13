@@ -1,14 +1,9 @@
 "use client"
 
 import type {
-  TaskAssignmentDTO,
   TaskPriorityDTO,
   TaskStatus,
   TaskWithAssignmentsDTO,
-} from "@/actions/tasks/schemas"
-import {
-  ALL_TASK_STATUSES,
-  COLLABORATOR_TASK_STATUSES,
 } from "@/actions/tasks/schemas"
 import { ActionMenu } from "@/components/common/action-menu"
 import { useHasPermission } from "@/components/common/permissions-provider"
@@ -22,17 +17,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { isTerminalStatus } from "@/lib/util/project-roles"
+import { sortAssignments } from "@/lib/tasks/assignments"
+import {
+  assignmentCounts,
+  isOpenAssignment,
+} from "@/lib/tasks/filter"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
-import { MessageSquare, RefreshCw } from "lucide-react"
+import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { Fragment, useState } from "react"
+import { cn } from "cn"
 import { DueDate } from "./due-date"
+import { TaskAssigneeStack } from "./task-assignee-stack"
+import { TaskAssignmentRows } from "./task-assignment-rows"
 import { TaskPrioritySelect } from "./task-priority-select"
-import {
-  TaskStatusSelect,
-  taskStatusColors,
-} from "./task-status-select"
 
 interface TasksTableProps {
   tasks: TaskWithAssignmentsDTO[]
@@ -56,34 +55,21 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
-  const { members, currentUserId, isOwner, isAdmin, isCollaborator } =
-    useProjectContextState()
+  const { isOwner, isAdmin } = useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
   const canMutate =
     (isOwner || isAdmin) && (canEdit || canDeleteProject)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
-  function getAllowedStatuses(assignment: TaskAssignmentDTO) {
-    if (isOwner || isAdmin) return ALL_TASK_STATUSES
-    if (isTerminalStatus(assignment.status)) return null
-    if (isCollaborator && assignment.userId === currentUserId) {
-      return COLLABORATOR_TASK_STATUSES
-    }
-    return null
-  }
-
-  function assignmentName(assignment: TaskAssignmentDTO) {
-    if (assignment.userName) return assignment.userName
-    return assignmentEmail(assignment) ?? assignment.userId
-  }
-
-  function assignmentEmail(assignment: TaskAssignmentDTO) {
-    if (assignment.userEmail) return assignment.userEmail
-    return (
-      members.find((m) => m.userId === assignment.userId)?.userEmail ??
-      null
-    )
+  function toggleExpanded(taskId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(taskId)) next.delete(taskId)
+      else next.add(taskId)
+      return next
+    })
   }
 
   return (
@@ -106,127 +92,146 @@ export function TasksTable({
         </TableHeader>
         <TableBody>
           {tasks.map((task) => {
-            const assignment = task.assignments[0]
-            const allowed = assignment
-              ? getAllowedStatuses(assignment)
-              : null
+            const open = sortAssignments(
+              task.assignments.filter(isOpenAssignment)
+            )
+            const counts = assignmentCounts(task.assignments)
+            const lead = open[0]
+            const isExpanded = expanded.has(task.id)
+            const statusSummary =
+              open.length === 0
+                ? t("common.unassigned")
+                : [
+                    t("projects.tasks.openCount", {
+                      count: counts.open,
+                    }),
+                    ...(counts.blocked > 0
+                      ? [
+                          t("projects.tasks.blockedCount", {
+                            count: counts.blocked,
+                          }),
+                        ]
+                      : []),
+                    ...(counts.review > 0
+                      ? [
+                          t("projects.tasks.reviewCount", {
+                            count: counts.review,
+                          }),
+                        ]
+                      : []),
+                  ].join(" · ")
+
             return (
-              <TableRow
-                key={task.id}
-                onDoubleClick={() => onComments(task)}
-              >
-                <TableCell className="font-medium">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p>{task.name}</p>
-                      {task.recurrence && (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 text-xs"
+              <Fragment key={task.id}>
+                <TableRow
+                  onDoubleClick={() => onComments(task)}
+                >
+                  <TableCell className="font-medium">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={t(
+                            "projects.tasks.assignmentsToggle"
+                          )}
+                          aria-expanded={isExpanded}
+                          onClick={() => toggleExpanded(task.id)}
                         >
-                          <RefreshCw className="h-3 w-3" />
-                          {t("projects.tasks.recurring")}
-                        </Badge>
+                          <ChevronRight
+                            className={cn(
+                              "h-4 w-4 transition-transform",
+                              isExpanded && "rotate-90"
+                            )}
+                          />
+                        </Button>
+                        <p>{task.name}</p>
+                        {task.recurrence && (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 text-xs"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            {t("projects.tasks.recurring")}
+                          </Badge>
+                        )}
+                      </div>
+                      {task.description && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {task.description}
+                        </p>
                       )}
                     </div>
-                    {task.description && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {task.description}
-                      </p>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {assignment ? (
-                    <span className="flex flex-col">
-                      <span className="text-sm">
-                        {assignmentName(assignment)}
-                      </span>
-                      {assignment.userName && assignmentEmail(assignment) && (
-                        <span className="text-xs text-muted-foreground">
-                          {assignmentEmail(assignment)}
-                        </span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      {t("common.unassigned")}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {assignment && allowed ? (
-                    <TaskStatusSelect
-                      status={assignment.status}
-                      allowedStatuses={allowed}
-                      onStatusChange={(v) =>
-                        onStatusChange(task.id, assignment.id, v)
-                      }
-                    />
-                  ) : assignment ? (
-                    <Badge
-                      className={taskStatusColors[assignment.status]}
-                    >
-                      {t(`projects.tasks.status.${assignment.status}`)}
-                    </Badge>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell>
-                  {(isOwner || isAdmin) && canEdit ? (
-                    <TaskPrioritySelect
-                      priority={task.priority}
-                      onPriorityChange={(p) =>
-                        onPriorityChange(task.id, p)
-                      }
-                    />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      {task.priority
-                        ? t(`projects.tasks.priority.${task.priority}`)
-                        : t("projects.tasks.priority.none")}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <DueDate
-                    date={assignment?.endDate ?? null}
-                    overdue={
-                      assignment
-                        ? isTaskOverdue(
-                            assignment.status,
-                            assignment.endDate
-                          )
-                        : false
-                    }
-                    overdueLabel={t("common.overdue")}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="secondary"
-                    onClick={() => onComments(task)}
-                    className="gap-1.5"
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    <span className="text-xs text-muted-foreground">
-                      {task.commentCount}
-                    </span>
-                  </Button>
-                </TableCell>
-                {canMutate && (
+                  </TableCell>
                   <TableCell>
-                    <ActionMenu
-                      entityName={task.name}
-                      onEdit={() => onEdit(task)}
-                      onDelete={() => onDelete(task.id)}
-                      canEdit={canEdit}
-                      canDelete={canDeleteProject}
+                    {open.length > 0 ? (
+                      <TaskAssigneeStack assignments={open} />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {t("common.unassigned")}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>{statusSummary}</TableCell>
+                  <TableCell>
+                    {(isOwner || isAdmin) && canEdit ? (
+                      <TaskPrioritySelect
+                        priority={task.priority}
+                        onPriorityChange={(p) =>
+                          onPriorityChange(task.id, p)
+                        }
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {task.priority
+                          ? t(`projects.tasks.priority.${task.priority}`)
+                          : t("projects.tasks.priority.none")}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <DueDate
+                      date={lead ? lead.endDate : task.endDate}
+                      overdue={
+                        lead
+                          ? isTaskOverdue(lead.status, lead.endDate)
+                          : false
+                      }
+                      overdueLabel={t("common.overdue")}
                     />
                   </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="secondary"
+                      onClick={() => onComments(task)}
+                      className="gap-1.5"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-xs text-muted-foreground">
+                        {task.commentCount}
+                      </span>
+                    </Button>
+                  </TableCell>
+                  {canMutate && (
+                    <TableCell>
+                      <ActionMenu
+                        entityName={task.name}
+                        onEdit={() => onEdit(task)}
+                        onDelete={() => onDelete(task.id)}
+                        canEdit={canEdit}
+                        canDelete={canDeleteProject}
+                      />
+                    </TableCell>
+                  )}
+                </TableRow>
+                {isExpanded && (
+                  <TaskAssignmentRows
+                    taskId={task.id}
+                    assignments={open}
+                    onStatusChange={onStatusChange}
+                  />
                 )}
-              </TableRow>
+              </Fragment>
             )
           })}
         </TableBody>

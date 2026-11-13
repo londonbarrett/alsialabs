@@ -19,11 +19,21 @@ test("completing a repeating occurrence spawns the next one", async ({
   await signInAs("admin")
   await page.goto(PROJECT_URL)
   const ownerRow = page.getByRole("row", { name: new RegExp(TASK_NAME) })
-  await ownerRow.getByRole("combobox").click()
+  await ownerRow
+    .getByRole("button", { name: "Detalles de asignados" })
+    .click()
+  const assigneeRow = page.getByRole("row", {
+    name: /E2E Collaborator/,
+  })
+  await assigneeRow.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
   // The row flips optimistically; the toast only lands once the action has
   // committed the completion AND spawned the next occurrence.
   await expect(page.getByText("Siguiente ocurrencia creada")).toBeVisible()
+  // The closed occurrence left the view; exactly one open sub-row remains.
+  await expect(
+    page.getByRole("row", { name: /E2E Collaborator/ })
+  ).toHaveCount(1)
 
   // The assignee: the closed occurrence is in Past, the fresh one in Active.
   await signInAs("user2")
