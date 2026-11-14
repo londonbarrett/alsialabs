@@ -1,5 +1,10 @@
 import { test, expect } from "./fixtures"
 
+// Serial: test 3 deletes user3's project membership (restored only by the
+// next run's seed), so it must always run after tests 1-2 — never beside
+// them in a second worker while they still pick user3 from the picker.
+test.describe.configure({ mode: "serial" })
+
 const PROJECT_ID = "10000000-0000-4000-8000-000000000001"
 const PROJECT_URL = `/app/proyectos/${PROJECT_ID}`
 
@@ -220,4 +225,61 @@ test("unassigning the last person asks what to do and leaves the task visible", 
   })
   await expect(pastRow).toBeVisible()
   await expect(pastRow.getByText("Cancelado")).toBeVisible()
+})
+
+test("removing a member cancels their open assignments", async ({
+  page,
+  signInAs,
+}) => {
+  // Unique per attempt: a retry must not collide with the row the failed
+  // attempt left behind (the seed also clears them before the next run).
+  const taskName = `E2E multi member ${Date.now()}`
+
+  await signInAs("user1")
+  await page.goto(PROJECT_URL)
+  await page.getByRole("button", { name: "Agregar Tarea" }).click()
+  const createDialog = page.getByRole("dialog", { name: "Agregar Tarea" })
+  await expect(createDialog).toBeVisible()
+
+  await createDialog.getByLabel("Nombre de la tarea").fill(taskName)
+
+  await createDialog
+    .getByRole("button", { name: "Agregar asignado" })
+    .click()
+  await page
+    .getByRole("menuitemcheckbox", { name: /user3@test\.local/ })
+    .click()
+
+  await createDialog.getByRole("button", { name: "Continuar" }).click()
+  const today = toDateInput(new Date())
+  await createDialog.getByLabel("Fecha de inicio").fill(today)
+  await createDialog.getByLabel("Fecha de vencimiento").fill(today)
+  await createDialog.getByRole("button", { name: "Crear Tarea" }).click()
+  await expect(createDialog).toBeHidden()
+  await expect(page.getByText("Tarea creada")).toBeVisible()
+
+  // Removal from the People tab goes through the confirm dialog.
+  await page.goto(`${PROJECT_URL}/personas`)
+  const removeButton = page.getByRole("button", {
+    name: "Eliminar a user3@test.local",
+  })
+  await expect(removeButton).toBeVisible()
+  await removeButton.click()
+
+  const confirmDialog = page.getByRole("dialog", {
+    name: "¿Eliminar miembro?",
+  })
+  await expect(confirmDialog).toBeVisible()
+  await confirmDialog.getByRole("button", { name: "Eliminar" }).click()
+  await expect(confirmDialog).toBeHidden()
+  await expect(removeButton).toHaveCount(0)
+  // The success toast lands after the server commit (membership removal +
+  // open assignments cancelled in the same action) — wait for it before
+  // navigating, so the task list cannot render a stale open row.
+  await expect(page.getByText("Colaborador eliminado")).toBeVisible()
+
+  await page.goto(PROJECT_URL)
+  const row = page.getByRole("row", { name: new RegExp(taskName) })
+  await expect(row).toBeVisible()
+  await expect(row).toContainText("Sin asignar")
 })
