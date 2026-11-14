@@ -85,9 +85,19 @@ describe("task window schema", () => {
     expect(result.success).toBe(true)
   })
 
-  it("accepts an optional removedOpenAs disposition on UpdateTaskSchema", () => {
-    expect(UpdateTaskSchema.safeParse({ ...validUpdate, removedOpenAs: "done" }).success).toBe(true)
-    expect(UpdateTaskSchema.safeParse({ ...validUpdate, removedOpenAs: "paused" }).success).toBe(false)
+  it("accepts an optional unassignAs record on UpdateTaskSchema", () => {
+    expect(
+      UpdateTaskSchema.safeParse({
+        ...validUpdate,
+        unassignAs: { u1: "done" },
+      }).success
+    ).toBe(true)
+    expect(
+      UpdateTaskSchema.safeParse({
+        ...validUpdate,
+        unassignAs: { u1: "paused" },
+      }).success
+    ).toBe(false)
   })
 })
 

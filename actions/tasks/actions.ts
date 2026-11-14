@@ -102,7 +102,7 @@ export const updateTask = projectAction(UpdateTaskSchema)
       taskId,
       uniqueIds,
       row,
-      parsedInput.removedOpenAs
+      parsedInput.unassignAs
     )
 
     const loaded = await queries.getTaskWithAssignments(taskId)

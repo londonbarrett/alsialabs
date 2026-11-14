@@ -592,22 +592,33 @@ async function syncTaskAssignments(
   taskId: string,
   assigneeIds: string[],
   taskRow: typeof tasksTable.$inferSelect,
-  removedOpenAs?: "done" | "cancelled"
+  unassignAs?: Record<string, "done" | "cancelled">
 ): Promise<void> {
   const openAssignments = await getOpenAssignments(taskId)
 
   const openUserIds = new Set(openAssignments.map((a) => a.userId))
   const toAdd = assigneeIds.filter((id) => !openUserIds.has(id))
-  const toRemove = openAssignments
-    .filter((a) => !assigneeIds.includes(a.userId))
-    .map((a) => a.id)
+  const toRemove = openAssignments.filter(
+    (a) => !assigneeIds.includes(a.userId)
+  )
+
+  // Removals group by their recorded disposition — at most two UPDATEs,
+  // still never a DELETE, and closed rows keep dates/comment/id intact.
+  const removalGroups = new Map<"done" | "cancelled", string[]>()
+  for (const assignment of toRemove) {
+    const disposition =
+      unassignAs?.[assignment.userId] ?? "cancelled"
+    const ids = removalGroups.get(disposition) ?? []
+    ids.push(assignment.id)
+    removalGroups.set(disposition, ids)
+  }
 
   await db.transaction(async (tx) => {
-    if (toRemove.length > 0) {
+    for (const [status, ids] of removalGroups) {
       await tx
         .update(taskAssignmentsTable)
-        .set({ status: removedOpenAs ?? "cancelled" })
-        .where(inArray(taskAssignmentsTable.id, toRemove))
+        .set({ status })
+        .where(inArray(taskAssignmentsTable.id, ids))
     }
     if (toAdd.length > 0) {
       const window = firstAssignmentWindow(taskRow)

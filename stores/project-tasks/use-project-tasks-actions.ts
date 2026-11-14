@@ -117,16 +117,22 @@ export function useProjectTasksActions() {
     taskId,
     values,
     optimisticTask,
+    unassignAs,
   }: {
     projectId: string
     taskId: string
     values: TaskFormValues
     optimisticTask: TaskWithAssignmentsDTO
+    unassignAs?: Record<string, "done" | "cancelled">
   }) {
     const result = await run(
       { type: "updateTask", task: optimisticTask },
       () =>
-        executeUpdate({ ...toTaskPayload(projectId, values), taskId }),
+        executeUpdate({
+          ...toTaskPayload(projectId, values),
+          taskId,
+          unassignAs,
+        }),
       {
         commitAction: (r) =>
           r.data

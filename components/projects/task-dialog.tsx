@@ -10,6 +10,7 @@ export interface TaskFormValues {
   description: string
   priority: string | null
   assigneeIds: string[]
+  unassignAs?: Record<string, "done" | "cancelled">
   startDate: string | null
   endDate: string | null
   recurrence: "daily" | "weekly" | null

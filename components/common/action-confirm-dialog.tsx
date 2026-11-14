@@ -42,12 +42,13 @@ export function ActionConfirmDialog({
         if (!o) onCancel()
       }}
     >
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{message}</DialogDescription>
         </DialogHeader>
-        <DialogFooter>
+        {/* Long localized labels must wrap instead of overflowing. */}
+        <DialogFooter className="flex flex-wrap justify-end gap-2">
           {actions.map((action, index) => (
             <Button
               key={`${action.label}-${index}`}

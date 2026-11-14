@@ -66,18 +66,18 @@ export function TasksCard() {
     if (!open) setEditingTask(undefined)
   }
 
-  function handleTaskSubmit(data: TaskFormValues) {
-    setEditingTask(undefined)
-    setDialogOpen(false)
-
-    const tempId = editingTask?.id ?? `temp-${Date.now()}`
+  function buildOptimisticTask(
+    data: TaskFormValues,
+    editing: TaskWithAssignmentsDTO | undefined
+  ): TaskWithAssignmentsDTO {
+    const tempId = editing?.id ?? `temp-${Date.now()}`
     const startDate = data.startDate ? new Date(data.startDate) : null
     const endDate = data.endDate ? new Date(data.endDate) : null
 
     const assignments: TaskAssignmentDTO[] = data.assigneeIds.map(
       (userId, index) => {
         const member = members.find((m) => m.userId === userId)
-        const existing = editingTask?.assignments.find(
+        const existing = editing?.assignments.find(
           (a) => a.userId === userId
         )
         return {
@@ -111,14 +111,22 @@ export function TasksCard() {
       daysOfWeek: data.daysOfWeek.length > 0 ? data.daysOfWeek : null,
       startTime: data.startTime || null,
       endTime: data.endTime || null,
-      createdAt: editingTask?.createdAt ?? new Date(),
+      createdAt: editing?.createdAt ?? new Date(),
       updatedAt: new Date(),
       assignments,
-      commentCount: editingTask
-        ? (tasks.find((t) => t.id === editingTask.id)?.commentCount ??
-          0)
+      commentCount: editing
+        ? (tasks.find((t) => t.id === editing.id)?.commentCount ?? 0)
         : 0,
     }
+
+    return optimisticTask
+  }
+
+  function handleTaskSubmit(data: TaskFormValues) {
+    setEditingTask(undefined)
+    setDialogOpen(false)
+
+    const optimisticTask = buildOptimisticTask(data, editingTask)
 
     if (editingTask) {
       updateTask({
@@ -126,6 +134,7 @@ export function TasksCard() {
         taskId: editingTask.id,
         values: data,
         optimisticTask,
+        unassignAs: data.unassignAs,
       })
     } else {
       createTask({ projectId, values: data, optimisticTask })

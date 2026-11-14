@@ -98,7 +98,8 @@ async function seedRolesProject(): Promise<void> {
     .where(
       or(
         like(tasksTable.name, "E2E wizard gate%"),
-        like(tasksTable.name, "E2E repeat gate%")
+        like(tasksTable.name, "E2E repeat gate%"),
+        like(tasksTable.name, "E2E multi%")
       )
     )
 

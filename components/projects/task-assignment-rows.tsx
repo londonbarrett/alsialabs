@@ -60,7 +60,11 @@ export function TaskAssignmentRows({
   }
 
   return sortAssignments(assignments).map((assignment) => {
-    const allowed = getAllowedStatuses(assignment)
+    // Terminal rows are read-only history — a badge, never a select,
+    // even on the owner/admin path of getAllowedStatuses.
+    const allowed = isTerminalStatus(assignment.status)
+      ? null
+      : getAllowedStatuses(assignment)
     const occurrence = [assignment.startDate, assignment.endDate]
       .filter((date): date is Date => date !== null)
       .map((date) => date.toLocaleDateString())

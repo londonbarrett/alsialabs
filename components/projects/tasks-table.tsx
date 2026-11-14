@@ -1,6 +1,7 @@
 "use client"
 
 import type {
+  TaskAssignmentDTO,
   TaskPriorityDTO,
   TaskStatus,
   TaskWithAssignmentsDTO,
@@ -44,6 +45,38 @@ interface TasksTableProps {
   onDelete: (taskId: string) => Promise<void>
   onEdit: (task: TaskWithAssignmentsDTO) => void
   onComments: (task: TaskWithAssignmentsDTO) => void
+}
+
+function startDateValue(assignment: TaskAssignmentDTO): number {
+  if (!assignment.startDate) return Number.NEGATIVE_INFINITY
+  const time = assignment.startDate.getTime()
+  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
+}
+
+function isNewerAssignment(
+  candidate: TaskAssignmentDTO,
+  current: TaskAssignmentDTO
+): boolean {
+  const candidateOpen = isOpenAssignment(candidate)
+  const currentOpen = isOpenAssignment(current)
+  if (candidateOpen !== currentOpen) return candidateOpen
+  return startDateValue(candidate) > startDateValue(current)
+}
+
+// One row per assignee: their open row when they have one, else their
+// most recent closed row (latest startDate — sortAssignments would put
+// the earliest closed row first). Cancelled rows are kept visible.
+function latestAssignmentPerUser(
+  assignments: TaskAssignmentDTO[]
+): TaskAssignmentDTO[] {
+  const byUser = new Map<string, TaskAssignmentDTO>()
+  for (const assignment of assignments) {
+    const current = byUser.get(assignment.userId)
+    if (!current || isNewerAssignment(assignment, current)) {
+      byUser.set(assignment.userId, assignment)
+    }
+  }
+  return sortAssignments([...byUser.values()])
 }
 
 export function TasksTable({
@@ -94,6 +127,9 @@ export function TasksTable({
           {tasks.map((task) => {
             const open = sortAssignments(
               task.assignments.filter(isOpenAssignment)
+            )
+            const latestAssignments = latestAssignmentPerUser(
+              task.assignments
             )
             const counts = assignmentCounts(task.assignments)
             const lead = open[0]
@@ -164,8 +200,10 @@ export function TasksTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    {open.length > 0 ? (
-                      <TaskAssigneeStack assignments={open} />
+                    {task.assignments.length > 0 ? (
+                      <TaskAssigneeStack
+                        assignments={latestAssignments}
+                      />
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         {t("common.unassigned")}
@@ -227,7 +265,7 @@ export function TasksTable({
                 {isExpanded && (
                   <TaskAssignmentRows
                     taskId={task.id}
-                    assignments={open}
+                    assignments={latestAssignments}
                     onStatusChange={onStatusChange}
                   />
                 )}
