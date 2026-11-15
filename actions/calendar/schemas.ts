@@ -1,6 +1,17 @@
 import { TASK_PRIORITIES, TASK_STATUSES } from "@/lib/drizzle/schema"
 import { z } from "zod"
 
+// ---------- Input schemas ----------
+
+export const CalendarRangeSchema = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+})
+
+export type CalendarRangeDTO = z.infer<typeof CalendarRangeSchema>
+
+// ---------- Response schemas ----------
+
 export const CalendarAssignmentSchema = z.object({
   assignmentId: z.string(),
   taskId: z.string(),
