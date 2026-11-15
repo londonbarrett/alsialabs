@@ -65,16 +65,18 @@ test("a task with several assignees shows counts, stack, and per-person rows", a
     .getByRole("button", { name: "Detalles de asignados" })
     .click()
 
-  const collaboratorRow = page.getByRole("row", {
-    name: /E2E Collaborator/,
-  })
+  // The table renders assignee sub-rows as sibling <tr>s, not descendants,
+  // so scope them to the rows right under this task's row (one per
+  // assignee) instead of page-level lookups.
+  const subRows = row.locator("xpath=following-sibling::tr[position() <= 2]")
+  const collaboratorRow = subRows.filter({ hasText: "E2E Collaborator" })
   await expect(collaboratorRow).toBeVisible()
   await expect(collaboratorRow.getByRole("combobox")).toHaveCount(1)
   await expect(
     collaboratorRow.getByText("user2@test.local")
   ).toBeVisible()
 
-  const user1Row = page.getByRole("row", { name: /user1@test\.local/ })
+  const user1Row = subRows.filter({ hasText: "user1@test.local" })
   await expect(user1Row).toBeVisible()
   await expect(user1Row.getByRole("combobox")).toHaveCount(1)
 
@@ -215,6 +217,24 @@ test("unassigning the last person asks what to do and leaves the task visible", 
   await expect(row).toBeVisible()
   await expect(row).toContainText("Sin asignar")
 
+  // Reopening the form seeds assignees from current members only: the
+  // closed collaborator must not come back as a chip on step 1.
+  await row
+    .getByRole("button", { name: `Acciones para ${taskName}` })
+    .click()
+  await page
+    .getByRole("menuitem", { name: `Editar ${taskName}` })
+    .click()
+  await expect(editDialog).toBeVisible()
+  await expect(
+    editDialog.getByRole("button", { name: "Agregar asignado" })
+  ).toBeVisible()
+  await expect(
+    editDialog.getByRole("button", { name: "Eliminar E2E Collaborator" })
+  ).toHaveCount(0)
+  await editDialog.getByRole("button", { name: "Cancelar" }).click()
+  await expect(editDialog).toBeHidden()
+
   // History is preserved: the collaborator sees the closed row as past.
   await signInAs("user2")
   await page.goto("/app/mis-tareas")
@@ -259,6 +279,9 @@ test("removing a member cancels their open assignments", async ({
   await expect(page.getByText("Tarea creada")).toBeVisible()
 
   // Removal from the People tab goes through the confirm dialog.
+  // This spec deletes user3's project membership mid-run: serial mode
+  // protects tests 1-2 in this file, and NO other spec may rely on user3
+  // being a member within the same run.
   await page.goto(`${PROJECT_URL}/personas`)
   const removeButton = page.getByRole("button", {
     name: "Eliminar a user3@test.local",

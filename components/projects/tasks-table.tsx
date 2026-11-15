@@ -165,22 +165,29 @@ export function TasksTable({
                   <TableCell className="font-medium">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={t(
-                            "projects.tasks.assignmentsToggle"
-                          )}
-                          aria-expanded={isExpanded}
-                          onClick={() => toggleExpanded(task.id)}
-                        >
-                          <ChevronRight
-                            className={cn(
-                              "h-4 w-4 transition-transform",
-                              isExpanded && "rotate-90"
+                        {latestAssignments.length > 0 ? (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={t(
+                              "projects.tasks.assignmentsToggle"
                             )}
+                            aria-expanded={isExpanded}
+                            onClick={() => toggleExpanded(task.id)}
+                          >
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 transition-transform",
+                                isExpanded && "rotate-90"
+                              )}
+                            />
+                          </Button>
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="size-8 shrink-0"
                           />
-                        </Button>
+                        )}
                         <p>{task.name}</p>
                         {task.recurrence && (
                           <Badge

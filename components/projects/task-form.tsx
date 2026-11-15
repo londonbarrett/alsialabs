@@ -58,18 +58,24 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [priority, setPriority] = useState<TaskPriorityDTO>(
     task?.priority ?? null
   )
-  // Members holding an open assignment on the server: the initial
+  // Current members holding an open assignment on the server: the initial
   // selection and the set whose removal needs the disposition dialog.
   // Computed once from the task prop — terminal history never re-enters
-  // the selection.
+  // the selection, and a stranded open assignment left by a member who
+  // left the project is dropped here (sync closes it as cancelled on save)
+  // so it can never travel in the payload as an unrenderable chip.
   const protectedIds = useMemo(
     () =>
       task
         ? task.assignments
-            .filter((a) => !isTerminalStatus(a.status))
+            .filter(
+              (a) =>
+                !isTerminalStatus(a.status) &&
+                members.some((m) => m.userId === a.userId)
+            )
             .map((a) => a.userId)
         : [],
-    [task]
+    [task, members]
   )
   const [assigneeIds, setAssigneeIds] = useState<string[]>(
     () => protectedIds

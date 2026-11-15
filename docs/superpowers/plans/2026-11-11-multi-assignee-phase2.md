@@ -1,5 +1,7 @@
 # Multi-assignee Tasks (Phase 2) Implementation Plan
 
+> **Superseded in parts by spec amendments:** see the design doc's §4 UI sequence (dialog at chip removal; field renamed `unassignAs`) and Decided #2 (last assignment per assignee).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the multi-assignee task UI — multi-select picker, open-work task list with avatar stack/counts/expandable per-person rows, unassign-with-disposition flow, and member removal that cancels open assignments.
