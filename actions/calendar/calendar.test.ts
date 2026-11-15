@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("@/lib/auth", () => ({ auth: vi.fn(), hasPermission: vi.fn() }))
+vi.mock("@/lib/auth", () => ({
+  auth: vi.fn(),
+  hasPermission: vi.fn(),
+  isSuperUser: vi.fn(),
+}))
+vi.mock("@/actions/projects/util", () => ({
+  resolveProjectAccess: vi.fn(),
+}))
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+  updateTag: vi.fn(),
+}))
 
 const state = vi.hoisted(() => ({
   mock: null as unknown as {
@@ -25,7 +36,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
-import { getCalendarAssignments } from "@/actions/legacy/not-safe/calendar"
+import { getCalendarAssignments } from "@/actions/calendar"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 
@@ -166,7 +177,7 @@ describe("getCalendarAssignments", () => {
   it("rejects a missing session", async () => {
     mockAuth.mockResolvedValue(null)
 
-    const result = await getCalendarAssignments()
+    const result = await getCalendarAssignments({})
 
     expect(result.serverError).toEqual({ code: "UNAUTHORIZED" })
   })

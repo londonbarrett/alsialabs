@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { CalendarAssignmentSchema } from "@/actions/legacy/schemas/calendar"
+import { CalendarAssignmentSchema } from "@/actions/calendar/schemas"
 import {
   CreateTaskSchema,
   MyAssignmentSchema,
