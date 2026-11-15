@@ -238,11 +238,11 @@ describe("updateTask", () => {
         openSql = sql
         return [{ id: "open-assignment", userId: USER_ID }]
       })
-    let deleteParams: unknown[] = []
+    let updateParams: unknown[] = []
     state.mock
-      .onDelete(schema.taskAssignmentsTable)
+      .onUpdate(schema.taskAssignmentsTable)
       .respondWith((_sql, params) => {
-        deleteParams = params
+        updateParams = params
         return []
       })
     let insertParams: unknown[] = []
@@ -264,8 +264,152 @@ describe("updateTask", () => {
     expect(result.serverError).toBeUndefined()
     // Only open rows enter the diff; the query filters closed ones out.
     expect(openSql).toContain("not in")
-    expect(deleteParams).toContain("open-assignment")
+    expect(updateParams).toContain("open-assignment")
+    expect(updateParams).toContain("cancelled")
     expect(insertParams).toContain("user-3")
+  })
+
+  it("closes removed rows with the requested disposition", async () => {
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: USER_ID }])
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: USER_ID }])
+    state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ id: "open-assignment", userId: USER_ID }])
+    let updateParams: unknown[] = []
+    state.mock
+      .onUpdate(schema.taskAssignmentsTable)
+      .respondWith((_sql, params) => {
+        updateParams = params
+        return []
+      })
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+
+    const result = await updateTask({
+      ...validTask,
+      taskId: TASK_ID,
+      assigneeIds: [],
+      unassignAs: { [USER_ID]: "done" },
+    })
+
+    expect(result.serverError).toBeUndefined()
+    expect(updateParams).toContain("done")
+    expect(updateParams).toContain("open-assignment")
+  })
+
+  it("groups removals by disposition, one update per group", async () => {
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: USER_ID }])
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: USER_ID }])
+    state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { id: "open-assignment", userId: USER_ID },
+      { id: "other-assignment", userId: OTHER_ID },
+    ])
+    const updateCalls: unknown[][] = []
+    state.mock
+      .onUpdate(schema.taskAssignmentsTable)
+      .respondWith((_sql, params) => {
+        updateCalls.push(params)
+        return []
+      })
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+
+    const result = await updateTask({
+      ...validTask,
+      taskId: TASK_ID,
+      assigneeIds: [],
+      unassignAs: {
+        [USER_ID]: "done",
+        [OTHER_ID]: "cancelled",
+      },
+    })
+
+    expect(result.serverError).toBeUndefined()
+    // Two open rows, two dispositions → exactly two UPDATEs, each id
+    // closed with its own status.
+    expect(updateCalls).toHaveLength(2)
+    const doneCall = updateCalls.find((params) =>
+      params.includes("open-assignment")
+    )
+    const cancelledCall = updateCalls.find((params) =>
+      params.includes("other-assignment")
+    )
+    expect(doneCall).toContain("done")
+    expect(cancelledCall).toContain("cancelled")
+  })
+
+  it("closes removed rows as cancelled when no disposition is sent", async () => {
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: USER_ID }])
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: USER_ID }])
+    state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ id: "open-assignment", userId: USER_ID }])
+    let updateParams: unknown[] = []
+    state.mock
+      .onUpdate(schema.taskAssignmentsTable)
+      .respondWith((_sql, params) => {
+        updateParams = params
+        return []
+      })
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+
+    const result = await updateTask({
+      ...validTask,
+      taskId: TASK_ID,
+      assigneeIds: [],
+    })
+
+    expect(result.serverError).toBeUndefined()
+    expect(updateParams).toContain("cancelled")
+  })
+
+  it("performs no insert when only removing", async () => {
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: USER_ID }])
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: USER_ID }])
+    state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ id: "open-assignment", userId: USER_ID }])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    let insertCount = 0
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respondWith(() => {
+        insertCount += 1
+        return [{ id: "new-assignment" }]
+      })
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+
+    const result = await updateTask({
+      ...validTask,
+      taskId: TASK_ID,
+      assigneeIds: [],
+      unassignAs: { [USER_ID]: "cancelled" },
+    })
+
+    expect(result.serverError).toBeUndefined()
+    expect(insertCount).toBe(0)
   })
 
   it("collapses duplicate assignee ids into a single insert", async () => {

@@ -26,12 +26,14 @@ export function MemberPill({
   onRemove,
   onToggleRole,
   toggleRoleTitle,
+  removeLabel,
 }: {
   member: MemberLike
   roleLabel?: string
   onRemove?: () => void
   onToggleRole?: () => void
   toggleRoleTitle?: string
+  removeLabel?: string
 }) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
@@ -69,7 +71,7 @@ export function MemberPill({
       {onRemove && (
         <button
           onClick={onRemove}
-          aria-label="Remove"
+          aria-label={removeLabel ?? "Remove"}
           className="mr-2 text-muted-foreground hover:text-destructive"
         >
           <X className="h-3 w-3" />

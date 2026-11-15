@@ -128,6 +128,9 @@ export const CreateTaskSchema = TaskFormBaseSchema.extend({
 export const UpdateTaskSchema = TaskFormBaseSchema.extend({
   projectId: z.uuid(),
   taskId: z.uuid(),
+  unassignAs: z
+    .record(z.string().min(1), z.enum(["done", "cancelled"]))
+    .optional(),
 }).superRefine(refineTaskWindow)
 
 /**

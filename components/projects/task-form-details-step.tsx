@@ -19,26 +19,33 @@ export function TaskFormDetailsStep({
   name,
   description,
   priority,
-  assigneeId,
+  assigneeIds,
   members,
+  protectedIds,
   errors,
   onNameChange,
   onDescriptionChange,
   onPriorityChange,
   onAssigneeChange,
+  onRemoveDisposition,
   onNext,
   onCancel,
 }: {
   name: string
   description: string
   priority: TaskPriorityDTO
-  assigneeId: string
+  assigneeIds: string[]
   members: ProjectMemberRowDTO[]
+  protectedIds: string[]
   errors: Record<string, string>
   onNameChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onPriorityChange: (value: TaskPriorityDTO) => void
-  onAssigneeChange: (value: string) => void
+  onAssigneeChange: (value: string[]) => void
+  onRemoveDisposition: (
+    userId: string,
+    disposition: "done" | "cancelled"
+  ) => void
   onNext: () => void
   onCancel: () => void
 }) {
@@ -78,9 +85,11 @@ export function TaskFormDetailsStep({
       <Field>
         <FieldLabel htmlFor="assignee">{t("common.assignee")}</FieldLabel>
         <TaskAssigneeSelect
-          value={assigneeId}
+          value={assigneeIds}
           onChange={onAssigneeChange}
           members={members}
+          protectedIds={protectedIds}
+          onRemoveDisposition={onRemoveDisposition}
         />
       </Field>
       <Field orientation="horizontal">

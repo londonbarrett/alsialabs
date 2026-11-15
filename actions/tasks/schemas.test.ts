@@ -6,6 +6,7 @@ import {
   MyAssignmentSchema,
   TaskAssignmentSchema,
   TaskFormSchema,
+  UpdateTaskSchema,
 } from "@/actions/tasks/schemas"
 
 const base = {
@@ -18,6 +19,13 @@ const base = {
 const window = {
   startDate: "2026-10-30T09:00:00",
   endDate: "2026-10-30T11:00:00",
+}
+
+const validUpdate = {
+  ...base,
+  ...window,
+  projectId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+  taskId: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
 }
 
 describe("task window schema", () => {
@@ -75,6 +83,21 @@ describe("task window schema", () => {
       projectId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
     })
     expect(result.success).toBe(true)
+  })
+
+  it("accepts an optional unassignAs record on UpdateTaskSchema", () => {
+    expect(
+      UpdateTaskSchema.safeParse({
+        ...validUpdate,
+        unassignAs: { u1: "done" },
+      }).success
+    ).toBe(true)
+    expect(
+      UpdateTaskSchema.safeParse({
+        ...validUpdate,
+        unassignAs: { u1: "paused" },
+      }).success
+    ).toBe(false)
   })
 })
 

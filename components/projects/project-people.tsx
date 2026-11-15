@@ -6,11 +6,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectPeopleActions } from "@/stores/project-context/use-project-people-actions"
 import { Crown, Shield, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { MemberPill } from "./member-pill"
 import { UserInviteInput } from "./user-invite-input"
 
@@ -24,6 +25,11 @@ export function ProjectPeople() {
     setRole,
   } = useProjectPeopleActions()
   const { members, isOwner, isAdmin } = useProjectContextState()
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    userId: string
+    name: string
+    kind: "admin" | "collaborator"
+  } | null>(null)
 
   const canManageAdmins = isOwner
   const canManageCollaborators = isOwner || isAdmin
@@ -36,6 +42,14 @@ export function ProjectPeople() {
     () => members.map((m) => m.userId),
     [members]
   )
+
+  function confirmRemoval() {
+    if (!pendingRemoval) return
+    const remove =
+      pendingRemoval.kind === "admin" ? removeAdmin : removeCollaborator
+    void remove(pendingRemoval.userId)
+    setPendingRemoval(null)
+  }
 
   return (
     <Card>
@@ -77,7 +91,13 @@ export function ProjectPeople() {
                 roleLabel={t("projects.roles.admin")}
                 onRemove={
                   canManageAdmins
-                    ? () => removeAdmin(admin.userId)
+                    ? () =>
+                        setPendingRemoval({
+                          userId: admin.userId,
+                          name:
+                            admin.userName || admin.userEmail || "",
+                          kind: "admin",
+                        })
                     : undefined
                 }
                 onToggleRole={
@@ -86,6 +106,9 @@ export function ProjectPeople() {
                     : undefined
                 }
                 toggleRoleTitle={t("projects.roles.makeCollaborator")}
+                removeLabel={t("projects.removeMember.removeButton", {
+                  name: admin.userName || admin.userEmail || "",
+                })}
               />
             ))}
           </div>
@@ -118,7 +141,15 @@ export function ProjectPeople() {
                 roleLabel={t("projects.roles.collaborator")}
                 onRemove={
                   canManageCollaborators
-                    ? () => removeCollaborator(collaborator.userId)
+                    ? () =>
+                        setPendingRemoval({
+                          userId: collaborator.userId,
+                          name:
+                            collaborator.userName ||
+                            collaborator.userEmail ||
+                            "",
+                          kind: "collaborator",
+                        })
                     : undefined
                 }
                 onToggleRole={
@@ -127,6 +158,10 @@ export function ProjectPeople() {
                     : undefined
                 }
                 toggleRoleTitle={t("projects.roles.makeAdmin")}
+                removeLabel={t("projects.removeMember.removeButton", {
+                  name:
+                    collaborator.userName || collaborator.userEmail || "",
+                })}
               />
             ))}
           </div>
@@ -141,6 +176,17 @@ export function ProjectPeople() {
           )}
         </div>
       </CardContent>
+
+      <DestructiveDialog
+        open={pendingRemoval !== null}
+        title={t("projects.removeMember.title")}
+        message={t("projects.removeMember.message", {
+          name: pendingRemoval?.name ?? "",
+        })}
+        confirmLabel={t("projects.removeMember.confirm")}
+        onConfirm={confirmRemoval}
+        onCancel={() => setPendingRemoval(null)}
+      />
     </Card>
   )
 }

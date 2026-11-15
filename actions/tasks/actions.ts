@@ -98,7 +98,12 @@ export const updateTask = projectAction(UpdateTaskSchema)
     const row = await queries.updateTaskRow(parsedInput)
     if (!row) returnActionError("NOT_FOUND")
 
-    await queries.syncTaskAssignments(taskId, uniqueIds, row)
+    await queries.syncTaskAssignments(
+      taskId,
+      uniqueIds,
+      row,
+      parsedInput.unassignAs
+    )
 
     const loaded = await queries.getTaskWithAssignments(taskId)
     if (!loaded) returnActionError("NOT_FOUND")

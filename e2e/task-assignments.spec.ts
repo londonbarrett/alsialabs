@@ -21,14 +21,21 @@ test("a collaborator's assignment moves from active to past, read-only", async (
   await page.getByRole("option", { name: "En progreso" }).click()
   await expect(row.getByRole("combobox")).toContainText("En progreso")
 
-  // The owner completes that assignment from the project task list, which
-  // shows the assignee's name with their email underneath.
+  // The owner expands the assignee details — the collapsed row only
+  // shows avatars and counts — and completes the assignment from the
+  // per-person sub-row, which shows the name with the email underneath.
   await signInAs("admin")
   await page.goto(PROJECT_URL)
   const ownerRow = page.getByRole("row", { name: new RegExp(TASK_NAME) })
-  await expect(ownerRow.getByText("E2E Collaborator")).toBeVisible()
-  await expect(ownerRow.getByText("user2@test.local")).toBeVisible()
-  await ownerRow.getByRole("combobox").click()
+  await ownerRow
+    .getByRole("button", { name: "Detalles de asignados" })
+    .click()
+  const assigneeRow = page.getByRole("row", {
+    name: /E2E Collaborator/,
+  })
+  await expect(assigneeRow.getByText("E2E Collaborator")).toBeVisible()
+  await expect(assigneeRow.getByText("user2@test.local")).toBeVisible()
+  await assigneeRow.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
   // Optimistic UI flips immediately; the toast waits for the server commit.
   await expect(page.getByText("Estado actualizado")).toBeVisible()

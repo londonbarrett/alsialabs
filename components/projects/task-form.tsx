@@ -11,10 +11,11 @@ import {
   validateTaskName,
 } from "@/lib/tasks/form-validation"
 import type { TaskDetailsIssue, TaskDetailsValues } from "@/lib/tasks/form-validation"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 import { combineDateTime } from "@/lib/util/schedule"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { TaskFormDetailsStep } from "./task-form-details-step"
 import { TaskFormScheduleStep } from "./task-form-schedule-step"
 import { TaskStepIndicator } from "./task-step-indicator"
@@ -34,6 +35,7 @@ interface TaskFormProps {
     description: string
     priority: string | null
     assigneeIds: string[]
+    unassignAs: Record<string, "done" | "cancelled">
     startDate: string | null
     endDate: string | null
     recurrence: "daily" | "weekly" | null
@@ -48,7 +50,6 @@ interface TaskFormProps {
 export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const t = useTranslations()
   const { members } = useProjectContextState()
-  const firstAssignment = task?.assignments[0]
 
   const [step, setStep] = useState(1)
   const [step1Done, setStep1Done] = useState(false)
@@ -57,9 +58,31 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [priority, setPriority] = useState<TaskPriorityDTO>(
     task?.priority ?? null
   )
-  const [assigneeId, setAssigneeId] = useState(
-    firstAssignment?.userId ?? ""
+  // Current members holding an open assignment on the server: the initial
+  // selection and the set whose removal needs the disposition dialog.
+  // Computed once from the task prop — terminal history never re-enters
+  // the selection, and a stranded open assignment left by a member who
+  // left the project is dropped here (sync closes it as cancelled on save)
+  // so it can never travel in the payload as an unrenderable chip.
+  const protectedIds = useMemo(
+    () =>
+      task
+        ? task.assignments
+            .filter(
+              (a) =>
+                !isTerminalStatus(a.status) &&
+                members.some((m) => m.userId === a.userId)
+            )
+            .map((a) => a.userId)
+        : [],
+    [task, members]
   )
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(
+    () => protectedIds
+  )
+  const [removedDispositions, setRemovedDispositions] = useState<
+    Record<string, "done" | "cancelled">
+  >({})
   const [startDate, setStartDate] = useState(
     task?.startDate
       ? toDateInput(task.startDate)
@@ -97,6 +120,13 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         ? prev.filter((d) => d !== day)
         : [...prev, day]
     )
+  }
+
+  function recordDisposition(
+    userId: string,
+    disposition: "done" | "cancelled"
+  ) {
+    setRemovedDispositions((prev) => ({ ...prev, [userId]: disposition }))
   }
 
   const detailsValues: TaskDetailsValues = {
@@ -199,7 +229,8 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
       name: name.trim(),
       description: description.trim(),
       priority,
-      assigneeIds: assigneeId ? [assigneeId] : [],
+      assigneeIds,
+      unassignAs: removedDispositions,
       startDate: start ? start.toISOString() : null,
       endDate: repeat
         ? repeatEnd
@@ -230,13 +261,15 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
           name={name}
           description={description}
           priority={priority}
-          assigneeId={assigneeId}
+          assigneeIds={assigneeIds}
           members={members}
+          protectedIds={protectedIds}
           errors={errors}
           onNameChange={setName}
           onDescriptionChange={setDescription}
           onPriorityChange={setPriority}
-          onAssigneeChange={setAssigneeId}
+          onAssigneeChange={setAssigneeIds}
+          onRemoveDisposition={recordDisposition}
           onNext={goNext}
           onCancel={onCancel}
         />
