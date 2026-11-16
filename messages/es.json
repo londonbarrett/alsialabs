@@ -60,7 +60,8 @@
     "assignee": "Asignado",
     "view": "Ver",
     "confirmDelete": "¿Estás seguro de que deseas eliminar {name}? Esta acción no se puede deshacer.",
-    "subject": "Asunto"
+    "subject": "Asunto",
+    "loadMore": "Cargar más"
   },
   "auth": {
     "signInTitle": "Iniciar sesión",
@@ -261,6 +262,12 @@
       "fillDetails": "Completa los datos para crear una nueva tarea.",
       "updateDetails": "Actualiza los detalles de la tarea a continuación.",
       "noTasks": "No hay tareas aún",
+      "both": "Ambas",
+      "unfinished": "Sin finalizar",
+      "finished": "Finalizadas",
+      "noFinished": "Aún no hay tareas finalizadas",
+      "reopen": "Reabrir",
+      "showClosed": "Mostrar asignaciones cerradas",
       "name": "Nombre de la tarea",
       "taskDeleted": "Tarea eliminada",
       "taskUpdated": "Tarea actualizada",
