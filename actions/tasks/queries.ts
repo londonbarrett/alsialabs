@@ -141,9 +141,12 @@ async function getAssignmentViewById(assignmentId: string) {
 
 /**
  * One row past the page reveals whether more history remains without a
- * count query; only terminal assignments are history.
+ * count query; only terminal assignments are history. The project scope
+ * binds in the WHERE — the chain validates the input projectId, this
+ * enforces that the task actually belongs to it.
  */
 async function getTaskAssignmentHistory(
+  projectId: string,
   taskId: string,
   limit: number,
   offset: number
@@ -153,6 +156,7 @@ async function getTaskAssignmentHistory(
     .from(taskAssignmentDetailView)
     .where(
       and(
+        eq(taskAssignmentDetailView.projectId, projectId),
         eq(taskAssignmentDetailView.taskId, taskId),
         inArray(taskAssignmentDetailView.status, ["done", "cancelled"])
       )

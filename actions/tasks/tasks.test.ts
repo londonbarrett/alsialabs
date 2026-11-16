@@ -845,4 +845,25 @@ describe("getTaskAssignmentHistory", () => {
     })
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
   })
+
+  it("constrains the history select to the requested project", async () => {
+    grantAccess("owner")
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
+      makeAssignmentRow({ assignmentId: "h0", status: "done" }),
+    ])
+    await getTaskAssignmentHistory({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      limit: 10,
+      offset: 0,
+    })
+    const historyCall = state.mock.calls.at(-1)
+    const where = (historyCall?.sql ?? "").slice(
+      (historyCall?.sql ?? "").indexOf("where")
+    )
+    expect(where).toMatch(/"task_id" = \$\d+/)
+    expect(where).toMatch(/"project_id" = \$\d+/)
+    expect(historyCall?.params).toContain(TASK_ID)
+    expect(historyCall?.params).toContain(PROJECT_ID)
+  })
 })

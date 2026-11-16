@@ -74,6 +74,7 @@ export const getTaskAssignmentHistory = projectAction(
     }
 
     return queries.getTaskAssignmentHistory(
+      parsedInput.projectId,
       parsedInput.taskId,
       parsedInput.limit,
       parsedInput.offset
