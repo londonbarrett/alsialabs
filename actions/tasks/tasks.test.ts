@@ -523,20 +523,22 @@ describe("updateAssignmentStatus", () => {
   })
 
   it("creates the next occurrence when a repeating assignment is done", async () => {
-    state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      {
-        id: ASSIGNMENT_ID,
-        userId: USER_ID,
-        status: "todo",
-        endDate: new Date("2026-10-30T11:00:00"),
-        taskId: TASK_ID,
-        recurrence: "daily",
-        interval: 1,
-        daysOfWeek: null,
-        startTime: "09:00",
-        endTime: "11:00",
-      },
-    ])
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) =>
+      sql.includes("exists") ? [] : [
+        {
+          id: ASSIGNMENT_ID,
+          userId: USER_ID,
+          status: "todo",
+          endDate: new Date("2026-10-30T11:00:00"),
+          taskId: TASK_ID,
+          recurrence: "daily",
+          interval: 1,
+          daysOfWeek: null,
+          startTime: "09:00",
+          endTime: "11:00",
+        },
+      ]
+    )
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
     state.mock
       .onInsert(schema.taskAssignmentsTable)
@@ -619,6 +621,43 @@ describe("updateAssignmentStatus", () => {
       status: "done",
     })
 
+    expect(result.data?.nextAssignment).toBeNull()
+  })
+
+  it("does not spawn when a later-dated assignment exists for the assignee", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) =>
+      sql.includes("exists") ? [{ id: "later-row" }] : [
+        { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", endDate: new Date("2026-11-10T11:00:00"),
+          taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
+          startTime: "09:00", endTime: "11:00" },
+      ]
+    )
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "done" })])
+
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "done",
+    })
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.nextAssignment).toBeNull()
+  })
+
+  it("treats a null closing due date as oldest, so any dated row blocks the spawn", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) =>
+      sql.includes("exists") ? [{ id: "dated-row" }] : [
+        { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", endDate: null,
+          taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
+          startTime: "09:00", endTime: "11:00" },
+      ]
+    )
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "done" })])
+
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "done",
+    })
     expect(result.data?.nextAssignment).toBeNull()
   })
 

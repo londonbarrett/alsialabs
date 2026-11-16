@@ -22,7 +22,10 @@ import {
   asc,
   desc,
   eq,
+  exists,
+  gt,
   inArray,
+  isNotNull,
   notInArray,
   sql,
 } from "drizzle-orm"
@@ -182,6 +185,35 @@ async function getOpenAssignments(taskId: string) {
         notInArray(taskAssignmentsTable.status, ["done", "cancelled"])
       )
     )
+}
+
+async function hasLaterDatedAssignment(
+  taskId: string,
+  userId: string,
+  endDate: Date | null
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: taskAssignmentsTable.id })
+    .from(taskAssignmentsTable)
+    .where(
+      exists(
+        db
+          .select({ id: taskAssignmentsTable.id })
+          .from(taskAssignmentsTable)
+          .where(
+            and(
+              eq(taskAssignmentsTable.taskId, taskId),
+              eq(taskAssignmentsTable.userId, userId),
+              endDate === null
+                ? isNotNull(taskAssignmentsTable.endDate)
+                : gt(taskAssignmentsTable.endDate, endDate)
+            )
+          )
+      )
+    )
+    .limit(1)
+
+  return rows.length > 0
 }
 
 type AssignmentStatusRow = {
@@ -765,6 +797,7 @@ const queries = {
   getProjectMemberIds,
   getAssignmentViewById,
   getAssignmentForRow,
+  hasLaterDatedAssignment,
   getAssignmentForComment,
   getTasksWithAssignments,
   getTaskWithAssignments,

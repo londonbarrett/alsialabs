@@ -180,23 +180,31 @@ export const updateAssignmentStatus = projectAction(
     } | null = null
 
     if (crossesToTerminal && row.recurrence) {
-      const next = computeNextOccurrence(
-        {
-          recurrence: row.recurrence,
-          interval: row.interval,
-          daysOfWeek: row.daysOfWeek,
-          startTime: row.startTime,
-          endDate: row.taskEndDate,
-        },
-        row.endDate ?? new Date()
+      const laterExists = await queries.hasLaterDatedAssignment(
+        row.taskId,
+        row.userId,
+        row.endDate
       )
 
-      if (next) {
-        spawn = {
-          taskId: row.taskId,
-          userId: row.userId,
-          startDate: next,
-          endDate: atTime(next, row.endTime),
+      if (!laterExists) {
+        const next = computeNextOccurrence(
+          {
+            recurrence: row.recurrence,
+            interval: row.interval,
+            daysOfWeek: row.daysOfWeek,
+            startTime: row.startTime,
+            endDate: row.taskEndDate,
+          },
+          row.endDate ?? new Date()
+        )
+
+        if (next) {
+          spawn = {
+            taskId: row.taskId,
+            userId: row.userId,
+            startDate: next,
+            endDate: atTime(next, row.endTime),
+          }
         }
       }
     }
