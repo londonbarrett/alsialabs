@@ -15,6 +15,7 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { sortAssignments } from "@/lib/tasks/assignments"
 import { isTerminalStatus } from "@/lib/util/project-roles"
@@ -30,12 +31,16 @@ interface TaskAssignmentRowsProps {
     assignmentId: string,
     status: TaskStatus
   ) => void
+  recurrence?: string | null
+  onReopen?: (assignmentId: string) => void
 }
 
 export function TaskAssignmentRows({
   taskId,
   assignments,
   onStatusChange,
+  recurrence,
+  onReopen,
 }: TaskAssignmentRowsProps) {
   const t = useTranslations()
   const { currentUserId, isOwner, isAdmin, isCollaborator } =
@@ -111,9 +116,22 @@ export function TaskAssignmentRows({
               }
             />
           ) : (
-            <Badge className={taskStatusColors[assignment.status]}>
-              {t(`projects.tasks.status.${assignment.status}`)}
-            </Badge>
+            <span className="flex items-center gap-2">
+              <Badge className={taskStatusColors[assignment.status]}>
+                {t(`projects.tasks.status.${assignment.status}`)}
+              </Badge>
+              {onReopen &&
+                (isOwner || isAdmin) &&
+                !recurrence && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onReopen(assignment.id)}
+                  >
+                    {t("projects.tasks.reopen")}
+                  </Button>
+                )}
+            </span>
           )}
         </TableCell>
         {Array.from({ length: columnCount - 3 }, (_, index) => (

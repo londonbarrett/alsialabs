@@ -1,6 +1,8 @@
 "use client"
 
 import {
+  HISTORY_PAGE_SIZE,
+  type TaskAssignmentHistoryDTO,
   type TaskPriorityDTO,
   type TaskStatus,
   type TaskWithAssignmentsDTO,
@@ -11,6 +13,7 @@ import {
   createTask as createTaskAction,
   deleteComment as deleteCommentAction,
   deleteTask as deleteTaskAction,
+  getTaskAssignmentHistory,
   getTaskComments,
   updateAssignmentComment as updateAssignmentCommentAction,
   updateAssignmentStatus as updateAssignmentStatusAction,
@@ -61,6 +64,26 @@ export function useProjectTasksActions() {
   )
   const { executeAsync: executePriority } = useAction(
     updateTaskPriorityAction
+  )
+  const { executeAsync: executeHistory } = useAction(
+    getTaskAssignmentHistory
+  )
+
+  const loadAssignmentHistory = useCallback(
+    async (
+      projectId: string,
+      taskId: string,
+      offset: number
+    ): Promise<TaskAssignmentHistoryDTO | null> => {
+      const result = await executeHistory({
+        projectId,
+        taskId,
+        limit: HISTORY_PAGE_SIZE,
+        offset,
+      })
+      return result.data ?? null
+    },
+    [executeHistory]
   )
 
   const loadComments = useCallback(
@@ -311,6 +334,7 @@ export function useProjectTasksActions() {
 
   return {
     loadComments,
+    loadAssignmentHistory,
     createTask,
     updateTask,
     deleteTask,

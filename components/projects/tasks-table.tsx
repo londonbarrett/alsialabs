@@ -1,7 +1,6 @@
 "use client"
 
 import type {
-  TaskAssignmentDTO,
   TaskPriorityDTO,
   TaskStatus,
   TaskWithAssignmentsDTO,
@@ -23,15 +22,17 @@ import {
   assignmentCounts,
   isOpenAssignment,
 } from "@/lib/tasks/filter"
+import { visibleAssignments } from "@/lib/tasks/list"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { Fragment, useState } from "react"
+import { Fragment, useCallback, useState } from "react"
 import { cn } from "cn"
 import { DueDate } from "./due-date"
 import { TaskAssigneeStack } from "./task-assignee-stack"
 import { TaskAssignmentRows } from "./task-assignment-rows"
+import { TaskHistoryPanel } from "./task-history-panel"
 import { TaskPrioritySelect } from "./task-priority-select"
 
 interface TasksTableProps {
@@ -45,38 +46,6 @@ interface TasksTableProps {
   onDelete: (taskId: string) => Promise<void>
   onEdit: (task: TaskWithAssignmentsDTO) => void
   onComments: (task: TaskWithAssignmentsDTO) => void
-}
-
-function startDateValue(assignment: TaskAssignmentDTO): number {
-  if (!assignment.startDate) return Number.NEGATIVE_INFINITY
-  const time = assignment.startDate.getTime()
-  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
-}
-
-function isNewerAssignment(
-  candidate: TaskAssignmentDTO,
-  current: TaskAssignmentDTO
-): boolean {
-  const candidateOpen = isOpenAssignment(candidate)
-  const currentOpen = isOpenAssignment(current)
-  if (candidateOpen !== currentOpen) return candidateOpen
-  return startDateValue(candidate) > startDateValue(current)
-}
-
-// One row per assignee: their open row when they have one, else their
-// most recent closed row (latest startDate — sortAssignments would put
-// the earliest closed row first). Cancelled rows are kept visible.
-function latestAssignmentPerUser(
-  assignments: TaskAssignmentDTO[]
-): TaskAssignmentDTO[] {
-  const byUser = new Map<string, TaskAssignmentDTO>()
-  for (const assignment of assignments) {
-    const current = byUser.get(assignment.userId)
-    if (!current || isNewerAssignment(assignment, current)) {
-      byUser.set(assignment.userId, assignment)
-    }
-  }
-  return sortAssignments([...byUser.values()])
 }
 
 export function TasksTable({
@@ -95,6 +64,7 @@ export function TasksTable({
   const canMutate =
     (isOwner || isAdmin) && (canEdit || canDeleteProject)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [historyOpen, setHistoryOpen] = useState<Set<string>>(new Set())
 
   function toggleExpanded(taskId: string) {
     setExpanded((prev) => {
@@ -104,6 +74,15 @@ export function TasksTable({
       return next
     })
   }
+
+  const toggleHistory = useCallback((taskId: string) => {
+    setHistoryOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(taskId)) next.delete(taskId)
+      else next.add(taskId)
+      return next
+    })
+  }, [])
 
   return (
     <div className="overflow-auto rounded-md border">
@@ -128,9 +107,7 @@ export function TasksTable({
             const open = sortAssignments(
               task.assignments.filter(isOpenAssignment)
             )
-            const latestAssignments = latestAssignmentPerUser(
-              task.assignments
-            )
+            const shown = visibleAssignments(task.assignments)
             const counts = assignmentCounts(task.assignments)
             const lead = open[0]
             const isExpanded = expanded.has(task.id)
@@ -165,7 +142,7 @@ export function TasksTable({
                   <TableCell className="font-medium">
                     <div>
                       <div className="flex items-center gap-2">
-                        {latestAssignments.length > 0 ? (
+                        {shown.length > 0 ? (
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -207,10 +184,8 @@ export function TasksTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    {task.assignments.length > 0 ? (
-                      <TaskAssigneeStack
-                        assignments={latestAssignments}
-                      />
+                    {shown.length > 0 ? (
+                      <TaskAssigneeStack assignments={shown} />
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         {t("common.unassigned")}
@@ -270,11 +245,34 @@ export function TasksTable({
                   )}
                 </TableRow>
                 {isExpanded && (
-                  <TaskAssignmentRows
-                    taskId={task.id}
-                    assignments={latestAssignments}
-                    onStatusChange={onStatusChange}
-                  />
+                  <Fragment>
+                    {historyOpen.has(task.id) ? (
+                      <TaskHistoryPanel taskId={task.id} />
+                    ) : (
+                      <TaskAssignmentRows
+                        taskId={task.id}
+                        assignments={shown}
+                        onStatusChange={onStatusChange}
+                        recurrence={task.recurrence}
+                        onReopen={(assignmentId) =>
+                          onStatusChange(task.id, assignmentId, "todo")
+                        }
+                      />
+                    )}
+                    <TableRow>
+                      <TableCell colSpan={canMutate ? 7 : 6}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          aria-pressed={historyOpen.has(task.id)}
+                          onClick={() => toggleHistory(task.id)}
+                        >
+                          {t("projects.tasks.showClosed")}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
                 )}
               </Fragment>
             )
