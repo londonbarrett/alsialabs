@@ -3,6 +3,7 @@ import {
   projectMembershipTable,
   projectsTable,
   taskAssignmentDetailView,
+  taskAssignmentLatestView,
   taskAssignmentsTable,
   taskCommentsTable,
   tasksTable,
@@ -47,6 +48,19 @@ const ASSIGNMENT_VIEW_COLUMNS = {
   userName: taskAssignmentDetailView.userName,
   userEmail: taskAssignmentDetailView.userEmail,
   userImage: taskAssignmentDetailView.userImage,
+}
+
+const LATEST_ASSIGNMENT_COLUMNS = {
+  assignmentId: taskAssignmentLatestView.assignmentId,
+  taskId: taskAssignmentLatestView.taskId,
+  userId: taskAssignmentLatestView.userId,
+  status: taskAssignmentLatestView.status,
+  comment: taskAssignmentLatestView.comment,
+  startDate: taskAssignmentLatestView.startDate,
+  endDate: taskAssignmentLatestView.endDate,
+  userName: taskAssignmentLatestView.userName,
+  userEmail: taskAssignmentLatestView.userEmail,
+  userImage: taskAssignmentLatestView.userImage,
 }
 
 const COMMENT_WITH_AUTHOR_COLUMNS = {
@@ -101,15 +115,15 @@ async function getTaskRow(taskId: string) {
 
 async function getAssignmentRowsByTaskIds(taskIds: string[]) {
   return db
-    .select(ASSIGNMENT_VIEW_COLUMNS)
-    .from(taskAssignmentDetailView)
+    .select(LATEST_ASSIGNMENT_COLUMNS)
+    .from(taskAssignmentLatestView)
     .where(inArray(taskAssignmentDetailView.taskId, taskIds))
 }
 
 async function getAssignmentRowsByTaskId(taskId: string) {
   return db
-    .select(ASSIGNMENT_VIEW_COLUMNS)
-    .from(taskAssignmentDetailView)
+    .select(LATEST_ASSIGNMENT_COLUMNS)
+    .from(taskAssignmentLatestView)
     .where(eq(taskAssignmentDetailView.taskId, taskId))
 }
 

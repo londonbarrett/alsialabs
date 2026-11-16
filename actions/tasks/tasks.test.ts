@@ -168,7 +168,7 @@ describe("getTasks", () => {
   it("returns tasks with their assignments", async () => {
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
     state.mock
-      .onSelect(schema.taskAssignmentDetailView)
+      .onSelect(schema.taskAssignmentLatestView)
       .respond([makeAssignmentRow()])
     state.mock.onSelect(schema.taskCommentsTable).respond([])
 
@@ -191,7 +191,7 @@ describe("createTask", () => {
     const assignment = makeAssignmentRow()
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
     state.mock
-      .onSelect(schema.taskAssignmentDetailView)
+      .onSelect(schema.taskAssignmentLatestView)
       .respond([assignment])
     state.mock.onInsert(schema.tasksTable).respond([makeTaskRow()])
 
@@ -253,7 +253,7 @@ describe("updateTask", () => {
         return [{ id: "new-assignment" }]
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -288,7 +288,7 @@ describe("updateTask", () => {
         return []
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -322,7 +322,7 @@ describe("updateTask", () => {
         return []
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -367,7 +367,7 @@ describe("updateTask", () => {
         return []
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -399,7 +399,7 @@ describe("updateTask", () => {
         return [{ id: "new-assignment" }]
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -429,7 +429,7 @@ describe("updateTask", () => {
         return [{ id: "new-assignment" }]
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
