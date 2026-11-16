@@ -144,13 +144,20 @@ export function projectTasksReducer(
               )
             : [...task.assignments, action.assignment]
 
-          const withNext =
-            action.nextAssignment &&
-            !withAssignment.some(
-              (a) => a.id === action.nextAssignment!.id
-            )
-              ? [...withAssignment, action.nextAssignment]
-              : withAssignment
+          const next = action.nextAssignment
+          if (!next) {
+            return {
+              ...task,
+              assignments: sortAssignments(withAssignment),
+            }
+          }
+
+          const withoutSameUser = withAssignment.filter(
+            (a) => a.userId !== next.userId || a.id === next.id
+          )
+          const withNext = withoutSameUser.some((a) => a.id === next.id)
+            ? withoutSameUser
+            : [...withoutSameUser, next]
 
           return { ...task, assignments: sortAssignments(withNext) }
         }),

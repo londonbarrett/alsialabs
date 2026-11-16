@@ -136,7 +136,7 @@ describe("createProjectTasksStore", () => {
     expect(task.priority).toBe("urgent")
   })
 
-  it("adds the spawned occurrence ahead of the closed one", () => {
+  it("replaces the closed row with the spawned occurrence so each assignee keeps one row", () => {
     const assignment = makeAssignment({ id: "assignment-1" })
     const store = createProjectTasksStore([
       makeTask({ id: "task-1", assignments: [assignment] }),
@@ -158,7 +158,7 @@ describe("createProjectTasksStore", () => {
       store
         .getState()
         .optimistic.tasks[0]?.assignments.map((a) => a.id)
-    ).toEqual(["assignment-2", "assignment-1"])
+    ).toEqual(["assignment-2"])
   })
 
   it("forgets loaded comments when the task is deleted", () => {
