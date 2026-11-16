@@ -27,6 +27,8 @@ import {
   DeleteTaskCommentSchema,
   MyAssignmentSchema,
   MyTasksTabSchema,
+  TaskAssignmentHistoryResultSchema,
+  TaskAssignmentHistorySchema,
   TaskAssignmentSchema,
   TaskCommentResultSchema,
   TaskCommentWithAuthorSchema,
@@ -59,6 +61,23 @@ export const getMyTasks = sessionAction
   .outputSchema(z.array(MyAssignmentSchema))
   .action(async ({ parsedInput, ctx }) => {
     return queries.getMyTasks(ctx.session.user.id, parsedInput.view)
+  })
+
+export const getTaskAssignmentHistory = projectAction(
+  TaskAssignmentHistorySchema
+)
+  .metadata({})
+  .outputSchema(TaskAssignmentHistoryResultSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canViewProject(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
+    return queries.getTaskAssignmentHistory(
+      parsedInput.taskId,
+      parsedInput.limit,
+      parsedInput.offset
+    )
   })
 
 export const createTask = projectAction(CreateTaskSchema)

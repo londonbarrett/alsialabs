@@ -12,6 +12,7 @@ vi.mock("next/cache", () => ({
 const state = vi.hoisted(() => ({
   mock: null as unknown as {
     resetMocks(): void
+    calls: { sql: string; params: unknown[] }[]
     onSelect(table: unknown): {
       respond(data: unknown): unknown
       respondWith(
@@ -56,6 +57,7 @@ import type { ProjectRole } from "@/lib/types"
 import {
   createTask,
   deleteTask,
+  getTaskAssignmentHistory,
   getTasks,
   updateAssignmentComment,
   updateAssignmentStatus,
@@ -784,6 +786,62 @@ describe("guards", () => {
       projectId: PROJECT_ID,
       taskId: TASK_ID,
       priority: "urgent",
+    })
+    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+  })
+})
+
+describe("getTaskAssignmentHistory", () => {
+  it("pages closed assignments and reports hasMore", async () => {
+    grantAccess("owner")
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond(
+      Array.from({ length: 11 }, (_, i) =>
+        makeAssignmentRow({
+          assignmentId: `h${i}`,
+          status: i % 2 ? "cancelled" : "done",
+        })
+      )
+    )
+    const result = await getTaskAssignmentHistory({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      limit: 10,
+      offset: 0,
+    })
+    expect(result.data?.assignments).toHaveLength(10)
+    expect(result.data?.hasMore).toBe(true)
+    // ordering lives in SQL: the history select orders by created_at
+    expect(state.mock.calls.at(-1)?.sql).toContain("created_at")
+  })
+
+  it("coerces view date strings and reports hasMore false when the page fits", async () => {
+    grantAccess("owner")
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
+      makeAssignmentRow({
+        assignmentId: "h0",
+        status: "done",
+        startDate: "2026-10-30T09:00:00",
+        endDate: "2026-10-30T11:00:00",
+      }),
+      makeAssignmentRow({ assignmentId: "h1", status: "cancelled" }),
+    ])
+    const result = await getTaskAssignmentHistory({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      limit: 10,
+      offset: 0,
+    })
+    expect(result.data?.hasMore).toBe(false)
+    expect(result.data?.assignments[0]?.startDate).toBeInstanceOf(Date)
+  })
+
+  it("forbids a caller without project access", async () => {
+    mockResolveAccess.mockResolvedValue({ hasAccess: false, role: null })
+    const result = await getTaskAssignmentHistory({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      limit: 10,
+      offset: 0,
     })
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
   })

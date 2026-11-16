@@ -35,6 +35,7 @@ import {
   type MyAssignmentDTO,
   type MyTasksTab,
   type TaskAssignmentDTO,
+  type TaskAssignmentHistoryDTO,
   type TaskRecordDTO,
   type TaskWithAssignmentsDTO,
   type UpdateTaskDTO,
@@ -136,6 +137,34 @@ async function getAssignmentViewById(assignmentId: string) {
     .from(taskAssignmentDetailView)
     .where(eq(taskAssignmentDetailView.assignmentId, assignmentId))
     .then((rows) => rows[0])
+}
+
+/**
+ * One row past the page reveals whether more history remains without a
+ * count query; only terminal assignments are history.
+ */
+async function getTaskAssignmentHistory(
+  taskId: string,
+  limit: number,
+  offset: number
+): Promise<TaskAssignmentHistoryDTO> {
+  const rows = await db
+    .select(ASSIGNMENT_VIEW_COLUMNS)
+    .from(taskAssignmentDetailView)
+    .where(
+      and(
+        eq(taskAssignmentDetailView.taskId, taskId),
+        inArray(taskAssignmentDetailView.status, ["done", "cancelled"])
+      )
+    )
+    .orderBy(desc(taskAssignmentDetailView.createdAt))
+    .limit(limit + 1)
+    .offset(offset)
+
+  return {
+    assignments: rows.slice(0, limit).map(toTaskAssignmentDTO),
+    hasMore: rows.length > limit,
+  }
 }
 
 async function getCommentCountsByTaskIds(taskIds: string[]) {
@@ -797,6 +826,7 @@ const queries = {
   getProjectMemberIds,
   getAssignmentViewById,
   getAssignmentForRow,
+  getTaskAssignmentHistory,
   hasLaterDatedAssignment,
   getAssignmentForComment,
   getTasksWithAssignments,

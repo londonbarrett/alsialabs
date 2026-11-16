@@ -200,10 +200,29 @@ export const AssignmentStatusResultSchema = z.object({
   nextAssignment: TaskAssignmentSchema.nullable(),
 })
 
+// ---------- Assignment history ----------
+
+export const HISTORY_PAGE_SIZE = 10
+
+export const TaskAssignmentHistorySchema = z.object({
+  projectId: z.uuid(),
+  taskId: z.uuid(),
+  limit: z.number().int().min(1).max(50),
+  offset: z.number().int().min(0),
+})
+
+export const TaskAssignmentHistoryResultSchema = z.object({
+  assignments: z.array(TaskAssignmentSchema),
+  hasMore: z.boolean(),
+})
+
 export type TaskFormDTO = z.infer<typeof TaskFormSchema>
 export type CreateTaskDTO = z.infer<typeof CreateTaskSchema>
 export type UpdateTaskDTO = z.infer<typeof UpdateTaskSchema>
 export type TaskAssignmentDTO = z.infer<typeof TaskAssignmentSchema>
+export type TaskAssignmentHistoryDTO = z.infer<
+  typeof TaskAssignmentHistoryResultSchema
+>
 export type TaskRecordDTO = z.infer<typeof TaskRecordSchema>
 export type TaskWithAssignmentsDTO = z.infer<
   typeof TaskWithAssignmentsSchema
