@@ -22,6 +22,7 @@ export function TasksFilter({
   return (
     <div
       role="group"
+      aria-label={t("filterLabel")}
       className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground"
     >
       {OPTIONS.map((option) => (

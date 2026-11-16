@@ -33,6 +33,7 @@ interface TaskAssignmentRowsProps {
   ) => void
   recurrence?: string | null
   onReopen?: (assignmentId: string) => void
+  preserveOrder?: boolean
 }
 
 export function TaskAssignmentRows({
@@ -41,6 +42,7 @@ export function TaskAssignmentRows({
   onStatusChange,
   recurrence,
   onReopen,
+  preserveOrder = false,
 }: TaskAssignmentRowsProps) {
   const t = useTranslations()
   const { currentUserId, isOwner, isAdmin, isCollaborator } =
@@ -64,7 +66,8 @@ export function TaskAssignmentRows({
     return null
   }
 
-  return sortAssignments(assignments).map((assignment) => {
+  const ordered = preserveOrder ? assignments : sortAssignments(assignments)
+  return ordered.map((assignment) => {
     // Terminal rows are read-only history — a badge, never a select,
     // even on the owner/admin path of getAllowedStatuses.
     const allowed = isTerminalStatus(assignment.status)

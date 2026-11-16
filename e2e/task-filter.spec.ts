@@ -378,9 +378,12 @@ test("closed assignment history pages ten rows at a time", async ({
   // Close the open occurrence 11 times: every close spawns the next day's
   // successor, which is the row closed next. Waiting for the occurrence
   // window to advance pins the spawn commit — a toast alone could be stale.
+  // The last window read is the row closed last: the newest history entry.
+  let lastClosedWindow = ""
   for (let i = 0; i < 11; i++) {
     const before = await occurrence.textContent()
     if (!before) throw new Error("occurrence cell had no text")
+    lastClosedWindow = before
     await person.getByRole("combobox").click()
     await page.getByRole("option", { name: "Completado" }).click()
     await expect(occurrence).not.toContainText(before)
@@ -405,6 +408,12 @@ test("closed assignment history pages ten rows at a time", async ({
   await expect(person).toHaveCount(11)
   await expect(loadMore).toHaveCount(0)
   await expect(showClosed).toHaveAttribute("aria-pressed", "true")
+
+  // Newest first (createdAt DESC): the top row stays the occurrence closed
+  // last, and the older page appended below it instead of above.
+  await expect(person.first().locator("td").nth(1)).toHaveText(
+    lastClosedWindow
+  )
 })
 
 test("a removed assignee can be reassigned with the closed row in history", async ({
@@ -493,4 +502,26 @@ test("the finished filter has its own empty message", async ({
     page.getByText("Aún no hay tareas finalizadas")
   ).toBeVisible()
   await expect(row).toHaveCount(0)
+})
+
+test("a collaborator never sees a Reopen control", async ({
+  page,
+  signInAs,
+}) => {
+  await signInAs("user2")
+  await page.goto(PROJECT_URL)
+
+  // getProjectContext is owner/admin-only: the project route renders the
+  // 403 page for a collaborator, so the Tasks card — and any Reopen
+  // control on it — is unreachable without weakening the server guard.
+  await expect(page.getByRole("heading", { name: "403" })).toBeVisible()
+  await expect(
+    page.getByText("No tienes acceso a esta página.")
+  ).toBeVisible()
+  await expect(page.getByRole("button", { name: "Reabrir" })).toHaveCount(
+    0
+  )
+  await expect(
+    page.getByRole("button", { name: "Agregar Tarea" })
+  ).toHaveCount(0)
 })

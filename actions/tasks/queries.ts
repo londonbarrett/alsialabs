@@ -121,14 +121,14 @@ async function getAssignmentRowsByTaskIds(taskIds: string[]) {
   return db
     .select(LATEST_ASSIGNMENT_COLUMNS)
     .from(taskAssignmentLatestView)
-    .where(inArray(taskAssignmentDetailView.taskId, taskIds))
+    .where(inArray(taskAssignmentLatestView.taskId, taskIds))
 }
 
 async function getAssignmentRowsByTaskId(taskId: string) {
   return db
     .select(LATEST_ASSIGNMENT_COLUMNS)
     .from(taskAssignmentLatestView)
-    .where(eq(taskAssignmentDetailView.taskId, taskId))
+    .where(eq(taskAssignmentLatestView.taskId, taskId))
 }
 
 async function getAssignmentViewById(assignmentId: string) {

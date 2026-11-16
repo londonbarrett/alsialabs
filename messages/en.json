@@ -265,6 +265,7 @@
       "both": "Both",
       "unfinished": "Unfinished",
       "finished": "Finished",
+      "filterLabel": "Task visibility filter",
       "noFinished": "No finished tasks yet",
       "reopen": "Reopen",
       "showClosed": "Show closed assignments",

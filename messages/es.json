@@ -265,6 +265,7 @@
       "both": "Ambas",
       "unfinished": "Sin finalizar",
       "finished": "Finalizadas",
+      "filterLabel": "Filtro de visibilidad de tareas",
       "noFinished": "Aún no hay tareas finalizadas",
       "reopen": "Reabrir",
       "showClosed": "Mostrar asignaciones cerradas",

@@ -70,6 +70,7 @@ export function TaskHistoryPanel({ taskId }: TaskHistoryPanelProps) {
         taskId={taskId}
         assignments={rows}
         onStatusChange={() => {}}
+        preserveOrder
       />
       {hasMore && (
         <TableRow>
