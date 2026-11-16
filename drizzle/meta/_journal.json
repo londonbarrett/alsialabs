@@ -190,6 +190,20 @@
       "when": 1793490821537,
       "tag": "0026_truncate_disposable_data",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1794802741899,
+      "tag": "0027_chief_bucky",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1794802779460,
+      "tag": "0028_worthless_rocket_racer",
+      "breakpoints": true
     }
   ]
 }

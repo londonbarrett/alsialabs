@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+import { PgDialect } from "drizzle-orm/pg-core"
 
-import { validateTableSelection } from "./tables"
+const { execute } = vi.hoisted(() => ({ execute: vi.fn() }))
+
+vi.mock("@/lib/drizzle/client", () => ({ db: { execute } }))
+
+import { listDependentViews, validateTableSelection } from "./tables"
 
 describe("lib/backup/tables", () => {
   it("rejects empty selection", () => {
@@ -20,5 +25,20 @@ describe("lib/backup/tables", () => {
     expect(() =>
       validateTableSelection(["role"], ["role", "user"])
     ).not.toThrow()
+  })
+
+  it("discovers views that depend on other views, not only on base tables", async () => {
+    execute.mockReset()
+    // table → view_a → view_b: the database answers with both levels
+    execute.mockResolvedValue([
+      { view_name: "view_a" },
+      { view_name: "view_b" },
+    ])
+    const views = await listDependentViews(["task_assignment"])
+    expect(views).toEqual(["view_a", "view_b"])
+    const query = execute.mock.calls[0]?.[0]
+    const { sql: text } = new PgDialect().sqlToQuery(query)
+    expect(text).toContain("WITH RECURSIVE")
+    expect(text).toMatch(/WITH RECURSIVE\s+(\w+)[\s\S]*?\bFROM\s+\1\b/)
   })
 })

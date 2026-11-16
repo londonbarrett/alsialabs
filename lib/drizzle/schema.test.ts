@@ -4,6 +4,7 @@ import { expect, it } from "vitest"
 import {
   projectMembershipTable,
   taskAssignmentDetailView,
+  taskAssignmentLatestView,
   taskAssignmentsTable,
   tasksTable,
 } from "./schema"
@@ -28,6 +29,8 @@ it("adds the assignment and membership tables", () => {
   }
 
   expect(taskAssignmentDetailView).toBeDefined()
+  expect(taskAssignmentDetailView.createdAt).toBeDefined()
+  expect(taskAssignmentLatestView).toBeDefined()
 })
 
 it("keeps the schedule fields and drops the legacy task columns", () => {
