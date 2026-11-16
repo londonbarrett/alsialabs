@@ -29,6 +29,7 @@ const state = vi.hoisted(() => ({
       respondWith(
         fn: (sql: string, params: unknown[]) => unknown
       ): unknown
+      throw(error: Error): unknown
     }
     onDelete(table: unknown): {
       respond(data: unknown): unknown
@@ -631,6 +632,49 @@ describe("updateAssignmentStatus", () => {
     })
 
     expect(result.serverError).toEqual({ code: "NOT_FOUND" })
+  })
+
+  it("rejects reopening a closed assignment on a repeating task", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "done", endDate: new Date("2026-11-10T11:00:00"),
+        taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
+        startTime: "09:00", endTime: "11:00" },
+    ])
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "todo",
+    })
+    expect(result.serverError).toEqual({ code: "VALIDATION_FAILED" })
+  })
+
+  it("lets a manager reopen a closed assignment on a non-repeating task", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "cancelled", endDate: new Date("2026-11-10T11:00:00"),
+        taskId: TASK_ID, recurrence: null, interval: 1, daysOfWeek: null,
+        startTime: null, endTime: null },
+    ])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "todo" })])
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "todo",
+    })
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.assignment.status).toBe("todo")
+    expect(result.data?.nextAssignment).toBeNull()
+  })
+
+  it("maps a reopen that races an existing open row to VALIDATION_FAILED", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "done", endDate: new Date("2026-11-10T11:00:00"),
+        taskId: TASK_ID, recurrence: null, interval: 1, daysOfWeek: null,
+        startTime: null, endTime: null },
+    ])
+    state.mock.onUpdate(schema.taskAssignmentsTable)
+      .throw(Object.assign(new Error("duplicate key value violates unique constraint"), { code: "23505" }))
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "todo",
+    })
+    expect(result.serverError).toEqual({ code: "VALIDATION_FAILED" })
   })
 })
 
