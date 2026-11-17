@@ -27,7 +27,7 @@ import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { Fragment, useCallback, useState } from "react"
+import { Fragment, useState } from "react"
 import { cn } from "cn"
 import { DueDate } from "./due-date"
 import { TaskAssigneeStack } from "./task-assignee-stack"
@@ -64,7 +64,6 @@ export function TasksTable({
   const canMutate =
     (isOwner || isAdmin) && (canEdit || canDeleteProject)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [historyOpen, setHistoryOpen] = useState<Set<string>>(new Set())
 
   function toggleExpanded(taskId: string) {
     setExpanded((prev) => {
@@ -74,15 +73,6 @@ export function TasksTable({
       return next
     })
   }
-
-  const toggleHistory = useCallback((taskId: string) => {
-    setHistoryOpen((prev) => {
-      const next = new Set(prev)
-      if (next.has(taskId)) next.delete(taskId)
-      else next.add(taskId)
-      return next
-    })
-  }, [])
 
   return (
     <div className="overflow-auto rounded-md border">
@@ -107,7 +97,10 @@ export function TasksTable({
             const open = sortAssignments(
               task.assignments.filter(isOpenAssignment)
             )
-            const shown = visibleAssignments(task.assignments)
+            const shown = visibleAssignments(
+              task.assignments,
+              task.recurrence
+            )
             const counts = assignmentCounts(task.assignments)
             const lead = open[0]
             const isExpanded = expanded.has(task.id)
@@ -246,32 +239,22 @@ export function TasksTable({
                 </TableRow>
                 {isExpanded && (
                   <Fragment>
-                    {historyOpen.has(task.id) ? (
-                      <TaskHistoryPanel taskId={task.id} />
-                    ) : (
-                      <TaskAssignmentRows
-                        taskId={task.id}
-                        assignments={shown}
-                        onStatusChange={onStatusChange}
-                        recurrence={task.recurrence}
-                        onReopen={(assignmentId) =>
-                          onStatusChange(task.id, assignmentId, "todo")
-                        }
-                      />
-                    )}
-                    <TableRow>
-                      <TableCell colSpan={canMutate ? 7 : 6}>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          aria-pressed={historyOpen.has(task.id)}
-                          onClick={() => toggleHistory(task.id)}
-                        >
-                          {t("projects.tasks.showClosed")}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                    <TaskAssignmentRows
+                      taskId={task.id}
+                      assignments={shown}
+                      onStatusChange={onStatusChange}
+                      recurrence={task.recurrence}
+                      onReopen={(assignmentId) =>
+                        onStatusChange(task.id, assignmentId, "todo")
+                      }
+                    />
+                    <TaskHistoryPanel
+                      taskId={task.id}
+                      recurrence={task.recurrence}
+                      shownIds={shown.map(
+                        (assignment) => assignment.id
+                      )}
+                    />
                   </Fragment>
                 )}
               </Fragment>

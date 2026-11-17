@@ -117,18 +117,32 @@ async function getTaskRow(taskId: string) {
     .then((rows) => rows[0])
 }
 
-async function getAssignmentRowsByTaskIds(taskIds: string[]) {
+async function getLatestAssignmentRowsByTaskIds(taskIds: string[]) {
   return db
     .select(LATEST_ASSIGNMENT_COLUMNS)
     .from(taskAssignmentLatestView)
     .where(inArray(taskAssignmentLatestView.taskId, taskIds))
 }
 
-async function getAssignmentRowsByTaskId(taskId: string) {
+async function getLatestAssignmentRowsByTaskId(taskId: string) {
   return db
     .select(LATEST_ASSIGNMENT_COLUMNS)
     .from(taskAssignmentLatestView)
     .where(eq(taskAssignmentLatestView.taskId, taskId))
+}
+
+async function getFullAssignmentRowsByTaskIds(taskIds: string[]) {
+  return db
+    .select(ASSIGNMENT_VIEW_COLUMNS)
+    .from(taskAssignmentDetailView)
+    .where(inArray(taskAssignmentDetailView.taskId, taskIds))
+}
+
+async function getFullAssignmentRowsByTaskId(taskId: string) {
+  return db
+    .select(ASSIGNMENT_VIEW_COLUMNS)
+    .from(taskAssignmentDetailView)
+    .where(eq(taskAssignmentDetailView.taskId, taskId))
 }
 
 async function getAssignmentViewById(assignmentId: string) {
@@ -461,10 +475,24 @@ async function getTasksWithAssignments(
   const ids = taskRows.map((t) => t.id)
   if (ids.length === 0) return []
 
-  const [assignmentRows, commentRows] = await Promise.all([
-    getAssignmentRowsByTaskIds(ids),
+  const fullIds: string[] = []
+  const latestIds: string[] = []
+  for (const row of taskRows) {
+    if (row.recurrence === null) fullIds.push(row.id)
+    else latestIds.push(row.id)
+  }
+
+  const [fullRows, latestRows, commentRows] = await Promise.all([
+    fullIds.length > 0
+      ? getFullAssignmentRowsByTaskIds(fullIds)
+      : Promise.resolve([]),
+    latestIds.length > 0
+      ? getLatestAssignmentRowsByTaskIds(latestIds)
+      : Promise.resolve([]),
     getCommentCountsByTaskIds(ids),
   ])
+
+  const assignmentRows = [...fullRows, ...latestRows]
 
   const assignmentsByTask = new Map<string, TaskAssignmentDTO[]>()
   for (const row of assignmentRows) {
@@ -489,7 +517,9 @@ async function getTaskWithAssignments(taskId: string): Promise<{
   const row = await getTaskRow(taskId)
   if (!row) return null
 
-  const assignmentRows = await getAssignmentRowsByTaskId(taskId)
+  const assignmentRows = row.recurrence
+    ? await getLatestAssignmentRowsByTaskId(taskId)
+    : await getFullAssignmentRowsByTaskId(taskId)
 
   return {
     record: toTaskRecord(row),

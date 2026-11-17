@@ -47,7 +47,7 @@ const makeTask = (
 })
 
 describe("visibleAssignments", () => {
-  it("shows only open rows when the task has any open assignment", () => {
+  it("repeating: shows only open rows when the task has any open assignment", () => {
     const open = makeAssignment({
       id: "a1",
       userId: "u1",
@@ -58,14 +58,35 @@ describe("visibleAssignments", () => {
       userId: "u2",
       status: "done",
     })
-    expect(visibleAssignments([open, closed])).toEqual([open])
+    expect(visibleAssignments([open, closed], "daily")).toEqual([open])
   })
-  it("shows every row when the task has no open assignment", () => {
+  it("repeating: shows every row when the task has no open assignment", () => {
     const rows = [
       makeAssignment({ id: "a1", userId: "u1", status: "done" }),
       makeAssignment({ id: "a2", userId: "u2", status: "cancelled" }),
     ]
-    expect(visibleAssignments(rows)).toBe(rows)
+    expect(visibleAssignments(rows, "weekly")).toBe(rows)
+  })
+  it("non-repeating: keeps open and closed rows side by side", () => {
+    const open = makeAssignment({
+      id: "a1",
+      userId: "u1",
+      status: "todo",
+    })
+    const closed = makeAssignment({
+      id: "a2",
+      userId: "u2",
+      status: "done",
+    })
+    const rows = [open, closed]
+    expect(visibleAssignments(rows, null)).toBe(rows)
+  })
+  it("non-repeating: keeps every row when none is open", () => {
+    const rows = [
+      makeAssignment({ id: "a1", userId: "u1", status: "done" }),
+      makeAssignment({ id: "a2", userId: "u1", status: "cancelled" }),
+    ]
+    expect(visibleAssignments(rows, null)).toBe(rows)
   })
 })
 

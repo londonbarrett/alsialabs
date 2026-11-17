@@ -7,14 +7,18 @@ import { isOpenAssignment, shouldShowTask } from "@/lib/tasks/filter"
 export type TasksVisibilityFilter = "unfinished" | "both" | "finished"
 
 /**
- * Rows to render for a task: while any assignment is still open the
- * finished rows are history noise, but once every row is terminal the
- * store's one-row-per-assignee invariant makes the whole set exactly
- * each assignee's last finished row, so it stays visible.
+ * Rows to render for a task. Non-repeating tasks load their full
+ * assignment history, so every row shows. Repeating tasks stay slim:
+ * while any assignment is still open the finished rows are history
+ * noise, but once every row is terminal the store's
+ * one-row-per-assignee invariant makes the whole set exactly each
+ * assignee's last finished row, so it stays visible.
  */
 export function visibleAssignments(
-  assignments: TaskAssignmentDTO[]
+  assignments: TaskAssignmentDTO[],
+  recurrence: "daily" | "weekly" | null
 ): TaskAssignmentDTO[] {
+  if (recurrence === null) return assignments
   return assignments.some(isOpenAssignment)
     ? assignments.filter(isOpenAssignment)
     : assignments

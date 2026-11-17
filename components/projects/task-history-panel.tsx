@@ -1,20 +1,29 @@
 "use client"
 
-import type { TaskAssignmentDTO } from "@/actions/tasks/schemas"
+import {
+  HISTORY_PAGE_SIZE,
+  type TaskAssignmentDTO,
+} from "@/actions/tasks/schemas"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useTranslations } from "next-intl"
-import { Fragment, useCallback, useEffect, useRef, useState } from "react"
+import { Fragment, useCallback, useState } from "react"
 import { TaskAssignmentRows } from "./task-assignment-rows"
 
 interface TaskHistoryPanelProps {
   taskId: string
+  recurrence: "daily" | "weekly" | null
+  shownIds: string[]
 }
 
-export function TaskHistoryPanel({ taskId }: TaskHistoryPanelProps) {
+export function TaskHistoryPanel({
+  taskId,
+  recurrence,
+  shownIds,
+}: TaskHistoryPanelProps) {
   const t = useTranslations()
   const { projectId, isOwner, isAdmin } = useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
@@ -23,52 +32,49 @@ export function TaskHistoryPanel({ taskId }: TaskHistoryPanelProps) {
     (isOwner || isAdmin) && (canEditProject || canDeleteProject)
   const columnCount = canMutate ? 7 : 6
   const { loadAssignmentHistory } = useProjectTasksActions()
-  const [rows, setRows] = useState<TaskAssignmentDTO[]>([])
-  const [hasMore, setHasMore] = useState(false)
+  const [displayed, setDisplayed] = useState<TaskAssignmentDTO[]>([])
+  const [fetchedCount, setFetchedCount] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
-  const startedRef = useRef(false)
 
-  const loadPage = useCallback(
-    async (offset: number): Promise<void> => {
-      setLoading(true)
-      try {
-        const page = await loadAssignmentHistory(
-          projectId,
-          taskId,
-          offset
-        )
-        if (page) {
-          setRows((prev) =>
-            offset === 0
-              ? page.assignments
-              : [...prev, ...page.assignments]
-          )
-          setHasMore(page.hasMore)
-        }
-      } catch {
-        return
-      } finally {
-        setLoading(false)
+  const loadMore = useCallback(async (): Promise<void> => {
+    setLoading(true)
+    try {
+      const page = await loadAssignmentHistory(
+        projectId,
+        taskId,
+        fetchedCount
+      )
+      if (page) {
+        setDisplayed((prev) => {
+          const seen = new Set([
+            ...shownIds,
+            ...prev.map((assignment) => assignment.id),
+          ])
+          return [
+            ...prev,
+            ...page.assignments.filter(
+              (assignment) => !seen.has(assignment.id)
+            ),
+          ]
+        })
+        setFetchedCount((count) => count + HISTORY_PAGE_SIZE)
+        setHasMore(page.hasMore)
       }
-    },
-    [loadAssignmentHistory, projectId, taskId]
-  )
+    } catch {
+      return
+    } finally {
+      setLoading(false)
+    }
+  }, [loadAssignmentHistory, projectId, taskId, fetchedCount, shownIds])
 
-  useEffect(() => {
-    if (startedRef.current) return
-    startedRef.current = true
-    void loadPage(0)
-  }, [loadPage])
-
-  const loadMore = useCallback(() => {
-    void loadPage(rows.length)
-  }, [loadPage, rows.length])
+  if (recurrence === null) return null
 
   return (
     <Fragment>
       <TaskAssignmentRows
         taskId={taskId}
-        assignments={rows}
+        assignments={displayed}
         onStatusChange={() => {}}
         preserveOrder
       />

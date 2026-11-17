@@ -182,6 +182,51 @@ describe("getTasks", () => {
     expect(result.data?.[0]?.assignments[0]?.userId).toBe(USER_ID)
   })
 
+  it("reads the full assignment history from the detail view for non-repeating tasks", async () => {
+    const before = state.mock.calls.length
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([
+        makeAssignmentRow(),
+        makeAssignmentRow({ assignmentId: "other", status: "done" }),
+      ])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+
+    const result = await getTasks({ projectId: PROJECT_ID })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.[0]?.assignments).toHaveLength(2)
+    const viewSql = state.mock.calls
+      .slice(before)
+      .map((call) => call.sql)
+      .join(" ")
+    expect(viewSql).toContain('"task_assignment_detail"')
+    expect(viewSql).not.toContain('"task_assignment_latest"')
+  })
+
+  it("reads one row per assignee from the latest view for repeating tasks", async () => {
+    const before = state.mock.calls.length
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ recurrence: "daily" })])
+    state.mock
+      .onSelect(schema.taskAssignmentLatestView)
+      .respond([makeAssignmentRow()])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+
+    const result = await getTasks({ projectId: PROJECT_ID })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.[0]?.assignments).toHaveLength(1)
+    const viewSql = state.mock.calls
+      .slice(before)
+      .map((call) => call.sql)
+      .join(" ")
+    expect(viewSql).toContain('"task_assignment_latest"')
+    expect(viewSql).not.toContain('"task_assignment_detail"')
+  })
+
   it("forbids a collaborator from the project task list", async () => {
     grantAccess("collaborator")
     const result = await getTasks({ projectId: PROJECT_ID })

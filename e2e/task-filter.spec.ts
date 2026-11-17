@@ -240,6 +240,15 @@ test("a repeating task finished through the wizard shows badges without reopen",
     person.getByRole("button", { name: "Reabrir" })
   ).toHaveCount(0)
 
+  // A finished repeating task gets Load More; its single closed row is
+  // already on screen, so the click fetches nothing new and the
+  // button goes away without duplicating the row.
+  const loadMore = page.getByRole("button", { name: "Cargar más" })
+  await expect(loadMore).toBeVisible()
+  await loadMore.click()
+  await expect(loadMore).toHaveCount(0)
+  await expect(person).toHaveCount(1)
+
   // The wizard is still the way back: Edit stays in the action menu.
   await row
     .getByRole("button", { name: `Acciones para ${taskName}` })
@@ -390,28 +399,24 @@ test("closed assignment history pages ten rows at a time", async ({
     await expect(person).toHaveCount(1)
   }
 
-  // Display rule: the default expanded view keeps only the open successor.
-  // The 11 closed rows live behind the history switch, ten to a page.
+  // Display rule: the default expanded view keeps only the open
+  // successor. The 11 closed rows arrive through Load More, ten at a
+  // time, appended below it.
+  await expect(person).toHaveCount(1)
   await expect(person.getByRole("combobox")).toHaveCount(1)
-  const showClosed = page.getByRole("button", {
-    name: "Mostrar asignaciones cerradas",
-  })
-  await expect(showClosed).toHaveAttribute("aria-pressed", "false")
-  await showClosed.click()
-  await expect(showClosed).toHaveAttribute("aria-pressed", "true")
-  await expect(person).toHaveCount(10)
-  await expect(person.getByRole("combobox")).toHaveCount(0)
-
   const loadMore = page.getByRole("button", { name: "Cargar más" })
   await expect(loadMore).toBeVisible()
   await loadMore.click()
   await expect(person).toHaveCount(11)
+  await expect(person.getByRole("combobox")).toHaveCount(1)
+  await loadMore.click()
+  await expect(person).toHaveCount(12)
   await expect(loadMore).toHaveCount(0)
-  await expect(showClosed).toHaveAttribute("aria-pressed", "true")
 
-  // Newest first (createdAt DESC): the top row stays the occurrence closed
-  // last, and the older page appended below it instead of above.
-  await expect(person.first().locator("td").nth(1)).toHaveText(
+  // Newest first (createdAt DESC): the first appended row is the
+  // occurrence closed last, with the older page below it instead of
+  // above; the open successor still leads the block.
+  await expect(person.nth(1).locator("td").nth(1)).toHaveText(
     lastClosedWindow
   )
 })
@@ -447,8 +452,9 @@ test("a removed assignee can be reassigned with the closed row in history", asyn
   await expect(person.getByRole("button", { name: "Reabrir" })).toBeVisible()
   await expect(person.getByRole("combobox")).toHaveCount(0)
 
-  // Reassign the same member: their open row returns, the cancelled row
-  // stays behind the history switch.
+  // Reassign the same member: their open row returns beside the old
+  // cancelled row — non-repeating tasks load full history, so both
+  // show immediately and there is no Load More control.
   const secondEdit = await openEdit(page, row, taskName)
   await secondEdit.getByRole("button", { name: "Agregar asignado" }).click()
   await page
@@ -458,24 +464,16 @@ test("a removed assignee can be reassigned with the closed row in history", asyn
 
   await expandAssignments(row)
   await expect(row).toContainText("1 abierta")
-  await expect(person).toHaveCount(1)
-  await expect(person).toContainText("Por hacer")
+  await expect(person).toHaveCount(2)
   await expect(person.getByRole("combobox")).toHaveCount(1)
-
-  const showClosed = page.getByRole("button", {
-    name: "Mostrar asignaciones cerradas",
-  })
-  await showClosed.click()
-  await expect(showClosed).toHaveAttribute("aria-pressed", "true")
-  await expect(person).toHaveCount(1)
-  await expect(person).toContainText("Cancelado")
-  await expect(person.getByRole("combobox")).toHaveCount(0)
-
-  await showClosed.click()
-  await expect(showClosed).toHaveAttribute("aria-pressed", "false")
-  await expect(person).toHaveCount(1)
-  await expect(person).toContainText("Por hacer")
-  await expect(person.getByRole("combobox")).toHaveCount(1)
+  await expect(person.filter({ hasText: "Por hacer" })).toHaveCount(1)
+  await expect(person.filter({ hasText: "Cancelado" })).toHaveCount(1)
+  await expect(
+    person.getByRole("button", { name: "Reabrir" })
+  ).toHaveCount(1)
+  await expect(
+    page.getByRole("button", { name: "Cargar más" })
+  ).toHaveCount(0)
 })
 
 test("the finished filter has its own empty message", async ({

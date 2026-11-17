@@ -268,7 +268,6 @@
       "filterLabel": "Task visibility filter",
       "noFinished": "No finished tasks yet",
       "reopen": "Reopen",
-      "showClosed": "Show closed assignments",
       "name": "Task Name",
       "taskDeleted": "Task deleted",
       "taskUpdated": "Task updated",

@@ -80,33 +80,24 @@ test("a task with several assignees shows counts, stack, and per-person rows", a
   await expect(user1Row).toBeVisible()
   await expect(user1Row.getByRole("combobox")).toHaveCount(1)
 
-  // Completing one assignee drops the count; the display rule hides
-  // their closed row while any row is still open — the other person's
-  // control is unaffected.
+  // Completing one assignee drops the count. The task is
+  // non-repeating, so full history keeps the closed row visible
+  // beside the still-open one — and this kind of task never gets a
+  // Load More control.
   await collaboratorRow.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
   await expect(page.getByText("Estado actualizado")).toBeVisible()
   await expect(row).toContainText("1 abierta")
-  await expect(
-    subRows.filter({ hasText: "E2E Collaborator" })
-  ).toHaveCount(0)
+  await expect(subRows.filter({ hasText: "E2E Collaborator" })).toHaveCount(
+    1
+  )
+  await expect(collaboratorRow).toContainText("Completado")
+  await expect(collaboratorRow.getByRole("combobox")).toHaveCount(0)
   await expect(user1Row).toBeVisible()
   await expect(user1Row.getByRole("combobox")).toHaveCount(1)
-
-  // The history switch reveals the closed row as a read-only badge.
-  const showClosed = page.getByRole("button", {
-    name: "Mostrar asignaciones cerradas",
-  })
-  await showClosed.click()
-  const historyRow = subRows.filter({ hasText: "E2E Collaborator" })
-  await expect(historyRow).toBeVisible()
-  await expect(historyRow.getByText("Completado")).toBeVisible()
-  await expect(historyRow.getByRole("combobox")).toHaveCount(0)
-
-  // Back to the default view for the remaining open assignment.
-  await showClosed.click()
-  await expect(historyRow).toHaveCount(0)
-  await expect(user1Row.getByRole("combobox")).toHaveCount(1)
+  await expect(
+    page.getByRole("button", { name: "Cargar más" })
+  ).toHaveCount(0)
 
   // Last assignment terminal: the whole task leaves the list.
   await user1Row.getByRole("combobox").click()

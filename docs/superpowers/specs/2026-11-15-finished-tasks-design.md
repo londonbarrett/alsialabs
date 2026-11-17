@@ -17,9 +17,10 @@ design adds:
 1. a **three-way visibility filter** (Both / Unfinished / Finished) in
    the Tasks card, so finished work is viewable and reassignable in
    place,
-2. **closed-assignment history** behind a switch on an expanded task
-   row, paged ten at a time,
-3. a **slimmer default assignment fetch** (one row per assignee), and
+2. **closed-assignment history** behind a Load More button on an
+   expanded repeating task row, paged ten at a time,
+3. a **recurrence-aware default assignment fetch** (repeating tasks:
+   one row per assignee; non-repeating tasks: full history), and
 4. **assignment transition and spawn rules** that keep the
    one-open-assignment-per-assignee invariant unbreakable.
 
@@ -30,8 +31,9 @@ design adds:
   wizard.
 - Anyone with project access can inspect a task's closed-assignment
   history without leaving the project tab.
-- `getTasksWithAssignments` transfers one assignment row per assignee,
-  not full history.
+- `getTasksWithAssignments` transfers one assignment row per assignee
+  on repeating tasks; non-repeating tasks transfer their full
+  assignment history.
 - On repeating tasks, closed assignments can never be reopened
   (terminal→open is rejected) — successor chains can't be corrupted by
   revisiting history. On **non-repeating** tasks managers may reopen
@@ -93,24 +95,39 @@ Add Task (lines 146-158). Add a three-option filter beside the title —
 
 ### #3 Visible assignment rows (display rule)
 
-Per task:
+The rule below applies to **repeating tasks**; non-repeating tasks
+load their full assignment history (#7) and show every loaded row —
+open and closed together — with no history control (#6).
+
+Repeating task:
 
 - if it has **any open assignment** → show only the open rows;
 - otherwise (zero open) → show **each assignee's last finished
   (closed) row** — one row per person.
 
+Non-repeating task:
+
+- show **all loaded rows**, open and closed side by side.
+
 Consequences:
 
-- A mixed task (A open, B done) shows only A by default; B's closed
-  row is one history-switch away (#6).
-- A finished task shows one terminal badge row per assignee — the
-  session brief's "each assignee's last assignment read-only".
+- A repeating mixed task (A open, B done) shows only A by default;
+  B's closed row arrives through Load More (#6).
+- A non-repeating mixed task shows A's open row beside B's closed row
+  immediately — no click required.
+- A finished repeating task shows one terminal badge row per
+  assignee — the session brief's "each assignee's last assignment
+  read-only".
 - **Supersedes phase-2 Decided #2** ("expanded rows show each
-  person's last assignment… supersedes open only"): closed rows are no
-  longer shown alongside open ones.
-- Implemented at render in `TasksTable`. It sits on top of the store
-  invariant (#7): with exactly one row per assignee (open-preferred),
-  the zero-open case *is* the per-person last-finished set.
+  person's last assignment… supersedes open only") *for repeating
+  tasks*: there, closed rows are no longer shown alongside open ones.
+  Non-repeating tasks keep phase-2's alongside view, now backed by
+  the full-history fetch.
+- Implemented at render in `TasksTable` through the
+  recurrence-aware `visibleAssignments`. It sits on top of the store
+  invariant (#7): with exactly one row per assignee on repeating
+  tasks (open-preferred), the zero-open case *is* the per-person
+  last-finished set.
 - Collapsed-row status summary and due-date cell already derive from
   open rows only (`tasks-table.tsx:128-141`) — unchanged.
 
@@ -119,18 +136,20 @@ Consequences:
 - Every assignment on a finished task is terminal, so the existing
   path renders status badges, never selects
   (`task-assignment-rows.tsx:63-67`).
-- **Reopen (non-repeating tasks only, managers only):** on a zero-open
-  task with `recurrence: null`, each visible closed row gets a Reopen
-  control that flips it back to `todo`, restoring the original dates
-  and comment. Because closed rows are only visible when the task has
-  zero open assignments (#3), a reopen never meets an existing open
-  row of the same person except via stale data — which the unique
-  index converts to `VALIDATION_FAILED` (existing catch,
-  `actions/tasks/actions.ts:204-207`). Repeating tasks: badges only.
+- **Reopen (non-repeating tasks only, managers only):** on a
+  non-repeating task, each visible closed row gets a Reopen control
+  that flips it back to `todo`, restoring the original dates and
+  comment. Because the full-history display (#3) shows closed rows
+  beside open ones, a reopen can meet an existing open row of the
+  same person (removed-then-reassigned) — the unique index converts
+  that to `VALIDATION_FAILED` (existing catch,
+  `actions/tasks/actions.ts:204-207`); the same guard also covers
+  stale data from another tab. Repeating tasks: badges only.
   Placement call (mine): the control appears wherever closed rows are
-  visible in the default view — the Finished filter *and* the
-  unfinished "lingering" zero-open state — not only in Finished; the
-  history switch stays read-only in every mode.
+  visible in the default view — the Finished filter, the unfinished
+  "lingering" zero-open state, and mixed non-repeating tasks — not
+  only in Finished; the Load More block stays read-only in every
+  mode.
 - **The wizard is the universal way back to open work** (any task,
   any filter): action menu → `TaskDialog`/`TaskForm`. It seeds
   assignees from open
@@ -149,14 +168,16 @@ inserts a fresh `todo` row whose window is always current or future —
 `firstAssignmentWindow` anchors at the task's future start or now
 (`lib/tasks/assignments.ts:81-84`) — so the new row is the
 latest-dated row for that person. Result: the task resurfaces as
-unfinished (filter unchanged), the display rule shows the open row
-with old closed rows hidden behind the history switch, and closing the
-new row passes guard 4 (no later-dated row) so a repeating chain
-resumes normally. One accepted edge: if the task's schedule was
-shortened between removal and reassignment, the old closed snapshot
-can be *later*-dated than the new row, and guard 4 then ends that
-person's chain on the next close — a consequence of the decided
-"only the latest assignment spawns" rule (rare; recorded under Risks).
+unfinished (filter unchanged) — on a non-repeating task the display
+rule shows the open row beside the old closed row (full history,
+#3/#7), on a repeating task the open row alone shows with the closed
+row one Load More away (#6) — and closing the new row passes guard 4
+(no later-dated row) so a repeating chain resumes normally. One
+accepted edge: if the task's schedule was shortened between removal
+and reassignment, the old closed snapshot can be *later*-dated than
+the new row, and guard 4 then ends that person's chain on the next
+close — a consequence of the decided "only the latest assignment
+spawns" rule (rare; recorded under Risks).
 
 ### #5 Assignment transition rules (server)
 
@@ -189,55 +210,80 @@ In `updateAssignmentStatus` (`actions/tasks/actions.ts:118-225`):
   server rule only (my call — the session never asked for a correction
   control, and the existing badge convention is pinned by e2e).
 
-### #6 History switch on the expanded row
+### #6 Load More on the expanded row (closed-assignment history)
 
-Available in every filter mode, inside the expanded region of
-`TasksTable`:
+Available in every filter mode for **repeating tasks**, inside the
+expanded region of `TasksTable`; non-repeating tasks already hold
+their full history (#7) and never get the control:
 
 - Default: the visible rows per #3.
-- A small control ("Show closed assignments") swaps the region to the
-  task's **closed** assignments (statuses `done`/`cancelled` only),
-  newest first (`createdAt DESC`), **10 rows per page**, with a Load
-  More button appending the next page. On a mixed task this is what
-  reveals the closed rows the default view hides; on a finished task
-  it goes deeper than the per-person last rows.
-- Rows are read-only badges (assignee, date range, status; the
-  assignment `comment` display is the builder's call).
-- New server action:
-  `getTaskAssignmentHistory({ projectId, taskId, limit: 10, offset })`
-  — `projectAction` (project access enforced by the chain), reads
-  `task_assignment_detail` filtered to terminal statuses, returns
-  `{ assignments, hasMore }` with a declared output schema.
-- State is local to `TasksTable` (a `Map<taskId, page[]>` plus the
-  open/closed switch), never the store: it is a per-row disclosure, not
+- Below them, a **Load More** button (existing `common.loadMore`) —
+  not a switch, no swap. It fetches **on click**, never on expand,
+  and appends the task's **closed** assignments (statuses
+  `done`/`cancelled` only), **10 rows per page**, in server order
+  `createdAt DESC` (newest first). The button renders until a fetch
+  returns `hasMore: false`; a wasted click on a task with no closed
+  history is accepted.
+- Appended pages are **deduped against the rows already displayed**
+  (by assignment id) — including the initial rows rendered above the
+  panel — so a page that contributes nothing new renders nothing,
+  and the button disappears when `hasMore` turns false. The offset
+  tracks **server rows fetched** (each click advances it by the page
+  size), not rows displayed.
+- The default rows stay in place; history appends below them.
+- Rows in the appended block are read-only badges (assignee, date
+  range, status; the assignment `comment` display is the builder's
+  call) — no status selects and no Reopen there.
+- Server action: `getTaskAssignmentHistory({ projectId, taskId,
+  limit: 10, offset })` — `projectAction` (project access enforced
+  by the chain), reads `task_assignment_detail` filtered to terminal
+  statuses, returns `{ assignments, hasMore }` with a declared
+  output schema.
+- State is local to `TaskHistoryPanel` (displayed rows, fetched
+  count, `hasMore`), never the store: it is a per-row disclosure, not
   list state, and component state survives collapse/expand while the
   table is mounted.
 
-### #7 Slim default fetch and the one-row-per-assignee invariant
+### #7 Recurrence-aware default fetch and the store shape
 
-- **Store invariant**: `TaskWithAssignmentsDTO.assignments` holds
-  exactly one row per assignee — their open row when one exists,
-  otherwise their most recent closed row (open beats closed; then later
-  `startDate` wins; null `startDate` sorts oldest — the semantics of
+- **Store invariant (repeating tasks)**:
+  `TaskWithAssignmentsDTO.assignments` holds exactly one row per
+  assignee — their open row when one exists, otherwise their most
+  recent closed row (open beats closed; then later `startDate` wins;
+  null `startDate` sorts oldest — the semantics of
   `isNewerAssignment`, `tasks-table.tsx:50-64`).
-- `getAssignmentRowsByTaskIds` (used by `getTasksWithAssignments`) and
-  `getAssignmentRowsByTaskId` (used by `getTaskWithAssignments`, which
-  reloads the store after create/update — `actions.ts:76,108`) select
-  from the new `task_assignment_latest` view instead of the raw table.
+- **Non-repeating tasks**: `assignments` holds **every row** — the
+  full assignment history — which is why their expanded view needs
+  no paging (#3, #6).
+- The fetch partitions on `recurrence`:
+  `getTasksWithAssignments` splits the project's task ids into
+  non-repeating (detail view — full history) and repeating (latest
+  view — one row per assignee), guards each side against an empty id
+  list, merges, and groups by task; `getTaskWithAssignments` (which
+  reloads the store after create/update — `actions.ts:76,108`) picks
+  the same view from the task row's `recurrence`. Both leaf reads
+  keep their existing column maps (`ASSIGNMENT_VIEW_COLUMNS` for the
+  detail view, `LATEST_ASSIGNMENT_COLUMNS` for the latest view).
 - **Spawn commit**: when a close spawns a successor, the store ends
   with the open successor for that assignee and **without** the closed
   row (reducer replaces rather than appends). The pinned store test
   ("adds the spawned occurrence ahead of the closed one",
   `stores/project-tasks/project-tasks-store.test.ts:139`) is updated to
-  assert the replacement. Full history stays reachable only through
-  `getTaskAssignmentHistory`.
-- With the invariant enforced, `latestAssignmentPerUser` and
-  `isNewerAssignment` in `tasks-table.tsx` are redundant and removed;
-  `sortAssignments` stays (it also orders optimistic rows).
-- Optimistic rows already satisfy the invariant
-  (`buildOptimisticTask` builds one row per assignee).
-- Unaffected consumers: My Tasks (`getMyTasks`), the calendar, and the
-  expenses page (same slim `getTasks`).
+  assert the replacement. Spawn only happens on repeating tasks, so
+  the slim invariant there is untouched by the full non-repeating
+  fetch; repeating history beyond the latest row stays reachable
+  through `getTaskAssignmentHistory`.
+- With the invariant enforced on repeating tasks,
+  `latestAssignmentPerUser` and `isNewerAssignment` in
+  `tasks-table.tsx` are redundant and removed; `sortAssignments`
+  stays (it also orders optimistic rows).
+- Optimistic rows start from one row per assignee
+  (`buildOptimisticTask`); the create/update commit replaces them with
+  the recurrence-appropriate fetch above.
+- Unaffected consumers: My Tasks (`getMyTasks` — already the detail
+  view) and the calendar (does not read `getTasks`); the expenses
+  page seeds the same recurrence-aware `getTasks`, where the extra
+  closed rows are inert.
 
 ### #8 Database views and migrations
 
@@ -292,13 +338,16 @@ Consequences (decided):
   `syncTaskAssignments` and non-repeating tasks never spawn,
   unchanged).
 
-### #10 Predicate runs over slim rows (accepted edge change)
+### #10 Predicate runs over the recurrence-aware rows (accepted edge change)
 
-`shouldShowTask` is unchanged, but its input is now #7's slim rows.
-One edge changes: a user whose history contains `done` but whose
-**latest** row is `cancelled` no longer hides the task — it lingers
-until its due day instead of vanishing immediately. Accepted as more
-correct (that person's current state is cancelled).
+`shouldShowTask` is unchanged, but its input is now #7's
+recurrence-aware rows. On repeating tasks one edge changes: a user
+whose history contains `done` but whose **latest** row is `cancelled`
+no longer hides the task — it lingers until its due day instead of
+vanishing immediately. Accepted as more correct (that person's
+current state is cancelled). Non-repeating tasks read their full
+history, so a `done` row anywhere still hides them — the pre-feature
+behavior.
 
 ### #11 Translations
 
@@ -312,7 +361,6 @@ New keys:
 | `projects.tasks.finished` | Finished | Finalizadas |
 | `projects.tasks.noFinished` | No finished tasks yet | Aún no hay tareas finalizadas |
 | `projects.tasks.reopen` | Reopen | Reabrir |
-| `projects.tasks.showClosed` | Show closed assignments | Mostrar asignaciones cerradas |
 | `common.loadMore` | Load more | Cargar más |
 
 Reuse as-is: `errors.VALIDATION_FAILED`, `common.unassigned`,
@@ -337,7 +385,12 @@ chevron), `projects.tasks.noTasks`. Dynamic key-maps are never renamed.
     paging/`hasMore`, mocked via `vitest-drizzle-mock` on the detail
     view.
   - `getTasksWithAssignments` / `getTaskWithAssignments` mock the
-    latest view and assert one-row-per-assignee grouping.
+    latest view and assert one-row-per-assignee grouping, plus view
+    pins per recurrence: a non-repeating task's rows are read from the
+    detail view (recorded SQL), a repeating task's from the latest
+    view. `lib/tasks/list.test.ts` covers the recurrence-aware
+    `visibleAssignments` (non-repeating → identity, repeating →
+    open-only when any row is open, else every row).
   - Store: spawn commit replaces the closed row with the open
     successor (updated pinned test, #7).
   - `lib/tasks/filter.test.ts` unchanged (predicate untouched); add
@@ -350,10 +403,17 @@ chevron), `projects.tasks.noTasks`. Dynamic key-maps are never renamed.
     Finished; switch to Unfinished → row carries an open control.
     Filter ordering: Both shows unfinished before finished, date
     ordering within each group.
-  - Display rule: mixed task (one open, one done assignee) shows only
-    the open row by default; Show closed assignments reveals the done
-    row read-only; Load More covered at least once at a page boundary
-    (the plan picks the cheapest honest setup).
+  - Load More matrix (repeating): a mixed repeating task (one open,
+    eleven closed) expands to the single open row plus Load More;
+    the first click appends ten closed rows newest-first below the
+    open row, the second appends the eleventh and hides the button.
+    A finished repeating task shows its last-closed row per assignee
+    and, on Load More, never duplicates it (dedupe + `hasMore:
+    false` hides the button).
+  - Non-repeating: a mixed task (one open, one closed) shows both
+    rows immediately with no Load More button — in
+    `e2e/multi-assignee.spec.ts` the closed row flips from "behind
+    the history control" to "visible by default".
   - Reopen paths: non-repeating finished task shows a Reopen control
     (manager) → click → task leaves Finished (filter unchanged) →
     Unfinished shows it with an open status control again; repeating
@@ -361,8 +421,8 @@ chevron), `projects.tasks.noTasks`. Dynamic key-maps are never renamed.
     sees no Reopen anywhere.
   - Removed then reassigned: unassign a member (mark cancelled) →
     task zero-open behavior as decided → reassign via wizard → task
-    back in Unfinished with the fresh open row, old closed row only
-    behind Show closed assignments.
+    back in Unfinished with the fresh open row beside the old closed
+    row, no Load More (non-repeating full history).
   - Existing `e2e/multi-assignee.spec.ts` pins (done → disappears;
     all-cancelled stays visible with "Sin asignar"; terminal rows
     read-only) must keep passing.
@@ -371,14 +431,16 @@ chevron), `projects.tasks.noTasks`. Dynamic key-maps are never renamed.
 
 ## Risks and edge cases
 
-- **Reload paths must stay slim.** `createTask`/`updateTask` reload
-  through `getTaskWithAssignments`; if any path writes full history
-  back into the store the invariant breaks silently — covered by #7's
-  view swap and its tests.
-- **Display-rule visibility change.** Closed rows disappear from mixed
-  tasks' expanded regions (superseding phase-2 Decided #2); anyone
-  relying on that glance must use the history switch. The spec supersedence
-  is recorded above.
+- **Reload paths must stay recurrence-aware.**
+  `createTask`/`updateTask` reload through `getTaskWithAssignments`;
+  a repeating task that receives full history (or a non-repeating
+  one that stays slim) breaks its display rule silently — covered by
+  #7's view split and its tests.
+- **Display-rule visibility change.** Closed rows disappear from
+  *repeating* mixed tasks' expanded regions (superseding phase-2
+  Decided #2 there); anyone relying on that glance must use Load
+  More. Non-repeating mixed tasks keep their closed rows visible.
+  The spec supersedence is recorded above.
 - **Guard 4 is read-then-write.** Two concurrent closes can race; the
   partial unique index is the backstop, and the worst case is a
   rejected spawn, never a duplicate open row.
