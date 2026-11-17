@@ -23,6 +23,7 @@ import {
   isOpenAssignment,
 } from "@/lib/tasks/filter"
 import { visibleAssignments } from "@/lib/tasks/list"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
@@ -104,6 +105,13 @@ export function TasksTable({
             const counts = assignmentCounts(task.assignments)
             const lead = open[0]
             const isExpanded = expanded.has(task.id)
+            // Sorted so sortAssignments re-orders can't retrigger the
+            // history panel's pagination reset.
+            const historySignature = task.assignments
+              .filter((assignment) => isTerminalStatus(assignment.status))
+              .map((assignment) => assignment.id)
+              .sort()
+              .join(",")
             const statusSummary =
               open.length === 0
                 ? t("common.unassigned")
@@ -254,6 +262,7 @@ export function TasksTable({
                       shownIds={shown.map(
                         (assignment) => assignment.id
                       )}
+                      historySignature={historySignature}
                     />
                   </Fragment>
                 )}

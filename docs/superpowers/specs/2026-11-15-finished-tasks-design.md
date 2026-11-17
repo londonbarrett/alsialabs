@@ -243,6 +243,13 @@ their full history (#7) and never get the control:
   count, `hasMore`), never the store: it is a per-row disclosure, not
   list state, and component state survives collapse/expand while the
   table is mounted.
+- **Pagination invalidation**: `fetchedCount`/`hasMore` reset to
+  offset-0/`true` whenever the task's terminal-row id set changes (a
+  spawn or a close inserts history), keyed by a sorted joined
+  signature of the terminal ids computed in `tasks-table.tsx`.
+  Already-displayed rows are preserved; the next fetch restarts at
+  offset 0 and the id-dedupe reconciles the overlap, so no
+  duplicates and no gaps.
 
 ### #7 Recurrence-aware default fetch and the store shape
 

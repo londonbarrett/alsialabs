@@ -17,12 +17,14 @@ interface TaskHistoryPanelProps {
   taskId: string
   recurrence: "daily" | "weekly" | null
   shownIds: string[]
+  historySignature: string
 }
 
 export function TaskHistoryPanel({
   taskId,
   recurrence,
   shownIds,
+  historySignature,
 }: TaskHistoryPanelProps) {
   const t = useTranslations()
   const { projectId, isOwner, isAdmin } = useProjectContextState()
@@ -36,6 +38,18 @@ export function TaskHistoryPanel({
   const [fetchedCount, setFetchedCount] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [seenSignature, setSeenSignature] = useState(historySignature)
+
+  // A terminal-row change means history membership moved (a close, a
+  // spawn's optimistic flip): restart the offset so the next page picks
+  // up the new row. Displayed rows stay; the id-dedupe reconciles the
+  // overlap on the following fetch. Render-phase adjustment — the
+  // setState-in-effect rule forbids doing this in an effect.
+  if (seenSignature !== historySignature) {
+    setSeenSignature(historySignature)
+    setFetchedCount(0)
+    setHasMore(true)
+  }
 
   const loadMore = useCallback(async (): Promise<void> => {
     setLoading(true)
