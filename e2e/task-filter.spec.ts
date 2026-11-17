@@ -432,6 +432,13 @@ test("closed assignment history pages ten rows at a time", async ({
     await expect(person).toHaveCount(1)
   }
 
+  // Feature pin: the status cell carries the task-level terminal total
+  // — all 11 closed rows, including the ten still behind Load More (a
+  // server-side count, never a count of loaded rows) — beside the
+  // single open successor.
+  await expect(row).toContainText("1 abierta")
+  await expect(row).toContainText("11 cerradas")
+
   // Display rule: the default expanded view keeps only the open
   // successor. The 11 closed rows arrive through Load More, ten at a
   // time, appended below it. (Under Sin finalizar the close's
@@ -594,9 +601,10 @@ test("a removed assignee can be reassigned with the closed row in history", asyn
   await removeAssigneeAsCancelled(page, firstEdit)
   await saveEdit(page, firstEdit)
 
-  // Zero-open lingering task: unassigned summary, closed row with Reopen.
+  // Zero-open lingering task: closed-count summary, closed row with
+  // Reopen — the terminal total replaces the old unassigned summary.
   await expect(row).toBeVisible()
-  await expect(row).toContainText("Sin asignar")
+  await expect(row).toContainText("1 cerrada")
   await expandAssignments(row)
   const person = personRows(row)
   await expect(person).toHaveCount(1)

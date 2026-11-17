@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { selectTasks, type TasksVisibilityFilter } from "@/lib/tasks/list"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
@@ -117,6 +118,12 @@ export function TasksCard() {
       commentCount: editing
         ? (tasks.find((t) => t.id === editing.id)?.commentCount ?? 0)
         : 0,
+      // Momentary approximation while the optimistic row is on screen:
+      // the server's true total (rows behind Load More included)
+      // replaces it on the create/update commit.
+      closedCount: assignments.filter((a) =>
+        isTerminalStatus(a.status)
+      ).length,
     }
 
     return optimisticTask

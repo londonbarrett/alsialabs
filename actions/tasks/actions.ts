@@ -100,6 +100,7 @@ export const createTask = projectAction(CreateTaskSchema)
       ...loaded.record,
       assignments: loaded.assignments,
       commentCount: 0,
+      closedCount: loaded.closedCount,
     }
   })
 
@@ -132,6 +133,7 @@ export const updateTask = projectAction(UpdateTaskSchema)
       ...loaded.record,
       assignments: loaded.assignments,
       commentCount: 0,
+      closedCount: loaded.closedCount,
     }
   })
 

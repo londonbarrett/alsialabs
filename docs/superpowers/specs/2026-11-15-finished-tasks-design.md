@@ -137,14 +137,39 @@ Consequences:
   through fetch (#6). For a **non-repeating** task the split does not
   apply — the initial block renders every loaded row and the panel
   renders nothing (`recurrence === null` gate).
-- Collapsed-row status summary and due-date cell already derive from
-  open rows only (`tasks-table.tsx:128-141`) — unchanged.
+- **Rows-component split (amendment 2026-11-17)**: the initial block
+  is two components — `task-open-assignment-rows.tsx` (status
+  select / badge for open rows) and `task-closed-assignment-rows.tsx`
+  (badge always, Reopen for managers, order preserved) — plus
+  `assignment-columns.ts`'s `assignmentColumnCount(canMutate)` as the
+  single home of the `canMutate ? 7 : 6` filler formula (rows + the
+  history panel's Load More colSpan).
+- **Collapsed-row status summary (amendment 2026-11-17)**: parts
+  joined with `" · "` — the open/blocked/review parts while any
+  assignment is open, then `projects.tasks.closedCount` whenever
+  `task.closedCount > 0`. A zero-open task with closed rows reads
+  `N cerradas` instead of the old `common.unassigned`; only a task
+  with no assignments at all keeps `common.unassigned`.
+  `closedCount` is a **server-side task-level total** —
+  `SELECT task_id, count(*) … WHERE status IN ('done','cancelled')
+  GROUP BY task_id` over `task_assignment` (leaf
+  `getClosedCountsByTaskIds`, added to `getTasksWithAssignments`'s
+  `Promise.all` and to `getTaskWithAssignments`) — the TRUE TOTAL
+  including rows behind Load More; recurrence-aware store rows
+  undercount on repeating tasks, so the cell never derives it from
+  loaded rows. Optimistically it moves with `upsertAssignment`'s
+  `closedDelta` (open→terminal +1, terminal→open −1, clamped at 0,
+  pend only — the commit carries no delta and a discard reverts it),
+  `buildOptimisticTask` approximates it from its own rows, and the
+  create/update commit re-seeds the server truth.
+- Collapsed-row due-date cell already derives from
+  open rows only (`tasks-table.tsx`) — unchanged.
 
 ### #4 Finished surface: read-only rows, reopen or reassign
 
 - Every assignment on a finished task is terminal, so the existing
   path renders status badges, never selects
-  (`task-assignment-rows.tsx:63-67`).
+  (`task-closed-assignment-rows.tsx`).
 - **Reopen (non-repeating tasks only, managers only):** on a
   non-repeating task, each visible closed row gets a Reopen control
   that flips it back to `todo`, restoring the original dates and
@@ -406,6 +431,7 @@ New keys:
 | `projects.tasks.finished` | Finished | Finalizadas |
 | `projects.tasks.noFinished` | No finished tasks yet | Aún no hay tareas finalizadas |
 | `projects.tasks.reopen` | Reopen | Reabrir |
+| `projects.tasks.closedCount` | `{count, plural, one {# closed} other {# closed}}` | `{count, plural, one {# cerrada} other {# cerradas}}` |
 | `common.loadMore` | Load more | Cargar más |
 
 Reuse as-is: `errors.VALIDATION_FAILED`, `common.unassigned`,
@@ -469,8 +495,14 @@ chevron), `projects.tasks.noTasks`. Dynamic key-maps are never renamed.
     back in Unfinished with the fresh open row beside the old closed
     row, no Load More (non-repeating full history).
   - Existing `e2e/multi-assignee.spec.ts` pins (done → disappears;
-    all-cancelled stays visible with "Sin asignar"; terminal rows
+    all-cancelled stays visible with the closed-count status text
+    (`1 cerrada`) in place of the old "Sin asignar"; terminal rows
     read-only) must keep passing.
+  - `closedCount`: reducer unit tests for `upsertAssignment`'s
+    `closedDelta` (+1 / −1 / clamp at 0 / absent default), the
+    `getTasks`/`createTask`/`updateTask` count-query mocks, and the
+    paging e2e's status-cell pin (`1 abierta · 11 cerradas` with ten
+    rows still behind Load More).
 - **Gates:** `pnpm verify` (typecheck + eslint + vitest coverage) and
   `pnpm test:e2e`.
 

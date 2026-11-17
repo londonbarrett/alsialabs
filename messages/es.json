@@ -303,6 +303,7 @@
       "openCount": "{count, plural, one {# abierta} other {# abiertas}}",
       "blockedCount": "{count, plural, one {# bloqueada} other {# bloqueadas}}",
       "reviewCount": "{count, plural, one {# en revisión} other {# en revisión}}",
+      "closedCount": "{count, plural, one {# cerrada} other {# cerradas}}",
       "assignmentsToggle": "Detalles de asignados",
       "addAssignee": "Agregar asignado",
       "unassign": {

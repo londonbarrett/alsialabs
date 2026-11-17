@@ -174,12 +174,18 @@ describe("getTasks", () => {
       .onSelect(schema.taskAssignmentLatestView)
       .respond([makeAssignmentRow()])
     state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ taskId: TASK_ID, cnt: 3 }])
 
     const result = await getTasks({ projectId: PROJECT_ID })
 
     expect(result.serverError).toBeUndefined()
     expect(result.data?.[0]?.assignments).toHaveLength(1)
     expect(result.data?.[0]?.assignments[0]?.userId).toBe(USER_ID)
+    // The status cell's total comes from the terminal-row count query,
+    // not from the loaded (recurrence-aware) rows.
+    expect(result.data?.[0]?.closedCount).toBe(3)
   })
 
   it("reads the full assignment history from the detail view for non-repeating tasks", async () => {
@@ -192,11 +198,13 @@ describe("getTasks", () => {
         makeAssignmentRow({ assignmentId: "other", status: "done" }),
       ])
     state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
     const result = await getTasks({ projectId: PROJECT_ID })
 
     expect(result.serverError).toBeUndefined()
     expect(result.data?.[0]?.assignments).toHaveLength(2)
+    expect(result.data?.[0]?.closedCount).toBe(0)
     const viewSql = state.mock.calls
       .slice(before)
       .map((call) => call.sql)
@@ -214,6 +222,7 @@ describe("getTasks", () => {
       .onSelect(schema.taskAssignmentLatestView)
       .respond([makeAssignmentRow()])
     state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
     const result = await getTasks({ projectId: PROJECT_ID })
 
@@ -241,12 +250,14 @@ describe("createTask", () => {
     state.mock
       .onSelect(schema.taskAssignmentLatestView)
       .respond([assignment])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
     state.mock.onInsert(schema.tasksTable).respond([makeTaskRow()])
 
     const result = await createTask(validTask)
 
     expect(result.serverError).toBeUndefined()
     expect(result.data?.id).toBe(TASK_ID)
+    expect(result.data?.closedCount).toBe(0)
   })
 
   it("rejects an assignee outside the project", async () => {
@@ -280,9 +291,12 @@ describe("updateTask", () => {
       .respond([{ userId: "user-3" }])
     state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
     let openSql = ""
+    // One table, two shapes: the open-assignments diff read and the
+    // terminal-count read that follows it — routed by SQL.
     state.mock
       .onSelect(schema.taskAssignmentsTable)
       .respondWith((sql) => {
+        if (sql.includes("count(")) return []
         openSql = sql
         return [{ id: "open-assignment", userId: USER_ID }]
       })

@@ -219,9 +219,10 @@ test("unassigning the last person asks what to do and leaves the task visible", 
   await expect(editDialog).toBeHidden()
   await expect(confirm).toHaveCount(0)
 
-  // The task stays visible (due today) with nobody open on it.
+  // The task stays visible (due today) with nobody open on it: the
+  // status cell shows the closed total instead of the unassigned label.
   await expect(row).toBeVisible()
-  await expect(row).toContainText("Sin asignar")
+  await expect(row).toContainText("1 cerrada")
 
   // Reopening the form seeds assignees from current members only: the
   // closed collaborator must not come back as a chip on step 1.
@@ -310,5 +311,6 @@ test("removing a member cancels their open assignments", async ({
   await page.goto(PROJECT_URL)
   const row = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(row).toBeVisible()
-  await expect(row).toContainText("Sin asignar")
+  // Their cancelled assignment is the task's closed total now.
+  await expect(row).toContainText("1 cerrada")
 })

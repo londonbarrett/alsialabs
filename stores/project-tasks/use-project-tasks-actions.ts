@@ -23,6 +23,7 @@ import {
 } from "@/actions/tasks"
 import type { TaskFormValues } from "@/components/projects/task-dialog"
 import { useSettle } from "@/hooks/use-settle"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
@@ -192,11 +193,25 @@ export function useProjectTasksActions() {
       ?.assignments.find((a) => a.id === assignmentId)
     if (!current) return
 
+    // Optimistic terminal-total delta: the server counts terminal rows
+    // itself (closedCount), so the pend moves the total with the row
+    // and the commit — which carries no delta — keeps that adjustment.
+    // A rejected transition (repeating reopen) discards the whole pend.
+    const wasTerminal = isTerminalStatus(current.status)
+    const willBeTerminal = isTerminalStatus(status)
+    const closedDelta =
+      wasTerminal === willBeTerminal
+        ? 0
+        : wasTerminal
+          ? -1
+          : 1
+
     const result = await run(
       {
         type: "upsertAssignment",
         taskId,
         assignment: { ...current, status },
+        closedDelta,
       },
       () => executeStatus({ projectId, assignmentId, status }),
       {

@@ -32,6 +32,13 @@ export type ProjectTaskAction =
       taskId: string
       assignment: TaskAssignmentDTO
       nextAssignment?: TaskAssignmentDTO | null
+      /**
+       * Optimistic adjustment to the task's server-counted terminal
+       * total (open→terminal +1, terminal→open −1). Supplied on the
+       * pend only: the commit re-applies neither it nor a fresh count,
+       * and a discard reverts it with the rest of the pend.
+       */
+      closedDelta?: number
     }
   | {
       type: "setComments"
@@ -144,10 +151,18 @@ export function projectTasksReducer(
               )
             : [...task.assignments, action.assignment]
 
+          const withClosedCount = {
+            ...task,
+            closedCount: Math.max(
+              0,
+              task.closedCount + (action.closedDelta ?? 0)
+            ),
+          }
+
           const next = action.nextAssignment
           if (!next) {
             return {
-              ...task,
+              ...withClosedCount,
               assignments: sortAssignments(withAssignment),
             }
           }
@@ -159,7 +174,10 @@ export function projectTasksReducer(
             ? withoutSameUser
             : [...withoutSameUser, next]
 
-          return { ...task, assignments: sortAssignments(withNext) }
+          return {
+            ...withClosedCount,
+            assignments: sortAssignments(withNext),
+          }
         }),
       }
 

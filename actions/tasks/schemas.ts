@@ -171,6 +171,14 @@ export const TaskRecordSchema = z.object({
 export const TaskWithAssignmentsSchema = TaskRecordSchema.extend({
   assignments: z.array(TaskAssignmentSchema),
   commentCount: z.number(),
+  /**
+   * TRUE TOTAL of terminal (`done`+`cancelled`) assignments on the
+   * task, counted server-side over `task_assignment` — including rows
+   * that live behind Load More on a repeating task. Store rows
+   * undercount there (one row per assignee), so the status cell must
+   * never derive this from loaded rows.
+   */
+  closedCount: z.number(),
 })
 
 export const MyTasksTabSchema = z.enum(["active", "past"])

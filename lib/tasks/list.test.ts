@@ -48,6 +48,7 @@ const makeTask = (
   updatedAt: new Date("2026-11-01T00:00:00"),
   assignments: [],
   commentCount: 0,
+  closedCount: 0,
   ...overrides,
 })
 

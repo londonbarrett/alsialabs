@@ -136,10 +136,13 @@ export function TasksTable({
               .map((assignment) => assignment.id)
               .sort()
               .join(",")
-            const statusSummary =
-              open.length === 0
-                ? t("common.unassigned")
-                : [
+            // Open work first (with its blocked/review detail), then
+            // the server-counted terminal total — which stands alone
+            // when nothing is open. No parts at all means the task has
+            // no assignments whatsoever.
+            const statusParts = [
+              ...(open.length > 0
+                ? [
                     t("projects.tasks.openCount", {
                       count: counts.open,
                     }),
@@ -157,7 +160,20 @@ export function TasksTable({
                           }),
                         ]
                       : []),
-                  ].join(" · ")
+                  ]
+                : []),
+              ...(task.closedCount > 0
+                ? [
+                    t("projects.tasks.closedCount", {
+                      count: task.closedCount,
+                    }),
+                  ]
+                : []),
+            ]
+            const statusSummary =
+              statusParts.length > 0
+                ? statusParts.join(" · ")
+                : t("common.unassigned")
 
             return (
               <Fragment key={task.id}>

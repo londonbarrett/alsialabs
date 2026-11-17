@@ -303,6 +303,7 @@
       "openCount": "{count, plural, one {# open} other {# open}}",
       "blockedCount": "{count, plural, one {# blocked} other {# blocked}}",
       "reviewCount": "{count, plural, one {# in review} other {# in review}}",
+      "closedCount": "{count, plural, one {# closed} other {# closed}}",
       "assignmentsToggle": "Assignee details",
       "addAssignee": "Add assignee",
       "unassign": {
