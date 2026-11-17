@@ -15,15 +15,15 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { sortAssignments } from "@/lib/tasks/assignments"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
+import { assignmentColumnCount } from "./assignment-columns"
 import { TaskStatusSelect, taskStatusColors } from "./task-status-select"
 
-interface TaskAssignmentRowsProps {
+interface TaskOpenAssignmentRowsProps {
   taskId: string
   assignments: TaskAssignmentDTO[]
   onStatusChange: (
@@ -31,19 +31,13 @@ interface TaskAssignmentRowsProps {
     assignmentId: string,
     status: TaskStatus
   ) => void
-  recurrence?: string | null
-  onReopen?: (assignmentId: string) => void
-  preserveOrder?: boolean
 }
 
-export function TaskAssignmentRows({
+export function TaskOpenAssignmentRows({
   taskId,
   assignments,
   onStatusChange,
-  recurrence,
-  onReopen,
-  preserveOrder = false,
-}: TaskAssignmentRowsProps) {
+}: TaskOpenAssignmentRowsProps) {
   const t = useTranslations()
   const { currentUserId, isOwner, isAdmin, isCollaborator } =
     useProjectContextState()
@@ -55,7 +49,7 @@ export function TaskAssignmentRows({
 
   // The header renders the actions column only for mutators; the empty
   // filler cells must match that column count exactly.
-  const columnCount = canMutate ? 7 : 6
+  const columnCount = assignmentColumnCount(canMutate)
 
   function getAllowedStatuses(assignment: TaskAssignmentDTO) {
     if (isOwner || isAdmin) return ALL_TASK_STATUSES
@@ -66,8 +60,7 @@ export function TaskAssignmentRows({
     return null
   }
 
-  const ordered = preserveOrder ? assignments : sortAssignments(assignments)
-  return ordered.map((assignment) => {
+  return sortAssignments(assignments).map((assignment) => {
     // Terminal rows are read-only history — a badge, never a select,
     // even on the owner/admin path of getAllowedStatuses.
     const allowed = isTerminalStatus(assignment.status)
@@ -123,17 +116,6 @@ export function TaskAssignmentRows({
               <Badge className={taskStatusColors[assignment.status]}>
                 {t(`projects.tasks.status.${assignment.status}`)}
               </Badge>
-              {onReopen &&
-                (isOwner || isAdmin) &&
-                !recurrence && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onReopen(assignment.id)}
-                  >
-                    {t("projects.tasks.reopen")}
-                  </Button>
-                )}
             </span>
           )}
         </TableCell>

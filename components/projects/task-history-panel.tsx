@@ -12,7 +12,8 @@ import { useProjectContextState } from "@/stores/project-context/use-project-con
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useTranslations } from "next-intl"
 import { Fragment, useCallback, useEffect, useRef, useState } from "react"
-import { TaskAssignmentRows } from "./task-assignment-rows"
+import { assignmentColumnCount } from "./assignment-columns"
+import { TaskClosedAssignmentRows } from "./task-closed-assignment-rows"
 
 interface TaskHistoryPanelProps {
   taskId: string
@@ -39,7 +40,7 @@ export function TaskHistoryPanel({
   const canDeleteProject = useHasPermission("projects:delete")
   const canMutate =
     (isOwner || isAdmin) && (canEditProject || canDeleteProject)
-  const columnCount = canMutate ? 7 : 6
+  const columnCount = assignmentColumnCount(canMutate)
   const { loadAssignmentHistory } = useProjectTasksActions()
   const [displayed, setDisplayed] = useState<TaskAssignmentDTO[]>([])
   const [fetchedCount, setFetchedCount] = useState(0)
@@ -145,11 +146,9 @@ export function TaskHistoryPanel({
 
   return (
     <Fragment>
-      <TaskAssignmentRows
+      <TaskClosedAssignmentRows
         taskId={taskId}
         assignments={closed}
-        onStatusChange={() => {}}
-        preserveOrder
       />
       {hasMore && (
         <TableRow>

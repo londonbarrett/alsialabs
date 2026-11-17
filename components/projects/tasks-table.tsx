@@ -33,8 +33,9 @@ import { Fragment, useState } from "react"
 import { cn } from "cn"
 import { DueDate } from "./due-date"
 import { TaskAssigneeStack } from "./task-assignee-stack"
-import { TaskAssignmentRows } from "./task-assignment-rows"
+import { TaskClosedAssignmentRows } from "./task-closed-assignment-rows"
 import { TaskHistoryPanel } from "./task-history-panel"
+import { TaskOpenAssignmentRows } from "./task-open-assignment-rows"
 import { TaskPrioritySelect } from "./task-priority-select"
 
 interface TasksTableProps {
@@ -110,13 +111,17 @@ export function TasksTable({
             )
             // Rendering split by recurrence: non-repeating tasks hold
             // their full history, so the initial block renders every
-            // loaded row (with Reopen); repeating tasks render only
-            // open rows here — the history panel owns all closed
-            // display, seeded with the store rows when none is open.
-            const initialRows =
+            // loaded row (open selects first, then closed badges with
+            // Reopen); repeating tasks render only open rows here —
+            // the history panel owns all closed display, seeded with
+            // the store rows when none is open.
+            const openRows = shown.filter(isOpenAssignment)
+            const closedRows =
               task.recurrence === null
-                ? shown
-                : shown.filter(isOpenAssignment)
+                ? shown.filter((assignment) =>
+                    isTerminalStatus(assignment.status)
+                  )
+                : []
             const initialClosed =
               task.recurrence !== null && open.length === 0
                 ? shown
@@ -266,15 +271,24 @@ export function TasksTable({
                 </TableRow>
                 {isExpanded && (
                   <Fragment>
-                    <TaskAssignmentRows
+                    <TaskOpenAssignmentRows
                       taskId={task.id}
-                      assignments={initialRows}
+                      assignments={openRows}
                       onStatusChange={onStatusChange}
-                      recurrence={task.recurrence}
-                      onReopen={(assignmentId) =>
-                        onStatusChange(task.id, assignmentId, "todo")
-                      }
                     />
+                    {task.recurrence === null && (
+                      <TaskClosedAssignmentRows
+                        taskId={task.id}
+                        assignments={closedRows}
+                        onReopen={(assignmentId) =>
+                          onStatusChange(
+                            task.id,
+                            assignmentId,
+                            "todo"
+                          )
+                        }
+                      />
+                    )}
                     <TaskHistoryPanel
                       taskId={task.id}
                       recurrence={task.recurrence}
