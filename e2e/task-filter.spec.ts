@@ -145,6 +145,29 @@ function personRows(row: Locator): Locator {
     .filter({ hasText: ASSIGNEE_EMAIL })
 }
 
+/**
+ * The occurrence cell renders the row's start date first, in the pinned
+ * es-ES locale ("dd/mm/yyyy – …"). Returns it as a day timestamp so a
+ * region of cells can be checked newest-first.
+ */
+function occurrenceStart(text: string): number {
+  const match = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (!match) throw new Error(`unparseable occurrence cell: ${text}`)
+  const [, day, month, year] = match
+  return new Date(Number(year), Number(month) - 1, Number(day)).getTime()
+}
+
+/**
+ * Bring a row to the middle of the viewport before driving its status
+ * select. `block: "start"` parks it under the sticky header, whose
+ * overlay fails the hit-target check and makes Playwright re-scroll
+ * the row into sonner's bottom-right toast corner — where the option
+ * then can't be clicked. Center clears both hazards.
+ */
+async function pinRow(row: Locator): Promise<void> {
+  await row.evaluate((el) => el.scrollIntoView({ block: "center" }))
+}
+
 test("finished filter shows a completed task read-only with a non-repeating reopen", async ({
   page,
   signInAs,
@@ -232,6 +255,9 @@ test("a repeating task finished through the wizard shows badges without reopen",
 
   await expandAssignments(row)
   const person = personRows(row)
+  // Zero-open: the initial block renders nothing and the history
+  // panel owns the closed row (its initialClosed source) — the
+  // selector is block-agnostic, so the row-count claims hold.
   await expect(person).toHaveCount(1)
   await expect(person).toContainText("Cancelado")
   await expect(person.getByRole("combobox")).toHaveCount(0)
@@ -241,8 +267,9 @@ test("a repeating task finished through the wizard shows badges without reopen",
   ).toHaveCount(0)
 
   // A finished repeating task gets Load More; its single closed row is
-  // already on screen, so the click fetches nothing new and the
-  // button goes away without duplicating the row.
+  // already on screen, so the click fetches nothing new (deduped
+  // against initialClosed) and the button goes away without
+  // duplicating the row.
   const loadMore = page.getByRole("button", { name: "Cargar más" })
   await expect(loadMore).toBeVisible()
   await loadMore.click()
@@ -378,21 +405,27 @@ test("closed assignment history pages ten rows at a time", async ({
   await expect(person).toHaveCount(1)
   const occurrence = person.locator("td").nth(1)
 
-  // Pin the row at the top of the viewport: sonner stacks success toasts at
-  // the bottom-right through this loop, and a row scrolled low would put its
-  // status control — and the options portal — inside the toast zone, making
-  // every click wait out a toast's lifetime.
-  await person.evaluate((el) => el.scrollIntoView({ block: "start" }))
+  // Pin the row mid-viewport (pinRow): sonner stacks success toasts at
+  // the bottom-right through this loop, and a row scrolled low — or
+  // parked under the sticky header, whose overlay makes Playwright
+  // re-scroll it low — would put its status control and the options
+  // portal inside the toast zone, making every click wait out a
+  // toast's lifetime.
+  await pinRow(person.first())
 
   // Close the open occurrence 11 times: every close spawns the next day's
   // successor, which is the row closed next. Waiting for the occurrence
   // window to advance pins the spawn commit — a toast alone could be stale.
   // The last window read is the row closed last: the newest history entry.
+  // Re-pin every iteration: each close unmounts and remounts the row
+  // (optimistic terminal-only state hides it under Sin finalizar), and
+  // the scroll position shifts with it.
   let lastClosedWindow = ""
   for (let i = 0; i < 11; i++) {
     const before = await occurrence.textContent()
     if (!before) throw new Error("occurrence cell had no text")
     lastClosedWindow = before
+    await pinRow(person.first())
     await person.getByRole("combobox").click()
     await page.getByRole("option", { name: "Completado" }).click()
     await expect(occurrence).not.toContainText(before)
@@ -401,7 +434,11 @@ test("closed assignment history pages ten rows at a time", async ({
 
   // Display rule: the default expanded view keeps only the open
   // successor. The 11 closed rows arrive through Load More, ten at a
-  // time, appended below it.
+  // time, appended below it. (Under Sin finalizar the close's
+  // optimistic done state hides the task row, so the panel remounts
+  // fresh after every close and never auto-fetches — mount fetches
+  // nothing. The no-click auto-surface path is pinned in the rearm
+  // scenario below, which closes under Ambas.)
   await expect(person).toHaveCount(1)
   await expect(person.getByRole("combobox")).toHaveCount(1)
   const loadMore = page.getByRole("button", { name: "Cargar más" })
@@ -419,12 +456,31 @@ test("closed assignment history pages ten rows at a time", async ({
   await expect(person.nth(1).locator("td").nth(1)).toHaveText(
     lastClosedWindow
   )
+
+  // Newest first across the whole merged closed region too: the panel
+  // re-sorts everything it renders by startDate DESC (sortClosedRows),
+  // so the two fetched pages' order can never leak into the display.
+  // The spawn loop gives strictly ordered occurrence days.
+  const closedDays: number[] = []
+  const personCount = await person.count()
+  for (let i = 1; i < personCount; i++) {
+    const cell = await person.nth(i).locator("td").nth(1).textContent()
+    closedDays.push(occurrenceStart(cell ?? ""))
+  }
+  expect(closedDays).toHaveLength(11)
+  for (let i = 1; i < closedDays.length; i++) {
+    expect(closedDays[i]).toBeLessThan(closedDays[i - 1])
+  }
 })
 
 test("closing after an exhausted history re-arms Load More for the new row", async ({
   page,
   signInAs,
 }) => {
+  // The heaviest scenario in this file (11 closes + two Load More
+  // clicks + a filter switch): under full-suite load the dev server
+  // pushes it past the 45s default before the decisive close runs.
+  test.setTimeout(90_000)
   const taskName = `E2E filter rearm ${Date.now()}`
   await signInAs("user1")
   await page.goto(PROJECT_URL)
@@ -443,46 +499,54 @@ test("closing after an exhausted history re-arms Load More for the new row", asy
   await expect(person).toHaveCount(1)
   const occurrence = person.locator("td").nth(1)
 
-  // Pin the row at the top of the viewport (same toast-zone reason as
-  // the paging scenario above).
-  await person
-    .first()
-    .evaluate((el) => el.scrollIntoView({ block: "start" }))
+  // Pin the row mid-viewport (same reason as the paging scenario:
+  // keep the status control clear of the sticky header and of
+  // sonner's bottom-right toast corner).
+  await pinRow(person.first())
 
-  // Close the open occurrence three times: three closed rows, all of
-  // them inside a single history page.
-  for (let i = 0; i < 3; i++) {
+  // Close the open occurrence ten times: ten closed rows fill exactly
+  // one history page. Under Sin finalizar the optimistic done state
+  // hides the task row, so the panel remounts fresh after each close
+  // — mount fetches nothing, only the open successor shows — and the
+  // ten closes are what make the exhaustion below exact. Re-pin every
+  // iteration: each close unmounts and remounts the row, and the
+  // scroll position shifts with it.
+  for (let i = 0; i < 10; i++) {
     const before = await occurrence.textContent()
     if (!before) throw new Error("occurrence cell had no text")
+    await pinRow(person.first())
     await person.getByRole("combobox").click()
     await page.getByRole("option", { name: "Completado" }).click()
     await expect(occurrence).not.toContainText(before)
     await expect(person).toHaveCount(1)
   }
 
-  // Exhaust the single page: the closed rows show, the button goes.
+  // Exhaust the single page: one click fetches all ten closed rows,
+  // the button goes.
   const loadMore = page.getByRole("button", { name: "Cargar más" })
   await expect(loadMore).toBeVisible()
   await loadMore.click()
-  await expect(person).toHaveCount(4)
+  await expect(person).toHaveCount(11)
   await expect(loadMore).toHaveCount(0)
 
   // Move to Ambas before the decisive close: under Sin finalizar the
   // optimistic terminal-only state hides the whole task row
   // (shouldShowTask), which unmounts the expanded region and remounts
-  // the panel fresh — masking the bug. Ambas re-sorts the row between
-  // segments instead, so the exhausted panel stays mounted.
+  // the panel fresh — masking the auto-fetch. Ambas re-sorts the row
+  // between segments instead, so the exhausted panel stays mounted.
   const both = page.getByRole("button", { name: "Ambas" })
   await both.click()
   await expect(both).toHaveAttribute("aria-pressed", "true")
-  await expect(person).toHaveCount(4)
+  await expect(person).toHaveCount(11)
   await expect(loadMore).toHaveCount(0)
 
-  // Close the open successor: the spawn inserts fresh history and the
-  // exhausted panel must offer Load More again.
-  await person
-    .first()
-    .evaluate((el) => el.scrollIntoView({ block: "start" }))
+  // Close the open successor: the spawn inserts fresh history — now
+  // eleven closed rows, one page beyond what the panel displays.
+  // Drain the loop's toasts first: they only reappear after this
+  // close commits, and a stack still on screen can sit on top of the
+  // options portal mid-click.
+  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0)
+  await pinRow(person.first())
   const justClosedWindow = await occurrence.textContent()
   if (!justClosedWindow) throw new Error("occurrence cell had no text")
   await person.getByRole("combobox").click()
@@ -490,16 +554,23 @@ test("closing after an exhausted history re-arms Load More for the new row", asy
   // The occurrence window advancing pins the spawn commit — during the
   // optimistic flip the default row still shows the same window.
   await expect(occurrence).not.toContainText(justClosedWindow)
-  await expect(person).toHaveCount(4)
 
+  // The just-closed row is visible WITHOUT any click: the panel
+  // auto-fetches the first history page the moment the terminal set
+  // moves and merges it in (nth(1): the open successor leads, the
+  // newest closed row is first in the sorted closed region).
+  await expect(person).toHaveCount(12)
+  await expect(person.nth(1)).toContainText(justClosedWindow)
+
+  // The button still reappears for the rest of history: eleven closed
+  // rows are one page beyond what offset 0 fetched.
   await expect(loadMore).toBeVisible()
   await loadMore.click()
-  await expect(person).toHaveCount(5)
   await expect(loadMore).toHaveCount(0)
-
-  // The just-closed row is the newest history entry: deduped fetch
-  // appends it after the three already displayed.
-  await expect(person.nth(4)).toContainText(justClosedWindow)
+  // The fetched page overlaps what's already displayed: deduped, so
+  // the count holds and the just-closed row keeps its place.
+  await expect(person).toHaveCount(12)
+  await expect(person.nth(1)).toContainText(justClosedWindow)
 })
 
 test("a removed assignee can be reassigned with the closed row in history", async ({

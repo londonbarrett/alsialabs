@@ -128,6 +128,15 @@ Consequences:
   invariant (#7): with exactly one row per assignee on repeating
   tasks (open-preferred), the zero-open case *is* the per-person
   last-finished set.
+- **Rendering split (amendment 2026-11-16)**: for a **repeating**
+  task the expanded region's initial block renders only the open
+  rows (`shown.filter(isOpenAssignment)` — empty when zero-open) and
+  the history panel owns *all* closed display: a zero-open task's
+  store rows arrive through the panel's `initialClosed` prop (the
+  initial block renders nothing there), a mixed task's closed rows
+  through fetch (#6). For a **non-repeating** task the split does not
+  apply — the initial block renders every loaded row and the panel
+  renders nothing (`recurrence === null` gate).
 - Collapsed-row status summary and due-date cell already derive from
   open rows only (`tasks-table.tsx:128-141`) — unchanged.
 
@@ -216,20 +225,49 @@ Available in every filter mode for **repeating tasks**, inside the
 expanded region of `TasksTable`; non-repeating tasks already hold
 their full history (#7) and never get the control:
 
-- Default: the visible rows per #3.
+- Default: the visible rows per #3 — and for a **zero-open** task
+  the store's terminal rows themselves, handed to the panel through
+  its `initialClosed` prop (the initial block renders nothing there,
+  per #3's rendering split).
 - Below them, a **Load More** button (existing `common.loadMore`) —
-  not a switch, no swap. It fetches **on click**, never on expand,
-  and appends the task's **closed** assignments (statuses
-  `done`/`cancelled` only), **10 rows per page**, in server order
-  `createdAt DESC` (newest first). The button renders until a fetch
-  returns `hasMore: false`; a wasted click on a task with no closed
-  history is accepted.
-- Appended pages are **deduped against the rows already displayed**
-  (by assignment id) — including the initial rows rendered above the
-  panel — so a page that contributes nothing new renders nothing,
-  and the button disappears when `hasMore` turns false. The offset
+  not a switch, no swap. It fetches **on click**, never on expand
+  (the panel's mount fetches nothing — expanding a mixed task shows
+  open rows only), and appends the task's **closed** assignments
+  (statuses `done`/`cancelled` only), **10 rows per page**, in server
+  order `createdAt DESC` (newest first). The button renders until a
+  fetch returns `hasMore: false`; a wasted click on a task with no
+  closed history is accepted.
+- **Merged, re-sorted closed region (amendment 2026-11-16)**: what
+  the panel renders is the merge of `initialClosed` and every row
+  fetched so far — deduped by assignment id and ordered `startDate`
+  DESC, nulls last, *at render* (`mergeClosedRows`/`sortClosedRows`
+  in `lib/tasks/list.ts`). Server paging stays `createdAt DESC` +
+  offset; because the region is re-sorted from the merged set, fetch
+  order can never leak into display order. The dedupe seen-set is
+  `initialClosed` ∪ already-displayed ∪ the current response — open
+  rows are not part of it (the history query returns terminal rows
+  only, so they can never collide). The Load More offset still
   tracks **server rows fetched** (each click advances it by the page
   size), not rows displayed.
+- **Auto-fetch on terminal-set change (amendment 2026-11-16 — the
+  user's "just-closed row needs a Load More click" report)**: while
+  the panel is mounted, a change of the terminal-id signature (a
+  close's optimistic flip, a spawn's commit) automatically fetches
+  the first history page (offset 0) and merges it — no click. A
+  spawn's commit drops the just-closed row from the store, so server
+  history is its only home and the fetch is what surfaces it. Mount
+  still fetches nothing (the approved matrix). Implementation: the
+  existing render-phase pagination reset stays; beside it an effect
+  keys off the signature, with the mount signature held in a ref so
+  only *changes* fetch (ref updated in the effect). A spawn produces
+  two signature changes, so fetches are serialized — while one is in
+  flight a new change is parked in `pendingRef` and re-runs a fresh
+  offset-0 fetch after the in-flight one settles (never a lost final
+  fetch). Each fetch captures the signature at start; on resolve, a
+  response whose signature no longer matches is **dropped whole**
+  (no `setDisplayed`/`setFetchedCount`/`setHasMore` from it). The
+  Load More button keeps its exact click path: same fetch, offset =
+  rows fetched, `hasMore` gates the button.
 - The default rows stay in place; history appends below them.
 - Rows in the appended block are read-only badges (assignee, date
   range, status; the assignment `comment` display is the builder's

@@ -1,6 +1,7 @@
 "use client"
 
 import type {
+  TaskAssignmentDTO,
   TaskPriorityDTO,
   TaskStatus,
   TaskWithAssignmentsDTO,
@@ -48,6 +49,11 @@ interface TasksTableProps {
   onEdit: (task: TaskWithAssignmentsDTO) => void
   onComments: (task: TaskWithAssignmentsDTO) => void
 }
+
+// Stable empty source for the panel's closed region on every task that
+// still has an open assignment (mixed tasks keep closed history behind
+// fetch only, per the display matrix).
+const NO_INITIAL_CLOSED: TaskAssignmentDTO[] = []
 
 export function TasksTable({
   tasks,
@@ -102,6 +108,19 @@ export function TasksTable({
               task.assignments,
               task.recurrence
             )
+            // Rendering split by recurrence: non-repeating tasks hold
+            // their full history, so the initial block renders every
+            // loaded row (with Reopen); repeating tasks render only
+            // open rows here — the history panel owns all closed
+            // display, seeded with the store rows when none is open.
+            const initialRows =
+              task.recurrence === null
+                ? shown
+                : shown.filter(isOpenAssignment)
+            const initialClosed =
+              task.recurrence !== null && open.length === 0
+                ? shown
+                : NO_INITIAL_CLOSED
             const counts = assignmentCounts(task.assignments)
             const lead = open[0]
             const isExpanded = expanded.has(task.id)
@@ -249,7 +268,7 @@ export function TasksTable({
                   <Fragment>
                     <TaskAssignmentRows
                       taskId={task.id}
-                      assignments={shown}
+                      assignments={initialRows}
                       onStatusChange={onStatusChange}
                       recurrence={task.recurrence}
                       onReopen={(assignmentId) =>
@@ -259,9 +278,7 @@ export function TasksTable({
                     <TaskHistoryPanel
                       taskId={task.id}
                       recurrence={task.recurrence}
-                      shownIds={shown.map(
-                        (assignment) => assignment.id
-                      )}
+                      initialClosed={initialClosed}
                       historySignature={historySignature}
                     />
                   </Fragment>

@@ -24,6 +24,56 @@ export function visibleAssignments(
     : assignments
 }
 
+/**
+ * Closed rows by occurrence start, newest first; rows without a usable
+ * `startDate` sort last and ties keep their input order (Array#sort is
+ * stable). The history panel's merged region always renders through
+ * this — server paging (`createdAt DESC` + offset) is an
+ * implementation detail that must never leak into display order.
+ * `sortAssignments` is deliberately untouched: its open-first, asc
+ * semantics serve other consumers.
+ */
+export function sortClosedRows<
+  T extends { startDate: Date | string | null },
+>(rows: T[]): T[] {
+  const start = (value: Date | string | null): number | null => {
+    if (!value) return null
+    const time =
+      value instanceof Date ? value.getTime() : Date.parse(value)
+    return Number.isNaN(time) ? null : time
+  }
+
+  return [...rows].sort((a, b) => {
+    const at = start(a.startDate)
+    const bt = start(b.startDate)
+    if (at === bt) return 0
+    if (at === null) return 1
+    if (bt === null) return -1
+    return bt - at
+  })
+}
+
+/**
+ * The history panel's closed region: the store rows it starts from
+ * (`initialClosed`, only when the task has no open assignment) plus
+ * everything fetched so far (`displayed`), deduped by assignment id and
+ * ordered at render so overlapping pages and store rows can never
+ * duplicate or jumble the list.
+ */
+export function mergeClosedRows(
+  initialClosed: TaskAssignmentDTO[],
+  displayed: TaskAssignmentDTO[]
+): TaskAssignmentDTO[] {
+  const seen = new Set<string>()
+  const merged: TaskAssignmentDTO[] = []
+  for (const row of [...initialClosed, ...displayed]) {
+    if (seen.has(row.id)) continue
+    seen.add(row.id)
+    merged.push(row)
+  }
+  return sortClosedRows(merged)
+}
+
 const byEndDateAsc = (
   a: TaskWithAssignmentsDTO,
   b: TaskWithAssignmentsDTO

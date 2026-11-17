@@ -4,7 +4,12 @@ import type {
   TaskAssignmentDTO,
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
-import { selectTasks, visibleAssignments } from "./list"
+import {
+  mergeClosedRows,
+  selectTasks,
+  sortClosedRows,
+  visibleAssignments,
+} from "./list"
 
 const NOW = new Date("2026-11-11T15:00:00")
 
@@ -87,6 +92,151 @@ describe("visibleAssignments", () => {
       makeAssignment({ id: "a2", userId: "u1", status: "cancelled" }),
     ]
     expect(visibleAssignments(rows, null)).toBe(rows)
+  })
+})
+
+describe("sortClosedRows", () => {
+  it("orders by startDate descending — newest first", () => {
+    const oldest = makeAssignment({
+      id: "a-old",
+      startDate: new Date("2026-11-01T09:00:00"),
+      endDate: new Date("2026-11-01T10:00:00"),
+    })
+    const newest = makeAssignment({
+      id: "a-new",
+      startDate: new Date("2026-11-05T09:00:00"),
+      endDate: new Date("2026-11-05T10:00:00"),
+    })
+    const middle = makeAssignment({
+      id: "a-mid",
+      startDate: new Date("2026-11-03T09:00:00"),
+      endDate: new Date("2026-11-03T10:00:00"),
+    })
+    const sorted = sortClosedRows([oldest, newest, middle])
+    expect(sorted.map((row) => row.id)).toEqual([
+      "a-new",
+      "a-mid",
+      "a-old",
+    ])
+  })
+
+  it("sorts rows without a startDate last, in any input position", () => {
+    const noStart = makeAssignment({ id: "a-null" })
+    const dated = makeAssignment({
+      id: "a-dated",
+      startDate: new Date("2026-11-01T09:00:00"),
+    })
+    const otherNoStart = makeAssignment({ id: "a-null-2" })
+
+    const sorted = sortClosedRows([noStart, dated, otherNoStart])
+    expect(sorted.map((row) => row.id)).toEqual([
+      "a-dated",
+      "a-null",
+      "a-null-2",
+    ])
+    expect(
+      sortClosedRows([dated, noStart]).map((row) => row.id)
+    ).toEqual(["a-dated", "a-null"])
+  })
+
+  it("keeps ties in input order (stable)", () => {
+    // Same instant, three ids: stability is what makes a re-render of
+    // the merged region jitter-free.
+    const at = "2026-11-02T09:00:00"
+    const first = makeAssignment({ id: "a-first", startDate: new Date(at) })
+    const second = makeAssignment({
+      id: "a-second",
+      startDate: new Date(at),
+    })
+    const third = makeAssignment({ id: "a-third", startDate: new Date(at) })
+
+    const sorted = sortClosedRows([first, second, third])
+    expect(sorted.map((row) => row.id)).toEqual([
+      "a-first",
+      "a-second",
+      "a-third",
+    ])
+    // Reversing the input reverses the ties — the comparator itself
+    // contributes no ordering.
+    expect(
+      sortClosedRows([third, second, first]).map((row) => row.id)
+    ).toEqual(["a-third", "a-second", "a-first"])
+  })
+
+  it("does not mutate its input", () => {
+    const rows = [
+      makeAssignment({
+        id: "a-old",
+        startDate: new Date("2026-11-01T09:00:00"),
+      }),
+      makeAssignment({
+        id: "a-new",
+        startDate: new Date("2026-11-05T09:00:00"),
+      }),
+    ]
+    sortClosedRows(rows)
+    expect(rows.map((row) => row.id)).toEqual(["a-old", "a-new"])
+  })
+})
+
+describe("mergeClosedRows", () => {
+  const closed = (id: string, startDate: string | null) =>
+    makeAssignment({
+      id,
+      status: "done",
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: startDate ? new Date(startDate) : null,
+    })
+
+  it("dedupes by id, keeping the store row ahead of the fetched copy", () => {
+    const storeRow = closed("a1", "2026-11-05T09:00:00")
+    const fetchedCopy = { ...storeRow, comment: "fetched" }
+    const fetchedOnly = closed("a2", "2026-11-04T09:00:00")
+
+    const merged = mergeClosedRows([storeRow], [fetchedCopy, fetchedOnly])
+    expect(merged.map((row) => row.id)).toEqual(["a1", "a2"])
+    // The first occurrence wins: the store row is the rendered copy.
+    expect(merged[0]?.comment).toBeNull()
+  })
+
+  it("orders the merged region newest-first regardless of fetch order", () => {
+    // Two overlapping pages as the panel receives them (server order
+    // is createdAt DESC per page; the merge must not inherit it).
+    const pageOne = [
+      closed("a3", "2026-11-03T09:00:00"),
+      closed("a2", "2026-11-02T09:00:00"),
+    ]
+    const pageTwo = [
+      closed("a4", "2026-11-04T09:00:00"),
+      closed("a1", "2026-11-01T09:00:00"),
+    ]
+
+    const merged = mergeClosedRows([], [...pageOne, ...pageTwo])
+    expect(merged.map((row) => row.id)).toEqual([
+      "a4",
+      "a3",
+      "a2",
+      "a1",
+    ])
+  })
+
+  it("keeps store rows the pages never return and nulls last", () => {
+    const storeOnly = closed("a-store", null)
+    const fetched = closed("a-fetched", "2026-11-02T09:00:00")
+
+    const merged = mergeClosedRows([storeOnly], [fetched])
+    expect(merged.map((row) => row.id)).toEqual([
+      "a-fetched",
+      "a-store",
+    ])
+  })
+
+  it("returns a fresh array", () => {
+    const storeRows = [closed("a1", "2026-11-05T09:00:00")]
+    const fetched: TaskAssignmentDTO[] = []
+    const merged = mergeClosedRows(storeRows, fetched)
+    expect(merged).not.toBe(storeRows)
+    expect(merged).not.toBe(fetched)
   })
 })
 
