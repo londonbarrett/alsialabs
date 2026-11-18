@@ -59,6 +59,15 @@ const ROLES_PROJECT = {
   repeatAssignment: "10000000-0000-4000-8000-000000000005",
 } as const
 
+/**
+ * A pristine project owned by user1 with no tasks: task-filter.spec pins the
+ * Finished filter's empty state here, because the Roles project accumulates
+ * finished work from specs running in parallel.
+ */
+const EMPTY_TASKS_PROJECT = {
+  id: "10000000-0000-4000-8000-000000000006",
+} as const
+
 async function seedRolesProject(): Promise<void> {
   const seedUsers = await db
     .select({ id: usersTable.id, email: usersTable.email })
@@ -99,7 +108,8 @@ async function seedRolesProject(): Promise<void> {
       or(
         like(tasksTable.name, "E2E wizard gate%"),
         like(tasksTable.name, "E2E repeat gate%"),
-        like(tasksTable.name, "E2E multi%")
+        like(tasksTable.name, "E2E multi%"),
+        like(tasksTable.name, "E2E filter%")
       )
     )
 
@@ -190,6 +200,56 @@ async function seedRolesProject(): Promise<void> {
   console.log("E2E seed: roles/assignments project fixtures ready")
 }
 
+/**
+ * Recreated every run (delete-by-id, tasks cascade with the project) so
+ * task-filter.spec's empty-Finished assertion always sees a project no other
+ * spec can put finished work into.
+ */
+async function seedEmptyTasksProject(): Promise<void> {
+  const [owner] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.email, "user1@test.local"))
+    .limit(1)
+  if (!owner) {
+    console.error("Missing seeded user user1@test.local")
+    process.exit(1)
+  }
+
+  const [category] = await db
+    .select({ id: categoryTable.id })
+    .from(categoryTable)
+    .innerJoin(taxonomyTable, eq(categoryTable.taxonomyId, taxonomyTable.id))
+    .where(eq(taxonomyTable.slug, "project"))
+    .limit(1)
+  if (!category) {
+    console.error("No project category seeded")
+    process.exit(1)
+  }
+
+  await db
+    .delete(tasksTable)
+    .where(eq(tasksTable.projectId, EMPTY_TASKS_PROJECT.id))
+  await db
+    .delete(projectMembershipTable)
+    .where(eq(projectMembershipTable.projectId, EMPTY_TASKS_PROJECT.id))
+  await db
+    .delete(projectsTable)
+    .where(eq(projectsTable.id, EMPTY_TASKS_PROJECT.id))
+
+  // No membership row: the primary owner resolves to the owner role.
+  await db.insert(projectsTable).values({
+    id: EMPTY_TASKS_PROJECT.id,
+    primaryOwnerId: owner.id,
+    categoryId: category.id,
+    name: "E2E Empty Tasks Project",
+    startDate: "2026-01-01",
+    color: "#b45309",
+  })
+
+  console.log("E2E seed: empty tasks project fixture ready")
+}
+
 async function seedE2E(): Promise<void> {
   runBaseSeed()
 
@@ -240,6 +300,7 @@ async function seedE2E(): Promise<void> {
     .where(eq(usersTable.email, "user2@test.local"))
 
   await seedRolesProject()
+  await seedEmptyTasksProject()
 
   const [{ total }] = await db
     .select({ total: count() })

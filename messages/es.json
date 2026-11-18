@@ -60,7 +60,8 @@
     "assignee": "Asignado",
     "view": "Ver",
     "confirmDelete": "¿Estás seguro de que deseas eliminar {name}? Esta acción no se puede deshacer.",
-    "subject": "Asunto"
+    "subject": "Asunto",
+    "loadMore": "Cargar más"
   },
   "auth": {
     "signInTitle": "Iniciar sesión",
@@ -261,6 +262,12 @@
       "fillDetails": "Completa los datos para crear una nueva tarea.",
       "updateDetails": "Actualiza los detalles de la tarea a continuación.",
       "noTasks": "No hay tareas aún",
+      "both": "Ambas",
+      "unfinished": "Sin finalizar",
+      "finished": "Finalizadas",
+      "filterLabel": "Filtro de visibilidad de tareas",
+      "noFinished": "Aún no hay tareas finalizadas",
+      "reopen": "Reabrir",
       "name": "Nombre de la tarea",
       "taskDeleted": "Tarea eliminada",
       "taskUpdated": "Tarea actualizada",
@@ -296,6 +303,7 @@
       "openCount": "{count, plural, one {# abierta} other {# abiertas}}",
       "blockedCount": "{count, plural, one {# bloqueada} other {# bloqueadas}}",
       "reviewCount": "{count, plural, one {# en revisión} other {# en revisión}}",
+      "closedCount": "{count, plural, one {# cerrada} other {# cerradas}}",
       "assignmentsToggle": "Detalles de asignados",
       "addAssignee": "Agregar asignado",
       "unassign": {

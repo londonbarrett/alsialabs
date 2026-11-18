@@ -1,6 +1,7 @@
 export {
   getTasks,
   getMyTasks,
+  getTaskAssignmentHistory,
   createTask,
   updateTask,
   updateAssignmentStatus,

@@ -552,6 +552,7 @@ export const taskAssignmentDetailView = pgView(
       comment: sql<string | null>`${taskAssignmentsTable.comment}`.as("comment"),
       startDate: sql<Date | null>`${taskAssignmentsTable.startDate}`.as("start_date"),
       endDate: sql<Date | null>`${taskAssignmentsTable.endDate}`.as("end_date"),
+      createdAt: sql<Date>`${taskAssignmentsTable.createdAt}`.as("created_at"),
       taskName: sql<string>`${tasksTable.name}`.as("task_name"),
       taskDescription: sql<string | null>`${tasksTable.description}`.as("task_description"),
       taskPriority: sql<string | null>`${tasksTable.priority}`.as("task_priority"),
@@ -564,4 +565,44 @@ export const taskAssignmentDetailView = pgView(
     .from(taskAssignmentsTable)
     .innerJoin(tasksTable, eq(taskAssignmentsTable.taskId, tasksTable.id))
     .innerJoin(usersTable, eq(taskAssignmentsTable.userId, usersTable.id))
+)
+
+export const taskAssignmentLatestView = pgView("task_assignment_latest").as(
+  (qb) => {
+    const numbered = qb
+      .select({
+        assignmentId: taskAssignmentDetailView.assignmentId,
+        taskId: taskAssignmentDetailView.taskId,
+        userId: taskAssignmentDetailView.userId,
+        status: taskAssignmentDetailView.status,
+        comment: taskAssignmentDetailView.comment,
+        startDate: taskAssignmentDetailView.startDate,
+        endDate: taskAssignmentDetailView.endDate,
+        userName: taskAssignmentDetailView.userName,
+        userEmail: taskAssignmentDetailView.userEmail,
+        userImage: taskAssignmentDetailView.userImage,
+        rn: sql<number>`row_number() over (
+          partition by ${taskAssignmentDetailView.taskId}, ${taskAssignmentDetailView.userId}
+          order by (case when ${taskAssignmentDetailView.status} in ('done','cancelled') then 1 else 0 end) asc,
+                   ${taskAssignmentDetailView.startDate} desc nulls last
+        )`.as("rn"),
+      })
+      .from(taskAssignmentDetailView)
+      .as("numbered")
+    return qb
+      .select({
+        assignmentId: numbered.assignmentId,
+        taskId: numbered.taskId,
+        userId: numbered.userId,
+        status: numbered.status,
+        comment: numbered.comment,
+        startDate: numbered.startDate,
+        endDate: numbered.endDate,
+        userName: numbered.userName,
+        userEmail: numbered.userEmail,
+        userImage: numbered.userImage,
+      })
+      .from(numbered)
+      .where(eq(numbered.rn, 1))
+  }
 )

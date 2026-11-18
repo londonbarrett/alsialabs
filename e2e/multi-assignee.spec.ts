@@ -80,18 +80,24 @@ test("a task with several assignees shows counts, stack, and per-person rows", a
   await expect(user1Row).toBeVisible()
   await expect(user1Row.getByRole("combobox")).toHaveCount(1)
 
-  // Completing one assignee drops the count; their LAST assignment is
-  // now the closed row, which stays visible as a read-only badge —
-  // while the other person's control is unaffected.
+  // Completing one assignee drops the count. The task is
+  // non-repeating, so full history keeps the closed row visible
+  // beside the still-open one — and this kind of task never gets a
+  // Load More control.
   await collaboratorRow.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
   await expect(page.getByText("Estado actualizado")).toBeVisible()
   await expect(row).toContainText("1 abierta")
-  await expect(collaboratorRow).toBeVisible()
-  await expect(collaboratorRow.getByText("Completado")).toBeVisible()
+  await expect(subRows.filter({ hasText: "E2E Collaborator" })).toHaveCount(
+    1
+  )
+  await expect(collaboratorRow).toContainText("Completado")
   await expect(collaboratorRow.getByRole("combobox")).toHaveCount(0)
   await expect(user1Row).toBeVisible()
   await expect(user1Row.getByRole("combobox")).toHaveCount(1)
+  await expect(
+    page.getByRole("button", { name: "Cargar más" })
+  ).toHaveCount(0)
 
   // Last assignment terminal: the whole task leaves the list.
   await user1Row.getByRole("combobox").click()
@@ -213,9 +219,10 @@ test("unassigning the last person asks what to do and leaves the task visible", 
   await expect(editDialog).toBeHidden()
   await expect(confirm).toHaveCount(0)
 
-  // The task stays visible (due today) with nobody open on it.
+  // The task stays visible (due today) with nobody open on it: the
+  // status cell shows the closed total instead of the unassigned label.
   await expect(row).toBeVisible()
-  await expect(row).toContainText("Sin asignar")
+  await expect(row).toContainText("1 cerrada")
 
   // Reopening the form seeds assignees from current members only: the
   // closed collaborator must not come back as a chip on step 1.
@@ -304,5 +311,6 @@ test("removing a member cancels their open assignments", async ({
   await page.goto(PROJECT_URL)
   const row = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(row).toBeVisible()
-  await expect(row).toContainText("Sin asignar")
+  // Their cancelled assignment is the task's closed total now.
+  await expect(row).toContainText("1 cerrada")
 })

@@ -60,7 +60,8 @@
     "assignee": "Assignee",
     "view": "View",
     "confirmDelete": "Are you sure you want to delete {name}? This action cannot be undone.",
-    "subject": "Subject"
+    "subject": "Subject",
+    "loadMore": "Load more"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -261,6 +262,12 @@
       "fillDetails": "Fill in the details to create a new task.",
       "updateDetails": "Update the task details below.",
       "noTasks": "No tasks yet",
+      "both": "Both",
+      "unfinished": "Unfinished",
+      "finished": "Finished",
+      "filterLabel": "Task visibility filter",
+      "noFinished": "No finished tasks yet",
+      "reopen": "Reopen",
       "name": "Task Name",
       "taskDeleted": "Task deleted",
       "taskUpdated": "Task updated",
@@ -296,6 +303,7 @@
       "openCount": "{count, plural, one {# open} other {# open}}",
       "blockedCount": "{count, plural, one {# blocked} other {# blocked}}",
       "reviewCount": "{count, plural, one {# in review} other {# in review}}",
+      "closedCount": "{count, plural, one {# closed} other {# closed}}",
       "assignmentsToggle": "Assignee details",
       "addAssignee": "Add assignee",
       "unassign": {

@@ -41,6 +41,7 @@ function makeTask(
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     commentCount: 0,
+    closedCount: 0,
     assignments: [makeAssignment()],
     ...overrides,
   } satisfies TaskWithAssignmentsDTO
@@ -136,7 +137,73 @@ describe("createProjectTasksStore", () => {
     expect(task.priority).toBe("urgent")
   })
 
-  it("adds the spawned occurrence ahead of the closed one", () => {
+  it("adds closedDelta to the closed total when a row crosses into terminal", () => {
+    const assignment = makeAssignment({ id: "assignment-1" })
+    const store = createProjectTasksStore([
+      makeTask({ id: "a", assignments: [assignment], closedCount: 2 }),
+    ])
+    store.getState().commit(
+      store.getState().pend({
+        type: "upsertAssignment",
+        taskId: "a",
+        assignment: { ...assignment, status: "done" },
+        closedDelta: 1,
+      })
+    )
+    expect(store.getState().optimistic.tasks[0].closedCount).toBe(3)
+  })
+
+  it("subtracts closedDelta when a terminal row reopens", () => {
+    const assignment = makeAssignment({
+      id: "assignment-1",
+      status: "done",
+    })
+    const store = createProjectTasksStore([
+      makeTask({ id: "a", assignments: [assignment], closedCount: 2 }),
+    ])
+    store.getState().commit(
+      store.getState().pend({
+        type: "upsertAssignment",
+        taskId: "a",
+        assignment: { ...assignment, status: "todo" },
+        closedDelta: -1,
+      })
+    )
+    expect(store.getState().optimistic.tasks[0].closedCount).toBe(1)
+  })
+
+  it("never drives closedCount below zero", () => {
+    const assignment = makeAssignment({ id: "assignment-1" })
+    const store = createProjectTasksStore([
+      makeTask({ id: "a", assignments: [assignment], closedCount: 0 }),
+    ])
+    store.getState().commit(
+      store.getState().pend({
+        type: "upsertAssignment",
+        taskId: "a",
+        assignment: { ...assignment, status: "todo" },
+        closedDelta: -1,
+      })
+    )
+    expect(store.getState().optimistic.tasks[0].closedCount).toBe(0)
+  })
+
+  it("leaves closedCount untouched when no closedDelta is sent", () => {
+    const assignment = makeAssignment({ id: "assignment-1" })
+    const store = createProjectTasksStore([
+      makeTask({ id: "a", assignments: [assignment], closedCount: 4 }),
+    ])
+    store.getState().commit(
+      store.getState().pend({
+        type: "upsertAssignment",
+        taskId: "a",
+        assignment: { ...assignment, status: "in_progress" },
+      })
+    )
+    expect(store.getState().optimistic.tasks[0].closedCount).toBe(4)
+  })
+
+  it("replaces the closed row with the spawned occurrence so each assignee keeps one row", () => {
     const assignment = makeAssignment({ id: "assignment-1" })
     const store = createProjectTasksStore([
       makeTask({ id: "task-1", assignments: [assignment] }),
@@ -158,7 +225,7 @@ describe("createProjectTasksStore", () => {
       store
         .getState()
         .optimistic.tasks[0]?.assignments.map((a) => a.id)
-    ).toEqual(["assignment-2", "assignment-1"])
+    ).toEqual(["assignment-2"])
   })
 
   it("forgets loaded comments when the task is deleted", () => {

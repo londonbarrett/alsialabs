@@ -29,6 +29,11 @@ describe("shouldShowTask", () => {
     expect(shouldShowTask({ assignments: [assignment("cancelled")], endDate: new Date("2026-12-01T00:00:00") }, NOW)).toBe(true)
     expect(shouldShowTask({ assignments: [assignment("cancelled")], endDate: new Date("2026-11-10T00:00:00") }, NOW)).toBe(false)
   })
+  it("keeps a task visible when every slim row is cancelled and the due date is valid (slim-input edge)", () => {
+    const cancelledRow = assignment("cancelled")
+    const nextWeek = new Date("2026-11-18T00:00:00")
+    expect(shouldShowTask({ assignments: [cancelledRow], endDate: nextWeek }, NOW)).toBe(true)
+  })
   it("stays visible through the whole end day (end-of-day inclusive)", () => {
     expect(shouldShowTask({ assignments: [], endDate: new Date("2026-11-11T09:00:00") }, NOW)).toBe(true)
   })

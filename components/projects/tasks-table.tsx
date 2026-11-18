@@ -1,7 +1,6 @@
 "use client"
 
 import type {
-  TaskAssignmentDTO,
   TaskPriorityDTO,
   TaskStatus,
   TaskWithAssignmentsDTO,
@@ -23,6 +22,8 @@ import {
   assignmentCounts,
   isOpenAssignment,
 } from "@/lib/tasks/filter"
+import { visibleAssignments } from "@/lib/tasks/list"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
@@ -31,7 +32,9 @@ import { Fragment, useState } from "react"
 import { cn } from "cn"
 import { DueDate } from "./due-date"
 import { TaskAssigneeStack } from "./task-assignee-stack"
-import { TaskAssignmentRows } from "./task-assignment-rows"
+import { TaskClosedAssignmentRows } from "./task-closed-assignment-rows"
+import { TaskHistoryPanel } from "./task-history-panel"
+import { TaskOpenAssignmentRows } from "./task-open-assignment-rows"
 import { TaskPrioritySelect } from "./task-priority-select"
 
 interface TasksTableProps {
@@ -45,38 +48,6 @@ interface TasksTableProps {
   onDelete: (taskId: string) => Promise<void>
   onEdit: (task: TaskWithAssignmentsDTO) => void
   onComments: (task: TaskWithAssignmentsDTO) => void
-}
-
-function startDateValue(assignment: TaskAssignmentDTO): number {
-  if (!assignment.startDate) return Number.NEGATIVE_INFINITY
-  const time = assignment.startDate.getTime()
-  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
-}
-
-function isNewerAssignment(
-  candidate: TaskAssignmentDTO,
-  current: TaskAssignmentDTO
-): boolean {
-  const candidateOpen = isOpenAssignment(candidate)
-  const currentOpen = isOpenAssignment(current)
-  if (candidateOpen !== currentOpen) return candidateOpen
-  return startDateValue(candidate) > startDateValue(current)
-}
-
-// One row per assignee: their open row when they have one, else their
-// most recent closed row (latest startDate — sortAssignments would put
-// the earliest closed row first). Cancelled rows are kept visible.
-function latestAssignmentPerUser(
-  assignments: TaskAssignmentDTO[]
-): TaskAssignmentDTO[] {
-  const byUser = new Map<string, TaskAssignmentDTO>()
-  for (const assignment of assignments) {
-    const current = byUser.get(assignment.userId)
-    if (!current || isNewerAssignment(assignment, current)) {
-      byUser.set(assignment.userId, assignment)
-    }
-  }
-  return sortAssignments([...byUser.values()])
 }
 
 export function TasksTable({
@@ -128,16 +99,46 @@ export function TasksTable({
             const open = sortAssignments(
               task.assignments.filter(isOpenAssignment)
             )
-            const latestAssignments = latestAssignmentPerUser(
-              task.assignments
+            const shown = visibleAssignments(
+              task.assignments,
+              task.recurrence
             )
+            // Rendering split by recurrence: non-repeating tasks hold
+            // their full history, so the initial block renders every
+            // loaded row (open selects first, then closed badges with
+            // Reopen); repeating tasks render only open rows here —
+            // the history panel owns all closed display, seeded with
+            // the store rows when none is open.
+            const openRows = shown.filter(isOpenAssignment)
+            const closedRows =
+              task.recurrence === null
+                ? shown.filter((assignment) =>
+                    isTerminalStatus(assignment.status)
+                  )
+                : []
+            // The panel's two views of the store: every terminal row
+            // (zero-open scope + open→terminal absorption) and which
+            // rows are currently open (the "was open last render" set).
+            const storeTerminal = task.assignments.filter((assignment) =>
+              isTerminalStatus(assignment.status)
+            )
+            const openIds = open.map((assignment) => assignment.id)
             const counts = assignmentCounts(task.assignments)
             const lead = open[0]
             const isExpanded = expanded.has(task.id)
-            const statusSummary =
-              open.length === 0
-                ? t("common.unassigned")
-                : [
+            // Sorted so sortAssignments re-orders can't retrigger the
+            // history panel's pagination reset.
+            const historySignature = storeTerminal
+              .map((assignment) => assignment.id)
+              .sort()
+              .join(",")
+            // Open work first (with its blocked/review detail), then
+            // the server-counted terminal total — which stands alone
+            // when nothing is open. No parts at all means the task has
+            // no assignments whatsoever.
+            const statusParts = [
+              ...(open.length > 0
+                ? [
                     t("projects.tasks.openCount", {
                       count: counts.open,
                     }),
@@ -155,7 +156,20 @@ export function TasksTable({
                           }),
                         ]
                       : []),
-                  ].join(" · ")
+                  ]
+                : []),
+              ...(task.closedCount > 0
+                ? [
+                    t("projects.tasks.closedCount", {
+                      count: task.closedCount,
+                    }),
+                  ]
+                : []),
+            ]
+            const statusSummary =
+              statusParts.length > 0
+                ? statusParts.join(" · ")
+                : t("common.unassigned")
 
             return (
               <Fragment key={task.id}>
@@ -165,7 +179,7 @@ export function TasksTable({
                   <TableCell className="font-medium">
                     <div>
                       <div className="flex items-center gap-2">
-                        {latestAssignments.length > 0 ? (
+                        {shown.length > 0 ? (
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -207,10 +221,8 @@ export function TasksTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    {task.assignments.length > 0 ? (
-                      <TaskAssigneeStack
-                        assignments={latestAssignments}
-                      />
+                    {shown.length > 0 ? (
+                      <TaskAssigneeStack assignments={shown} />
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         {t("common.unassigned")}
@@ -270,11 +282,33 @@ export function TasksTable({
                   )}
                 </TableRow>
                 {isExpanded && (
-                  <TaskAssignmentRows
-                    taskId={task.id}
-                    assignments={latestAssignments}
-                    onStatusChange={onStatusChange}
-                  />
+                  <Fragment>
+                    <TaskOpenAssignmentRows
+                      taskId={task.id}
+                      assignments={openRows}
+                      onStatusChange={onStatusChange}
+                    />
+                    {task.recurrence === null && (
+                      <TaskClosedAssignmentRows
+                        taskId={task.id}
+                        assignments={closedRows}
+                        onReopen={(assignmentId) =>
+                          onStatusChange(
+                            task.id,
+                            assignmentId,
+                            "todo"
+                          )
+                        }
+                      />
+                    )}
+                    <TaskHistoryPanel
+                      taskId={task.id}
+                      recurrence={task.recurrence}
+                      storeTerminal={storeTerminal}
+                      openIds={openIds}
+                      historySignature={historySignature}
+                    />
+                  </Fragment>
                 )}
               </Fragment>
             )

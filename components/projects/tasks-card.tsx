@@ -13,7 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { shouldShowTask } from "@/lib/tasks/filter"
+import { selectTasks, type TasksVisibilityFilter } from "@/lib/tasks/list"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
@@ -22,6 +23,7 @@ import { useTranslations } from "next-intl"
 import { useState } from "react"
 import { ProjectTaskCommentsPanel } from "./project-task-comments-panel"
 import { TaskDialog, type TaskFormValues } from "./task-dialog"
+import { TasksFilter } from "./tasks-filter"
 import { TasksTable } from "./tasks-table"
 
 export function TasksCard() {
@@ -46,10 +48,9 @@ export function TasksCard() {
     TaskWithAssignmentsDTO | undefined
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
+  const [filter, setFilter] = useState<TasksVisibilityFilter>("unfinished")
 
-  const visibleTasks = tasks.filter((task) =>
-    shouldShowTask(task, new Date())
-  )
+  const visibleTasks = selectTasks(tasks, filter, new Date())
 
   const openNew = () => {
     setEditingTask(undefined)
@@ -117,6 +118,12 @@ export function TasksCard() {
       commentCount: editing
         ? (tasks.find((t) => t.id === editing.id)?.commentCount ?? 0)
         : 0,
+      // Momentary approximation while the optimistic row is on screen:
+      // the server's true total (rows behind Load More included)
+      // replaces it on the create/update commit.
+      closedCount: assignments.filter((a) =>
+        isTerminalStatus(a.status)
+      ).length,
     }
 
     return optimisticTask
@@ -149,6 +156,7 @@ export function TasksCard() {
             <ListTodo className="h-4 w-4" />
             {t("common.tasks")}
           </span>
+          <TasksFilter value={filter} onChange={setFilter} />
           {canEdit && (
             <Button onClick={openNew} size="sm">
               <Plus />
@@ -160,7 +168,9 @@ export function TasksCard() {
       <CardContent>
         {visibleTasks.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            {t("projects.tasks.noTasks")}
+            {filter === "finished"
+              ? t("projects.tasks.noFinished")
+              : t("projects.tasks.noTasks")}
           </p>
         ) : (
           <TasksTable

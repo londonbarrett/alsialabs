@@ -1,6 +1,8 @@
 "use client"
 
 import {
+  HISTORY_PAGE_SIZE,
+  type TaskAssignmentHistoryDTO,
   type TaskPriorityDTO,
   type TaskStatus,
   type TaskWithAssignmentsDTO,
@@ -11,6 +13,7 @@ import {
   createTask as createTaskAction,
   deleteComment as deleteCommentAction,
   deleteTask as deleteTaskAction,
+  getTaskAssignmentHistory,
   getTaskComments,
   updateAssignmentComment as updateAssignmentCommentAction,
   updateAssignmentStatus as updateAssignmentStatusAction,
@@ -20,6 +23,7 @@ import {
 } from "@/actions/tasks"
 import type { TaskFormValues } from "@/components/projects/task-dialog"
 import { useSettle } from "@/hooks/use-settle"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
 import { useAction } from "next-safe-action/hooks"
@@ -61,6 +65,26 @@ export function useProjectTasksActions() {
   )
   const { executeAsync: executePriority } = useAction(
     updateTaskPriorityAction
+  )
+  const { executeAsync: executeHistory } = useAction(
+    getTaskAssignmentHistory
+  )
+
+  const loadAssignmentHistory = useCallback(
+    async (
+      projectId: string,
+      taskId: string,
+      offset: number
+    ): Promise<TaskAssignmentHistoryDTO | null> => {
+      const result = await executeHistory({
+        projectId,
+        taskId,
+        limit: HISTORY_PAGE_SIZE,
+        offset,
+      })
+      return result.data ?? null
+    },
+    [executeHistory]
   )
 
   const loadComments = useCallback(
@@ -169,11 +193,25 @@ export function useProjectTasksActions() {
       ?.assignments.find((a) => a.id === assignmentId)
     if (!current) return
 
+    // Optimistic terminal-total delta: the server counts terminal rows
+    // itself (closedCount), so the pend moves the total with the row
+    // and the commit — which carries no delta — keeps that adjustment.
+    // A rejected transition (repeating reopen) discards the whole pend.
+    const wasTerminal = isTerminalStatus(current.status)
+    const willBeTerminal = isTerminalStatus(status)
+    const closedDelta =
+      wasTerminal === willBeTerminal
+        ? 0
+        : wasTerminal
+          ? -1
+          : 1
+
     const result = await run(
       {
         type: "upsertAssignment",
         taskId,
         assignment: { ...current, status },
+        closedDelta,
       },
       () => executeStatus({ projectId, assignmentId, status }),
       {
@@ -311,6 +349,7 @@ export function useProjectTasksActions() {
 
   return {
     loadComments,
+    loadAssignmentHistory,
     createTask,
     updateTask,
     deleteTask,

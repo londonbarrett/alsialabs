@@ -20,9 +20,10 @@ import { sortAssignments } from "@/lib/tasks/assignments"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
+import { assignmentColumnCount } from "./assignment-columns"
 import { TaskStatusSelect, taskStatusColors } from "./task-status-select"
 
-interface TaskAssignmentRowsProps {
+interface TaskOpenAssignmentRowsProps {
   taskId: string
   assignments: TaskAssignmentDTO[]
   onStatusChange: (
@@ -32,11 +33,11 @@ interface TaskAssignmentRowsProps {
   ) => void
 }
 
-export function TaskAssignmentRows({
+export function TaskOpenAssignmentRows({
   taskId,
   assignments,
   onStatusChange,
-}: TaskAssignmentRowsProps) {
+}: TaskOpenAssignmentRowsProps) {
   const t = useTranslations()
   const { currentUserId, isOwner, isAdmin, isCollaborator } =
     useProjectContextState()
@@ -48,7 +49,7 @@ export function TaskAssignmentRows({
 
   // The header renders the actions column only for mutators; the empty
   // filler cells must match that column count exactly.
-  const columnCount = canMutate ? 7 : 6
+  const columnCount = assignmentColumnCount(canMutate)
 
   function getAllowedStatuses(assignment: TaskAssignmentDTO) {
     if (isOwner || isAdmin) return ALL_TASK_STATUSES
@@ -111,9 +112,11 @@ export function TaskAssignmentRows({
               }
             />
           ) : (
-            <Badge className={taskStatusColors[assignment.status]}>
-              {t(`projects.tasks.status.${assignment.status}`)}
-            </Badge>
+            <span className="flex items-center gap-2">
+              <Badge className={taskStatusColors[assignment.status]}>
+                {t(`projects.tasks.status.${assignment.status}`)}
+              </Badge>
+            </span>
           )}
         </TableCell>
         {Array.from({ length: columnCount - 3 }, (_, index) => (

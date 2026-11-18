@@ -171,6 +171,14 @@ export const TaskRecordSchema = z.object({
 export const TaskWithAssignmentsSchema = TaskRecordSchema.extend({
   assignments: z.array(TaskAssignmentSchema),
   commentCount: z.number(),
+  /**
+   * TRUE TOTAL of terminal (`done`+`cancelled`) assignments on the
+   * task, counted server-side over `task_assignment` — including rows
+   * that live behind Load More on a repeating task. Store rows
+   * undercount there (one row per assignee), so the status cell must
+   * never derive this from loaded rows.
+   */
+  closedCount: z.number(),
 })
 
 export const MyTasksTabSchema = z.enum(["active", "past"])
@@ -200,10 +208,29 @@ export const AssignmentStatusResultSchema = z.object({
   nextAssignment: TaskAssignmentSchema.nullable(),
 })
 
+// ---------- Assignment history ----------
+
+export const HISTORY_PAGE_SIZE = 10
+
+export const TaskAssignmentHistorySchema = z.object({
+  projectId: z.uuid(),
+  taskId: z.uuid(),
+  limit: z.number().int().min(1).max(50),
+  offset: z.number().int().min(0),
+})
+
+export const TaskAssignmentHistoryResultSchema = z.object({
+  assignments: z.array(TaskAssignmentSchema),
+  hasMore: z.boolean(),
+})
+
 export type TaskFormDTO = z.infer<typeof TaskFormSchema>
 export type CreateTaskDTO = z.infer<typeof CreateTaskSchema>
 export type UpdateTaskDTO = z.infer<typeof UpdateTaskSchema>
 export type TaskAssignmentDTO = z.infer<typeof TaskAssignmentSchema>
+export type TaskAssignmentHistoryDTO = z.infer<
+  typeof TaskAssignmentHistoryResultSchema
+>
 export type TaskRecordDTO = z.infer<typeof TaskRecordSchema>
 export type TaskWithAssignmentsDTO = z.infer<
   typeof TaskWithAssignmentsSchema

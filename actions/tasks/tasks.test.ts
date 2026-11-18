@@ -12,6 +12,7 @@ vi.mock("next/cache", () => ({
 const state = vi.hoisted(() => ({
   mock: null as unknown as {
     resetMocks(): void
+    calls: { sql: string; params: unknown[] }[]
     onSelect(table: unknown): {
       respond(data: unknown): unknown
       respondWith(
@@ -29,6 +30,7 @@ const state = vi.hoisted(() => ({
       respondWith(
         fn: (sql: string, params: unknown[]) => unknown
       ): unknown
+      throw(error: Error): unknown
     }
     onDelete(table: unknown): {
       respond(data: unknown): unknown
@@ -55,6 +57,7 @@ import type { ProjectRole } from "@/lib/types"
 import {
   createTask,
   deleteTask,
+  getTaskAssignmentHistory,
   getTasks,
   updateAssignmentComment,
   updateAssignmentStatus,
@@ -168,15 +171,69 @@ describe("getTasks", () => {
   it("returns tasks with their assignments", async () => {
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
     state.mock
-      .onSelect(schema.taskAssignmentDetailView)
+      .onSelect(schema.taskAssignmentLatestView)
       .respond([makeAssignmentRow()])
     state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ taskId: TASK_ID, cnt: 3 }])
 
     const result = await getTasks({ projectId: PROJECT_ID })
 
     expect(result.serverError).toBeUndefined()
     expect(result.data?.[0]?.assignments).toHaveLength(1)
     expect(result.data?.[0]?.assignments[0]?.userId).toBe(USER_ID)
+    // The status cell's total comes from the terminal-row count query,
+    // not from the loaded (recurrence-aware) rows.
+    expect(result.data?.[0]?.closedCount).toBe(3)
+  })
+
+  it("reads the full assignment history from the detail view for non-repeating tasks", async () => {
+    const before = state.mock.calls.length
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([
+        makeAssignmentRow(),
+        makeAssignmentRow({ assignmentId: "other", status: "done" }),
+      ])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    const result = await getTasks({ projectId: PROJECT_ID })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.[0]?.assignments).toHaveLength(2)
+    expect(result.data?.[0]?.closedCount).toBe(0)
+    const viewSql = state.mock.calls
+      .slice(before)
+      .map((call) => call.sql)
+      .join(" ")
+    expect(viewSql).toContain('"task_assignment_detail"')
+    expect(viewSql).not.toContain('"task_assignment_latest"')
+  })
+
+  it("reads one row per assignee from the latest view for repeating tasks", async () => {
+    const before = state.mock.calls.length
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ recurrence: "daily" })])
+    state.mock
+      .onSelect(schema.taskAssignmentLatestView)
+      .respond([makeAssignmentRow()])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    const result = await getTasks({ projectId: PROJECT_ID })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.[0]?.assignments).toHaveLength(1)
+    const viewSql = state.mock.calls
+      .slice(before)
+      .map((call) => call.sql)
+      .join(" ")
+    expect(viewSql).toContain('"task_assignment_latest"')
+    expect(viewSql).not.toContain('"task_assignment_detail"')
   })
 
   it("forbids a collaborator from the project task list", async () => {
@@ -191,14 +248,16 @@ describe("createTask", () => {
     const assignment = makeAssignmentRow()
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
     state.mock
-      .onSelect(schema.taskAssignmentDetailView)
+      .onSelect(schema.taskAssignmentLatestView)
       .respond([assignment])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
     state.mock.onInsert(schema.tasksTable).respond([makeTaskRow()])
 
     const result = await createTask(validTask)
 
     expect(result.serverError).toBeUndefined()
     expect(result.data?.id).toBe(TASK_ID)
+    expect(result.data?.closedCount).toBe(0)
   })
 
   it("rejects an assignee outside the project", async () => {
@@ -232,9 +291,12 @@ describe("updateTask", () => {
       .respond([{ userId: "user-3" }])
     state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
     let openSql = ""
+    // One table, two shapes: the open-assignments diff read and the
+    // terminal-count read that follows it — routed by SQL.
     state.mock
       .onSelect(schema.taskAssignmentsTable)
       .respondWith((sql) => {
+        if (sql.includes("count(")) return []
         openSql = sql
         return [{ id: "open-assignment", userId: USER_ID }]
       })
@@ -253,7 +315,7 @@ describe("updateTask", () => {
         return [{ id: "new-assignment" }]
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -288,7 +350,7 @@ describe("updateTask", () => {
         return []
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -322,7 +384,7 @@ describe("updateTask", () => {
         return []
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -367,7 +429,7 @@ describe("updateTask", () => {
         return []
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -399,7 +461,7 @@ describe("updateTask", () => {
         return [{ id: "new-assignment" }]
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -429,7 +491,7 @@ describe("updateTask", () => {
         return [{ id: "new-assignment" }]
       })
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
-    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
 
     const result = await updateTask({
       ...validTask,
@@ -522,20 +584,22 @@ describe("updateAssignmentStatus", () => {
   })
 
   it("creates the next occurrence when a repeating assignment is done", async () => {
-    state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      {
-        id: ASSIGNMENT_ID,
-        userId: USER_ID,
-        status: "todo",
-        endDate: new Date("2026-10-30T11:00:00"),
-        taskId: TASK_ID,
-        recurrence: "daily",
-        interval: 1,
-        daysOfWeek: null,
-        startTime: "09:00",
-        endTime: "11:00",
-      },
-    ])
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) =>
+      sql.includes("exists") ? [] : [
+        {
+          id: ASSIGNMENT_ID,
+          userId: USER_ID,
+          status: "todo",
+          endDate: new Date("2026-10-30T11:00:00"),
+          taskId: TASK_ID,
+          recurrence: "daily",
+          interval: 1,
+          daysOfWeek: null,
+          startTime: "09:00",
+          endTime: "11:00",
+        },
+      ]
+    )
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
     state.mock
       .onInsert(schema.taskAssignmentsTable)
@@ -621,6 +685,43 @@ describe("updateAssignmentStatus", () => {
     expect(result.data?.nextAssignment).toBeNull()
   })
 
+  it("does not spawn when a later-dated assignment exists for the assignee", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) =>
+      sql.includes("exists") ? [{ id: "later-row" }] : [
+        { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", endDate: new Date("2026-11-10T11:00:00"),
+          taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
+          startTime: "09:00", endTime: "11:00" },
+      ]
+    )
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "done" })])
+
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "done",
+    })
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.nextAssignment).toBeNull()
+  })
+
+  it("treats a null closing due date as oldest, so any dated row blocks the spawn", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) =>
+      sql.includes("exists") ? [{ id: "dated-row" }] : [
+        { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", endDate: null,
+          taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
+          startTime: "09:00", endTime: "11:00" },
+      ]
+    )
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "done" })])
+
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "done",
+    })
+    expect(result.data?.nextAssignment).toBeNull()
+  })
+
   it("returns NOT_FOUND for an assignment outside the project", async () => {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
@@ -631,6 +732,49 @@ describe("updateAssignmentStatus", () => {
     })
 
     expect(result.serverError).toEqual({ code: "NOT_FOUND" })
+  })
+
+  it("rejects reopening a closed assignment on a repeating task", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "done", endDate: new Date("2026-11-10T11:00:00"),
+        taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
+        startTime: "09:00", endTime: "11:00" },
+    ])
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "todo",
+    })
+    expect(result.serverError).toEqual({ code: "VALIDATION_FAILED" })
+  })
+
+  it("lets a manager reopen a closed assignment on a non-repeating task", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "cancelled", endDate: new Date("2026-11-10T11:00:00"),
+        taskId: TASK_ID, recurrence: null, interval: 1, daysOfWeek: null,
+        startTime: null, endTime: null },
+    ])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "todo" })])
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "todo",
+    })
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.assignment.status).toBe("todo")
+    expect(result.data?.nextAssignment).toBeNull()
+  })
+
+  it("maps a reopen that races an existing open row to VALIDATION_FAILED", async () => {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "done", endDate: new Date("2026-11-10T11:00:00"),
+        taskId: TASK_ID, recurrence: null, interval: 1, daysOfWeek: null,
+        startTime: null, endTime: null },
+    ])
+    state.mock.onUpdate(schema.taskAssignmentsTable)
+      .throw(Object.assign(new Error("duplicate key value violates unique constraint"), { code: "23505" }))
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "todo",
+    })
+    expect(result.serverError).toEqual({ code: "VALIDATION_FAILED" })
   })
 })
 
@@ -703,5 +847,82 @@ describe("guards", () => {
       priority: "urgent",
     })
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+  })
+})
+
+describe("getTaskAssignmentHistory", () => {
+  it("pages closed assignments and reports hasMore", async () => {
+    grantAccess("owner")
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond(
+      Array.from({ length: 11 }, (_, i) =>
+        makeAssignmentRow({
+          assignmentId: `h${i}`,
+          status: i % 2 ? "cancelled" : "done",
+        })
+      )
+    )
+    const result = await getTaskAssignmentHistory({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      limit: 10,
+      offset: 0,
+    })
+    expect(result.data?.assignments).toHaveLength(10)
+    expect(result.data?.hasMore).toBe(true)
+    // ordering lives in SQL: the history select orders by created_at
+    expect(state.mock.calls.at(-1)?.sql).toContain("created_at")
+  })
+
+  it("coerces view date strings and reports hasMore false when the page fits", async () => {
+    grantAccess("owner")
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
+      makeAssignmentRow({
+        assignmentId: "h0",
+        status: "done",
+        startDate: "2026-10-30T09:00:00",
+        endDate: "2026-10-30T11:00:00",
+      }),
+      makeAssignmentRow({ assignmentId: "h1", status: "cancelled" }),
+    ])
+    const result = await getTaskAssignmentHistory({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      limit: 10,
+      offset: 0,
+    })
+    expect(result.data?.hasMore).toBe(false)
+    expect(result.data?.assignments[0]?.startDate).toBeInstanceOf(Date)
+  })
+
+  it("forbids a caller without project access", async () => {
+    mockResolveAccess.mockResolvedValue({ hasAccess: false, role: null })
+    const result = await getTaskAssignmentHistory({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      limit: 10,
+      offset: 0,
+    })
+    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+  })
+
+  it("constrains the history select to the requested project", async () => {
+    grantAccess("owner")
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
+      makeAssignmentRow({ assignmentId: "h0", status: "done" }),
+    ])
+    await getTaskAssignmentHistory({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      limit: 10,
+      offset: 0,
+    })
+    const historyCall = state.mock.calls.at(-1)
+    const where = (historyCall?.sql ?? "").slice(
+      (historyCall?.sql ?? "").indexOf("where")
+    )
+    expect(where).toMatch(/"task_id" = \$\d+/)
+    expect(where).toMatch(/"project_id" = \$\d+/)
+    expect(historyCall?.params).toContain(TASK_ID)
+    expect(historyCall?.params).toContain(PROJECT_ID)
   })
 })

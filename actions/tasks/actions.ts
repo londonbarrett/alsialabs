@@ -27,6 +27,8 @@ import {
   DeleteTaskCommentSchema,
   MyAssignmentSchema,
   MyTasksTabSchema,
+  TaskAssignmentHistoryResultSchema,
+  TaskAssignmentHistorySchema,
   TaskAssignmentSchema,
   TaskCommentResultSchema,
   TaskCommentWithAuthorSchema,
@@ -61,6 +63,24 @@ export const getMyTasks = sessionAction
     return queries.getMyTasks(ctx.session.user.id, parsedInput.view)
   })
 
+export const getTaskAssignmentHistory = projectAction(
+  TaskAssignmentHistorySchema
+)
+  .metadata({})
+  .outputSchema(TaskAssignmentHistoryResultSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canViewProject(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
+    return queries.getTaskAssignmentHistory(
+      parsedInput.projectId,
+      parsedInput.taskId,
+      parsedInput.limit,
+      parsedInput.offset
+    )
+  })
+
 export const createTask = projectAction(CreateTaskSchema)
   .metadata({ revalidate: ["/app/proyectos/:projectId"] })
   .outputSchema(TaskWithAssignmentsSchema)
@@ -80,6 +100,7 @@ export const createTask = projectAction(CreateTaskSchema)
       ...loaded.record,
       assignments: loaded.assignments,
       commentCount: 0,
+      closedCount: loaded.closedCount,
     }
   })
 
@@ -112,6 +133,7 @@ export const updateTask = projectAction(UpdateTaskSchema)
       ...loaded.record,
       assignments: loaded.assignments,
       commentCount: 0,
+      closedCount: loaded.closedCount,
     }
   })
 
@@ -151,13 +173,23 @@ export const updateAssignmentStatus = projectAction(
       !(ALL_TASK_STATUSES as readonly string[]).includes(status)
     ) {
       returnActionError("VALIDATION_FAILED")
+    } else if (
+      isTerminalStatus(row.status) &&
+      !isTerminalStatus(status as TaskStatus) &&
+      row.recurrence
+    ) {
+      // Repeat chains can't be reopened — terminal→open exists only on
+      // non-repeating tasks, so history can never fork a successor.
+      returnActionError("VALIDATION_FAILED")
     }
 
     /**
      * The cascade runs inside the status write's transaction (spec), and only
      * when an OPEN row actually crosses into a terminal status: re-completing
-     * a done row would spawn a second successor, and reopening one whose
-     * successor exists would trip `task_assignment_open_unique`.
+     * a done row would spawn a second successor. Reopen is rejected outright
+     * on repeating tasks (rule above); on non-repeating tasks it never
+     * spawns, so the unique-violation catch below guards spawn races and
+     * stale reopens.
      */
     const wasOpen = !isTerminalStatus(row.status)
     const crossesToTerminal =
@@ -170,23 +202,31 @@ export const updateAssignmentStatus = projectAction(
     } | null = null
 
     if (crossesToTerminal && row.recurrence) {
-      const next = computeNextOccurrence(
-        {
-          recurrence: row.recurrence,
-          interval: row.interval,
-          daysOfWeek: row.daysOfWeek,
-          startTime: row.startTime,
-          endDate: row.taskEndDate,
-        },
-        row.endDate ?? new Date()
+      const laterExists = await queries.hasLaterDatedAssignment(
+        row.taskId,
+        row.userId,
+        row.endDate
       )
 
-      if (next) {
-        spawn = {
-          taskId: row.taskId,
-          userId: row.userId,
-          startDate: next,
-          endDate: atTime(next, row.endTime),
+      if (!laterExists) {
+        const next = computeNextOccurrence(
+          {
+            recurrence: row.recurrence,
+            interval: row.interval,
+            daysOfWeek: row.daysOfWeek,
+            startTime: row.startTime,
+            endDate: row.taskEndDate,
+          },
+          row.endDate ?? new Date()
+        )
+
+        if (next) {
+          spawn = {
+            taskId: row.taskId,
+            userId: row.userId,
+            startDate: next,
+            endDate: atTime(next, row.endTime),
+          }
         }
       }
     }
