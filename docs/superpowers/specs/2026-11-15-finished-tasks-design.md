@@ -276,25 +276,24 @@ their full history (#7) and never get the control:
   only, so they can never collide). The Load More offset still
   tracks **server rows fetched** (each click advances it by the page
   size), not rows displayed.
-- **Auto-fetch on terminal-set change (amendment 2026-11-16 — the
-  user's "just-closed row needs a Load More click" report)**: while
-  the panel is mounted, a change of the terminal-id signature (a
-  close's optimistic flip, a spawn's commit) automatically fetches
-  the first history page (offset 0) and merges it — no click. A
-  spawn's commit drops the just-closed row from the store, so server
-  history is its only home and the fetch is what surfaces it. Mount
-  still fetches nothing (the approved matrix). Implementation: the
-  existing render-phase pagination reset stays; beside it an effect
-  keys off the signature, with the mount signature held in a ref so
-  only *changes* fetch (ref updated in the effect). A spawn produces
-  two signature changes, so fetches are serialized — while one is in
-  flight a new change is parked in `pendingRef` and re-runs a fresh
-  offset-0 fetch after the in-flight one settles (never a lost final
-  fetch). Each fetch captures the signature at start; on resolve, a
-  response whose signature no longer matches is **dropped whole**
-  (no `setDisplayed`/`setFetchedCount`/`setHasMore` from it). The
-  Load More button keeps its exact click path: same fetch, offset =
-  rows fetched, `hasMore` gates the button.
+- **History loads only on Load More (amendment 2026-11-17 —
+  supersedes the 2026-11-16 auto-fetch amendment, the "old closed
+  rows load without a click" report)**: session-closed rows surface
+  through absorption alone (bullet below) — a close issues **no**
+  history request, and the panel mounts and expands fetching
+  nothing. History pages load ONLY on a Load More click: same fetch,
+  offset = rows fetched, `hasMore` gates the button, 10 rows per
+  page. A change of the terminal-id signature (a close's optimistic
+  flip, a spawn's commit) re-arms pagination — the existing
+  render-phase reset returns `fetchedCount` to 0 and `hasMore` to
+  true while `displayed` is preserved — so the next click after a
+  close restarts at offset 0 (newest first) and the id-dedupe
+  appends only rows not yet seen. Each fetch captures the signature
+  at start (a ref synced from the committed render by an effect);
+  a response whose signature no longer matches at resolve is
+  **dropped whole** (no `setDisplayed`/`setFetchedCount`/`setHasMore`
+  from it), so a Load More click in flight across a close can never
+  apply an old-offset page or stale `fetchedCount`/`hasMore`.
 - **Open→terminal absorption (amendment 2026-11-17 — the
   "repeating closes lost their optimistic behaviour" report)**: the
   closed badge renders at pend, in place, because the panel absorbs
@@ -306,9 +305,9 @@ their full history (#7) and never get the control:
   sanctioned form — it converges because the next render's
   `displayedIds` contains the absorbed rows). The absorbed copy
   persists past the spawn commit that drops the store row — its
-  whole reason — and the later auto-fetch reconciles against it
+  whole reason — and a later Load More page reconciles against it
   through the id-dedupe (the seen-set already includes displayed),
-  so no vanish and no flicker between pend and fetch. A mixed task's
+  so no vanish and no flicker between pend and click. A mixed task's
   old slim history rows were never open while the panel was mounted,
   so they are not absorbed and stay behind Load More (the
   multi-assignee pin keeps passing); wizard open→terminal

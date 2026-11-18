@@ -64,19 +64,12 @@ export function TaskHistoryPanel({
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
   const [seenSignature, setSeenSignature] = useState(historySignature)
-  // Starts at the mount signature and advances in the effect below:
-  // equal-to-ref means "no terminal-set change since mount (or since
-  // the last fetch)", which is what keeps mount from fetching and lets
-  // each fetch's resolve-time stale check see the current signature.
+  // The terminal-set signature as of the last committed render, synced
+  // by the effect below: a fetch captures it at start and drops its
+  // response if it no longer matches at resolve (a close landing while
+  // a Load More click is in flight). Never read during render — the
+  // sync lives in an effect (react-hooks/refs).
   const signatureRef = useRef(historySignature)
-  const inFlightRef = useRef(false)
-  const pendingRef = useRef(false)
-  // The in-flight fetch flushes a pending re-run through this ref so
-  // the flush always calls the latest fetch closure (fresh
-  // `zeroOpenScope`) without a self-referencing dependency cycle.
-  const fetchRef = useRef<(offset: number, signature: string) => Promise<void>>(
-    async () => {}
-  )
 
   // A terminal-row change means history membership moved (a close, a
   // spawn's optimistic flip): restart the offset so the next page picks
@@ -99,7 +92,7 @@ export function TaskHistoryPanel({
   // Open→terminal absorption: the row is terminal in the store and was
   // open last render — copy it into displayed so the closed badge
   // renders at pend, in place, and keeps rendering after the spawn
-  // commit drops the store row (the later auto-fetch dedupes against
+  // commit drops the store row (a later Load More page dedupes against
   // the copy). Render-phase adjustment — the setState-in-effect rule
   // forbids doing this in an effect — and it converges because the
   // next render's displayedIds contains the absorbed rows.
@@ -127,15 +120,24 @@ export function TaskHistoryPanel({
     setPrevOpenIds(new Set(openIds))
   }
 
+  // Sync-only: align the ref with the signature this render committed
+  // so fetchHistory's stale check compares against the current value.
+  // The render-phase seenSignature guard above owns the pagination
+  // reset; a ref write in an effect is allowed (reading one during
+  // render is not).
+  useEffect(() => {
+    signatureRef.current = historySignature
+  }, [historySignature])
+
   const fetchHistory = useCallback(
-    async (offset: number, signature: string): Promise<void> => {
-      inFlightRef.current = true
+    async (offset: number): Promise<void> => {
+      const startSignature = signatureRef.current
       try {
         const page = await loadAssignmentHistory(projectId, taskId, offset)
         // Stale-response discard: a terminal-set change landed while
         // this request was in flight, so its snapshot predates the
         // current history — drop it whole, no state writes.
-        if (signatureRef.current !== signature) return
+        if (signatureRef.current !== startSignature) return
         if (!page) return
         setDisplayed((prev) => {
           const seen = new Set([
@@ -153,43 +155,15 @@ export function TaskHistoryPanel({
         setHasMore(page.hasMore)
       } catch {
         return
-      } finally {
-        inFlightRef.current = false
-        if (pendingRef.current) {
-          pendingRef.current = false
-          // A signature change arrived mid-flight (a spawn's commit
-          // after its optimistic flip): serialize by re-running the
-          // first page for the final signature — never lost.
-          void fetchRef.current(0, signatureRef.current)
-        }
       }
     },
     [loadAssignmentHistory, projectId, taskId, zeroOpenScope]
   )
 
-  useEffect(() => {
-    fetchRef.current = fetchHistory
-  }, [fetchHistory])
-
-  // Auto-fetch on terminal-set change (never on mount): a spawn's
-  // commit drops the just-closed row from the store, so the only copy
-  // of it is server history — fetch offset 0 the moment the signature
-  // moves and merge it in, no Load More click required.
-  useEffect(() => {
-    if (recurrence === null) return
-    if (historySignature === signatureRef.current) return
-    signatureRef.current = historySignature
-    if (inFlightRef.current) {
-      pendingRef.current = true
-      return
-    }
-    void fetchHistory(0, historySignature)
-  }, [historySignature, recurrence, fetchHistory])
-
   const loadMore = useCallback(async (): Promise<void> => {
     setLoading(true)
     try {
-      await fetchHistory(fetchedCount, signatureRef.current)
+      await fetchHistory(fetchedCount)
     } finally {
       setLoading(false)
     }

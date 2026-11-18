@@ -457,9 +457,10 @@ test("closed assignment history pages ten rows at a time", async ({
   // successor. The 11 closed rows arrive through Load More, ten at a
   // time, appended below it. (Under Sin finalizar the close's
   // optimistic done state hides the task row, so the panel remounts
-  // fresh after every close and never auto-fetches — mount fetches
-  // nothing. The no-click auto-surface path is pinned in the rearm
-  // scenario below, which closes under Ambas.)
+  // fresh after every close — mount fetches nothing and never absorbs,
+  // so no closed row can appear before a click here. The no-click
+  // surface path is pinned in the rearm and absorb scenarios below,
+  // which close under Ambas.)
   await expect(person).toHaveCount(1)
   await expect(person.getByRole("combobox")).toHaveCount(1)
   const loadMore = page.getByRole("button", { name: "Cargar más" })
@@ -498,7 +499,7 @@ test("closing after an exhausted history re-arms Load More for the new row", asy
   page,
   signInAs,
 }) => {
-  // The heaviest scenario in this file (11 closes + two Load More
+  // The heaviest scenario in this file (11 closes + three Load More
   // clicks + a filter switch): under full-suite load the dev server
   // pushes it past the 45s default before the decisive close runs.
   test.setTimeout(90_000)
@@ -553,8 +554,9 @@ test("closing after an exhausted history re-arms Load More for the new row", asy
   // Move to Ambas before the decisive close: under Sin finalizar the
   // optimistic terminal-only state hides the whole task row
   // (shouldShowTask), which unmounts the expanded region and remounts
-  // the panel fresh — masking the auto-fetch. Ambas re-sorts the row
-  // between segments instead, so the exhausted panel stays mounted.
+  // the panel fresh — masking the panel's close handling. Ambas
+  // re-sorts the row between segments instead, so the exhausted panel
+  // stays mounted.
   const both = page.getByRole("button", { name: "Ambas" })
   await both.click()
   await expect(both).toHaveAttribute("aria-pressed", "true")
@@ -568,28 +570,6 @@ test("closing after an exhausted history re-arms Load More for the new row", asy
   // options portal mid-click.
   await expect(page.locator("[data-sonner-toast]")).toHaveCount(0)
 
-  // This close fires exactly two history responses: the pend fetch's
-  // pre-commit snapshot, then the commit's offset-0 auto-fetch (the
-  // only one that re-advances paging to offset 10). Absorption makes
-  // the just-closed row visible before that lands, so the row count
-  // can no longer stand in as the wait — clicking Load More first
-  // would restart paging at offset 0 and leave hasMore true (the
-  // button never leaves). Resolve on the received body, not just the
-  // headers, to keep the gap before the click as small as possible.
-  let historyResponses = 0
-  const autoFetchLanded = new Promise<void>((resolve) => {
-    page.on("response", (response) => {
-      if (!isHistoryCall(response.request())) return
-      void response
-        .text()
-        .catch(() => "")
-        .then(() => {
-          historyResponses += 1
-          if (historyResponses === 2) resolve()
-        })
-    })
-  })
-
   await pinRow(person.first())
   const justClosedWindow = await occurrence.textContent()
   if (!justClosedWindow) throw new Error("occurrence cell had no text")
@@ -598,23 +578,31 @@ test("closing after an exhausted history re-arms Load More for the new row", asy
   // The occurrence window advancing pins the spawn commit — during the
   // optimistic flip the default row still shows the same window.
   await expect(occurrence).not.toContainText(justClosedWindow)
-  await autoFetchLanded
 
   // The just-closed row is visible WITHOUT any click: the panel
   // absorbed the open→terminal transition at pend (the copy persists
-  // past the spawn commit) and the auto-fetch reconciles server
-  // history against it (nth(1): the open successor leads, the newest
-  // closed row is first in the sorted closed region).
+  // past the spawn commit). History loads only on Load More, so the
+  // close itself issues no history request and the ten previously
+  // fetched rows keep their place (nth(1): the open successor leads,
+  // the newest closed row is first in the sorted closed region).
   await expect(person).toHaveCount(12)
   await expect(person.nth(1)).toContainText(justClosedWindow)
 
-  // The button still reappears for the rest of history: eleven closed
-  // rows are one page beyond what offset 0 fetched.
+  // The signature reset re-arms the button: eleven closed rows are one
+  // page beyond the ten the panel had paged before the close, and the
+  // offset restarts at 0.
   await expect(loadMore).toBeVisible()
   await loadMore.click()
+  // Offset 0 returns the ten newest closed rows — the absorbed one
+  // plus nine already displayed — so the page dedupes to nothing and
+  // the count holds; hasMore stays true (eleven closed rows in all).
+  await expect(person).toHaveCount(12)
+  await expect(person.nth(1)).toContainText(justClosedWindow)
+  await expect(loadMore).toBeVisible()
+  // The second click pages the last row (offset 10): already
+  // displayed → deduped again, hasMore false, the button leaves.
+  await loadMore.click()
   await expect(loadMore).toHaveCount(0)
-  // The fetched page overlaps what's already displayed: deduped, so
-  // the count holds and the just-closed row keeps its place.
   await expect(person).toHaveCount(12)
   await expect(person.nth(1)).toContainText(justClosedWindow)
 })
@@ -641,9 +629,10 @@ test("a repeating close keeps its closed badge while history is blocked", async 
   await expect(person).toHaveCount(1)
 
   // Block the history panel's fetches (their arguments carry
-  // limit/offset) before the close: whatever closed row appears must
-  // come from the panel absorbing the open→terminal transition, never
-  // from the auto-fetch roundtrip.
+  // limit/offset) before the close: the closed row that appears must
+  // come from the panel absorbing the open→terminal transition — and
+  // the fixed panel issues no history request at all (closed history
+  // loads only on Load More), so nothing even reaches the route.
   let blockedHistoryFetches = 0
   await page.route("**/*", async (route) => {
     if (isHistoryCall(route.request())) {
@@ -672,13 +661,98 @@ test("a repeating close keeps its closed badge while history is blocked", async 
     page.getByText("Estado actualizado").first()
   ).toBeVisible()
 
-  // Post-commit the store holds only the open successor and the
-  // history fetch never lands: the closed badge on screen is the
-  // absorbed copy, beside the successor's open select.
+  // Post-commit the store holds only the open successor and no
+  // history request was issued: the closed badge on screen is the
+  // absorbed copy, beside the successor's open select — and it is the
+  // only closed row (the pre-existing history never loaded).
   await expect(person).toHaveCount(2)
   await expect(person.getByRole("combobox")).toHaveCount(1)
   await expect(person.nth(1)).toContainText("Completado")
-  expect(blockedHistoryFetches).toBeGreaterThan(0)
+  expect(blockedHistoryFetches).toBe(0)
+})
+
+test("a close surfaces only the session-closed row, never old history", async ({
+  page,
+  signInAs,
+}) => {
+  const taskName = `E2E filter no stale history ${Date.now()}`
+  await signInAs("user1")
+  await page.goto(PROJECT_URL)
+
+  await createDailyRepeatingTask(page, {
+    name: taskName,
+    assignee: true,
+    startDate: new Date(),
+    endDate: daysFromNow(30),
+  })
+  const row = page.getByRole("row", { name: new RegExp(taskName) })
+  await expect(row).toBeVisible()
+  await expandAssignments(row)
+
+  const person = personRows(row)
+  await expect(person).toHaveCount(1)
+  const occurrence = person.locator("td").nth(1)
+
+  // Old closed history: two closes under Sin finalizar hide the task
+  // row at pend (the panel unmounts and remounts fresh each time —
+  // mount fetches nothing), so two closed rows exist server-side while
+  // the panel shows only the open successor. No Load More click
+  // anywhere below.
+  const oldWindows: string[] = []
+  for (let i = 0; i < 2; i++) {
+    const before = await occurrence.textContent()
+    if (!before) throw new Error("occurrence cell had no text")
+    oldWindows.push(before)
+    await pinRow(person.first())
+    await person.getByRole("combobox").click()
+    await page.getByRole("option", { name: "Completado" }).click()
+    await expect(occurrence).not.toContainText(before)
+    await expect(person).toHaveCount(1)
+  }
+
+  // Ambas keeps the panel mounted across the decisive close (under Sin
+  // finalizar the optimistic terminal-only state hides the whole row,
+  // remounting the panel fresh — which would mask the bug this pin
+  // exists for).
+  const both = page.getByRole("button", { name: "Ambas" })
+  await both.click()
+  await expect(both).toHaveAttribute("aria-pressed", "true")
+  await expect(person).toHaveCount(1)
+
+  // Drain the creation/close toasts: the next success toast is this
+  // close's settle, which lands once the spawn commit has landed.
+  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0)
+
+  // Listen BEFORE the close so even a pend-time history request (the
+  // first thing the auto-fetch used to fire) cannot slip past the wait.
+  const historyResponse = page
+    .waitForResponse((response) => isHistoryCall(response.request()), {
+      timeout: 5_000,
+    })
+    .catch(() => null)
+
+  await pinRow(person.first())
+  const justClosedWindow = await occurrence.textContent()
+  if (!justClosedWindow) throw new Error("occurrence cell had no text")
+  await person.getByRole("combobox").click()
+  await page.getByRole("option", { name: "Completado" }).click()
+  await expect(occurrence).not.toContainText(justClosedWindow)
+
+  // The close issues NO history request: history loads only on Load
+  // More. The old auto-fetch answered this wait (and then dumped the
+  // old rows below) → red; the fixed panel times it out empty.
+  expect(await historyResponse).toBeNull()
+
+  // The just-closed row IS visible — through absorption alone — and it
+  // is the ONLY closed row on screen: three closed rows exist on the
+  // server (two old + this one), zero Load More clicks have happened,
+  // so the two pre-existing rows must still be behind the button.
+  await expect(person).toHaveCount(2)
+  await expect(person.nth(1)).toContainText(justClosedWindow)
+  for (const oldWindow of oldWindows) {
+    await expect(person.filter({ hasText: oldWindow })).toHaveCount(0)
+  }
+  await expect(page.getByRole("button", { name: "Cargar más" })).toBeVisible()
 })
 
 test("a removed assignee can be reassigned with the closed row in history", async ({
