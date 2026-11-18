@@ -132,11 +132,11 @@ Consequences:
   task the expanded region's initial block renders only the open
   rows (`shown.filter(isOpenAssignment)` — empty when zero-open) and
   the history panel owns *all* closed display: a zero-open task's
-  store rows arrive through the panel's `initialClosed` prop (the
+  store rows arrive through the panel's `storeTerminal` prop (the
   initial block renders nothing there), a mixed task's closed rows
-  through fetch (#6). For a **non-repeating** task the split does not
-  apply — the initial block renders every loaded row and the panel
-  renders nothing (`recurrence === null` gate).
+  through fetch or absorption (#6). For a **non-repeating** task the
+  split does not apply — the initial block renders every loaded row
+  and the panel renders nothing (`recurrence === null` gate).
 - **Rows-component split (amendment 2026-11-17)**: the initial block
   is two components — `task-open-assignment-rows.tsx` (status
   select / badge for open rows) and `task-closed-assignment-rows.tsx`
@@ -252,8 +252,8 @@ their full history (#7) and never get the control:
 
 - Default: the visible rows per #3 — and for a **zero-open** task
   the store's terminal rows themselves, handed to the panel through
-  its `initialClosed` prop (the initial block renders nothing there,
-  per #3's rendering split).
+  its `storeTerminal` prop and rendered as its zero-open scope (the
+  initial block renders nothing there, per #3's rendering split).
 - Below them, a **Load More** button (existing `common.loadMore`) —
   not a switch, no swap. It fetches **on click**, never on expand
   (the panel's mount fetches nothing — expanding a mixed task shows
@@ -263,13 +263,15 @@ their full history (#7) and never get the control:
   fetch returns `hasMore: false`; a wasted click on a task with no
   closed history is accepted.
 - **Merged, re-sorted closed region (amendment 2026-11-16)**: what
-  the panel renders is the merge of `initialClosed` and every row
-  fetched so far — deduped by assignment id and ordered `startDate`
+  the panel renders is the merge of the zero-open scope (`storeTerminal`
+  when no assignment is open) and every row fetched or absorbed so far
+  — deduped by assignment id and ordered `startDate`
   DESC, nulls last, *at render* (`mergeClosedRows`/`sortClosedRows`
   in `lib/tasks/list.ts`). Server paging stays `createdAt DESC` +
   offset; because the region is re-sorted from the merged set, fetch
-  order can never leak into display order. The dedupe seen-set is
-  `initialClosed` ∪ already-displayed ∪ the current response — open
+  order can never leak into display order. The dedupe seen-set is the
+  zero-open scope ∪ already-displayed (absorbed copies included) ∪ the
+  current response — open
   rows are not part of it (the history query returns terminal rows
   only, so they can never collide). The Load More offset still
   tracks **server rows fetched** (each click advances it by the page
@@ -293,6 +295,27 @@ their full history (#7) and never get the control:
   (no `setDisplayed`/`setFetchedCount`/`setHasMore` from it). The
   Load More button keeps its exact click path: same fetch, offset =
   rows fetched, `hasMore` gates the button.
+- **Open→terminal absorption (amendment 2026-11-17 — the
+  "repeating closes lost their optimistic behaviour" report)**: the
+  closed badge renders at pend, in place, because the panel absorbs
+  each row that was open in the previous render and is terminal in
+  the store now — a guarded render-phase copy of
+  `freshlyClosedRows(prevOpenIds, storeTerminal, displayedIds)`
+  (`lib/tasks/list.ts`) into `displayed`, with the previous open ids
+  advanced after that decision (guarded render-phase update, the
+  sanctioned form — it converges because the next render's
+  `displayedIds` contains the absorbed rows). The absorbed copy
+  persists past the spawn commit that drops the store row — its
+  whole reason — and the later auto-fetch reconciles against it
+  through the id-dedupe (the seen-set already includes displayed),
+  so no vanish and no flicker between pend and fetch. A mixed task's
+  old slim history rows were never open while the panel was mounted,
+  so they are not absorbed and stay behind Load More (the
+  multi-assignee pin keeps passing); wizard open→terminal
+  transitions absorb too (the user acted). Reopen cannot reach the
+  panel (repeating-only, reopen banned on repeating), so there is no
+  terminal→open un-absorb case. The `seenSignature` reset preserves
+  `displayed`, so absorbed rows survive pagination invalidation.
 - The default rows stay in place; history appends below them.
 - Rows in the appended block are read-only badges (assignee, date
   range, status; the assignment `comment` display is the builder's

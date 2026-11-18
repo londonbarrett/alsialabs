@@ -54,19 +54,39 @@ export function sortClosedRows<
 }
 
 /**
+ * The history panel's open→terminal absorption decision: rows that are
+ * terminal in the store now, were open in the previous render, and are
+ * not displayed yet — the just-closed assignments the panel must copy
+ * into its own state so the closed badge renders at pend, in place,
+ * and survives the spawn commit dropping the store row. Rows that were
+ * never open while mounted (a mixed task's old slim history) are left
+ * behind Load More, and already-displayed copies are never re-added.
+ */
+export function freshlyClosedRows(
+  prevOpenIds: ReadonlySet<string>,
+  storeTerminal: TaskAssignmentDTO[],
+  displayedIds: ReadonlySet<string>
+): TaskAssignmentDTO[] {
+  return storeTerminal.filter(
+    (row) => prevOpenIds.has(row.id) && !displayedIds.has(row.id)
+  )
+}
+
+/**
  * The history panel's closed region: the store rows it starts from
- * (`initialClosed`, only when the task has no open assignment) plus
- * everything fetched so far (`displayed`), deduped by assignment id and
- * ordered at render so overlapping pages and store rows can never
- * duplicate or jumble the list.
+ * (`zeroOpenScope`, only when the task has no open assignment) plus
+ * everything fetched or absorbed so far (`displayed`), deduped by
+ * assignment id and ordered at render so overlapping pages, absorbed
+ * open→terminal copies, and store rows can never duplicate or jumble
+ * the list.
  */
 export function mergeClosedRows(
-  initialClosed: TaskAssignmentDTO[],
+  zeroOpenScope: TaskAssignmentDTO[],
   displayed: TaskAssignmentDTO[]
 ): TaskAssignmentDTO[] {
   const seen = new Set<string>()
   const merged: TaskAssignmentDTO[] = []
-  for (const row of [...initialClosed, ...displayed]) {
+  for (const row of [...zeroOpenScope, ...displayed]) {
     if (seen.has(row.id)) continue
     seen.add(row.id)
     merged.push(row)

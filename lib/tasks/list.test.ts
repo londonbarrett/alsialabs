@@ -5,6 +5,7 @@ import type {
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
 import {
+  freshlyClosedRows,
   mergeClosedRows,
   selectTasks,
   sortClosedRows,
@@ -238,6 +239,55 @@ describe("mergeClosedRows", () => {
     const merged = mergeClosedRows(storeRows, fetched)
     expect(merged).not.toBe(storeRows)
     expect(merged).not.toBe(fetched)
+  })
+})
+
+describe("freshlyClosedRows", () => {
+  const terminal = (id: string): TaskAssignmentDTO =>
+    makeAssignment({ id, status: "done" })
+
+  it("returns rows that went open→terminal this render and are not displayed", () => {
+    const justClosed = terminal("a1")
+    const other = terminal("a2")
+
+    const fresh = freshlyClosedRows(
+      new Set(["a1", "a3"]),
+      [justClosed, other],
+      new Set()
+    )
+    expect(fresh.map((row) => row.id)).toEqual(["a1"])
+    expect(fresh[0]).toBe(justClosed)
+  })
+
+  it("does not return rows already displayed (absorbed earlier or fetched)", () => {
+    const fresh = freshlyClosedRows(
+      new Set(["a1"]),
+      [terminal("a1"), terminal("a2")],
+      new Set(["a1"])
+    )
+    expect(fresh).toEqual([])
+  })
+
+  it("does not return rows that were never open (mixed tasks' old history)", () => {
+    const fresh = freshlyClosedRows(
+      new Set(["a1"]),
+      [terminal("a-old")],
+      new Set()
+    )
+    expect(fresh).toEqual([])
+  })
+
+  it("returns nothing for empty inputs", () => {
+    expect(freshlyClosedRows(new Set(), [], new Set())).toEqual([])
+    expect(
+      freshlyClosedRows(new Set(["a1"]), [], new Set())
+    ).toEqual([])
+    expect(
+      freshlyClosedRows(new Set(), [terminal("a1")], new Set())
+    ).toEqual([])
+    expect(
+      freshlyClosedRows(new Set(), [terminal("a1")], new Set(["a1"]))
+    ).toEqual([])
   })
 })
 

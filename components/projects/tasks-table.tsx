@@ -1,7 +1,6 @@
 "use client"
 
 import type {
-  TaskAssignmentDTO,
   TaskPriorityDTO,
   TaskStatus,
   TaskWithAssignmentsDTO,
@@ -50,11 +49,6 @@ interface TasksTableProps {
   onEdit: (task: TaskWithAssignmentsDTO) => void
   onComments: (task: TaskWithAssignmentsDTO) => void
 }
-
-// Stable empty source for the panel's closed region on every task that
-// still has an open assignment (mixed tasks keep closed history behind
-// fetch only, per the display matrix).
-const NO_INITIAL_CLOSED: TaskAssignmentDTO[] = []
 
 export function TasksTable({
   tasks,
@@ -122,17 +116,19 @@ export function TasksTable({
                     isTerminalStatus(assignment.status)
                   )
                 : []
-            const initialClosed =
-              task.recurrence !== null && open.length === 0
-                ? shown
-                : NO_INITIAL_CLOSED
+            // The panel's two views of the store: every terminal row
+            // (zero-open scope + open→terminal absorption) and which
+            // rows are currently open (the "was open last render" set).
+            const storeTerminal = task.assignments.filter((assignment) =>
+              isTerminalStatus(assignment.status)
+            )
+            const openIds = open.map((assignment) => assignment.id)
             const counts = assignmentCounts(task.assignments)
             const lead = open[0]
             const isExpanded = expanded.has(task.id)
             // Sorted so sortAssignments re-orders can't retrigger the
             // history panel's pagination reset.
-            const historySignature = task.assignments
-              .filter((assignment) => isTerminalStatus(assignment.status))
+            const historySignature = storeTerminal
               .map((assignment) => assignment.id)
               .sort()
               .join(",")
@@ -308,7 +304,8 @@ export function TasksTable({
                     <TaskHistoryPanel
                       taskId={task.id}
                       recurrence={task.recurrence}
-                      initialClosed={initialClosed}
+                      storeTerminal={storeTerminal}
+                      openIds={openIds}
                       historySignature={historySignature}
                     />
                   </Fragment>

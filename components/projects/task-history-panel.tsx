@@ -7,7 +7,7 @@ import {
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
-import { mergeClosedRows } from "@/lib/tasks/list"
+import { freshlyClosedRows, mergeClosedRows } from "@/lib/tasks/list"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks-actions"
 import { useTranslations } from "next-intl"
@@ -19,19 +19,31 @@ interface TaskHistoryPanelProps {
   taskId: string
   recurrence: "daily" | "weekly" | null
   /**
-   * The store's terminal rows when the task has no open assignment —
-   * for a zero-open task the initial block renders nothing, so the
-   * panel owns those rows from the first paint. Empty while any
-   * assignment is open: mixed tasks keep closed history behind fetch.
+   * Every terminal row of the task as the store holds it. A zero-open
+   * task renders these from first paint (its initial block renders
+   * nothing); on a mixed task they feed open→terminal absorption while
+   * the task's old slim history stays behind fetch.
    */
-  initialClosed: TaskAssignmentDTO[]
+  storeTerminal: TaskAssignmentDTO[]
+  /**
+   * Ids of the task's currently-open rows — what the previous render
+   * saw as open, so a row crossing into terminal here is recognized as
+   * a fresh transition to absorb.
+   */
+  openIds: string[]
   historySignature: string
 }
+
+// Stable empty scope for mixed tasks (old closed history stays behind
+// fetch only): fetchHistory keys off zeroOpenScope, so the empty case
+// must keep its identity across renders.
+const NO_CLOSED_SCOPE: TaskAssignmentDTO[] = []
 
 export function TaskHistoryPanel({
   taskId,
   recurrence,
-  initialClosed,
+  storeTerminal,
+  openIds,
   historySignature,
 }: TaskHistoryPanelProps) {
   const t = useTranslations()
@@ -43,6 +55,11 @@ export function TaskHistoryPanel({
   const columnCount = assignmentColumnCount(canMutate)
   const { loadAssignmentHistory } = useProjectTasksActions()
   const [displayed, setDisplayed] = useState<TaskAssignmentDTO[]>([])
+  // The previous render's open ids: a row that was open there and is
+  // terminal in the store now is a fresh open→terminal transition.
+  const [prevOpenIds, setPrevOpenIds] = useState<ReadonlySet<string>>(
+    () => new Set(openIds)
+  )
   const [fetchedCount, setFetchedCount] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -56,7 +73,7 @@ export function TaskHistoryPanel({
   const pendingRef = useRef(false)
   // The in-flight fetch flushes a pending re-run through this ref so
   // the flush always calls the latest fetch closure (fresh
-  // `initialClosed`) without a self-referencing dependency cycle.
+  // `zeroOpenScope`) without a self-referencing dependency cycle.
   const fetchRef = useRef<(offset: number, signature: string) => Promise<void>>(
     async () => {}
   )
@@ -72,6 +89,44 @@ export function TaskHistoryPanel({
     setHasMore(true)
   }
 
+  // What the closed region starts from besides fetched/absorbed rows:
+  // a zero-open task's store rows render from first paint (its open
+  // block renders nothing); a mixed task starts empty so its old
+  // history arrives through fetch only.
+  const zeroOpenScope =
+    openIds.length === 0 ? storeTerminal : NO_CLOSED_SCOPE
+
+  // Open→terminal absorption: the row is terminal in the store and was
+  // open last render — copy it into displayed so the closed badge
+  // renders at pend, in place, and keeps rendering after the spawn
+  // commit drops the store row (the later auto-fetch dedupes against
+  // the copy). Render-phase adjustment — the setState-in-effect rule
+  // forbids doing this in an effect — and it converges because the
+  // next render's displayedIds contains the absorbed rows.
+  const displayedIds = new Set(displayed.map((row) => row.id))
+  const freshlyClosed = freshlyClosedRows(
+    prevOpenIds,
+    storeTerminal,
+    displayedIds
+  )
+  if (freshlyClosed.length > 0) {
+    setDisplayed((prev) => [...prev, ...freshlyClosed])
+  }
+  // Advance after this render's absorption decision so the next render
+  // sees the current open ids as "previous". A ref written in an
+  // effect would read the same, but react-hooks/refs bans reading a
+  // ref during render and set-state-in-effect bans writing state in an
+  // effect — this guarded render-phase update is the lint-clean form:
+  // the value only becomes visible on the next render, and once
+  // advanced, prevOpenIds (open ids) is disjoint from storeTerminal
+  // (terminal ids), so an absorbed row can never be re-computed.
+  if (
+    prevOpenIds.size !== openIds.length ||
+    openIds.some((id) => !prevOpenIds.has(id))
+  ) {
+    setPrevOpenIds(new Set(openIds))
+  }
+
   const fetchHistory = useCallback(
     async (offset: number, signature: string): Promise<void> => {
       inFlightRef.current = true
@@ -84,7 +139,7 @@ export function TaskHistoryPanel({
         if (!page) return
         setDisplayed((prev) => {
           const seen = new Set([
-            ...initialClosed.map((row) => row.id),
+            ...zeroOpenScope.map((row) => row.id),
             ...prev.map((row) => row.id),
           ])
           return [
@@ -109,7 +164,7 @@ export function TaskHistoryPanel({
         }
       }
     },
-    [loadAssignmentHistory, projectId, taskId, initialClosed]
+    [loadAssignmentHistory, projectId, taskId, zeroOpenScope]
   )
 
   useEffect(() => {
@@ -142,7 +197,7 @@ export function TaskHistoryPanel({
 
   if (recurrence === null) return null
 
-  const closed = mergeClosedRows(initialClosed, displayed)
+  const closed = mergeClosedRows(zeroOpenScope, displayed)
 
   return (
     <Fragment>
