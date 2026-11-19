@@ -12,6 +12,7 @@ export interface TaskFormScheduleStepProps {
   startTime: string
   endDate: string
   endTime: string
+  allDay: boolean
   repeat: boolean
   recurrence: "daily" | "weekly"
   interval: string
@@ -23,6 +24,7 @@ export interface TaskFormScheduleStepProps {
   onStartTimeChange: (value: string) => void
   onEndDateChange: (value: string) => void
   onEndTimeChange: (value: string) => void
+  onAllDayChange: (value: boolean) => void
   onRepeatChange: (value: boolean) => void
   onRecurrenceChange: (value: "daily" | "weekly") => void
   onIntervalChange: (value: string) => void
@@ -33,15 +35,16 @@ export interface TaskFormScheduleStepProps {
 
 /**
  * Step 2 of the task wizard. The dates live here — a one-off task gets its
- * window, a repeating task its anchor date, optional end date, and occurrence
- * times — with the repeat switch directly below them and the repeat options
- * below that.
+ * due date, a repeating task its anchor date and optional end date — with an
+ * All-day switch directly above the time inputs it reveals, the repeat switch
+ * below the fields, and the repeat options below that.
  */
 export function TaskFormScheduleStep({
   startDate,
   startTime,
   endDate,
   endTime,
+  allDay,
   repeat,
   recurrence,
   interval,
@@ -53,6 +56,7 @@ export function TaskFormScheduleStep({
   onStartTimeChange,
   onEndDateChange,
   onEndTimeChange,
+  onAllDayChange,
   onRepeatChange,
   onRecurrenceChange,
   onIntervalChange,
@@ -70,23 +74,25 @@ export function TaskFormScheduleStep({
           endDate={endDate}
           occurrenceStartTime={occurrenceStartTime}
           occurrenceEndTime={occurrenceEndTime}
+          allDay={allDay}
           errors={errors}
           onStartDateChange={onStartDateChange}
           onEndDateChange={onEndDateChange}
           onOccurrenceStartTimeChange={onOccurrenceStartTimeChange}
           onOccurrenceEndTimeChange={onOccurrenceEndTimeChange}
+          onAllDayChange={onAllDayChange}
         />
       ) : (
         <NonRepeatingFields
-          startDate={startDate}
           startTime={startTime}
           endDate={endDate}
           endTime={endTime}
+          allDay={allDay}
           errors={errors}
-          onStartDateChange={onStartDateChange}
           onStartTimeChange={onStartTimeChange}
           onEndDateChange={onEndDateChange}
           onEndTimeChange={onEndTimeChange}
+          onAllDayChange={onAllDayChange}
         />
       )}
 

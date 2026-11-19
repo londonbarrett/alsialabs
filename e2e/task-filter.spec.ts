@@ -52,9 +52,7 @@ async function createOneOffTask(
 ): Promise<void> {
   const dialog = await openCreateDialog(page)
   await fillDetails(page, dialog, name, assignee)
-  const date = toDateInput(day)
-  await dialog.getByLabel("Fecha de inicio").fill(date)
-  await dialog.getByLabel("Fecha de vencimiento").fill(date)
+  await dialog.getByLabel("Fecha de vencimiento").fill(toDateInput(day))
   await dialog.getByRole("button", { name: "Crear Tarea" }).click()
   await expect(dialog).toBeHidden()
   // The commit swaps the optimistic temp id for the real one; expanding
@@ -69,17 +67,29 @@ async function createDailyRepeatingTask(
     assignee = false,
     startDate,
     endDate,
-  }: { name: string; assignee?: boolean; startDate: Date; endDate: Date }
+  }: {
+    name: string
+    assignee?: boolean
+    startDate: Date
+    endDate: Date
+  }
 ): Promise<void> {
   const dialog = await openCreateDialog(page)
   await fillDetails(page, dialog, name, assignee)
-  await dialog.getByRole("switch").click()
+  await dialog
+    .getByRole("switch", { name: "Repetir esta tarea" })
+    .click()
+  // All-day is the default and hides the occurrence time — switch it off.
+  await dialog.getByRole("switch", { name: "Todo el día" }).click()
   await expect(dialog.getByLabel("Realizar a las")).toBeVisible()
-  await dialog.getByLabel("Fecha de inicio").fill(toDateInput(startDate))
+  await dialog
+    .getByLabel("Fecha de inicio")
+    .fill(toDateInput(startDate))
   await dialog
     .getByLabel("Fecha de vencimiento")
     .fill(toDateInput(endDate))
   await dialog.getByLabel("Realizar a las").fill("09:00")
+  await dialog.getByLabel("Hora de fin").fill("17:00")
   await dialog.getByLabel("Frecuencia").click()
   await page.getByRole("option", { name: "Diaria" }).click()
   await expect(dialog.getByLabel("Frecuencia")).toContainText("Diaria")
@@ -96,7 +106,9 @@ async function openEdit(
   await row
     .getByRole("button", { name: `Acciones para ${taskName}` })
     .click()
-  await page.getByRole("menuitem", { name: `Editar ${taskName}` }).click()
+  await page
+    .getByRole("menuitem", { name: `Editar ${taskName}` })
+    .click()
   const dialog = page.getByRole("dialog", { name: "Editar Tarea" })
   await expect(dialog).toBeVisible()
   return dialog
@@ -106,7 +118,9 @@ async function saveEdit(page: Page, dialog: Locator): Promise<void> {
   await dialog.getByRole("button", { name: "Continuar" }).click()
   await dialog.getByRole("button", { name: "Guardar cambios" }).click()
   await expect(dialog).toBeHidden()
-  await expect(page.getByText("Tarea actualizada").first()).toBeVisible()
+  await expect(
+    page.getByText("Tarea actualizada").first()
+  ).toBeVisible()
 }
 
 async function removeAssigneeAsCancelled(
@@ -116,9 +130,13 @@ async function removeAssigneeAsCancelled(
   await dialog
     .getByRole("button", { name: "Eliminar E2E Collaborator" })
     .click()
-  const confirm = page.getByRole("dialog", { name: "¿Quitar asignado?" })
+  const confirm = page.getByRole("dialog", {
+    name: "¿Quitar asignado?",
+  })
   await expect(confirm).toBeVisible()
-  await confirm.getByRole("button", { name: "Marcar como cancelado" }).click()
+  await confirm
+    .getByRole("button", { name: "Marcar como cancelado" })
+    .click()
   await expect(confirm).toBeHidden()
   await expect(
     dialog.getByRole("button", { name: "Eliminar E2E Collaborator" })
@@ -127,7 +145,9 @@ async function removeAssigneeAsCancelled(
 
 /** Expand unless a previous step already left the row expanded. */
 async function expandAssignments(row: Locator): Promise<void> {
-  const toggle = row.getByRole("button", { name: "Detalles de asignados" })
+  const toggle = row.getByRole("button", {
+    name: "Detalles de asignados",
+  })
   if ((await toggle.getAttribute("aria-expanded")) !== "true") {
     await toggle.click()
   }
@@ -154,7 +174,11 @@ function occurrenceStart(text: string): number {
   const match = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
   if (!match) throw new Error(`unparseable occurrence cell: ${text}`)
   const [, day, month, year] = match
-  return new Date(Number(year), Number(month) - 1, Number(day)).getTime()
+  return new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day)
+  ).getTime()
 }
 
 /**
@@ -204,7 +228,9 @@ test("finished filter shows a completed task read-only with a non-repeating reop
   await expect(person).toHaveCount(1)
   await person.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
-  await expect(page.getByText("Estado actualizado").first()).toBeVisible()
+  await expect(
+    page.getByText("Estado actualizado").first()
+  ).toBeVisible()
   await expect(row).toHaveCount(0)
 
   const finished = page.getByRole("button", { name: "Finalizadas" })
@@ -224,7 +250,9 @@ test("finished filter shows a completed task read-only with a non-repeating reop
 
   // Reopen pulls the task out of Finished; the filter never auto-flips.
   await reopen.click()
-  await expect(page.getByText("Estado actualizado").first()).toBeVisible()
+  await expect(
+    page.getByText("Estado actualizado").first()
+  ).toBeVisible()
   await expect(row).toHaveCount(0)
   await expect(finished).toHaveAttribute("aria-pressed", "true")
 
@@ -319,7 +347,9 @@ test("reassigning from the finished view keeps the finished filter pressed", asy
   await expandAssignments(row)
   await personRows(row).getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
-  await expect(page.getByText("Estado actualizado").first()).toBeVisible()
+  await expect(
+    page.getByText("Estado actualizado").first()
+  ).toBeVisible()
   await expect(row).toHaveCount(0)
 
   const finished = page.getByRole("button", { name: "Finalizadas" })
@@ -357,7 +387,10 @@ test("the both view queues unfinished work before finished, by due date", async 
   await signInAs("user1")
   await page.goto(PROJECT_URL)
 
-  await createOneOffTask(page, { name: tomorrowName, day: daysFromNow(1) })
+  await createOneOffTask(page, {
+    name: tomorrowName,
+    day: daysFromNow(1),
+  })
   await createOneOffTask(page, { name: laterName, day: daysFromNow(3) })
   // Due yesterday with nobody open: already finished at creation.
   await createOneOffTask(page, { name: doneName, day: daysFromNow(-1) })
@@ -367,7 +400,9 @@ test("the both view queues unfinished work before finished, by due date", async 
   const tomorrowRow = page.getByRole("row", {
     name: new RegExp(tomorrowName),
   })
-  const laterRow = page.getByRole("row", { name: new RegExp(laterName) })
+  const laterRow = page.getByRole("row", {
+    name: new RegExp(laterName),
+  })
   const doneRow = page.getByRole("row", { name: new RegExp(doneName) })
 
   // Default queue: the two future tasks are there, the past one is not.
@@ -384,13 +419,17 @@ test("the both view queues unfinished work before finished, by due date", async 
 
   // DOM order: unfinished first (sooner due date ahead of the later one),
   // finished last.
-  const indexes = await page.getByRole("row").evaluateAll(
-    (rows, names) =>
-      names.map((name) =>
-        rows.findIndex((row) => (row.textContent ?? "").includes(name))
-      ),
-    [tomorrowName, laterName, doneName]
-  )
+  const indexes = await page
+    .getByRole("row")
+    .evaluateAll(
+      (rows, names) =>
+        names.map((name) =>
+          rows.findIndex((row) =>
+            (row.textContent ?? "").includes(name)
+          )
+        ),
+      [tomorrowName, laterName, doneName]
+    )
   expect(indexes[0]).toBeGreaterThan(-1)
   expect(indexes[1]).toBeGreaterThan(indexes[0])
   expect(indexes[2]).toBeGreaterThan(indexes[1])
@@ -752,7 +791,9 @@ test("a close surfaces only the session-closed row, never old history", async ({
   for (const oldWindow of oldWindows) {
     await expect(person.filter({ hasText: oldWindow })).toHaveCount(0)
   }
-  await expect(page.getByRole("button", { name: "Cargar más" })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Cargar más" })
+  ).toBeVisible()
 })
 
 test("a removed assignee can be reassigned with the closed row in history", async ({
@@ -784,14 +825,18 @@ test("a removed assignee can be reassigned with the closed row in history", asyn
   const person = personRows(row)
   await expect(person).toHaveCount(1)
   await expect(person).toContainText("Cancelado")
-  await expect(person.getByRole("button", { name: "Reabrir" })).toBeVisible()
+  await expect(
+    person.getByRole("button", { name: "Reabrir" })
+  ).toBeVisible()
   await expect(person.getByRole("combobox")).toHaveCount(0)
 
   // Reassign the same member: their open row returns beside the old
   // cancelled row — non-repeating tasks load full history, so both
   // show immediately and there is no Load More control.
   const secondEdit = await openEdit(page, row, taskName)
-  await secondEdit.getByRole("button", { name: "Agregar asignado" }).click()
+  await secondEdit
+    .getByRole("button", { name: "Agregar asignado" })
+    .click()
   await page
     .getByRole("menuitemcheckbox", { name: /E2E Collaborator/ })
     .click()
@@ -851,9 +896,9 @@ test("a collaborator never sees a Reopen control", async ({
   await expect(
     page.getByText("No tienes acceso a esta página.")
   ).toBeVisible()
-  await expect(page.getByRole("button", { name: "Reabrir" })).toHaveCount(
-    0
-  )
+  await expect(
+    page.getByRole("button", { name: "Reabrir" })
+  ).toHaveCount(0)
   await expect(
     page.getByRole("button", { name: "Agregar Tarea" })
   ).toHaveCount(0)

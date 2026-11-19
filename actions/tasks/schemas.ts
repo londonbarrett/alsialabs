@@ -95,16 +95,10 @@ function refineTaskWindow(
     return
   }
 
-  if (!value.startTime) {
-    ctx.addIssue({
-      code: "custom",
-      message: "START_TIME_REQUIRED",
-      path: ["startTime"],
-    })
-  }
-
   // The end date is an optional "until" for the schedule — compared at day
   // precision, since its stored time is the occurrence time, not a deadline.
+  // An all-day repeating task has no occurrence time at all, so none is
+  // required here; the form gates the time inputs behind its All-day switch.
   if (
     value.startDate &&
     value.endDate &&

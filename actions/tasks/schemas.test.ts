@@ -30,9 +30,9 @@ const validUpdate = {
 
 describe("task window schema", () => {
   it("accepts a same-day window", () => {
-    expect(TaskFormSchema.safeParse({ ...base, ...window }).success).toBe(
-      true
-    )
+    expect(
+      TaskFormSchema.safeParse({ ...base, ...window }).success
+    ).toBe(true)
   })
 
   it("rejects a window crossing midnight", () => {
@@ -57,13 +57,13 @@ describe("task window schema", () => {
     expect(TaskFormSchema.safeParse(base).success).toBe(false)
   })
 
-  it("requires startTime for a repeating task", () => {
+  it("accepts a repeating task without a startTime (all-day)", () => {
     const result = TaskFormSchema.safeParse({
       ...base,
       recurrence: "daily",
       startTime: "",
     })
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
   })
 
   it("accepts a repeating task without a window", () => {

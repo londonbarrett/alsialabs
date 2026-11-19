@@ -107,11 +107,23 @@ export interface RoutineWindow {
   endDate?: string
 }
 
+/**
+ * The next slot after (or, with `options.inclusive`, at-or-after) `from`.
+ * Inclusive keeps a slot that lands exactly on `from` — an all-day anchor
+ * is midnight, and its own slot would otherwise be skipped by the strict
+ * comparison. Completion spawning must stay strict so a finished
+ * occurrence never respawns on itself.
+ */
 export function computeScheduledFor(
   from: Date,
-  schedule: ScheduleConfig
+  schedule: ScheduleConfig,
+  options?: { inclusive?: boolean }
 ): Date | null {
   if (!schedule.time) return null
+  const after = (candidate: number): boolean =>
+    options?.inclusive
+      ? candidate >= from.getTime()
+      : candidate > from.getTime()
 
   switch (schedule.recurrence) {
     case "daily": {
@@ -121,7 +133,7 @@ export function computeScheduledFor(
           addDays(anchor, k * schedule.interval),
           schedule.time
         )
-        if (candidate.getTime() > from.getTime()) return candidate
+        if (after(candidate.getTime())) return candidate
       }
       return applyTime(
         addDays(anchor, schedule.interval),
@@ -146,7 +158,7 @@ export function computeScheduledFor(
             addDays(monday, k * 7 + weekdayOffset(jsDay)),
             schedule.time
           )
-          if (candidate.getTime() > from.getTime()) {
+          if (after(candidate.getTime())) {
             if (!best || candidate.getTime() < best.getTime()) {
               best = candidate
             }

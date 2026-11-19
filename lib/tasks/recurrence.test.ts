@@ -16,13 +16,12 @@ describe("computeNextOccurrence", () => {
     ).toBeNull()
   })
 
-  it("returns null when startTime is empty", () => {
-    expect(
-      computeNextOccurrence(
-        { ...daily, startTime: null },
-        new Date(2026, 9, 30, 10, 0)
-      )
-    ).toBeNull()
+  it("schedules at midnight when startTime is empty (all-day)", () => {
+    const next = computeNextOccurrence(
+      { ...daily, startTime: null },
+      new Date(2026, 9, 30, 10, 0)
+    )
+    expect(next).toEqual(new Date(2026, 9, 31, 0, 0))
   })
 
   it("falls on the next day when today's start time already passed", () => {

@@ -33,8 +33,21 @@ export function buildCalendarEvents(
   return [...groups.entries()].map(([key, group]) => {
     const first = group[0]
     const start = first.startDate!
-    const end = first.endDate ?? new Date(start.getTime() + HOUR_MS)
     const isAllDay = start.getHours() === 0 && start.getMinutes() === 0
+    let end = first.endDate
+    if (!end || (isAllDay && end.getTime() <= start.getTime())) {
+      // All-day events span their whole day with an exclusive midnight end:
+      // the week/day lane's strict `end > dayStart` filter would otherwise
+      // drop a zero-duration midnight-to-midnight event, and month-view
+      // "past" styling would dim it from its first minute.
+      end = isAllDay
+        ? new Date(
+            start.getFullYear(),
+            start.getMonth(),
+            start.getDate() + 1
+          )
+        : new Date(start.getTime() + HOUR_MS)
+    }
 
     return {
       id: `assignment-group-${key}`,

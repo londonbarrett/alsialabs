@@ -40,7 +40,7 @@ Phase 1 stores and returns assignments as a list everywhere, and every server ac
 - Every authenticated user can open the projects section. The list shows only projects where the caller is owner or admin, and the project route admits only those. A project where someone is merely a collaborator is invisible to them.
 - Super users have no special access to projects: no override in the list, the route, My Tasks, or the calendar. They see a project only through a real role.
 - `task` holds name, description, priority, and optional recurrence. A null recurrence means the task does not repeat.
-- A non-repeating task is a bounded window with `startDate` and `endDate` (full datetimes). A repeating task has `startTime` and `endTime` (times of day); each occurrence runs from its date at `startTime` to the same date at `endTime`.
+- A non-repeating task is a bounded window with `startDate` and `endDate` (full datetimes). A repeating task has `startTime` and `endTime` (times of day); each occurrence runs from its date at `startTime` to the same date at `endTime`. (Updated 2026-11-18: a non-repeating task lives on a **single day** — its dialog asks only for a due date and derives `startDate` := due date — and `startTime` is nullable: a repeating task with no time is **all-day** and schedules its occurrences at midnight. See `2026-11-18-all-day-tasks-design.md`.)
 - `task_assignment(task_id, user_id, status, comment, start_date, end_date)` carries per-person progress. Assignments are created for every assignee at task creation, and one more each time a repeating occurrence completes. Its two datetimes are the snapshotted occurrence window.
 - Non-repeating tasks copy their window onto each assignment at creation. A repeating task's assignment gets the computed occurrence datetime.
 - Assignments are snapshots. Editing a task never rewrites an existing assignment; schedule and date changes take effect only on assignments created afterwards.
@@ -76,20 +76,20 @@ Keeps `id`, `project_id`, `name`, `description`, `priority`, `created_at`, `upda
 
 Work window — meaningful for a **non-repeating** task:
 
-| column     | type                  | notes                                        |
-| ---------- | --------------------- | -------------------------------------------- |
+| column       | type                  | notes                                |
+| ------------ | --------------------- | ------------------------------------ |
 | `start_date` | timestamptz, nullable | when the work starts (full datetime) |
-| `end_date` | timestamptz, nullable | when the work ends (full datetime) |
+| `end_date`   | timestamptz, nullable | when the work ends (full datetime)   |
 
 Recurrence — meaningful for a **repeating** task:
 
-| column         | type           | notes                                                  |
-| -------------- | -------------- | ------------------------------------------------------ |
-| `recurrence`   | text, nullable | `'daily'` \| `'weekly'`; null means it does not repeat |
-| `interval`     | integer        | default 1 and unused when not repeating                |
-| `days_of_week` | text[]         | nullable                                               |
-| `start_time`   | time, nullable (string) | the occurrence's start time of day |
-| `end_time`     | time, nullable (string) | the occurrence's end time of day   |
+| column         | type                    | notes                                                                                    |
+| -------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| `recurrence`   | text, nullable          | `'daily'` \| `'weekly'`; null means it does not repeat                                   |
+| `interval`     | integer                 | default 1 and unused when not repeating                                                  |
+| `days_of_week` | text[]                  | nullable                                                                                 |
+| `start_time`   | time, nullable (string) | the occurrence's start time of day; null = all-day, occurrences at midnight (2026-11-18) |
+| `end_time`     | time, nullable (string) | the occurrence's end time of day                                                         |
 
 The two sets are mutually exclusive by convention: a task with `recurrence` set has its window columns empty, and vice versa. A "Repeat this task" switch in the UI writes `recurrence`; there is no separate boolean.
 
@@ -114,7 +114,7 @@ Assignment values are written once, at creation, and never rewritten by task edi
 Assignment creation values:
 
 - **Non-repeating task:** `start_date` and `end_date` are copies of the task's `startDate` and `endDate`.
-- **Repeating task:** the first occurrence date is computed from the task's schedule, anchored at now; the assignment's `start_date` is that date at `startTime` and its `end_date` is that date at `endTime`.
+- **Repeating task:** the first occurrence date is computed from the task's schedule, anchored at now; the assignment's `start_date` is that date at `startTime` and its `end_date` is that date at `endTime`. (Updated 2026-11-18: a task with no occurrence time — an all-day task — anchors on the calendar day itself, never before today, with `start_date` at midnight; `end_date` is `endTime` applied to that date, so it is also midnight when no `endTime` is set.)
 
 ### `project_membership` (new)
 
@@ -142,7 +142,7 @@ Schema DDL is generated with `pnpm db:generate`; the truncate is added with `pnp
 A repeating task's open assignment carries the occurrence datetime. When that assignment reaches `done` or `cancelled`:
 
 1. Compute the next occurrence date from the assignment's `end_date` using `computeScheduledFor` and the task's schedule (`startTime` supplies the time of day).
-2. Insert a new assignment for the same user, status `todo`, with `start_date` = that date at `startTime`, `end_date` = that date at `endTime`, and an empty comment.
+2. Insert a new assignment for the same user, status `todo`, with `start_date` = that date at `startTime`, `end_date` = that date at `endTime`, and an empty comment. (Updated 2026-11-18: a task with no `startTime` schedules at `"00:00"`; `end_date` is `endTime` applied to that date, or a copy of the start when `endTime` is null — midnight to midnight for a fully all-day task. Previously such a row ended the chain silently instead of spawning.)
 3. Repeat from its start date (the form defaults it to today) until its optional end date — inclusive through that whole day — or until the recurrence is turned off or the task is deleted. (Updated 2026-11-01 with the user: repeating tasks gained an end date; an earlier rule of "no global end date" applied when blank.)
 
 The old row is retained as history. This is per-person: with several assignees each person's chain advances on their own completion, which is why the dates live on the assignment.
@@ -217,8 +217,8 @@ Consumers: the project task list, My Tasks, and the calendar — the three place
 
 Reuses the interaction of `components/projects/routines/routine-form.tsx` and its `StepIndicator`, which are removed with the routines surface; the wizard ships in the task feature.
 
-- **Step 1 — details:** name (required), description, priority, assignee (single select for Phase 1), start datetime, and end datetime. No status field: a new assignment starts at `todo`.
-- **Step 2 — repeat:** a "Repeat this task" switch. Off writes `recurrence = null` and keeps step 1's window. On reveals recurrence (daily / weekly), interval, weekdays, and start and end times; the step-1 window is then ignored.
+- **Step 1 — details:** name (required), description, priority, assignee (single select for Phase 1). No dates here, and no status field: a new assignment starts at `todo`.
+- **Step 2 — scheduling:** the date fields, the **All day** switch directly above the time inputs it reveals, and the "Repeat this task" switch (off writes `recurrence = null`). A one-off shows the due date only — its start timestamp derives from it — plus start/end times when the switch is off. A repeating task shows its anchor start date, optional until date, and its occurrence times when the switch is off; turning repeat on additionally reveals recurrence (daily / weekly), interval, and weekdays. (Updated 2026-11-18: this is the shipped shape — all dates live on this step, and the one-off start-date field and mandatory times were replaced by the derived due-date window and the all-day switch — see `2026-11-18-all-day-tasks-design.md`.)
 
 The dialog contract replaces `status` and `assigneeId` with `assigneeIds: string[]`, `startDate`, `endDate`, `recurrence`, and the recurrence fields (`startTime`, `endTime` included).
 
@@ -300,7 +300,7 @@ Each task ends with `pnpm verify` and `pnpm test:e2e` green, then a review of th
 3. `task_comment` stays the task-level thread; collaborators may read and write it only for tasks where they hold an open assignment.
 4. Past means status `done` or `cancelled`.
 5. Assignments are snapshots: created with their dates and never rewritten, including when the task's window or schedule changes.
-6. On a repeating task, the assignment's `start_date` and `end_date` are the occurrence date at `startTime` and `endTime`; the task itself holds no occurrence date.
+6. On a repeating task, the assignment's `start_date` and `end_date` are the occurrence date at `startTime` and `endTime`; the task itself holds no occurrence date. (Updated 2026-11-18: a fully all-day task — null `startTime` and `endTime` — produces midnight to midnight; a lone `endTime` still lands on its time.)
 7. Completed occurrences are never deleted; re-assigning a removed person later starts a fresh row.
 8. A task may have zero assignees.
 9. The project card's counters stay task-level: total tasks, completed means every assignment is terminal. A repeating task with an open occurrence counts as incomplete.

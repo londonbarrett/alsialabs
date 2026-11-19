@@ -72,7 +72,9 @@ describe("validateRepeatingWindow", () => {
 
 describe("validateTaskDetails", () => {
   it("accepts a complete same-day window", () => {
-    expect(validateTaskDetails(base, { requireWindow: false })).toEqual([])
+    expect(validateTaskDetails(base, { requireWindow: false })).toEqual(
+      []
+    )
   })
 
   it("requires a non-blank name", () => {
@@ -86,7 +88,13 @@ describe("validateTaskDetails", () => {
 
   it("defers an untouched window when the window is not required yet", () => {
     const issues = validateTaskDetails(
-      { name: "Plan", startDate: "", startTime: "", endDate: "", endTime: "" },
+      {
+        name: "Plan",
+        startDate: "",
+        startTime: "",
+        endDate: "",
+        endTime: "",
+      },
       { requireWindow: false }
     )
 
@@ -95,7 +103,13 @@ describe("validateTaskDetails", () => {
 
   it("requires both dates when the window is required", () => {
     const issues = validateTaskDetails(
-      { name: "Plan", startDate: "", startTime: "", endDate: "", endTime: "" },
+      {
+        name: "Plan",
+        startDate: "",
+        startTime: "",
+        endDate: "",
+        endTime: "",
+      },
       { requireWindow: true }
     )
 
@@ -109,6 +123,31 @@ describe("validateTaskDetails", () => {
     )
 
     expect(issues).toContain("END_DATE_REQUIRED")
+  })
+
+  it("blames the empty time, not the date, when only one time is set", () => {
+    const startOnly = validateTaskWindow(
+      { ...base, endTime: "" },
+      { requireWindow: true }
+    )
+    expect(startOnly).toContain("END_TIME_REQUIRED")
+    expect(startOnly).not.toContain("END_BEFORE_START")
+
+    const endOnly = validateTaskWindow(
+      { ...base, startTime: "" },
+      { requireWindow: true }
+    )
+    expect(endOnly).toContain("START_TIME_REQUIRED")
+    expect(endOnly).not.toContain("END_BEFORE_START")
+  })
+
+  it("accepts blank times (all-day) when both dates are set", () => {
+    const issues = validateTaskWindow(
+      { ...base, startTime: "", endTime: "" },
+      { requireWindow: true }
+    )
+
+    expect(issues).toEqual([])
   })
 
   it("blocks an end before the start", () => {
