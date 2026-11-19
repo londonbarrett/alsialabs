@@ -452,6 +452,7 @@ export const tasksTable = pgTable("task", {
   priority: text("priority").$type<TaskPriority | null>(),
   startDate: timestamp("start_date", { mode: "date" }),
   endDate: timestamp("end_date", { mode: "date" }),
+  archived: boolean("archived").notNull().default(false),
   recurrence: text().$type<"daily" | "weekly" | null>(),
   interval: integer().notNull().default(1),
   daysOfWeek: text("days_of_week").array(),
@@ -495,6 +496,31 @@ export const taskAssignmentsTable = pgTable(
       .on(table.taskId, table.userId)
       .where(sql`${table.status} not in ('done','cancelled')`),
     index("task_assignment_user_idx").on(table.userId),
+  ]
+)
+
+export const taskAssigneesTable = pgTable(
+  "task_assignee",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("task_assignee_task_user_unique").on(table.taskId, table.userId),
   ]
 )
 
