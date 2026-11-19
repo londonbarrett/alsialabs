@@ -98,6 +98,7 @@ function makeTaskRow(overrides: Record<string, unknown> = {}) {
     daysOfWeek: null,
     startTime: null,
     endTime: null,
+    archived: false,
     assigneeId: null,
     createdAt: new Date("2026-10-30T08:00:00"),
     updatedAt: new Date("2026-10-30T08:00:00"),
@@ -139,6 +140,7 @@ const validTask = {
 beforeEach(() => {
   vi.clearAllMocks()
   state.mock.resetMocks()
+  state.mock.onSelect(schema.taskAssigneesTable).respond([])
   mockAuth.mockResolvedValue({
     user: { id: USER_ID, role: "user", name: "Test" },
     expires: new Date().toISOString(),
@@ -186,6 +188,27 @@ describe("getTasks", () => {
     // The status cell's total comes from the terminal-row count query,
     // not from the loaded (recurrence-aware) rows.
     expect(result.data?.[0]?.closedCount).toBe(3)
+  })
+
+  it("carries the archived flag and the assignee roster", async () => {
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ archived: true })])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock.onSelect(schema.taskAssigneesTable).respond([
+      { taskId: TASK_ID, userId: USER_ID },
+      { taskId: TASK_ID, userId: OTHER_ID },
+    ])
+
+    const result = await getTasks({ projectId: PROJECT_ID })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.[0]).toMatchObject({
+      archived: true,
+      assigneeIds: [USER_ID, OTHER_ID],
+    })
   })
 
   it("reads the full assignment history from the detail view for non-repeating tasks", async () => {

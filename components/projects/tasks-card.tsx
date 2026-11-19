@@ -112,9 +112,11 @@ export function TasksCard() {
       daysOfWeek: data.daysOfWeek.length > 0 ? data.daysOfWeek : null,
       startTime: data.startTime || null,
       endTime: data.endTime || null,
+      archived: editing?.archived ?? false,
       createdAt: editing?.createdAt ?? new Date(),
       updatedAt: new Date(),
       assignments,
+      assigneeIds: data.assigneeIds,
       commentCount: editing
         ? (tasks.find((t) => t.id === editing.id)?.commentCount ?? 0)
         : 0,

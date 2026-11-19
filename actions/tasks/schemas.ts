@@ -158,12 +158,14 @@ export const TaskRecordSchema = z.object({
   daysOfWeek: z.array(z.string()).nullable(),
   startTime: z.string().nullable(),
   endTime: z.string().nullable(),
+  archived: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
 
 export const TaskWithAssignmentsSchema = TaskRecordSchema.extend({
   assignments: z.array(TaskAssignmentSchema),
+  assigneeIds: z.array(z.string()),
   commentCount: z.number(),
   /**
    * TRUE TOTAL of terminal (`done`+`cancelled`) assignments on the
@@ -202,6 +204,21 @@ export const AssignmentStatusResultSchema = z.object({
   nextAssignment: TaskAssignmentSchema.nullable(),
 })
 
+export const ArchiveTaskSchema = z.object({
+  projectId: z.uuid(),
+  taskId: z.uuid(),
+  closeAs: z.enum(["done", "cancelled"]),
+})
+
+export const UnarchiveTaskSchema = z.object({
+  projectId: z.uuid(),
+  taskId: z.uuid(),
+})
+
+export const UnarchiveTaskResultSchema = z.object({
+  spawned: z.array(TaskAssignmentSchema),
+})
+
 // ---------- Assignment history ----------
 
 export const HISTORY_PAGE_SIZE = 10
@@ -232,6 +249,11 @@ export type TaskWithAssignmentsDTO = z.infer<
 export type MyAssignmentDTO = z.infer<typeof MyAssignmentSchema>
 export type AssignmentStatusResultDTO = z.infer<
   typeof AssignmentStatusResultSchema
+>
+export type ArchiveTaskDTO = z.infer<typeof ArchiveTaskSchema>
+export type UnarchiveTaskDTO = z.infer<typeof UnarchiveTaskSchema>
+export type UnarchiveTaskResultDTO = z.infer<
+  typeof UnarchiveTaskResultSchema
 >
 
 // ---------- Task comment schemas ----------

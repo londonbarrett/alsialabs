@@ -5,6 +5,7 @@ import {
   taskAssignmentDetailView,
   taskAssignmentLatestView,
   taskAssignmentsTable,
+  taskAssigneesTable,
   taskCommentsTable,
   tasksTable,
   usersTable,
@@ -94,6 +95,7 @@ function toTaskRecord(
     daysOfWeek: row.daysOfWeek,
     startTime: row.startTime,
     endTime: row.endTime,
+    archived: row.archived,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
@@ -216,6 +218,16 @@ async function getClosedCountsByTaskIds(taskIds: string[]) {
       )
     )
     .groupBy(taskAssignmentsTable.taskId)
+}
+
+async function getAssigneeUserIdsByTaskIds(taskIds: string[]) {
+  return db
+    .select({
+      taskId: taskAssigneesTable.taskId,
+      userId: taskAssigneesTable.userId,
+    })
+    .from(taskAssigneesTable)
+    .where(inArray(taskAssigneesTable.taskId, taskIds))
 }
 
 async function getProjectPrimaryOwnerId(
@@ -504,7 +516,7 @@ async function getTasksWithAssignments(
     else latestIds.push(row.id)
   }
 
-  const [fullRows, latestRows, commentRows, closedRows] =
+  const [fullRows, latestRows, commentRows, closedRows, assigneeRows] =
     await Promise.all([
       fullIds.length > 0
         ? getFullAssignmentRowsByTaskIds(fullIds)
@@ -514,6 +526,7 @@ async function getTasksWithAssignments(
         : Promise.resolve([]),
       getCommentCountsByTaskIds(ids),
       getClosedCountsByTaskIds(ids),
+      getAssigneeUserIdsByTaskIds(ids),
     ])
 
   const assignmentRows = [...fullRows, ...latestRows]
@@ -527,10 +540,17 @@ async function getTasksWithAssignments(
 
   const counts = new Map(commentRows.map((r) => [r.taskId, r.cnt]))
   const closedCounts = new Map(closedRows.map((r) => [r.taskId, r.cnt]))
+  const assigneesByTask = new Map<string, string[]>()
+  for (const row of assigneeRows) {
+    const list = assigneesByTask.get(row.taskId) ?? []
+    list.push(row.userId)
+    assigneesByTask.set(row.taskId, list)
+  }
 
   return taskRows.map((row) => ({
     ...toTaskRecord(row),
     assignments: sortAssignments(assignmentsByTask.get(row.id) ?? []),
+    assigneeIds: assigneesByTask.get(row.id) ?? [],
     commentCount: counts.get(row.id) ?? 0,
     closedCount: closedCounts.get(row.id) ?? 0,
   }))
@@ -540,15 +560,17 @@ async function getTaskWithAssignments(taskId: string): Promise<{
   record: TaskRecordDTO
   assignments: TaskAssignmentDTO[]
   closedCount: number
+  assigneeIds: string[]
 } | null> {
   const row = await getTaskRow(taskId)
   if (!row) return null
 
-  const [assignmentRows, closedRows] = await Promise.all([
+  const [assignmentRows, closedRows, assigneeRows] = await Promise.all([
     row.recurrence
       ? getLatestAssignmentRowsByTaskId(taskId)
       : getFullAssignmentRowsByTaskId(taskId),
     getClosedCountsByTaskIds([taskId]),
+    getAssigneeUserIdsByTaskIds([taskId]),
   ])
 
   return {
@@ -557,6 +579,7 @@ async function getTaskWithAssignments(taskId: string): Promise<{
       assignmentRows.map(toTaskAssignmentDTO)
     ),
     closedCount: closedRows[0]?.cnt ?? 0,
+    assigneeIds: assigneeRows.map((r) => r.userId),
   }
 }
 
@@ -896,6 +919,7 @@ const queries = {
   getAssignmentForComment,
   getTasksWithAssignments,
   getTaskWithAssignments,
+  getAssigneeUserIdsByTaskIds,
   getMyTasks,
   createTask,
   updateTaskRow,

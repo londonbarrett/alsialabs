@@ -38,11 +38,13 @@ function makeTask(
     daysOfWeek: null,
     startTime: null,
     endTime: null,
+    archived: false,
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     commentCount: 0,
     closedCount: 0,
     assignments: [makeAssignment()],
+    assigneeIds: ["user-1"],
     ...overrides,
   } satisfies TaskWithAssignmentsDTO
 }
