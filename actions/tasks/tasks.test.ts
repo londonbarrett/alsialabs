@@ -54,6 +54,7 @@ import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
 import { resolveProjectAccess } from "@/actions/projects/util"
 import type { ProjectRole } from "@/lib/types"
+import queries from "@/actions/tasks/queries"
 import {
   createTask,
   deleteTask,
@@ -947,5 +948,177 @@ describe("getTaskAssignmentHistory", () => {
     expect(where).toMatch(/"project_id" = \$\d+/)
     expect(historyCall?.params).toContain(TASK_ID)
     expect(historyCall?.params).toContain(PROJECT_ID)
+  })
+})
+
+describe("spawnEligibleAssignments", () => {
+  const ANCHOR = new Date("2026-11-16T08:00:00")
+  const INSERT = 'insert into "task_assignment"'
+
+  function repeatingTask(overrides: Record<string, unknown> = {}) {
+    return makeTaskRow({
+      recurrence: "daily",
+      startTime: "09:00",
+      endTime: "11:00",
+      endDate: new Date("2026-11-30T23:00:00"),
+      ...overrides,
+    })
+  }
+
+  function rosterOf(...userIds: string[]) {
+    state.mock
+      .onSelect(schema.taskAssigneesTable)
+      .respond(userIds.map((userId) => ({ userId })))
+  }
+
+  let callsBefore = 0
+
+  beforeEach(() => {
+    callsBefore = state.mock.calls.length
+  })
+
+  function inserts() {
+    return state.mock.calls
+      .slice(callsBefore)
+      .filter((c) => c.sql.includes(INSERT))
+  }
+
+  it("never spawns for an archived task (rule 0)", async () => {
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([repeatingTask({ archived: true, recurrence: "weekly" })])
+    rosterOf(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    expect(
+      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+    ).toEqual([])
+    expect(inserts()).toHaveLength(0)
+  })
+
+  it("never spawns for a non-repeating task", async () => {
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([repeatingTask({ recurrence: null })])
+    rosterOf(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    expect(
+      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+    ).toEqual([])
+    expect(inserts()).toHaveLength(0)
+  })
+
+  it("never spawns for a task that does not exist", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([])
+
+    expect(
+      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+    ).toEqual([])
+    expect(inserts()).toHaveLength(0)
+  })
+
+  it("requires an active member and no open row", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([repeatingTask()])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    expect(
+      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+    ).toEqual([])
+
+    rosterOf(USER_ID)
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respond([{ id: ASSIGNMENT_ID, userId: USER_ID }])
+
+    expect(
+      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+    ).toEqual([])
+    expect(inserts()).toHaveLength(0)
+  })
+
+  it("skips candidates whose next occurrence is out of range", async () => {
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([repeatingTask({ endDate: new Date("2026-11-10T23:00:00") })])
+    rosterOf(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    expect(
+      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+    ).toEqual([])
+    expect(inserts()).toHaveLength(0)
+  })
+
+  it("inserts one open assignment for an eligible member with the computed window", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([repeatingTask()])
+    rosterOf(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "spawned-1" }])
+
+    const ids = await queries.spawnEligibleAssignments(TASK_ID, {
+      anchor: ANCHOR,
+    })
+
+    expect(ids).toEqual(["spawned-1"])
+    expect(inserts()).toHaveLength(1)
+    const [insert] = inserts()
+    expect(insert.params).toContain("todo")
+    expect(insert.params).toContain(USER_ID)
+    expect(insert.params).toContain(TASK_ID)
+    const dates = insert.params
+      .filter((p): p is string => typeof p === "string")
+      .map((p) => Date.parse(p))
+      .filter((t) => !Number.isNaN(t))
+    expect(dates).toContain(new Date("2026-11-16T09:00:00").getTime())
+    expect(dates).toContain(new Date("2026-11-16T11:00:00").getTime())
+  })
+
+  it("keeps the closing assignee's later-dated guard", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([repeatingTask()])
+    rosterOf(USER_ID, OTHER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith(
+      (sql, params) =>
+        sql.includes("exists") && params.includes(USER_ID)
+          ? [{ id: "later-row" }]
+          : []
+    )
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "spawned-other" }])
+
+    const ids = await queries.spawnEligibleAssignments(TASK_ID, {
+      anchor: ANCHOR,
+      closing: {
+        userId: USER_ID,
+        endDate: new Date("2026-11-16T10:00:00"),
+      },
+    })
+
+    expect(ids).toEqual(["spawned-other"])
+    expect(inserts()).toHaveLength(1)
+    expect(inserts()[0].params).toContain(OTHER_ID)
+    expect(inserts()[0].params).not.toContain(USER_ID)
+  })
+
+  it("respects onlyUserIds when a caller scopes the helper", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([repeatingTask()])
+    rosterOf(USER_ID, OTHER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "spawned-1" }])
+
+    const ids = await queries.spawnEligibleAssignments(TASK_ID, {
+      anchor: ANCHOR,
+      onlyUserIds: [USER_ID],
+    })
+
+    expect(ids).toEqual(["spawned-1"])
+    expect(inserts()).toHaveLength(1)
+    expect(inserts()[0].params).toContain(USER_ID)
+    expect(inserts()[0].params).not.toContain(OTHER_ID)
   })
 })

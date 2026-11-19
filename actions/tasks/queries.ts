@@ -13,7 +13,9 @@ import {
   type TaskStatus,
 } from "@/lib/drizzle/schema"
 import { isTerminalStatus } from "@/lib/util/project-roles"
+import { computeNextOccurrence } from "@/lib/tasks/recurrence"
 import {
+  atTime,
   firstAssignmentWindow,
   sortAssignments,
   toTaskAssignmentDTO,
@@ -101,6 +103,16 @@ function toTaskRecord(
   }
 }
 
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+type QueryClient = typeof db | Transaction
+
+type SpawnOptions = {
+  anchor: Date
+  client?: QueryClient
+  onlyUserIds?: string[]
+  closing?: { userId: string; endDate: Date | null }
+}
+
 // ---------- Leaf queries ----------
 
 async function getTaskRowsByProject(projectId: string) {
@@ -111,8 +123,8 @@ async function getTaskRowsByProject(projectId: string) {
     .orderBy(desc(tasksTable.createdAt))
 }
 
-async function getTaskRow(taskId: string) {
-  return db
+async function getTaskRow(taskId: string, client: QueryClient = db) {
+  return client
     .select()
     .from(tasksTable)
     .where(eq(tasksTable.id, taskId))
@@ -253,8 +265,11 @@ async function getProjectMemberIds(
   return members.map((m) => m.userId)
 }
 
-async function getOpenAssignments(taskId: string) {
-  return db
+async function getOpenAssignments(
+  taskId: string,
+  client: QueryClient = db
+) {
+  return client
     .select({
       id: taskAssignmentsTable.id,
       userId: taskAssignmentsTable.userId,
@@ -271,14 +286,15 @@ async function getOpenAssignments(taskId: string) {
 async function hasLaterDatedAssignment(
   taskId: string,
   userId: string,
-  endDate: Date | null
+  endDate: Date | null,
+  client: QueryClient = db
 ): Promise<boolean> {
-  const rows = await db
+  const rows = await client
     .select({ id: taskAssignmentsTable.id })
     .from(taskAssignmentsTable)
     .where(
       exists(
-        db
+        client
           .select({ id: taskAssignmentsTable.id })
           .from(taskAssignmentsTable)
           .where(
@@ -295,6 +311,30 @@ async function hasLaterDatedAssignment(
     .limit(1)
 
   return rows.length > 0
+}
+
+/**
+ * The roster rows whose owner still holds a place on the project; the
+ * membership join defends against a roster that drifted from membership.
+ */
+async function getActiveAssigneeIds(
+  taskId: string,
+  projectId: string,
+  client: QueryClient = db
+): Promise<string[]> {
+  const rows = await client
+    .select({ userId: taskAssigneesTable.userId })
+    .from(taskAssigneesTable)
+    .innerJoin(
+      projectMembershipTable,
+      and(
+        eq(projectMembershipTable.userId, taskAssigneesTable.userId),
+        eq(projectMembershipTable.projectId, projectId)
+      )
+    )
+    .where(eq(taskAssigneesTable.taskId, taskId))
+
+  return rows.map((r) => r.userId)
 }
 
 type AssignmentStatusRow = {
@@ -805,6 +845,80 @@ type AssignmentSpawn = {
   endDate: Date
 }
 
+async function insertAssignmentRows(
+  rows: AssignmentSpawn[],
+  client: QueryClient = db
+): Promise<string[]> {
+  const inserted = await client
+    .insert(taskAssignmentsTable)
+    .values(rows.map((row) => ({ ...row, status: "todo" as const })))
+    .returning({ id: taskAssignmentsTable.id })
+
+  return inserted.map((r) => r.id)
+}
+
+/**
+ * The one place a repeating task's next occurrence is decided. Rule 0: an
+ * archived task spawns nothing. Rule 1: only active assignees (roster row
+ * plus current membership). Rule 2: no open assignment already. Rule 3: the
+ * schedule yields an in-range occurrence after the trigger's anchor.
+ */
+async function spawnEligibleAssignments(
+  taskId: string,
+  opts: SpawnOptions
+): Promise<string[]> {
+  const task = await getTaskRow(taskId, opts.client)
+  if (!task || task.archived || !task.recurrence) return []
+
+  const [activeIds, openAssignments] = await Promise.all([
+    getActiveAssigneeIds(taskId, task.projectId, opts.client),
+    getOpenAssignments(taskId, opts.client),
+  ])
+
+  const openUserIds = new Set(openAssignments.map((a) => a.userId))
+  const scope = opts.onlyUserIds ? new Set(opts.onlyUserIds) : null
+  const candidates = activeIds.filter(
+    (userId) =>
+      !openUserIds.has(userId) && (scope === null || scope.has(userId))
+  )
+
+  const next = computeNextOccurrence(
+    {
+      recurrence: task.recurrence,
+      interval: task.interval,
+      daysOfWeek: task.daysOfWeek,
+      startTime: task.startTime,
+      endDate: task.endDate,
+    },
+    opts.anchor
+  )
+  if (!next || candidates.length === 0) return []
+
+  const spawns: AssignmentSpawn[] = []
+  for (const userId of candidates) {
+    if (
+      opts.closing?.userId === userId &&
+      (await hasLaterDatedAssignment(
+        taskId,
+        userId,
+        opts.closing.endDate,
+        opts.client
+      ))
+    ) {
+      continue
+    }
+    spawns.push({
+      taskId,
+      userId,
+      startDate: next,
+      endDate: atTime(next, task.endTime),
+    })
+  }
+  if (spawns.length === 0) return []
+
+  return insertAssignmentRows(spawns, opts.client)
+}
+
 async function updateAssignmentStatus(
   assignmentId: string,
   status: TaskStatus,
@@ -924,6 +1038,7 @@ const queries = {
   createTask,
   updateTaskRow,
   syncTaskAssignments,
+  spawnEligibleAssignments,
   updateAssignmentStatus,
   updateAssignmentComment,
   updateTaskPriority,
