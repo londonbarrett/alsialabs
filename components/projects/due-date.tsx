@@ -3,6 +3,7 @@
 import { AlertTriangle } from "lucide-react"
 import { useLocale } from "next-intl"
 import { useMemo } from "react"
+import { formatDueDate } from "@/lib/util/tasks"
 
 export function DueDate({
   date,
@@ -19,18 +20,11 @@ export function DueDate({
     if (!date) return null
     const d = typeof date === "string" ? new Date(date) : date
     if (Number.isNaN(d.getTime())) return null
-    return new Intl.DateTimeFormat(locale, {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(d)
+    return formatDueDate(d, locale)
   }, [date, locale])
 
   if (!label) {
-    return (
-      <span className="text-xs text-muted-foreground">{"—"}</span>
-    )
+    return <span className="text-xs text-muted-foreground">{"—"}</span>
   }
 
   return (
@@ -44,8 +38,8 @@ export function DueDate({
       <span
         className={
           overdue
-            ? "whitespace-nowrap text-xs font-medium text-destructive"
-            : "whitespace-nowrap text-xs text-muted-foreground"
+            ? "text-xs font-medium whitespace-nowrap text-destructive"
+            : "text-xs whitespace-nowrap text-muted-foreground"
         }
       >
         {label}

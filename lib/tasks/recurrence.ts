@@ -15,22 +15,23 @@ type RecurringTask = Pick<
 
 /**
  * The next occurrence for a repeating task, anchored after `after`. Returns
- * null when the task does not repeat, has no start time, the schedule can't
- * produce a date, or the slot would fall after the task's end date — which is
- * inclusive through its whole day. No end date means the task repeats until
- * its recurrence is turned off or it is deleted.
+ * null when the task does not repeat, the schedule can't produce a date, or
+ * the slot would fall after the task's end date — which is inclusive through
+ * its whole day. No end date means the task repeats until its recurrence is
+ * turned off or it is deleted. An all-day task (no `startTime`) schedules
+ * its occurrences at midnight.
  */
 export function computeNextOccurrence(
   task: RecurringTask,
   after: Date
 ): Date | null {
-  if (!task.recurrence || !task.startTime) return null
+  if (!task.recurrence) return null
 
   const schedule: ScheduleConfig = {
     recurrence: task.recurrence,
     interval: task.interval,
     daysOfWeek: task.daysOfWeek ?? [],
-    time: task.startTime,
+    time: task.startTime ?? "00:00",
   }
 
   const next = computeScheduledFor(after, schedule)

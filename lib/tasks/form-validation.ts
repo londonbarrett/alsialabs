@@ -4,6 +4,8 @@ export type TaskDetailsIssue =
   | "NAME_REQUIRED"
   | "START_DATE_REQUIRED"
   | "END_DATE_REQUIRED"
+  | "START_TIME_REQUIRED"
+  | "END_TIME_REQUIRED"
   | "END_BEFORE_START"
   | "SAME_DAY_REQUIRED"
 
@@ -40,6 +42,15 @@ export function validateTaskWindow(
 
   if (!values.startDate) issues.push("START_DATE_REQUIRED")
   if (!values.endDate) issues.push("END_DATE_REQUIRED")
+
+  // One time without the other would make the ordering check below blame
+  // the date ("end before start") — the empty time is the real problem.
+  if (Boolean(values.startTime) !== Boolean(values.endTime)) {
+    issues.push(
+      values.startTime ? "END_TIME_REQUIRED" : "START_TIME_REQUIRED"
+    )
+    return issues
+  }
 
   const start = combineDateTime(values.startDate, values.startTime)
   const end = combineDateTime(values.endDate, values.endTime)

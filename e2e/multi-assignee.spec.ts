@@ -46,7 +46,6 @@ test("a task with several assignees shows counts, stack, and per-person rows", a
   // Dates stay on today: the list predicate hides a task whose due date
   // has passed, and the row assertions below need this one visible.
   const today = toDateInput(new Date())
-  await dialog.getByLabel("Fecha de inicio").fill(today)
   await dialog.getByLabel("Fecha de vencimiento").fill(today)
   await dialog.getByRole("button", { name: "Crear Tarea" }).click()
   await expect(dialog).toBeHidden()
@@ -134,7 +133,6 @@ test("unassigning the last person asks what to do and leaves the task visible", 
 
   await createDialog.getByRole("button", { name: "Continuar" }).click()
   const today = toDateInput(new Date())
-  await createDialog.getByLabel("Fecha de inicio").fill(today)
   await createDialog.getByLabel("Fecha de vencimiento").fill(today)
   await createDialog
     .getByRole("button", { name: "Crear Tarea" })
@@ -279,7 +277,6 @@ test("removing a member cancels their open assignments", async ({
 
   await createDialog.getByRole("button", { name: "Continuar" }).click()
   const today = toDateInput(new Date())
-  await createDialog.getByLabel("Fecha de inicio").fill(today)
   await createDialog.getByLabel("Fecha de vencimiento").fill(today)
   await createDialog.getByRole("button", { name: "Crear Tarea" }).click()
   await expect(createDialog).toBeHidden()

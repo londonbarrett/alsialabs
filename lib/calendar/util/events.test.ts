@@ -62,4 +62,43 @@ describe("buildCalendarEvents", () => {
 
     expect(events).toHaveLength(2)
   })
+
+  it("gives an all-day (midnight-to-midnight) event an exclusive end", () => {
+    const events = buildCalendarEvents(
+      [
+        assignment({
+          startDate: new Date(2026, 9, 30, 0, 0),
+          endDate: new Date(2026, 9, 30, 0, 0),
+        }),
+      ],
+      from,
+      to
+    )
+
+    expect(events).toHaveLength(1)
+    expect(events[0]!.allDay).toBe(true)
+    // The week/day all-day lane drops events whose end is not strictly
+    // after the day start — the exclusive end keeps midnight tasks visible.
+    expect(events[0]!.end.getTime()).toBe(
+      new Date(2026, 9, 31, 0, 0).getTime()
+    )
+    expect(events[0]!.end.getTime()).toBeGreaterThan(
+      events[0]!.start.getTime()
+    )
+  })
+
+  it("keeps a timed window that merely starts at midnight as-is", () => {
+    const events = buildCalendarEvents(
+      [
+        assignment({
+          startDate: new Date(2026, 9, 30, 0, 0),
+          endDate: new Date(2026, 9, 30, 17, 0),
+        }),
+      ],
+      from,
+      to
+    )
+
+    expect(events[0]!.end).toEqual(new Date(2026, 9, 30, 17, 0))
+  })
 })

@@ -79,7 +79,9 @@ describe("firstAssignmentWindow", () => {
 
   it("anchors a future start date at its first scheduled slot", () => {
     // Two weeks out, so the expectation holds no matter when the suite runs.
-    const anchor = startOfDay(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000))
+    const anchor = startOfDay(
+      new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+    )
 
     const window = firstAssignmentWindow({
       ...repeating,
@@ -114,6 +116,44 @@ describe("firstAssignmentWindow", () => {
       expect(window.startDate!.getTime()).toBeGreaterThanOrEqual(
         now.getTime() - 1000
       )
+    }
+  })
+
+  it("anchors an all-day task on the anchor day itself, at midnight", () => {
+    // Two weeks out, so the expectation holds no matter when the suite runs.
+    const anchor = startOfDay(
+      new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+    )
+
+    const window = firstAssignmentWindow({
+      ...repeating,
+      recurrence: "daily" as const,
+      daysOfWeek: [] as string[],
+      startTime: null,
+      endTime: null,
+      startDate: anchor,
+    })
+
+    expect(window.startDate).toEqual(anchor)
+    expect(window.endDate).toEqual(anchor)
+  })
+
+  it("anchors an all-day task without a future start on today, not tomorrow", () => {
+    const now = new Date()
+    const dailyAllDay = {
+      ...repeating,
+      recurrence: "daily" as const,
+      daysOfWeek: [] as string[],
+      startTime: null,
+      endTime: null,
+    }
+
+    for (const startDate of [startOfDay(now), null]) {
+      const window = firstAssignmentWindow({
+        ...dailyAllDay,
+        startDate,
+      })
+      expect(window.startDate).toEqual(startOfDay(now))
     }
   })
 })

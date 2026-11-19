@@ -26,9 +26,10 @@ test("owner adds a collaborator who cannot see the project", async ({
   await page.goto("/app/proyectos")
   await expect(page.getByText(PROJECT_NAME)).toHaveCount(0)
 
-  // ...and the project route refuses them.
+  // ...and the project route refuses them. The dev server can need longer
+  // than the default5s to serve this route while other workers compile.
   await page.goto(PROJECT_URL)
-  await expect(page.getByText("403")).toBeVisible()
+  await expect(page.getByText("403")).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(PROJECT_NAME)).toHaveCount(0)
 })
 

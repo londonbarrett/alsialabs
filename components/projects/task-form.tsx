@@ -10,9 +10,13 @@ import {
   validateTaskDetails,
   validateTaskName,
 } from "@/lib/tasks/form-validation"
-import type { TaskDetailsIssue, TaskDetailsValues } from "@/lib/tasks/form-validation"
+import type {
+  TaskDetailsIssue,
+  TaskDetailsValues,
+} from "@/lib/tasks/form-validation"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { combineDateTime } from "@/lib/util/schedule"
+import { isAllDayDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useMemo, useState } from "react"
@@ -54,7 +58,9 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [step, setStep] = useState(1)
   const [step1Done, setStep1Done] = useState(false)
   const [name, setName] = useState(task?.name ?? "")
-  const [description, setDescription] = useState(task?.description ?? "")
+  const [description, setDescription] = useState(
+    task?.description ?? ""
+  )
   const [priority, setPriority] = useState<TaskPriorityDTO>(
     task?.priority ?? null
   )
@@ -83,6 +89,16 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [removedDispositions, setRemovedDispositions] = useState<
     Record<string, "done" | "cancelled">
   >({})
+  // All-day is the default; editing derives it from stored times (a
+  // repeating task's occurrence time, a one-off's timestamp times).
+  const [allDay, setAllDay] = useState(() => {
+    if (!task) return true
+    if (task.recurrence) return !task.startTime
+    return (
+      (!task.startDate || isAllDayDate(task.startDate)) &&
+      (!task.endDate || isAllDayDate(task.endDate))
+    )
+  })
   const [startDate, setStartDate] = useState(
     task?.startDate
       ? toDateInput(task.startDate)
@@ -92,13 +108,13 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         : ""
   )
   const [startTime, setStartTime] = useState(
-    task?.startDate ? toTimeInput(task.startDate) : ""
+    allDay ? "" : task?.startDate ? toTimeInput(task.startDate) : ""
   )
   const [endDate, setEndDate] = useState(
     task?.endDate ? toDateInput(task.endDate) : ""
   )
   const [endTime, setEndTime] = useState(
-    task?.endDate ? toTimeInput(task.endDate) : ""
+    allDay ? "" : task?.endDate ? toTimeInput(task.endDate) : ""
   )
   const [repeat, setRepeat] = useState(Boolean(task?.recurrence))
   const [recurrence, setRecurrence] = useState<"daily" | "weekly">(
@@ -111,7 +127,9 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [occurrenceStart, setOccurrenceStart] = useState(
     task?.startTime ?? ""
   )
-  const [occurrenceEnd, setOccurrenceEnd] = useState(task?.endTime ?? "")
+  const [occurrenceEnd, setOccurrenceEnd] = useState(
+    task?.endTime ?? ""
+  )
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   function toggleDay(day: string) {
@@ -126,15 +144,10 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
     userId: string,
     disposition: "done" | "cancelled"
   ) {
-    setRemovedDispositions((prev) => ({ ...prev, [userId]: disposition }))
-  }
-
-  const detailsValues: TaskDetailsValues = {
-    name,
-    startDate,
-    startTime,
-    endDate,
-    endTime,
+    setRemovedDispositions((prev) => ({
+      ...prev,
+      [userId]: disposition,
+    }))
   }
 
   function mapDetailsIssues(issues: TaskDetailsIssue[]) {
@@ -146,6 +159,10 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
         fieldErrors.startDate = t("common.dateRequired")
       } else if (issue === "END_DATE_REQUIRED") {
         fieldErrors.endDate = t("common.dateRequired")
+      } else if (issue === "START_TIME_REQUIRED") {
+        fieldErrors.startTime = t("common.timeRequired")
+      } else if (issue === "END_TIME_REQUIRED") {
+        fieldErrors.endTime = t("common.timeRequired")
       } else {
         fieldErrors.endDate = t("projects.routines.endBeforeStart")
       }
@@ -177,6 +194,11 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
     if (value && !startDate) setStartDate(toDateInput(new Date()))
   }
 
+  function handleAllDayChange(value: boolean) {
+    setAllDay(value)
+    setErrors({})
+  }
+
   function handleStepSelect(n: number) {
     if (n === 2) {
       goNext()
@@ -189,6 +211,23 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
     e.preventDefault()
     const effectiveStartDate =
       repeat && !startDate ? toDateInput(new Date()) : startDate
+    // The All-day switch owns the times: on, they travel as empty strings
+    // (midnight timestamps, null occurrence times); off, they are submitted
+    // and validated as entered.
+    const winStart = allDay ? "" : startTime
+    const winEnd = allDay ? "" : endTime
+    const occStart = allDay ? "" : occurrenceStart
+    const occEnd = allDay ? "" : occurrenceEnd
+    // A non-repeating task lives on one day: its start date is the due date,
+    // so the hidden field never diverges (legacy multi-day rows normalize on
+    // save) and validation always sees a same-day window.
+    const nonRepeatingValues: TaskDetailsValues = {
+      name,
+      startDate: endDate,
+      startTime: winStart,
+      endDate,
+      endTime: winEnd,
+    }
     const issues = repeat
       ? [
           ...validateTaskName(name),
@@ -197,12 +236,25 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
             endDate,
           }),
         ]
-      : validateTaskDetails(detailsValues, { requireWindow: true })
+      : validateTaskDetails(nonRepeatingValues, {
+          requireWindow: true,
+        })
     const fieldErrors = mapDetailsIssues(issues)
 
+    // Off the All-day switch the times are the point of the mode: both are
+    // required, in either branch. All-day submits empty times and demands none.
+    if (!allDay) {
+      if (repeat) {
+        if (!occurrenceStart)
+          fieldErrors.startTime = t("common.timeRequired")
+        if (!occurrenceEnd)
+          fieldErrors.endTime = t("common.timeRequired")
+      } else {
+        if (!startTime) fieldErrors.startTime = t("common.timeRequired")
+        if (!endTime) fieldErrors.endTime = t("common.timeRequired")
+      }
+    }
     if (repeat) {
-      if (!occurrenceStart)
-        fieldErrors.startTime = t("projects.routines.startNotPast")
       if (recurrence === "weekly" && daysOfWeek.length === 0)
         fieldErrors.daysOfWeek = t("projects.routines.atLeastOneDay")
     }
@@ -217,13 +269,14 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
 
     // Repeating work is anchored from its start date (today when the user
     // never picked one); its optional end date bounds the schedule — each
-    // occurrence's own window still comes from the schedule.
+    // occurrence's own window still comes from the schedule. A non-repeating
+    // task's start timestamp falls on the due date.
     const start = combineDateTime(
-      effectiveStartDate,
-      repeat ? occurrenceStart : startTime
+      repeat ? effectiveStartDate : endDate,
+      repeat ? occStart : winStart
     )
-    const repeatEnd = combineDateTime(endDate, occurrenceEnd)
-    const end = combineDateTime(endDate, endTime)
+    const repeatEnd = combineDateTime(endDate, occEnd)
+    const end = combineDateTime(endDate, winEnd)
 
     onSubmit({
       name: name.trim(),
@@ -242,8 +295,8 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
       recurrence: repeat ? recurrence : null,
       interval: Number(interval) || 1,
       daysOfWeek: repeat ? daysOfWeek : [],
-      startTime: repeat ? occurrenceStart : "",
-      endTime: repeat ? occurrenceEnd : "",
+      startTime: repeat ? occStart : "",
+      endTime: repeat ? occEnd : "",
     })
   }
 
@@ -280,6 +333,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
             startTime={startTime}
             endDate={endDate}
             endTime={endTime}
+            allDay={allDay}
             repeat={repeat}
             recurrence={recurrence}
             interval={interval}
@@ -291,6 +345,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
             onStartTimeChange={setStartTime}
             onEndDateChange={setEndDate}
             onEndTimeChange={setEndTime}
+            onAllDayChange={handleAllDayChange}
             onRepeatChange={handleRepeatChange}
             onRecurrenceChange={setRecurrence}
             onIntervalChange={setInterval}
