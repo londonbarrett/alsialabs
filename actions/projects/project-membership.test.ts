@@ -65,6 +65,7 @@ function grantRole(role: ProjectRole) {
 beforeEach(() => {
   vi.clearAllMocks()
   state.mock.resetMocks()
+  state.mock.onSqlContaining('delete from "task_assignee"').respond([])
   mockAuth.mockResolvedValue({
     user: { id: USER_ID, role: "user", name: "Test" },
     expires: new Date().toISOString(),
@@ -225,6 +226,34 @@ describe("membership actions", () => {
     expect(updateParams[0]).toBe("cancelled")
     expect(updateParams).toContain(USER_ID)
     expect(updateParams).toContain(PROJECT_ID)
+  })
+
+  it("deletes the removed member's task roster rows for that project's tasks", async () => {
+    grantRole("admin")
+    state.mock
+      .onDelete(schema.projectMembershipTable)
+      .respond([{ projectId: PROJECT_ID, userId: USER_ID }])
+    state.mock.onSqlContaining('update "task_assignment"').respond([])
+    let deleteSql = ""
+    let deleteParams: unknown[] = []
+    state.mock
+      .onSqlContaining('delete from "task_assignee"')
+      .respondWith((sql, params) => {
+        deleteSql = sql
+        deleteParams = params
+        return []
+      })
+
+    const result = await removeProjectCollaborator({
+      projectId: PROJECT_ID,
+      userId: USER_ID,
+    })
+
+    expect(result.serverError).toBeUndefined()
+    expect(deleteSql).toContain('delete from "task_assignee"')
+    expect(deleteSql).toContain('"task"."project_id"')
+    expect(deleteParams).toContain(USER_ID)
+    expect(deleteParams).toContain(PROJECT_ID)
   })
 
   it("returns the members with the owner first", async () => {

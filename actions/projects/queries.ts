@@ -6,6 +6,7 @@ import {
   invoicesTable,
   projectMembershipTable,
   projectsTable,
+  taskAssigneesTable,
   taskAssignmentsTable,
   tasksTable,
   usersTable,
@@ -580,6 +581,19 @@ async function deleteProjectMembership(
           )
         )
       )
+
+    await tx.delete(taskAssigneesTable).where(
+      and(
+        eq(taskAssigneesTable.userId, userId),
+        inArray(
+          taskAssigneesTable.taskId,
+          tx
+            .select({ id: tasksTable.id })
+            .from(tasksTable)
+            .where(eq(tasksTable.projectId, projectId))
+        )
+      )
+    )
     return removed
   })
 }

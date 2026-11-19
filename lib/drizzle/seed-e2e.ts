@@ -8,6 +8,7 @@ import {
   projectsTable,
   rolesTable,
   taxonomyTable,
+  taskAssigneesTable,
   taskAssignmentsTable,
   tasksTable,
   userRolesTable,
@@ -113,7 +114,15 @@ async function seedRolesProject(): Promise<void> {
       )
     )
 
-  // Idempotent delete-by-id: assignments, tasks, membership, then the project.
+  // Idempotent delete-by-id: roster, assignments, tasks, membership, then the project.
+  await db
+    .delete(taskAssigneesTable)
+    .where(
+      inArray(taskAssigneesTable.taskId, [
+        ROLES_PROJECT.openTask,
+        ROLES_PROJECT.repeatTask,
+      ])
+    )
   await db
     .delete(taskAssignmentsTable)
     .where(
@@ -174,6 +183,17 @@ async function seedRolesProject(): Promise<void> {
       daysOfWeek: ["monday"],
       startTime: "09:00",
       endTime: "11:00",
+    },
+  ])
+
+  await db.insert(taskAssigneesTable).values([
+    {
+      taskId: ROLES_PROJECT.openTask,
+      userId: userId("user2@test.local"),
+    },
+    {
+      taskId: ROLES_PROJECT.repeatTask,
+      userId: userId("user2@test.local"),
     },
   ])
 

@@ -138,10 +138,18 @@ const validTask = {
   endTime: "",
 }
 
+function rosterIs(...userIds: string[]) {
+  state.mock
+    .onSelect(schema.taskAssigneesTable)
+    .respond(userIds.map((userId) => ({ taskId: TASK_ID, userId })))
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   state.mock.resetMocks()
   state.mock.onSelect(schema.taskAssigneesTable).respond([])
+  state.mock.onInsert(schema.taskAssigneesTable).respond([])
+  state.mock.onDelete(schema.taskAssigneesTable).respond([])
   mockAuth.mockResolvedValue({
     user: { id: USER_ID, role: "user", name: "Test" },
     expires: new Date().toISOString(),
@@ -284,6 +292,46 @@ describe("createTask", () => {
     expect(result.data?.closedCount).toBe(0)
   })
 
+  it("inserts one membership row per unique assignee before their assignments", async () => {
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: USER_ID }])
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: OTHER_ID }])
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock.onInsert(schema.tasksTable).respond([makeTaskRow()])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "new-assignment" }])
+    const before = state.mock.calls.length
+
+    const result = await createTask({
+      ...validTask,
+      assigneeIds: [OTHER_ID, OTHER_ID],
+    })
+
+    expect(result.serverError).toBeUndefined()
+    const sqls = state.mock.calls.slice(before).map((c) => c.sql)
+    const membershipAt = sqls.findIndex((q) =>
+      q.includes('insert into "task_assignee"')
+    )
+    const assignmentAt = sqls.findIndex((q) =>
+      q.includes('insert into "task_assignment"')
+    )
+    expect(membershipAt).toBeGreaterThanOrEqual(0)
+    expect(assignmentAt).toBeGreaterThan(membershipAt)
+    const membership = state.mock.calls
+      .slice(before)
+      .filter((c) => c.sql.includes('insert into "task_assignee"'))
+    expect(membership).toHaveLength(1)
+    expect(
+      membership[0].params.filter((p) => p === OTHER_ID)
+    ).toHaveLength(1)
+  })
+
   it("rejects an assignee outside the project", async () => {
     state.mock
       .onSelect(schema.projectsTable)
@@ -306,7 +354,7 @@ describe("createTask", () => {
 })
 
 describe("updateTask", () => {
-  it("diffs open assignments, keeping closed rows out of the diff", async () => {
+  it("diffs against membership and closes only the removed member's open row", async () => {
     state.mock
       .onSelect(schema.projectsTable)
       .respond([{ primaryOwnerId: USER_ID }])
@@ -314,6 +362,7 @@ describe("updateTask", () => {
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: "user-3" }])
     state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    rosterIs(USER_ID)
     let openSql = ""
     // One table, two shapes: the open-assignments diff read and the
     // terminal-count read that follows it — routed by SQL.
@@ -348,7 +397,7 @@ describe("updateTask", () => {
     })
 
     expect(result.serverError).toBeUndefined()
-    // Only open rows enter the diff; the query filters closed ones out.
+    // Only open rows are closed; the query filters terminal ones out.
     expect(openSql).toContain("not in")
     expect(updateParams).toContain("open-assignment")
     expect(updateParams).toContain("cancelled")
@@ -363,6 +412,7 @@ describe("updateTask", () => {
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
     state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    rosterIs(USER_ID)
     state.mock
       .onSelect(schema.taskAssignmentsTable)
       .respond([{ id: "open-assignment", userId: USER_ID }])
@@ -396,6 +446,7 @@ describe("updateTask", () => {
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
     state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    rosterIs(USER_ID, OTHER_ID)
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
       { id: "open-assignment", userId: USER_ID },
       { id: "other-assignment", userId: OTHER_ID },
@@ -442,6 +493,7 @@ describe("updateTask", () => {
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
     state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    rosterIs(USER_ID)
     state.mock
       .onSelect(schema.taskAssignmentsTable)
       .respond([{ id: "open-assignment", userId: USER_ID }])
@@ -473,6 +525,7 @@ describe("updateTask", () => {
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
     state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+    rosterIs(USER_ID)
     state.mock
       .onSelect(schema.taskAssignmentsTable)
       .respond([{ id: "open-assignment", userId: USER_ID }])
@@ -527,6 +580,185 @@ describe("updateTask", () => {
     const occurrences =
       JSON.stringify(insertParams).split(USER_ID).length - 1
     expect(occurrences).toBe(1)
+  })
+
+  describe("membership sync", () => {
+    const FUTURE_END = "2099-01-01T00:00:00"
+    const futureRepeating = (overrides: Record<string, unknown> = {}) =>
+      makeTaskRow({
+        recurrence: "daily",
+        startTime: "09:00",
+        endTime: "11:00",
+        startDate: new Date("2026-10-30T09:00:00"),
+        endDate: new Date(FUTURE_END),
+        ...overrides,
+      })
+    const repeatingInput = (endDate = FUTURE_END) => ({
+      ...validTask,
+      taskId: TASK_ID,
+      recurrence: "daily" as const,
+      startTime: "09:00",
+      endTime: "11:00",
+      endDate,
+    })
+
+    let callsBefore = 0
+    beforeEach(() => {
+      callsBefore = state.mock.calls.length
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respond([{ primaryOwnerId: USER_ID }])
+      state.mock
+        .onSelect(schema.projectMembershipTable)
+        .respond([{ userId: USER_ID }, { userId: OTHER_ID }])
+      state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+      state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
+      state.mock
+        .onInsert(schema.taskAssignmentsTable)
+        .respond([{ id: "new-assignment" }])
+    })
+
+    const callsMatching = (fragment: string) =>
+      state.mock.calls
+        .slice(callsBefore)
+        .filter((c) => c.sql.includes(fragment))
+
+    it("a new member of a repeating task gets membership plus a range-checked open row", async () => {
+      state.mock
+        .onUpdate(schema.tasksTable)
+        .respond([futureRepeating()])
+      state.mock.onSelect(schema.tasksTable).respond([futureRepeating()])
+      state.mock
+        .onSelect(schema.taskAssigneesTable)
+        .respondWith((sql) =>
+          sql.includes("inner join")
+            ? [{ userId: OTHER_ID }]
+            : []
+        )
+
+      const result = await updateTask({
+        ...repeatingInput(),
+        assigneeIds: [OTHER_ID],
+      })
+
+      expect(result.serverError).toBeUndefined()
+      const membership = callsMatching('insert into "task_assignee"')
+      expect(membership).toHaveLength(1)
+      expect(membership[0].params).toContain(OTHER_ID)
+      const opened = callsMatching('insert into "task_assignment"')
+      expect(opened).toHaveLength(1)
+      expect(opened[0].params).toContain(OTHER_ID)
+      expect(opened[0].params).toContain("todo")
+    })
+
+    it("a new member of a repeating task past its end date gets membership only", async () => {
+      const ended = futureRepeating({
+        endDate: new Date("2020-01-01T00:00:00"),
+      })
+      state.mock.onUpdate(schema.tasksTable).respond([ended])
+      state.mock.onSelect(schema.tasksTable).respond([ended])
+      state.mock
+        .onSelect(schema.taskAssigneesTable)
+        .respondWith((sql) =>
+          sql.includes("inner join")
+            ? [{ userId: OTHER_ID }]
+            : []
+        )
+
+      const result = await updateTask({
+        ...repeatingInput("2020-01-01T00:00:00"),
+        startDate: "2019-01-01T00:00:00",
+        assigneeIds: [OTHER_ID],
+      })
+
+      expect(result.serverError).toBeUndefined()
+      expect(callsMatching('insert into "task_assignee"')).toHaveLength(1)
+      expect(callsMatching('insert into "task_assignment"')).toHaveLength(0)
+    })
+
+    it("a new member of a non-repeating task gets membership plus a firstAssignmentWindow row", async () => {
+      const row = makeTaskRow({
+        startDate: new Date("2020-01-01T09:00:00"),
+        endDate: new Date("2020-01-01T11:00:00"),
+      })
+      state.mock.onUpdate(schema.tasksTable).respond([row])
+      state.mock.onSelect(schema.tasksTable).respond([row])
+      state.mock.onSelect(schema.taskAssigneesTable).respond([])
+
+      const result = await updateTask({
+        ...validTask,
+        taskId: TASK_ID,
+        assigneeIds: [OTHER_ID],
+      })
+
+      expect(result.serverError).toBeUndefined()
+      expect(callsMatching('insert into "task_assignee"')).toHaveLength(1)
+      const opened = callsMatching('insert into "task_assignment"')
+      expect(opened).toHaveLength(1)
+      expect(opened[0].params).toContain(OTHER_ID)
+      expect(opened[0].params).toContain("todo")
+    })
+
+    it("a removed member loses membership and their open row closes with unassignAs", async () => {
+      state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+      state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+      rosterIs(OTHER_ID)
+      state.mock
+        .onSelect(schema.taskAssignmentsTable)
+        .respond([{ id: "open-other", userId: OTHER_ID }])
+      state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+
+      const result = await updateTask({
+        ...validTask,
+        taskId: TASK_ID,
+        assigneeIds: [],
+        unassignAs: { [OTHER_ID]: "done" },
+      })
+
+      expect(result.serverError).toBeUndefined()
+      const deletes = callsMatching('delete from "task_assignee"')
+      expect(deletes).toHaveLength(1)
+      expect(deletes[0].params).toContain(OTHER_ID)
+      expect(deletes[0].params).toContain(TASK_ID)
+      const closes = callsMatching('update "task_assignment"')
+      expect(closes).toHaveLength(1)
+      expect(closes[0].params).toContain("done")
+      expect(closes[0].params).toContain("open-other")
+      expect(callsMatching('delete from "task_assignment"')).toHaveLength(0)
+    })
+
+    it("a removed member with no open row only loses membership", async () => {
+      state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+      state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+      rosterIs(OTHER_ID)
+
+      const result = await updateTask({
+        ...validTask,
+        taskId: TASK_ID,
+        assigneeIds: [],
+      })
+
+      expect(result.serverError).toBeUndefined()
+      expect(callsMatching('delete from "task_assignee"')).toHaveLength(1)
+      expect(callsMatching('update "task_assignment"')).toHaveLength(0)
+    })
+
+    it("an existing member with no open row gets no insert on a plain save", async () => {
+      state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
+      state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+      rosterIs(OTHER_ID)
+
+      const result = await updateTask({
+        ...validTask,
+        taskId: TASK_ID,
+        assigneeIds: [OTHER_ID],
+      })
+
+      expect(result.serverError).toBeUndefined()
+      expect(callsMatching('insert into "task_assignment"')).toHaveLength(0)
+      expect(callsMatching('insert into "task_assignee"')).toHaveLength(0)
+      expect(callsMatching('delete from "task_assignee"')).toHaveLength(0)
+    })
   })
 
   it("forbids a collaborator", async () => {

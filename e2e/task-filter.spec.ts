@@ -358,11 +358,13 @@ test("reassigning from the finished view keeps the finished filter pressed", asy
   await expect(finished).toHaveAttribute("aria-pressed", "true")
   await expect(row).toBeVisible()
 
-  // Reassign through the wizard while Finished is active.
+  // Assign a new member through the wizard while Finished is active. The
+  // finished assignee is still a member, so re-picking them would be a
+  // no-op; a new member gets an open row and reworks the task.
   const dialog = await openEdit(page, row, taskName)
   await dialog.getByRole("button", { name: "Agregar asignado" }).click()
   await page
-    .getByRole("menuitemcheckbox", { name: /E2E Collaborator/ })
+    .getByRole("menuitemcheckbox", { name: /user1@test\.local/ })
     .click()
   await saveEdit(page, dialog)
 

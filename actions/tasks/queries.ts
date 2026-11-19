@@ -728,6 +728,10 @@ async function createTask(
     created = row
 
     if (assigneeIds.length > 0) {
+      await tx
+        .insert(taskAssigneesTable)
+        .values(assigneeIds.map((userId) => ({ taskId: row.id, userId })))
+
       const window = firstAssignmentWindow(row)
       await tx.insert(taskAssignmentsTable).values(
         assigneeIds.map((userId) => ({
@@ -797,18 +801,23 @@ async function syncTaskAssignments(
   taskRow: typeof tasksTable.$inferSelect,
   unassignAs?: Record<string, "done" | "cancelled">
 ): Promise<void> {
-  const openAssignments = await getOpenAssignments(taskId)
+  const [roster, openAssignments] = await Promise.all([
+    getAssigneeUserIdsByTaskIds([taskId]),
+    getOpenAssignments(taskId),
+  ])
 
+  const memberIds = new Set(roster.map((r) => r.userId))
   const openUserIds = new Set(openAssignments.map((a) => a.userId))
-  const toAdd = assigneeIds.filter((id) => !openUserIds.has(id))
-  const toRemove = openAssignments.filter(
-    (a) => !assigneeIds.includes(a.userId)
-  )
+  const wanted = new Set(assigneeIds)
+  const added = assigneeIds.filter((id) => !memberIds.has(id))
+  const removed = [...memberIds].filter((id) => !wanted.has(id))
+  const removedSet = new Set(removed)
+  const toClose = openAssignments.filter((a) => removedSet.has(a.userId))
 
   // Removals group by their recorded disposition — at most two UPDATEs,
-  // still never a DELETE, and closed rows keep dates/comment/id intact.
+  // closed rows keep dates/comment/id intact; only membership is deleted.
   const removalGroups = new Map<"done" | "cancelled", string[]>()
-  for (const assignment of toRemove) {
+  for (const assignment of toClose) {
     const disposition =
       unassignAs?.[assignment.userId] ?? "cancelled"
     const ids = removalGroups.get(disposition) ?? []
@@ -817,16 +826,42 @@ async function syncTaskAssignments(
   }
 
   await db.transaction(async (tx) => {
+    if (removed.length > 0) {
+      await tx
+        .delete(taskAssigneesTable)
+        .where(
+          and(
+            eq(taskAssigneesTable.taskId, taskId),
+            inArray(taskAssigneesTable.userId, removed)
+          )
+        )
+    }
     for (const [status, ids] of removalGroups) {
       await tx
         .update(taskAssignmentsTable)
         .set({ status })
         .where(inArray(taskAssignmentsTable.id, ids))
     }
-    if (toAdd.length > 0) {
+    if (added.length === 0) return
+
+    await tx
+      .insert(taskAssigneesTable)
+      .values(added.map((userId) => ({ taskId, userId })))
+
+    if (taskRow.recurrence) {
+      await spawnEligibleAssignments(taskId, {
+        anchor: new Date(),
+        client: tx,
+        onlyUserIds: added,
+      })
+      return
+    }
+
+    const needsRow = added.filter((id) => !openUserIds.has(id))
+    if (needsRow.length > 0) {
       const window = firstAssignmentWindow(taskRow)
       await tx.insert(taskAssignmentsTable).values(
-        toAdd.map((userId) => ({
+        needsRow.map((userId) => ({
           taskId,
           userId,
           status: "todo" as const,
