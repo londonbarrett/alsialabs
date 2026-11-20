@@ -13,7 +13,10 @@ import {
   returnActionError,
   sessionAction,
 } from "@/actions/safe-action"
-import { toTaskAssignmentDTO } from "@/lib/tasks/assignments"
+import {
+  archivedWindow,
+  toTaskAssignmentDTO,
+} from "@/lib/tasks/assignments"
 import { z } from "zod"
 import queries from "./queries"
 import {
@@ -138,7 +141,9 @@ export const updateTask = projectAction(UpdateTaskSchema)
     /**
      * Trigger (b): moving a repeating task's due date spawns for every
      * active member left without an open row — the fresh window's first
-     * occurrence after the new start date (or now). An unchanged end date
+     * occurrence from the later of the new start date and now, so an old
+     * start never backdates the spawn. A future start is an inclusive
+     * anchor: an occurrence exactly on it is kept. An unchanged end date
      * (null == null included) never spawns.
      */
     const previousEnd = previous.endDate?.getTime() ?? null
@@ -147,10 +152,15 @@ export const updateTask = projectAction(UpdateTaskSchema)
       : null
 
     if (previous.recurrence && previousEnd !== nextEnd) {
+      const now = new Date()
+      const start = parsedInput.startDate
+        ? new Date(parsedInput.startDate)
+        : null
+      const startsLater = start !== null && start.getTime() > now.getTime()
+
       await queries.spawnEligibleAssignments(taskId, {
-        anchor: parsedInput.startDate
-          ? new Date(parsedInput.startDate)
-          : new Date(),
+        anchor: startsLater ? start : now,
+        inclusive: startsLater,
       })
     }
 
@@ -359,8 +369,16 @@ export const archiveTask = projectAction(ArchiveTaskSchema)
 
     const { projectId, taskId, closeAs } = parsedInput
 
-    assertTaskMutable(await queries.getTaskRowInProject(taskId, projectId))
-    await queries.archiveTaskRow(taskId, projectId, closeAs)
+    const task = await queries.getTaskRowInProject(taskId, projectId)
+    if (!task) returnActionError("NOT_FOUND")
+    assertTaskMutable(task)
+
+    await queries.archiveTaskRow(
+      taskId,
+      projectId,
+      closeAs,
+      archivedWindow(task, new Date())
+    )
 
     return { success: true }
   })
@@ -377,15 +395,19 @@ export const unarchiveTask = projectAction(UnarchiveTaskSchema)
 
     // Freeze exception: no assertTaskMutable — unarchiving is the way out.
     // The existence check still scopes the task to the project so a foreign
-    // taskId can never reach the spawn helper.
+    // taskId can never reach the spawn helper, and a live task is rejected so
+    // this never doubles as a "spawn now" button.
     const task = await queries.getTaskRowInProject(taskId, projectId)
     if (!task) returnActionError("NOT_FOUND")
+    if (!task.archived) returnActionError("VALIDATION_FAILED")
 
     const spawnedIds = await queries.unarchiveTaskRow(
       taskId,
       projectId,
       new Date()
     )
+    // Deleted (or unarchived) between the pre-read and the write.
+    if (spawnedIds === null) returnActionError("NOT_FOUND")
 
     const spawned: TaskAssignmentDTO[] = []
     for (const id of spawnedIds) {
@@ -409,7 +431,8 @@ export const getTaskComments = projectAction(
       taskId,
       projectId,
       ctx.session.user.id,
-      ctx.projectRole
+      ctx.projectRole,
+      { allowArchived: true }
     )
 
     return queries.getTaskComments(taskId)

@@ -399,7 +399,7 @@ test("archiving a repeating task freezes it, spawns nothing, and unarchiving reo
   await signInAs("user1")
   await page.goto(PROJECT_URL)
 
-  // Occurrence at 23:58 today: archive pins the due date to now, so the
+  // Occurrence at 23:58 today: archive moves the due date to today, so the
   // unarchive check finds an in-range occurrence later the same day.
   await createDailyRepeatingTask(page, {
     name: taskName,
@@ -412,6 +412,17 @@ test("archiving a repeating task freezes it, spawns nothing, and unarchiving reo
   const row = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(row).toBeVisible()
   await expect(row).toContainText("1 abierta")
+
+  // A comment written while the task is live must stay readable once it
+  // is archived.
+  const note = `E2E archived note ${Date.now()}`
+  await row.getByRole("button", { name: /^\d+$/ }).click()
+  const liveSheet = page.getByRole("dialog", { name: taskName })
+  await liveSheet.getByPlaceholder("Agregar un comentario...").fill(note)
+  await page.keyboard.press("Enter")
+  await expect(liveSheet.getByText(note)).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(liveSheet).toBeHidden()
 
   await archiveTask(page, row, taskName, "finalizada")
 
@@ -434,19 +445,30 @@ test("archiving a repeating task freezes it, spawns nothing, and unarchiving reo
   await expect(person).toHaveCount(1)
   await expect(person).toContainText("Completado")
 
-  // Frozen: no status select, no Reopen, no priority select, no comments
-  // button; the due cell shows the archive day.
+  // Frozen: no status select, no Reopen, no priority select; the due cell
+  // shows the archive day.
   await expect(person.getByRole("combobox")).toHaveCount(0)
   await expect(
     person.getByRole("button", { name: "Reabrir" })
   ).toHaveCount(0)
   await expect(row.getByRole("combobox")).toHaveCount(0)
-  await expect(row.getByRole("button", { name: /^\d+$/ })).toHaveCount(0)
   const today = new Intl.DateTimeFormat("es-ES", {
     month: "short",
     day: "numeric",
   }).format(new Date())
   await expect(row.locator("td").nth(4)).toContainText(today)
+
+  // Comments stay readable but read-only: no input, edit or delete.
+  await row.getByRole("button", { name: /^\d+$/ }).click()
+  const frozenSheet = page.getByRole("dialog", { name: taskName })
+  await expect(frozenSheet.getByText(note)).toBeVisible()
+  await expect(
+    frozenSheet.getByPlaceholder("Agregar un comentario...")
+  ).toHaveCount(0)
+  await expect(frozenSheet.locator(".lucide-pencil")).toHaveCount(0)
+  await expect(frozenSheet.locator(".lucide-trash-2")).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  await expect(frozenSheet).toBeHidden()
 
   // Menu: Unarchive and Delete, never Edit or Archive.
   await openTaskMenu(page, row, taskName)
@@ -1125,6 +1147,104 @@ test("the Archived filter has its own empty message", async ({
 
   await openFilter(page).click()
   await expect(row).toBeVisible()
+})
+
+test("a plain save after unarchive never reopens work, and extending the due date spawns from today", async ({
+  page,
+  signInAs,
+}) => {
+  const taskName = `E2E filter noreopen ${Date.now()}`
+  await signInAs("user1")
+  await page.goto(PROJECT_URL)
+
+  // A one-day schedule in the past with a 00:01 slot: a close spawns no
+  // successor, and after archive moves the due date to today the next slot
+  // (tomorrow) is out of range, so the task unarchives with zero open rows.
+  await createDailyRepeatingTask(page, {
+    name: taskName,
+    assignee: true,
+    startDate: daysFromNow(-3),
+    endDate: daysFromNow(-3),
+    startTime: "00:01",
+    endTime: "00:02",
+  })
+  const row = page.getByRole("row", { name: new RegExp(taskName) })
+  await expect(row).toBeVisible()
+  await expect(row).toContainText("1 abierta")
+
+  await expandAssignments(row)
+  const person = personRows(row)
+  await pinRow(person)
+  await person.getByRole("combobox").click()
+  await page.getByRole("option", { name: "Completado" }).click()
+  await expect(page.getByText("Estado actualizado").first()).toBeVisible()
+  await expect(row).not.toContainText("abierta")
+
+  await archiveTask(page, row, taskName, "finalizada")
+  await archivedFilter(page).click()
+  await expect(row).toBeVisible()
+  await unarchiveTask(page, row, taskName)
+  await openFilter(page).click()
+  await expect(row).toBeVisible()
+  await expect(row).toContainText("1 cerrada")
+  await expect(row).not.toContainText("abierta")
+
+  // A plain save (no date edit) keeps the archive-day due date untouched:
+  // it never reopens work.
+  const plain = await openEdit(page, row, taskName)
+  await saveEdit(page, plain)
+  await expect(row).toContainText("1 cerrada")
+  await expect(row).not.toContainText("abierta")
+
+  // Extending the due date is the way back: the new occurrence starts
+  // from today, never at the task's original (past) start date.
+  const edit = await openEdit(page, row, taskName)
+  await changeDueDate(page, edit, daysFromNow(10))
+  await expect(row).toContainText("1 abierta")
+  await expandAssignments(row)
+  const open = openOccurrenceRow(page, personRows(row))
+  await expect(open).toHaveCount(1)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const startCell = await open.locator("td").nth(1).textContent()
+  expect(occurrenceStart(startCell ?? "")).toBeGreaterThanOrEqual(
+    today.getTime()
+  )
+})
+
+test("a project owner's own repeating occurrence spawns a successor when closed", async ({
+  page,
+  signInAs,
+}) => {
+  const taskName = `E2E filter ownerspawn ${Date.now()}`
+  await signInAs("user1")
+  // user1 is this project's primary owner and holds no membership row.
+  await page.goto(EMPTY_PROJECT_URL)
+
+  await createDailyRepeatingTask(page, {
+    name: taskName,
+    assignees: [OWNER],
+    startDate: new Date(),
+    endDate: daysFromNow(30),
+  })
+  const row = page.getByRole("row", { name: new RegExp(taskName) })
+  await expect(row).toBeVisible()
+  await expect(row).toContainText("1 abierta")
+
+  await expandAssignments(row)
+  const person = personRows(row, "user1@test.local")
+  await expect(person).toHaveCount(1)
+  await pinRow(person)
+  await person.getByRole("combobox").click()
+  await page.getByRole("option", { name: "Completado" }).click()
+
+  // The toast lands only once the close spawned the owner's successor.
+  await expect(
+    page.getByText("Siguiente ocurrencia creada").first()
+  ).toBeVisible()
+  await expect(row).toContainText("1 abierta")
+  await expect(row).toContainText("1 cerrada")
+  await expect(openOccurrenceRow(page, person)).toHaveCount(1)
 })
 
 test("a collaborator never sees a Reopen control", async ({

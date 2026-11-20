@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import { startOfDay } from "@/lib/util/schedule"
-import { firstAssignmentWindow, sortAssignments } from "./assignments"
+import {
+  archivedWindow,
+  firstAssignmentWindow,
+  sortAssignments,
+} from "./assignments"
 
 const row = (
   id: string,
@@ -155,5 +159,62 @@ describe("firstAssignmentWindow", () => {
       })
       expect(window.startDate).toEqual(startOfDay(now))
     }
+  })
+})
+
+describe("archivedWindow", () => {
+  const NOW = new Date("2026-11-19T14:23:11.456")
+
+  it("moves the due date to today keeping its time, and the start to the same day", () => {
+    const window = archivedWindow(
+      {
+        recurrence: null,
+        startDate: new Date("2026-11-02T09:00:00"),
+        endDate: new Date("2026-11-05T17:30:00"),
+      },
+      NOW
+    )
+
+    expect(window.endDate).toEqual(new Date("2026-11-19T17:30:00"))
+    expect(window.startDate).toEqual(new Date("2026-11-19T09:00:00"))
+  })
+
+  it("keeps an all-day task all-day (midnight stays midnight)", () => {
+    const window = archivedWindow(
+      {
+        recurrence: null,
+        startDate: new Date("2026-11-02T00:00:00"),
+        endDate: new Date("2026-11-02T00:00:00"),
+      },
+      NOW
+    )
+
+    expect(window.endDate).toEqual(new Date("2026-11-19T00:00:00"))
+    expect(window.startDate).toEqual(new Date("2026-11-19T00:00:00"))
+  })
+
+  it("uses midnight when the task had no due date", () => {
+    const window = archivedWindow(
+      { recurrence: null, startDate: null, endDate: null },
+      NOW
+    )
+
+    expect(window.endDate).toEqual(new Date("2026-11-19T00:00:00"))
+    expect(window.startDate).toBeNull()
+  })
+
+  it("leaves a repeating task's start date untouched", () => {
+    const start = new Date("2026-11-02T09:00:00")
+    const window = archivedWindow(
+      {
+        recurrence: "daily",
+        startDate: start,
+        endDate: new Date("2026-12-31T00:00:00"),
+      },
+      NOW
+    )
+
+    expect(window.startDate).toEqual(start)
+    expect(window.endDate).toEqual(new Date("2026-11-19T00:00:00"))
   })
 })

@@ -30,6 +30,7 @@ import {
   inArray,
   isNotNull,
   notInArray,
+  or,
   sql,
 } from "drizzle-orm"
 import {
@@ -108,6 +109,8 @@ type QueryClient = typeof db | Transaction
 
 type SpawnOptions = {
   anchor: Date
+  /** Keep an occurrence that lands exactly on the anchor. */
+  inclusive?: boolean
   client?: QueryClient
   onlyUserIds?: string[]
   closing?: { userId: string; endDate: Date | null }
@@ -314,8 +317,10 @@ async function hasLaterDatedAssignment(
 }
 
 /**
- * The roster rows whose owner still holds a place on the project; the
- * membership join defends against a roster that drifted from membership.
+ * The roster rows whose owner still holds a place on the project; the join
+ * defends against a roster that drifted from membership. The primary owner
+ * has no membership row (`createProject` never inserts one), so owning the
+ * project counts as holding a place.
  */
 async function getActiveAssigneeIds(
   taskId: string,
@@ -325,14 +330,23 @@ async function getActiveAssigneeIds(
   const rows = await client
     .select({ userId: taskAssigneesTable.userId })
     .from(taskAssigneesTable)
-    .innerJoin(
+    .innerJoin(projectsTable, eq(projectsTable.id, projectId))
+    .leftJoin(
       projectMembershipTable,
       and(
         eq(projectMembershipTable.userId, taskAssigneesTable.userId),
         eq(projectMembershipTable.projectId, projectId)
       )
     )
-    .where(eq(taskAssigneesTable.taskId, taskId))
+    .where(
+      and(
+        eq(taskAssigneesTable.taskId, taskId),
+        or(
+          isNotNull(projectMembershipTable.userId),
+          eq(projectsTable.primaryOwnerId, taskAssigneesTable.userId)
+        )
+      )
+    )
 
   return rows.map((r) => r.userId)
 }
@@ -476,6 +490,7 @@ async function getTaskRowInProject(taskId: string, projectId: string) {
     .select({
       id: tasksTable.id,
       archived: tasksTable.archived,
+      startDate: tasksTable.startDate,
       endDate: tasksTable.endDate,
       recurrence: tasksTable.recurrence,
     })
@@ -795,7 +810,8 @@ async function updateTaskRow(
     .where(
       and(
         eq(tasksTable.id, taskId),
-        eq(tasksTable.projectId, projectId)
+        eq(tasksTable.projectId, projectId),
+        eq(tasksTable.archived, false)
       )
     )
     .returning()
@@ -933,7 +949,8 @@ async function spawnEligibleAssignments(
       startTime: task.startTime,
       endDate: task.endDate,
     },
-    opts.anchor
+    opts.anchor,
+    { inclusive: opts.inclusive }
   )
   if (!next || candidates.length === 0) return []
 
@@ -1040,23 +1057,30 @@ async function deleteTask(
 }
 
 /**
- * Archive in one transaction: freeze the task (due date moves to today) and
- * close every open assignment with the chosen disposition. Direct UPDATEs only —
- * no spawn cascade, no membership writes, so archiving spawns nothing.
+ * Archive in one transaction: freeze the task (its dates move to today via
+ * `archivedWindow`) and close every open assignment with the chosen
+ * disposition. Direct UPDATEs only — no spawn cascade, no membership writes,
+ * so archiving spawns nothing.
  */
 async function archiveTaskRow(
   taskId: string,
   projectId: string,
-  closeAs: "done" | "cancelled"
+  closeAs: "done" | "cancelled",
+  window: { startDate: Date | null; endDate: Date }
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await tx
       .update(tasksTable)
-      .set({ archived: true, endDate: new Date() })
+      .set({
+        archived: true,
+        startDate: window.startDate,
+        endDate: window.endDate,
+      })
       .where(
         and(
           eq(tasksTable.id, taskId),
-          eq(tasksTable.projectId, projectId)
+          eq(tasksTable.projectId, projectId),
+          eq(tasksTable.archived, false)
         )
       )
 
@@ -1077,25 +1101,30 @@ async function archiveTaskRow(
  * spawn helper decides (repeating, in-range, active assignee, no open row)
  * whether open assignments reopen. The helper re-reads the task inside the
  * transaction, so rule 0 sees `archived = false` as written here. Membership
- * rows are untouched; closed history stays as-is.
+ * rows are untouched; closed history stays as-is. Returns `null` when no
+ * archived row was flipped (deleted or already unarchived by a racing call).
  */
 async function unarchiveTaskRow(
   taskId: string,
   projectId: string,
   anchor: Date
-): Promise<string[]> {
-  let spawnedIds: string[] = []
+): Promise<string[] | null> {
+  let spawnedIds: string[] | null = null
 
   await db.transaction(async (tx) => {
-    await tx
+    const flipped = await tx
       .update(tasksTable)
       .set({ archived: false })
       .where(
         and(
           eq(tasksTable.id, taskId),
-          eq(tasksTable.projectId, projectId)
+          eq(tasksTable.projectId, projectId),
+          eq(tasksTable.archived, true)
         )
       )
+      .returning({ id: tasksTable.id })
+
+    if (flipped.length === 0) return
 
     spawnedIds = await spawnEligibleAssignments(taskId, {
       anchor,

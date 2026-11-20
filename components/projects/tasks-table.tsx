@@ -194,11 +194,7 @@ export function TasksTable({
 
             return (
               <Fragment key={task.id}>
-                <TableRow
-                  onDoubleClick={
-                    task.archived ? undefined : () => onComments(task)
-                  }
-                >
+                <TableRow onDoubleClick={() => onComments(task)}>
                   <TableCell className="font-medium">
                     <div>
                       <div className="flex items-center gap-2">
@@ -281,18 +277,16 @@ export function TasksTable({
                     />
                   </TableCell>
                   <TableCell>
-                    {!task.archived && (
-                      <Button
-                        variant="secondary"
-                        onClick={() => onComments(task)}
-                        className="gap-1.5"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        <span className="text-xs text-muted-foreground">
-                          {task.commentCount}
-                        </span>
-                      </Button>
-                    )}
+                    <Button
+                      variant="secondary"
+                      onClick={() => onComments(task)}
+                      className="gap-1.5"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-xs text-muted-foreground">
+                        {task.commentCount}
+                      </span>
+                    </Button>
                   </TableCell>
                   {canMutate && (
                     <TableCell>

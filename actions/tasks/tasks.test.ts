@@ -57,6 +57,7 @@ import { resolveProjectAccess } from "@/actions/projects/util"
 import type { ProjectRole } from "@/lib/types"
 import queries from "@/actions/tasks/queries"
 import { assertTaskMutable } from "@/actions/tasks/util"
+import { archivedWindow } from "@/lib/tasks/assignments"
 import { defaultIsSuccess } from "@/lib/util/action-result"
 import {
   archiveTask,
@@ -65,6 +66,7 @@ import {
   deleteComment,
   deleteTask,
   getTaskAssignmentHistory,
+  getTaskComments,
   getTasks,
   unarchiveTask,
   updateAssignmentComment,
@@ -772,10 +774,26 @@ describe("updateTask", () => {
   })
 
   describe("date-edit spawn", () => {
+    // The spawn anchors on the later of the start date and now, so the clock
+    // is frozen to keep every fixture deterministic.
+    const FROZEN_NOW = new Date("2026-11-20T08:00:00")
+
     let callsBefore = 0
     beforeEach(() => {
       callsBefore = state.mock.calls.length
+      vi.useFakeTimers({ toFake: ["Date"] })
+      vi.setSystemTime(FROZEN_NOW)
     })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    function insertedTimes(params: unknown[]): number[] {
+      return params
+        .filter((p): p is string => typeof p === "string")
+        .map((p) => Date.parse(p))
+        .filter((t) => !Number.isNaN(t))
+    }
 
     const assignmentInserts = (since = callsBefore) =>
       state.mock.calls
@@ -808,7 +826,7 @@ describe("updateTask", () => {
       state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
     }
 
-    it("a due-date change on a repeating task spawns for an active member with no open row", async () => {
+    it("a due-date change on a repeating task spawns for an active member with no open row, anchored on now when the start date is long past", async () => {
       dateEditFixtures({
         recurrence: "daily",
         startTime: "09:00",
@@ -838,13 +856,99 @@ describe("updateTask", () => {
       expect(inserts).toHaveLength(1)
       expect(inserts[0].params).toContain(USER_ID)
       expect(inserts[0].params).toContain("todo")
-      // Anchor = the new start date → the next daily slot after it.
-      const dates = inserts[0].params
-        .filter((p): p is string => typeof p === "string")
-        .map((p) => Date.parse(p))
-        .filter((t) => !Number.isNaN(t))
-      expect(dates).toContain(new Date("2026-11-17T09:00:00").getTime())
-      expect(dates).toContain(new Date("2026-11-17T11:00:00").getTime())
+      // The start date (11-16) is in the past: the anchor is now, so the
+      // occurrence is the next slot on or after now — never a backdated one.
+      const dates = insertedTimes(inserts[0].params)
+      expect(dates).toContain(new Date("2026-11-20T09:00:00").getTime())
+      expect(dates).toContain(new Date("2026-11-20T11:00:00").getTime())
+      expect(dates).not.toContain(new Date("2026-11-17T09:00:00").getTime())
+    })
+
+    it("a future start date anchors the spawn inclusively, so an occurrence on that date is kept", async () => {
+      dateEditFixtures({
+        recurrence: "daily",
+        startTime: "09:00",
+        endTime: "11:00",
+        startDate: new Date("2026-11-16T09:00:00"),
+        endDate: new Date("2026-11-30T23:59:59"),
+      })
+      rosterIs(USER_ID)
+      state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+      state.mock
+        .onInsert(schema.taskAssignmentsTable)
+        .respond([{ id: "spawned-1" }])
+
+      const result = await updateTask({
+        ...validTask,
+        taskId: TASK_ID,
+        assigneeIds: [USER_ID],
+        recurrence: "daily",
+        startTime: "09:00",
+        endTime: "11:00",
+        startDate: "2026-11-25T09:00:00",
+        endDate: "2099-01-01T00:00:00",
+      })
+
+      expect(result.serverError).toBeUndefined()
+      const [insert] = assignmentInserts()
+      const dates = insertedTimes(insert.params)
+      expect(dates).toContain(new Date("2026-11-25T09:00:00").getTime())
+      expect(dates).toContain(new Date("2026-11-25T11:00:00").getTime())
+    })
+
+    it("a plain save after unarchive never reopens work: the archived due date round-trips unchanged", async () => {
+      // Seconds and milliseconds on the clock: a raw-clock due date would not
+      // survive the form's minute-precision round trip.
+      vi.setSystemTime(new Date("2026-11-20T08:00:11.456"))
+      const archivedAs = (endDate: Date) =>
+        archivedWindow(
+          {
+            recurrence: "daily",
+            startDate: new Date("2026-11-02T09:00:00"),
+            endDate,
+          },
+          new Date()
+        ).endDate
+      const toFormValue = (date: Date) => {
+        const pad = (n: number) => `${n}`.padStart(2, "0")
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`
+      }
+
+      // A timed task and an all-day task, each as archive stored it.
+      for (const original of [
+        new Date("2026-12-31T17:30:00"),
+        new Date("2026-12-31T00:00:00"),
+      ]) {
+        const stored = archivedAs(original)
+        const baseline = state.mock.calls.length
+        dateEditFixtures({
+          recurrence: "daily",
+          startTime: "09:00",
+          endTime: "11:00",
+          startDate: new Date("2026-11-02T09:00:00"),
+          endDate: stored,
+        })
+        rosterIs(USER_ID)
+        state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+        state.mock
+          .onInsert(schema.taskAssignmentsTable)
+          .respond([{ id: "should-not-happen" }])
+
+        const result = await updateTask({
+          ...validTask,
+          taskId: TASK_ID,
+          name: "Renamed",
+          assigneeIds: [USER_ID],
+          recurrence: "daily",
+          startTime: "09:00",
+          endTime: "11:00",
+          startDate: "2026-11-02T09:00:00",
+          endDate: toFormValue(stored),
+        })
+
+        expect(result.serverError).toBeUndefined()
+        expect(assignmentInserts(baseline)).toHaveLength(0)
+      }
     })
 
     it("a due-date change skips a member with an open row, a removed assignee, an unchanged date, a non-repeating task, and an out-of-range occurrence", async () => {
@@ -941,6 +1045,23 @@ describe("updateTask", () => {
         expect(assignmentInserts(baseline), testCase.name).toHaveLength(0)
       }
     })
+  })
+
+  it("only writes a live task, as a backstop to an archive racing the edit", async () => {
+    const baseline = state.mock.calls.length
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ archived: false })])
+    state.mock.onUpdate(schema.tasksTable).respond([])
+
+    const result = await updateTask({ ...validTask, taskId: TASK_ID })
+
+    expect(result.serverError).toEqual({ code: "NOT_FOUND" })
+    const update = state.mock.calls
+      .slice(baseline)
+      .find((c) => c.sql.includes('update "task" set'))
+    expect(update?.sql).toMatch(/and "task"\."archived" = \$\d+\)/)
+    expect(update?.params.at(-1)).toBe(false)
   })
 
   it("forbids a collaborator", async () => {
@@ -1509,6 +1630,70 @@ describe("archiveTask", () => {
     ).toBe(false)
   })
 
+  it("keeps the stored time of day when archiving, never the raw clock time", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-11-19T14:23:11.456"))
+    try {
+      state.mock.onSelect(schema.tasksTable).respond([
+        makeTaskRow({
+          recurrence: null,
+          startDate: new Date("2026-11-02T09:00:00"),
+          endDate: new Date("2026-11-02T17:30:00"),
+        }),
+      ])
+      state.mock
+        .onUpdate(schema.tasksTable)
+        .respond([makeTaskRow({ archived: true })])
+      state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+
+      const result = await archiveTask({
+        projectId: PROJECT_ID,
+        taskId: TASK_ID,
+        closeAs: "done",
+      })
+
+      expect(defaultIsSuccess(result)).toBe(true)
+      const taskUpdate = archiveCalls().find((c) =>
+        c.sql.includes('update "task" set')
+      )
+      const times = (taskUpdate?.params ?? [])
+        .map((p) =>
+          p instanceof Date
+            ? p.getTime()
+            : typeof p === "string"
+              ? Date.parse(p)
+              : NaN
+        )
+        .filter((t) => !Number.isNaN(t))
+      expect(times).toContain(new Date("2026-11-19T17:30:00").getTime())
+      expect(times).toContain(new Date("2026-11-19T09:00:00").getTime())
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("only archives a task that is still live", async () => {
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ archived: false })])
+    state.mock
+      .onUpdate(schema.tasksTable)
+      .respond([makeTaskRow({ archived: true })])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+
+    await archiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      closeAs: "done",
+    })
+
+    const taskUpdate = archiveCalls().find((c) =>
+      c.sql.includes('update "task" set')
+    )
+    expect(taskUpdate?.sql).toMatch(/and "task"\."archived" = \$\d+\)$/)
+    expect(taskUpdate?.params.at(-1)).toBe(false)
+  })
+
   it("rejects archive for a collaborator", async () => {
     grantAccess("collaborator")
     const result = await archiveTask({
@@ -1671,6 +1856,46 @@ describe("unarchiveTask", () => {
     expect(inserts()).toHaveLength(0)
   })
 
+  it("rejects unarchiving a task that is not archived, and never spawns", async () => {
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ ...inRangeRepeating, archived: false })])
+    rosterIs(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    const result = await unarchiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+
+    expect(result.serverError).toEqual({ code: "VALIDATION_FAILED" })
+    expect(inserts()).toHaveLength(0)
+    expect(
+      unarchiveCalls().some((c) => c.sql.includes('update "task"'))
+    ).toBe(false)
+  })
+
+  it("flips only an archived row and reports NOT_FOUND when nothing flipped", async () => {
+    // Read as archived, then gone by the time the write runs.
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ ...inRangeRepeating })])
+    state.mock.onUpdate(schema.tasksTable).respond([])
+
+    const result = await unarchiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+
+    expect(result.serverError).toEqual({ code: "NOT_FOUND" })
+    expect(inserts()).toHaveLength(0)
+    const update = unarchiveCalls().find((c) =>
+      c.sql.includes('update "task" set')
+    )
+    expect(update?.sql).toMatch(/and "task"\."archived" = \$\d+\)/)
+    expect(update?.params).toContain(true)
+  })
+
   it("a member removed from the project is never spawned for", async () => {
     // task_assignee row absent for OTHER_ID → only USER_ID spawned
     taskUnarchives(inRangeRepeating)
@@ -1734,6 +1959,60 @@ describe("archived freeze", () => {
       taskId: TASK_ID,
     })
     expect(unarchived.serverError).toBeUndefined()
+  })
+})
+
+describe("archived comments", () => {
+  it("lets a manager read an archived task's comments while every comment write stays frozen", async () => {
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ archived: true })])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+
+    const read = await getTaskComments({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+    expect(read.serverError).toBeUndefined()
+    expect(read.data).toEqual([])
+
+    for (const write of [
+      () =>
+        createComment({
+          projectId: PROJECT_ID,
+          taskId: TASK_ID,
+          content: "hi",
+        }),
+      () =>
+        updateComment({
+          projectId: PROJECT_ID,
+          taskId: TASK_ID,
+          commentId: COMMENT_ID,
+          content: "hi",
+        }),
+      () =>
+        deleteComment({
+          projectId: PROJECT_ID,
+          taskId: TASK_ID,
+          commentId: COMMENT_ID,
+        }),
+    ]) {
+      expect((await write()).serverError?.code).toBe("FORBIDDEN")
+    }
+  })
+
+  it("keeps a collaborator without an open assignment out of an archived task's comments", async () => {
+    grantAccess("collaborator")
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ archived: true })])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    const read = await getTaskComments({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+    expect(read.serverError).toEqual({ code: "FORBIDDEN" })
   })
 })
 
@@ -1948,6 +2227,36 @@ describe("spawnEligibleAssignments", () => {
       .filter((t) => !Number.isNaN(t))
     expect(dates).toContain(new Date("2026-11-16T09:00:00").getTime())
     expect(dates).toContain(new Date("2026-11-16T11:00:00").getTime())
+  })
+
+  it("treats the project's primary owner as an active member without a membership row", async () => {
+    // The owner has no project_membership row; only task_assignee lists them.
+    state.mock.onSelect(schema.tasksTable).respond([repeatingTask()])
+    rosterOf(USER_ID)
+    state.mock.onSelect(schema.projectMembershipTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "spawned-owner" }])
+
+    const ids = await queries.spawnEligibleAssignments(TASK_ID, {
+      anchor: ANCHOR,
+    })
+
+    expect(ids).toEqual(["spawned-owner"])
+    expect(inserts()).toHaveLength(1)
+    expect(inserts()[0].params).toContain(USER_ID)
+
+    // The eligibility read must accept the owner without a membership row:
+    // a left join to membership, OR-ed with the project's primary owner.
+    const rosterRead = state.mock.calls
+      .slice(callsBefore)
+      .find((c) => c.sql.includes('from "task_assignee"'))
+    expect(rosterRead?.sql).toContain('left join "project_membership"')
+    expect(rosterRead?.sql).toContain(
+      '"project"."primary_owner_id" = "task_assignee"."user_id"'
+    )
+    expect(rosterRead?.sql).not.toContain('inner join "project_membership"')
   })
 
   it("keeps the closing assignee's later-dated guard", async () => {

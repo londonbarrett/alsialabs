@@ -22,6 +22,8 @@ interface TaskCommentBubbleProps {
   currentUserId: string
   /** Whether the viewer may delete any comment on the task. */
   canModerate: boolean
+  /** Archived tasks: the comment is shown with no edit or delete controls. */
+  readOnly?: boolean
   onEdit: (commentId: string, content: string) => void
   onDelete: (commentId: string) => void
 }
@@ -30,6 +32,7 @@ export function TaskCommentBubble({
   comment,
   currentUserId,
   canModerate,
+  readOnly = false,
   onEdit,
   onDelete,
 }: TaskCommentBubbleProps) {
@@ -118,7 +121,7 @@ export function TaskCommentBubble({
           </p>
         )}
       </div>
-      {comment.authorId === currentUserId && !editing && (
+      {!readOnly && comment.authorId === currentUserId && !editing && (
         <Button
           variant="ghost"
           size="icon-sm"
@@ -128,7 +131,8 @@ export function TaskCommentBubble({
           <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
       )}
-      {(comment.authorId === currentUserId || canModerate) &&
+      {!readOnly &&
+        (comment.authorId === currentUserId || canModerate) &&
         !editing && (
           <Button
             variant="ghost"

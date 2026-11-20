@@ -30,7 +30,7 @@ export function TaskArchiveDialog({
         {
           label: t("markCancelled"),
           onClick: () => onArchive("cancelled"),
-          variant: "default",
+          variant: "outline",
         },
       ]}
       onCancel={onCancel}

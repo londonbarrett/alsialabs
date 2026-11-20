@@ -46,6 +46,38 @@ export function atTime(date: Date, time: string | null): Date {
   )
 }
 
+function onDayOf(day: Date, timeOfDay: Date | null): Date {
+  const time = timeOfDay ?? startOfDay(day)
+  return new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    time.getHours(),
+    time.getMinutes(),
+    time.getSeconds(),
+    time.getMilliseconds()
+  )
+}
+
+/**
+ * The dates an archived task carries: its due date moves to today but keeps
+ * the stored time of day (midnight when it had none), so an all-day task
+ * stays all-day. A non-repeating task's start moves to the same day, keeping
+ * its time, so the edit form's one-day window still holds after unarchive.
+ */
+export function archivedWindow(
+  task: Pick<Task, "startDate" | "endDate" | "recurrence">,
+  now: Date
+): { startDate: Date | null; endDate: Date } {
+  const movesStart =
+    !task.recurrence && task.startDate !== null && task.endDate !== null
+
+  return {
+    startDate: movesStart ? onDayOf(now, task.startDate) : task.startDate,
+    endDate: onDayOf(now, task.endDate),
+  }
+}
+
 export type AssignmentWindow = {
   startDate: Date | null
   endDate: Date | null

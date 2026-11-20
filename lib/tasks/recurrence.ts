@@ -14,7 +14,8 @@ type RecurringTask = Pick<
 }
 
 /**
- * The next occurrence for a repeating task, anchored after `after`. Returns
+ * The next occurrence for a repeating task, anchored after `after` (or, with
+ * `options.inclusive`, at-or-after it). Returns
  * null when the task does not repeat, the schedule can't produce a date, or
  * the slot would fall after the task's end date — which is inclusive through
  * its whole day. No end date means the task repeats until its recurrence is
@@ -23,7 +24,8 @@ type RecurringTask = Pick<
  */
 export function computeNextOccurrence(
   task: RecurringTask,
-  after: Date
+  after: Date,
+  options?: { inclusive?: boolean }
 ): Date | null {
   if (!task.recurrence) return null
 
@@ -34,7 +36,7 @@ export function computeNextOccurrence(
     time: task.startTime ?? "00:00",
   }
 
-  const next = computeScheduledFor(after, schedule)
+  const next = computeScheduledFor(after, schedule, options)
   if (!next) return null
 
   if (task.endDate) {

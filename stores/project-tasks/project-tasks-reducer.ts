@@ -4,7 +4,7 @@ import type {
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
 import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
-import { sortAssignments } from "@/lib/tasks/assignments"
+import { archivedWindow, sortAssignments } from "@/lib/tasks/assignments"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 
 export const EMPTY_COMMENTS: TaskCommentWithAuthorDTO[] = []
@@ -34,7 +34,8 @@ export type ProjectTaskAction =
       archived: boolean
       closeAs?: "done" | "cancelled"
       spawned?: TaskAssignmentDTO[]
-      endDate?: Date
+      /** Archive only: the clock the task's dates move to, as the server does. */
+      archivedAt?: Date
     }
   | {
       type: "upsertAssignment"
@@ -181,8 +182,8 @@ export function projectTasksReducer(
           return {
             ...task,
             archived: action.archived,
-            ...(action.endDate !== undefined
-              ? { endDate: action.endDate }
+            ...(action.archivedAt !== undefined
+              ? archivedWindow(task, action.archivedAt)
               : {}),
             closedCount: Math.max(0, task.closedCount + closedDelta),
             assignments,

@@ -231,10 +231,12 @@ describe("createProjectTasksStore", () => {
   })
 
   it("setArchived closes every open row with the chosen disposition and bumps closedCount", () => {
-    const NOW = new Date("2024-06-01T12:00:00.000Z")
+    const NOW = new Date("2024-06-01T14:23:11.456")
     const store = createProjectTasksStore([
       makeTask({
         id: "a",
+        startDate: new Date("2024-05-30T09:00:00"),
+        endDate: new Date("2024-05-30T17:30:00"),
         assignments: [
           makeAssignment({ id: "assignment-1" }),
           makeAssignment({
@@ -250,13 +252,15 @@ describe("createProjectTasksStore", () => {
       taskId: "a",
       archived: true,
       closeAs: "cancelled",
-      endDate: NOW,
+      archivedAt: NOW,
     })
     store.getState().commit(id)
 
     const task = store.getState().optimistic.tasks[0]
     expect(task.archived).toBe(true)
-    expect(task.endDate).toEqual(NOW)
+    // Today at the stored time of day — never the raw clock time.
+    expect(task.endDate).toEqual(new Date("2024-06-01T17:30:00"))
+    expect(task.startDate).toEqual(new Date("2024-06-01T09:00:00"))
     expect(
       task.assignments.every((row) => row.status === "cancelled")
     ).toBe(true)

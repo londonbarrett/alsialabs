@@ -58,16 +58,18 @@ export function assertTaskMutable(
 /**
  * Project work is visible to owners and admins; a collaborator only sees a
  * task's comments while they hold an open assignment on it. The archived
- * freeze applies first: no comment action reads or writes on a frozen task.
+ * freeze applies first: comment writes reject a frozen task, while reads opt
+ * in with `allowArchived` — an archived task's discussion stays readable.
  */
 export async function assertCommentAccess(
   taskId: string,
   projectId: string,
   userId: string,
-  role: ProjectRole | null
+  role: ProjectRole | null,
+  options: { allowArchived?: boolean } = {}
 ): Promise<void> {
   const task = await assertTaskInProject(taskId, projectId)
-  assertTaskMutable(task)
+  if (!options.allowArchived) assertTaskMutable(task)
   if (canViewProject(role)) return
 
   const openAssignment = await queries.getOpenAssignmentId(
