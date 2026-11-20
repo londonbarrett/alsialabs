@@ -35,6 +35,8 @@ import {
   TaskCommentWithAuthorSchema,
   TaskPrioritySchema,
   TaskWithAssignmentsSchema,
+  UnarchiveTaskResultSchema,
+  UnarchiveTaskSchema,
   UpdateTaskCommentSchema,
   UpdateTaskSchema,
   type TaskAssignmentDTO,
@@ -359,6 +361,37 @@ export const archiveTask = projectAction(ArchiveTaskSchema)
     await queries.archiveTaskRow(taskId, projectId, closeAs)
 
     return { success: true }
+  })
+
+export const unarchiveTask = projectAction(UnarchiveTaskSchema)
+  .metadata({ revalidate: ["/app/proyectos/:projectId"] })
+  .outputSchema(UnarchiveTaskResultSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canManageWork(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
+    const { projectId, taskId } = parsedInput
+
+    // Freeze exception: no assertTaskMutable — unarchiving is the way out.
+    // The existence check still scopes the task to the project so a foreign
+    // taskId can never reach the spawn helper.
+    const task = await queries.getTaskRowInProject(taskId, projectId)
+    if (!task) returnActionError("NOT_FOUND")
+
+    const spawnedIds = await queries.unarchiveTaskRow(
+      taskId,
+      projectId,
+      new Date()
+    )
+
+    const spawned: TaskAssignmentDTO[] = []
+    for (const id of spawnedIds) {
+      const viewRow = await queries.getAssignmentViewById(id)
+      if (viewRow) spawned.push(toTaskAssignmentDTO(viewRow))
+    }
+
+    return { spawned }
   })
 
 // ---------- Task comments ----------

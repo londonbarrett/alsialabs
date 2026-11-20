@@ -9,6 +9,7 @@ export {
   updateTaskPriority,
   deleteTask,
   archiveTask,
+  unarchiveTask,
   getTaskComments,
   createComment,
   updateComment,

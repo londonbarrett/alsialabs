@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn(), hasPermission: vi.fn() }))
 vi.mock("@/actions/projects/util", () => ({
@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
     calls: { sql: string; params: unknown[] }[]
     onSelect(table: unknown): {
       respond(data: unknown): unknown
+      respondOnce(data: unknown): { respond(data: unknown): unknown }
       respondWith(
         fn: (sql: string, params: unknown[]) => unknown
       ): unknown
@@ -63,6 +64,7 @@ import {
   deleteTask,
   getTaskAssignmentHistory,
   getTasks,
+  unarchiveTask,
   updateAssignmentComment,
   updateAssignmentStatus,
   updateTask,
@@ -1206,6 +1208,168 @@ describe("archiveTask", () => {
     expect(
       archiveCalls().some((c) => c.sql.includes('update "task"'))
     ).toBe(false)
+  })
+})
+
+describe("unarchiveTask", () => {
+  // The action anchors the spawn on `now`; freezing the clock keeps the
+  // in-range/out-of-range fixtures deterministic at any hour of the day.
+  const FROZEN_NOW = new Date("2026-11-19T08:00:00")
+  const TODAY_END = new Date("2026-11-19T23:59:59")
+
+  let callsBefore = 0
+  beforeEach(() => {
+    callsBefore = state.mock.calls.length
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(FROZEN_NOW)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function unarchiveCalls() {
+    return state.mock.calls.slice(callsBefore)
+  }
+
+  function inserts() {
+    return unarchiveCalls().filter((c) =>
+      c.sql.includes('insert into "task_assignment"')
+    )
+  }
+
+  /**
+   * The row reads archived on the action's pre-check and unarchived from the
+   * helper's read inside the transaction — pinning that no freeze check
+   * rejects the action (unarchive is the freeze exception) while rule 0 still
+   * sees the post-write state.
+   */
+  function taskUnarchives(overrides: Record<string, unknown>) {
+    const task = makeTaskRow(overrides)
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respondOnce([task])
+      .respond([{ ...task, archived: false }])
+    state.mock.onUpdate(schema.tasksTable).respond([task])
+  }
+
+  const inRangeRepeating = {
+    recurrence: "weekly",
+    interval: 1,
+    daysOfWeek: null,
+    startTime: "09:00",
+    endTime: "11:00",
+    endDate: TODAY_END,
+    archived: true,
+  }
+
+  it("unarchiving a repeating in-range task spawns for every active assignee without an open row", async () => {
+    // archived task, recurrence weekly, endDate today, two task_assignee rows, no open rows
+    taskUnarchives(inRangeRepeating)
+    rosterIs(USER_ID, OTHER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "spawned-1" }, { id: "spawned-2" }])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respondWith((_sql, params) => [
+        makeAssignmentRow({
+          assignmentId: String(params[0]),
+          userId: params[0] === "spawned-1" ? USER_ID : OTHER_ID,
+        }),
+      ])
+
+    const result = await unarchiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+
+    expect(defaultIsSuccess(result)).toBe(true)
+    expect(result.data?.spawned).toHaveLength(2)
+    expect(result.data?.spawned.map((a) => a.userId)).toEqual(
+      expect.arrayContaining([USER_ID, OTHER_ID])
+    )
+    expect(inserts()).toHaveLength(1)
+    const [insert] = inserts()
+    expect(insert.params).toContain(USER_ID)
+    expect(insert.params).toContain(OTHER_ID)
+
+    // The write itself: archived flips to false; no closes, no roster changes.
+    const update = unarchiveCalls().find((c) =>
+      c.sql.includes('update "task"')
+    )
+    expect(update?.params).toContain(false)
+    expect(
+      unarchiveCalls().some((c) => c.sql.includes('update "task_assignment"'))
+    ).toBe(false)
+    expect(
+      unarchiveCalls().some((c) => c.sql.includes('delete from "task_assignee"'))
+    ).toBe(false)
+  })
+
+  it("unarchiving out of range spawns nothing", async () => {
+    // endDate in the past → spawned: []
+    taskUnarchives({
+      recurrence: "weekly",
+      interval: 1,
+      daysOfWeek: null,
+      startTime: "09:00",
+      endTime: "11:00",
+      endDate: new Date("2026-11-10T23:59:59"),
+      archived: true,
+    })
+    rosterIs(USER_ID, OTHER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    const result = await unarchiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+
+    expect(defaultIsSuccess(result)).toBe(true)
+    expect(result.data?.spawned).toEqual([])
+    expect(inserts()).toHaveLength(0)
+  })
+
+  it("unarchiving a non-repeating task spawns nothing", async () => {
+    // recurrence: null → the helper returns [] before consulting the roster
+    taskUnarchives({ recurrence: null, archived: true })
+
+    const result = await unarchiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+
+    expect(defaultIsSuccess(result)).toBe(true)
+    expect(result.data?.spawned).toEqual([])
+    expect(inserts()).toHaveLength(0)
+  })
+
+  it("a member removed from the project is never spawned for", async () => {
+    // task_assignee row absent for OTHER_ID → only USER_ID spawned
+    taskUnarchives(inRangeRepeating)
+    rosterIs(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "spawned-1" }])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([
+        makeAssignmentRow({ assignmentId: "spawned-1", userId: USER_ID }),
+      ])
+
+    const result = await unarchiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+
+    expect(defaultIsSuccess(result)).toBe(true)
+    expect(result.data?.spawned).toHaveLength(1)
+    expect(result.data?.spawned[0]?.userId).toBe(USER_ID)
+    const [insert] = inserts()
+    expect(insert.params).toContain(USER_ID)
+    expect(insert.params).not.toContain(OTHER_ID)
   })
 })
 

@@ -1058,6 +1058,40 @@ async function archiveTaskRow(
   })
 }
 
+/**
+ * Unarchive in one transaction: unfreeze the task, then run trigger (a) — the
+ * spawn helper decides (repeating, in-range, active assignee, no open row)
+ * whether open assignments reopen. The helper re-reads the task inside the
+ * transaction, so rule 0 sees `archived = false` as written here. Membership
+ * rows are untouched; closed history stays as-is.
+ */
+async function unarchiveTaskRow(
+  taskId: string,
+  projectId: string,
+  anchor: Date
+): Promise<string[]> {
+  let spawnedIds: string[] = []
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(tasksTable)
+      .set({ archived: false })
+      .where(
+        and(
+          eq(tasksTable.id, taskId),
+          eq(tasksTable.projectId, projectId)
+        )
+      )
+
+    spawnedIds = await spawnEligibleAssignments(taskId, {
+      anchor,
+      client: tx,
+    })
+  })
+
+  return spawnedIds
+}
+
 async function createComment(
   taskId: string,
   authorId: string,
@@ -1112,6 +1146,7 @@ const queries = {
   updateTaskPriority,
   deleteTask,
   archiveTaskRow,
+  unarchiveTaskRow,
   getTaskRowInProject,
   getOpenAssignmentId,
   getUserProfile,
