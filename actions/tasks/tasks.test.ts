@@ -60,13 +60,16 @@ import { assertTaskMutable } from "@/actions/tasks/util"
 import { defaultIsSuccess } from "@/lib/util/action-result"
 import {
   archiveTask,
+  createComment,
   createTask,
+  deleteComment,
   deleteTask,
   getTaskAssignmentHistory,
   getTasks,
   unarchiveTask,
   updateAssignmentComment,
   updateAssignmentStatus,
+  updateComment,
   updateTask,
   updateTaskPriority,
 } from "@/actions/tasks"
@@ -79,6 +82,8 @@ const TASK_ID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const ASSIGNMENT_ID = "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const USER_ID = "user-1"
 const OTHER_ID = "user-2"
+const THIRD_ID = "user-3"
+const COMMENT_ID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 
 function grantAccess(role: ProjectRole = "owner") {
   mockResolveAccess.mockResolvedValue({
@@ -766,6 +771,178 @@ describe("updateTask", () => {
     })
   })
 
+  describe("date-edit spawn", () => {
+    let callsBefore = 0
+    beforeEach(() => {
+      callsBefore = state.mock.calls.length
+    })
+
+    const assignmentInserts = (since = callsBefore) =>
+      state.mock.calls
+        .slice(since)
+        .filter((c) => c.sql.includes('insert into "task_assignment"'))
+
+    /**
+     * The pre-read and the helper's task read both come from the SELECT
+     * responder (the previous row); the UPDATE responder carries the window
+     * the caller just saved. `previous.recurrence` and `previous.endDate`
+     * are what trigger (b) gates on.
+     */
+    function dateEditFixtures(previous: Record<string, unknown>) {
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respond([{ primaryOwnerId: USER_ID }])
+      state.mock
+        .onSelect(schema.projectMembershipTable)
+        .respond([{ userId: USER_ID }])
+      state.mock
+        .onUpdate(schema.tasksTable)
+        .respond([
+          makeTaskRow({
+            ...previous,
+            endDate: new Date("2099-01-01T00:00:00"),
+          }),
+        ])
+      state.mock.onSelect(schema.tasksTable).respond([makeTaskRow(previous)])
+      state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
+      state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    }
+
+    it("a due-date change on a repeating task spawns for an active member with no open row", async () => {
+      dateEditFixtures({
+        recurrence: "daily",
+        startTime: "09:00",
+        endTime: "11:00",
+        startDate: new Date("2026-11-16T09:00:00"),
+        endDate: new Date("2026-11-30T23:59:59"),
+      })
+      rosterIs(USER_ID)
+      state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+      state.mock
+        .onInsert(schema.taskAssignmentsTable)
+        .respond([{ id: "spawned-1" }])
+
+      const result = await updateTask({
+        ...validTask,
+        taskId: TASK_ID,
+        assigneeIds: [USER_ID],
+        recurrence: "daily",
+        startTime: "09:00",
+        endTime: "11:00",
+        startDate: "2026-11-16T09:00:00",
+        endDate: "2099-01-01T00:00:00",
+      })
+
+      expect(result.serverError).toBeUndefined()
+      const inserts = assignmentInserts()
+      expect(inserts).toHaveLength(1)
+      expect(inserts[0].params).toContain(USER_ID)
+      expect(inserts[0].params).toContain("todo")
+      // Anchor = the new start date → the next daily slot after it.
+      const dates = inserts[0].params
+        .filter((p): p is string => typeof p === "string")
+        .map((p) => Date.parse(p))
+        .filter((t) => !Number.isNaN(t))
+      expect(dates).toContain(new Date("2026-11-17T09:00:00").getTime())
+      expect(dates).toContain(new Date("2026-11-17T11:00:00").getTime())
+    })
+
+    it("a due-date change skips a member with an open row, a removed assignee, an unchanged date, a non-repeating task, and an out-of-range occurrence", async () => {
+      const repeating = {
+        recurrence: "daily",
+        startTime: "09:00",
+        endTime: "11:00",
+        startDate: new Date("2026-11-16T09:00:00"),
+        endDate: new Date("2026-11-30T23:59:59"),
+      }
+      const repeatingInput = {
+        recurrence: "daily" as const,
+        startTime: "09:00",
+        endTime: "11:00",
+        startDate: "2026-11-16T09:00:00",
+        endDate: "2099-01-01T00:00:00",
+      }
+      const cases: {
+        name: string
+        previous: Record<string, unknown>
+        input: Record<string, unknown>
+        roster: string[]
+        openRows: Record<string, unknown>[]
+      }[] = [
+        {
+          name: "a member with an open row",
+          previous: repeating,
+          input: { ...repeatingInput, assigneeIds: [USER_ID] },
+          roster: [USER_ID],
+          openRows: [{ id: ASSIGNMENT_ID, userId: USER_ID }],
+        },
+        {
+          name: "a removed assignee",
+          previous: repeating,
+          input: { ...repeatingInput, assigneeIds: [] },
+          roster: [],
+          openRows: [],
+        },
+        {
+          name: "an unchanged date",
+          previous: repeating,
+          input: {
+            ...repeatingInput,
+            endDate: "2026-11-30T23:59:59",
+            assigneeIds: [USER_ID],
+          },
+          roster: [USER_ID],
+          openRows: [],
+        },
+        {
+          name: "a non-repeating task",
+          previous: {
+            startDate: new Date("2026-11-16T09:00:00"),
+            endDate: new Date("2026-11-30T23:59:59"),
+          },
+          input: {
+            startDate: "2026-11-16T09:00:00",
+            endDate: "2026-11-16T11:00:00",
+            assigneeIds: [USER_ID],
+          },
+          roster: [USER_ID],
+          openRows: [],
+        },
+        {
+          name: "an out-of-range occurrence",
+          previous: {
+            ...repeating,
+            endDate: new Date("2026-11-10T23:59:59"),
+          },
+          input: { ...repeatingInput, assigneeIds: [USER_ID] },
+          roster: [USER_ID],
+          openRows: [],
+        },
+      ]
+
+      for (const testCase of cases) {
+        const baseline = state.mock.calls.length
+        dateEditFixtures(testCase.previous)
+        rosterIs(...testCase.roster)
+        state.mock
+          .onSelect(schema.taskAssignmentsTable)
+          .respond(testCase.openRows)
+        state.mock
+          .onInsert(schema.taskAssignmentsTable)
+          .respond([{ id: "should-not-happen" }])
+
+        const result = await updateTask({
+          ...validTask,
+          taskId: TASK_ID,
+          ...testCase.input,
+        })
+
+        expect(result.serverError, testCase.name).toBeUndefined()
+        expect(assignmentInserts(baseline), testCase.name).toHaveLength(0)
+      }
+    })
+  })
+
   it("forbids a collaborator", async () => {
     grantAccess("collaborator")
     const result = await updateTask({ ...validTask, taskId: TASK_ID })
@@ -844,9 +1021,25 @@ describe("updateAssignmentStatus", () => {
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
   })
 
-  it("creates the next occurrence when a repeating assignment is done", async () => {
-    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) =>
-      sql.includes("exists") ? [] : [
+  it("closing the latest assignment still spawns its successor with the closing row's date as anchor", async () => {
+    // The helper re-reads the task in-tx: recurring, in range through
+    // 2026-11-30, so the successor lands the day after the closing row.
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({
+        recurrence: "daily",
+        interval: 1,
+        daysOfWeek: null,
+        startTime: "09:00",
+        endTime: "11:00",
+        endDate: new Date("2026-11-30T23:59:59"),
+        archived: false,
+      }),
+    ])
+    rosterIs(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) => {
+      if (sql.includes("exists")) return []
+      if (sql.includes("not in")) return []
+      return [
         {
           id: ASSIGNMENT_ID,
           userId: USER_ID,
@@ -858,9 +1051,10 @@ describe("updateAssignmentStatus", () => {
           daysOfWeek: null,
           startTime: "09:00",
           endTime: "11:00",
+          archived: false,
         },
       ]
-    )
+    })
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
     state.mock
       .onInsert(schema.taskAssignmentsTable)
@@ -878,6 +1072,7 @@ describe("updateAssignmentStatus", () => {
             ]
       )
 
+    const baseline = state.mock.calls.length
     const result = await updateAssignmentStatus({
       projectId: PROJECT_ID,
       assignmentId: ASSIGNMENT_ID,
@@ -886,6 +1081,17 @@ describe("updateAssignmentStatus", () => {
 
     expect(result.serverError).toBeUndefined()
     expect(result.data?.nextAssignment?.id).toBe("next-assignment")
+    // anchor = row.endDate (2026-10-30T11:00) → next daily slot after it.
+    const inserts = state.mock.calls
+      .slice(baseline)
+      .filter((c) => c.sql.includes('insert into "task_assignment"'))
+    expect(inserts).toHaveLength(1)
+    const dates = inserts[0].params
+      .filter((p): p is string => typeof p === "string")
+      .map((p) => Date.parse(p))
+      .filter((t) => !Number.isNaN(t))
+    expect(dates).toContain(new Date("2026-10-31T09:00:00").getTime())
+    expect(dates).toContain(new Date("2026-10-31T11:00:00").getTime())
   })
 
   it("spawns nothing for a non-repeating task", async () => {
@@ -947,13 +1153,26 @@ describe("updateAssignmentStatus", () => {
   })
 
   it("does not spawn when a later-dated assignment exists for the assignee", async () => {
-    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) =>
-      sql.includes("exists") ? [{ id: "later-row" }] : [
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({
+        recurrence: "daily",
+        interval: 1,
+        daysOfWeek: null,
+        startTime: "09:00",
+        endTime: "11:00",
+        endDate: new Date("2026-11-30T23:59:59"),
+      }),
+    ])
+    rosterIs(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) => {
+      if (sql.includes("exists")) return [{ id: "later-row" }]
+      if (sql.includes("not in")) return []
+      return [
         { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", endDate: new Date("2026-11-10T11:00:00"),
           taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
           startTime: "09:00", endTime: "11:00" },
       ]
-    )
+    })
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
     state.mock.onSelect(schema.taskAssignmentDetailView)
       .respond([makeAssignmentRow({ status: "done" })])
@@ -966,13 +1185,26 @@ describe("updateAssignmentStatus", () => {
   })
 
   it("treats a null closing due date as oldest, so any dated row blocks the spawn", async () => {
-    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) =>
-      sql.includes("exists") ? [{ id: "dated-row" }] : [
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({
+        recurrence: "daily",
+        interval: 1,
+        daysOfWeek: null,
+        startTime: "09:00",
+        endTime: "11:00",
+        endDate: new Date("2099-01-01T00:00:00"),
+      }),
+    ])
+    rosterIs(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) => {
+      if (sql.includes("exists")) return [{ id: "dated-row" }]
+      if (sql.includes("not in")) return []
+      return [
         { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", endDate: null,
           taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
           startTime: "09:00", endTime: "11:00" },
       ]
-    )
+    })
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
     state.mock.onSelect(schema.taskAssignmentDetailView)
       .respond([makeAssignmentRow({ status: "done" })])
@@ -981,6 +1213,100 @@ describe("updateAssignmentStatus", () => {
       projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "done",
     })
     expect(result.data?.nextAssignment).toBeNull()
+  })
+
+  it("a second active member with no open row is healed on close, while a member with an open row is untouched", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({
+        recurrence: "daily",
+        interval: 1,
+        daysOfWeek: null,
+        startTime: "09:00",
+        endTime: "11:00",
+        endDate: new Date("2026-11-30T23:59:59"),
+        archived: false,
+      }),
+    ])
+    rosterIs(USER_ID, OTHER_ID, THIRD_ID)
+    // Post-close state: THIRD_ID still holds an open row; USER_ID's row is
+    // the one being closed and OTHER_ID has none.
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) => {
+      if (sql.includes("exists")) return []
+      if (sql.includes("not in")) return [{ id: "open-third", userId: THIRD_ID }]
+      return [
+        { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo",
+          endDate: new Date("2026-10-30T11:00:00"),
+          taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
+          startTime: "09:00", endTime: "11:00", archived: false },
+      ]
+    })
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "successor" }, { id: "healed-other" }])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respondWith((_sql, params) =>
+        params[0] === ASSIGNMENT_ID
+          ? [makeAssignmentRow({ status: "done" })]
+          : [
+              makeAssignmentRow({
+                assignmentId: String(params[0]),
+                userId: params[0] === "successor" ? USER_ID : OTHER_ID,
+                status: "todo",
+              }),
+            ]
+      )
+
+    const baseline = state.mock.calls.length
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID,
+      assignmentId: ASSIGNMENT_ID,
+      status: "done",
+    })
+
+    expect(result.serverError).toBeUndefined()
+    // One statement carries both rows: the closing assignee's successor and
+    // the healed member — never the member who already has an open row.
+    const inserts = state.mock.calls
+      .slice(baseline)
+      .filter((c) => c.sql.includes('insert into "task_assignment"'))
+    expect(inserts).toHaveLength(1)
+    expect(inserts[0].params).toContain(USER_ID)
+    expect(inserts[0].params).toContain(OTHER_ID)
+    expect(inserts[0].params).not.toContain(THIRD_ID)
+    // nextAssignment is the closing assignee's successor only.
+    expect(result.data?.nextAssignment?.id).toBe("successor")
+    expect(result.data?.nextAssignment?.userId).toBe(USER_ID)
+  })
+
+  it("closing an assignment on an archived task spawns nothing", async () => {
+    const baseline = state.mock.calls.length
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", archived: true,
+        endDate: new Date("2026-10-30T11:00:00"),
+        taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
+        startTime: "09:00", endTime: "11:00" },
+    ])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "should-not-happen" }])
+
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID,
+      assignmentId: ASSIGNMENT_ID,
+      status: "done",
+    })
+
+    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    const calls = state.mock.calls.slice(baseline)
+    expect(
+      calls.some((c) => c.sql.includes('update "task_assignment"'))
+    ).toBe(false)
+    expect(
+      calls.some((c) => c.sql.includes('insert into "task_assignment"'))
+    ).toBe(false)
   })
 
   it("returns NOT_FOUND for an assignment outside the project", async () => {
@@ -1370,6 +1696,44 @@ describe("unarchiveTask", () => {
     const [insert] = inserts()
     expect(insert.params).toContain(USER_ID)
     expect(insert.params).not.toContain(OTHER_ID)
+  })
+})
+
+describe("archived freeze", () => {
+  it("freezes every mutation while archived", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({ archived: true }),
+    ])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", archived: true },
+    ])
+    // The two exceptions still write against the same archived row.
+    state.mock.onUpdate(schema.tasksTable).respond([
+      makeTaskRow({ archived: false }),
+    ])
+    state.mock.onDelete(schema.tasksTable).respond([])
+
+    for (const action of [
+      () => updateTask({ ...validTask, taskId: TASK_ID }),
+      () => updateAssignmentStatus({ projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "done" }),
+      () => updateAssignmentComment({ projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, comment: "hi" }),
+      () => updateTaskPriority({ projectId: PROJECT_ID, taskId: TASK_ID, priority: "high" }),
+      () => createComment({ projectId: PROJECT_ID, taskId: TASK_ID, content: "hi" }),
+      () => updateComment({ projectId: PROJECT_ID, taskId: TASK_ID, commentId: COMMENT_ID, content: "hi" }),
+      () => deleteComment({ projectId: PROJECT_ID, taskId: TASK_ID, commentId: COMMENT_ID }),
+    ]) expect((await action()).serverError?.code).toBe("FORBIDDEN")
+
+    const deleted = await deleteTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+    expect(deleted.serverError).toBeUndefined()
+
+    const unarchived = await unarchiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+    expect(unarchived.serverError).toBeUndefined()
   })
 })
 

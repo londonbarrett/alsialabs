@@ -13,8 +13,7 @@ import {
   returnActionError,
   sessionAction,
 } from "@/actions/safe-action"
-import { atTime, toTaskAssignmentDTO } from "@/lib/tasks/assignments"
-import { computeNextOccurrence } from "@/lib/tasks/recurrence"
+import { toTaskAssignmentDTO } from "@/lib/tasks/assignments"
 import { z } from "zod"
 import queries from "./queries"
 import {
@@ -119,6 +118,11 @@ export const updateTask = projectAction(UpdateTaskSchema)
 
     const { projectId, taskId } = parsedInput
     const uniqueIds = [...new Set(parsedInput.assigneeIds)]
+
+    const previous = await queries.getTaskRowInProject(taskId, projectId)
+    if (!previous) returnActionError("NOT_FOUND")
+    assertTaskMutable(previous)
+
     await assertAssignees(projectId, uniqueIds)
 
     const row = await queries.updateTaskRow(parsedInput)
@@ -130,6 +134,25 @@ export const updateTask = projectAction(UpdateTaskSchema)
       row,
       parsedInput.unassignAs
     )
+
+    /**
+     * Trigger (b): moving a repeating task's due date spawns for every
+     * active member left without an open row — the fresh window's first
+     * occurrence after the new start date (or now). An unchanged end date
+     * (null == null included) never spawns.
+     */
+    const previousEnd = previous.endDate?.getTime() ?? null
+    const nextEnd = parsedInput.endDate
+      ? new Date(parsedInput.endDate).getTime()
+      : null
+
+    if (previous.recurrence && previousEnd !== nextEnd) {
+      await queries.spawnEligibleAssignments(taskId, {
+        anchor: parsedInput.startDate
+          ? new Date(parsedInput.startDate)
+          : new Date(),
+      })
+    }
 
     const loaded = await queries.getTaskWithAssignments(taskId)
     if (!loaded) returnActionError("NOT_FOUND")
@@ -160,6 +183,7 @@ export const updateAssignmentStatus = projectAction(
       projectId
     )
     if (!row) returnActionError("NOT_FOUND")
+    if (row.archived) returnActionError("FORBIDDEN")
 
     if (!canChangeAnyAssignment(ctx.projectRole)) {
       if (row.userId !== ctx.session.user.id) {
@@ -195,54 +219,25 @@ export const updateAssignmentStatus = projectAction(
      * a done row would spawn a second successor. Reopen is rejected outright
      * on repeating tasks (rule above); on non-repeating tasks it never
      * spawns, so the unique-violation catch below guards spawn races and
-     * stale reopens.
+     * stale reopens. The helper decides eligibility per member — the closing
+     * assignee's successor plus any active member left without an open row.
      */
     const wasOpen = !isTerminalStatus(row.status)
     const crossesToTerminal =
       wasOpen && isTerminalStatus(status as TaskStatus)
-    let spawn: {
-      taskId: string
-      userId: string
-      startDate: Date
-      endDate: Date
-    } | null = null
 
-    if (crossesToTerminal && row.recurrence) {
-      const laterExists = await queries.hasLaterDatedAssignment(
-        row.taskId,
-        row.userId,
-        row.endDate
-      )
-
-      if (!laterExists) {
-        const next = computeNextOccurrence(
-          {
-            recurrence: row.recurrence,
-            interval: row.interval,
-            daysOfWeek: row.daysOfWeek,
-            startTime: row.startTime,
-            endDate: row.taskEndDate,
-          },
-          row.endDate ?? new Date()
-        )
-
-        if (next) {
-          spawn = {
-            taskId: row.taskId,
-            userId: row.userId,
-            startDate: next,
-            endDate: atTime(next, row.endTime),
-          }
-        }
-      }
-    }
-
-    let spawnedId: string | null = null
+    let spawnedIds: string[] = []
     try {
-      spawnedId = await queries.updateAssignmentStatus(
+      spawnedIds = await queries.updateAssignmentStatus(
         assignmentId,
         status as TaskStatus,
-        spawn
+        crossesToTerminal && row.recurrence && !row.archived
+          ? {
+              taskId: row.taskId,
+              anchor: row.endDate ?? new Date(),
+              closing: { userId: row.userId, endDate: row.endDate },
+            }
+          : null
       )
     } catch (error) {
       // A reopen that races an existing open successor (double submit,
@@ -256,12 +251,17 @@ export const updateAssignmentStatus = projectAction(
     const viewRow = await queries.getAssignmentViewById(assignmentId)
     if (!viewRow) returnActionError("NOT_FOUND")
 
+    // Healed members arrive via the list reseed; nextAssignment reports only
+    // the closing assignee's own successor.
     let nextAssignment: TaskAssignmentDTO | null = null
 
-    if (spawnedId) {
-      const nextView = await queries.getAssignmentViewById(spawnedId)
+    for (const id of spawnedIds) {
+      const nextView = await queries.getAssignmentViewById(id)
 
-      nextAssignment = nextView ? toTaskAssignmentDTO(nextView) : null
+      if (nextView?.userId === row.userId) {
+        nextAssignment = toTaskAssignmentDTO(nextView)
+        break
+      }
     }
 
     return {
@@ -287,6 +287,7 @@ export const updateAssignmentComment = projectAction(
       projectId
     )
     if (!row) returnActionError("NOT_FOUND")
+    if (row.archived) returnActionError("FORBIDDEN")
 
     if (!canChangeAnyAssignment(ctx.projectRole)) {
       returnActionError("FORBIDDEN")
@@ -317,6 +318,7 @@ export const updateTaskPriority = projectAction(
     }
 
     const { projectId, taskId, priority } = parsedInput
+    assertTaskMutable(await queries.getTaskRowInProject(taskId, projectId))
     const parsed = TaskPrioritySchema.safeParse(priority)
     if (!parsed.success) {
       returnActionError("VALIDATION_FAILED")

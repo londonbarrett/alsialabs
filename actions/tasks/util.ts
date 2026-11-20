@@ -35,10 +35,11 @@ export async function assertAssignees(
 export async function assertTaskInProject(
   taskId: string,
   projectId: string
-): Promise<void> {
+) {
   const task = await queries.getTaskRowInProject(taskId, projectId)
 
   if (!task) returnActionError("NOT_FOUND")
+  return task
 }
 
 /**
@@ -56,7 +57,8 @@ export function assertTaskMutable(
 
 /**
  * Project work is visible to owners and admins; a collaborator only sees a
- * task's comments while they hold an open assignment on it.
+ * task's comments while they hold an open assignment on it. The archived
+ * freeze applies first: no comment action reads or writes on a frozen task.
  */
 export async function assertCommentAccess(
   taskId: string,
@@ -64,7 +66,8 @@ export async function assertCommentAccess(
   userId: string,
   role: ProjectRole | null
 ): Promise<void> {
-  await assertTaskInProject(taskId, projectId)
+  const task = await assertTaskInProject(taskId, projectId)
+  assertTaskMutable(task)
   if (canViewProject(role)) return
 
   const openAssignment = await queries.getOpenAssignmentId(

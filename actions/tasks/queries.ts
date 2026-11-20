@@ -344,6 +344,7 @@ type AssignmentStatusRow = {
   endDate: Date | null
   taskId: string
   taskEndDate: Date | null
+  archived: boolean
   recurrence: "daily" | "weekly" | null
   interval: number
   daysOfWeek: string[] | null
@@ -363,6 +364,7 @@ async function getAssignmentForRow(
       endDate: taskAssignmentsTable.endDate,
       taskId: tasksTable.id,
       taskEndDate: tasksTable.endDate,
+      archived: tasksTable.archived,
       recurrence: tasksTable.recurrence,
       interval: tasksTable.interval,
       daysOfWeek: tasksTable.daysOfWeek,
@@ -391,6 +393,7 @@ async function getAssignmentForComment(
     .select({
       userId: taskAssignmentsTable.userId,
       status: taskAssignmentsTable.status,
+      archived: tasksTable.archived,
     })
     .from(taskAssignmentsTable)
     .innerJoin(
@@ -470,7 +473,12 @@ async function getProjectsForMyAssignments(
 
 async function getTaskRowInProject(taskId: string, projectId: string) {
   return db
-    .select({ id: tasksTable.id, archived: tasksTable.archived })
+    .select({
+      id: tasksTable.id,
+      archived: tasksTable.archived,
+      endDate: tasksTable.endDate,
+      recurrence: tasksTable.recurrence,
+    })
     .from(tasksTable)
     .where(
       and(
@@ -954,12 +962,24 @@ async function spawnEligibleAssignments(
   return insertAssignmentRows(spawns, opts.client)
 }
 
+/**
+ * What the action hands over so the cascade runs with the status write:
+ * the task to spawn for, the anchor after which the next occurrence is
+ * due, and the closing assignee whose later-dated rows still guard their
+ * own successor. `null` means this close spawns nothing.
+ */
+type SpawnDescriptor = {
+  taskId: string
+  anchor: Date
+  closing: { userId: string; endDate: Date | null }
+} | null
+
 async function updateAssignmentStatus(
   assignmentId: string,
   status: TaskStatus,
-  spawn: AssignmentSpawn | null
-): Promise<string | null> {
-  let spawnedId: string | null = null
+  spawn: SpawnDescriptor
+): Promise<string[]> {
+  let spawnedIds: string[] = []
 
   await db.transaction(async (tx) => {
     await tx
@@ -968,21 +988,15 @@ async function updateAssignmentStatus(
       .where(eq(taskAssignmentsTable.id, assignmentId))
 
     if (spawn) {
-      const [inserted] = await tx
-        .insert(taskAssignmentsTable)
-        .values({
-          taskId: spawn.taskId,
-          userId: spawn.userId,
-          status: "todo",
-          startDate: spawn.startDate,
-          endDate: spawn.endDate,
-        })
-        .returning()
-      spawnedId = inserted.id
+      spawnedIds = await spawnEligibleAssignments(spawn.taskId, {
+        anchor: spawn.anchor,
+        closing: spawn.closing,
+        client: tx,
+      })
     }
   })
 
-  return spawnedId
+  return spawnedIds
 }
 
 async function updateAssignmentComment(
