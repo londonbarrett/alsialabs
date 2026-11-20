@@ -4,11 +4,10 @@ import type { TasksVisibilityFilter } from "@/lib/tasks/list"
 import { cn } from "cn"
 import { useTranslations } from "next-intl"
 
-const OPTIONS: readonly TasksVisibilityFilter[] = [
-  "unfinished",
-  "both",
-  "finished",
-]
+const OPTIONS = [
+  "open",
+  "archived",
+] as const satisfies readonly TasksVisibilityFilter[]
 
 export function TasksFilter({
   value,

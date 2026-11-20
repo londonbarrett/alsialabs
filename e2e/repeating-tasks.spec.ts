@@ -30,10 +30,14 @@ test("completing a repeating occurrence spawns the next one", async ({
   // The row flips optimistically; the toast only lands once the action has
   // committed the completion AND spawned the next occurrence.
   await expect(page.getByText("Siguiente ocurrencia creada")).toBeVisible()
-  // The closed occurrence left the view; exactly one open sub-row remains.
-  await expect(
-    page.getByRole("row", { name: /E2E Collaborator/ })
-  ).toHaveCount(1)
+  // The task stays under Open: the closed occurrence is absorbed into
+  // the history panel beside the fresh open one, which holds the only
+  // status select.
+  const occurrenceRows = page.getByRole("row", {
+    name: /E2E Collaborator/,
+  })
+  await expect(occurrenceRows).toHaveCount(2)
+  await expect(occurrenceRows.getByRole("combobox")).toHaveCount(1)
 
   // The assignee: the closed occurrence is in Past, the fresh one in Active.
   await signInAs("user2")

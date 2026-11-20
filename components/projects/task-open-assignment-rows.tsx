@@ -31,12 +31,14 @@ interface TaskOpenAssignmentRowsProps {
     assignmentId: string,
     status: TaskStatus
   ) => void
+  readOnly?: boolean
 }
 
 export function TaskOpenAssignmentRows({
   taskId,
   assignments,
   onStatusChange,
+  readOnly = false,
 }: TaskOpenAssignmentRowsProps) {
   const t = useTranslations()
   const { currentUserId, isOwner, isAdmin, isCollaborator } =
@@ -61,9 +63,10 @@ export function TaskOpenAssignmentRows({
   }
 
   return sortAssignments(assignments).map((assignment) => {
-    // Terminal rows are read-only history — a badge, never a select,
-    // even on the owner/admin path of getAllowedStatuses.
-    const allowed = isTerminalStatus(assignment.status)
+    // Terminal rows (and every row of an archived task) are read-only —
+    // a badge, never a select, even on the owner/admin path of
+    // getAllowedStatuses.
+    const allowed = readOnly || isTerminalStatus(assignment.status)
       ? null
       : getAllowedStatuses(assignment)
     const occurrence = [assignment.startDate, assignment.endDate]

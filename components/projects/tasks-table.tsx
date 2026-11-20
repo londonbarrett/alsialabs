@@ -28,9 +28,11 @@ import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { Fragment, useState } from "react"
+import { Fragment, useCallback, useState } from "react"
 import { cn } from "cn"
 import { DueDate } from "./due-date"
+import { TaskArchiveDialog } from "./task-archive-dialog"
+import { TaskArchiveMenuItem } from "./task-archive-menu-item"
 import { TaskAssigneeStack } from "./task-assignee-stack"
 import { TaskClosedAssignmentRows } from "./task-closed-assignment-rows"
 import { TaskHistoryPanel } from "./task-history-panel"
@@ -47,6 +49,8 @@ interface TasksTableProps {
   onPriorityChange: (taskId: string, priority: TaskPriorityDTO) => void
   onDelete: (taskId: string) => Promise<void>
   onEdit: (task: TaskWithAssignmentsDTO) => void
+  onArchive: (taskId: string, closeAs: "done" | "cancelled") => void
+  onUnarchive: (taskId: string) => void
   onComments: (task: TaskWithAssignmentsDTO) => void
 }
 
@@ -56,6 +60,8 @@ export function TasksTable({
   onPriorityChange,
   onDelete,
   onEdit,
+  onArchive,
+  onUnarchive,
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
@@ -66,6 +72,21 @@ export function TasksTable({
   const canMutate =
     (isOwner || isAdmin) && (canEdit || canDeleteProject)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [archivingTaskId, setArchivingTaskId] = useState<string | null>(
+    null
+  )
+
+  const handleArchive = useCallback(
+    (closeAs: "done" | "cancelled") => {
+      if (archivingTaskId) onArchive(archivingTaskId, closeAs)
+      setArchivingTaskId(null)
+    },
+    [archivingTaskId, onArchive]
+  )
+  const handleArchiveCancel = useCallback(
+    () => setArchivingTaskId(null),
+    []
+  )
 
   function toggleExpanded(taskId: string) {
     setExpanded((prev) => {
@@ -174,7 +195,9 @@ export function TasksTable({
             return (
               <Fragment key={task.id}>
                 <TableRow
-                  onDoubleClick={() => onComments(task)}
+                  onDoubleClick={
+                    task.archived ? undefined : () => onComments(task)
+                  }
                 >
                   <TableCell className="font-medium">
                     <div>
@@ -231,7 +254,7 @@ export function TasksTable({
                   </TableCell>
                   <TableCell>{statusSummary}</TableCell>
                   <TableCell>
-                    {(isOwner || isAdmin) && canEdit ? (
+                    {(isOwner || isAdmin) && canEdit && !task.archived ? (
                       <TaskPrioritySelect
                         priority={task.priority}
                         onPriorityChange={(p) =>
@@ -258,26 +281,39 @@ export function TasksTable({
                     />
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="secondary"
-                      onClick={() => onComments(task)}
-                      className="gap-1.5"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      <span className="text-xs text-muted-foreground">
-                        {task.commentCount}
-                      </span>
-                    </Button>
+                    {!task.archived && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => onComments(task)}
+                        className="gap-1.5"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        <span className="text-xs text-muted-foreground">
+                          {task.commentCount}
+                        </span>
+                      </Button>
+                    )}
                   </TableCell>
                   {canMutate && (
                     <TableCell>
                       <ActionMenu
                         entityName={task.name}
-                        onEdit={() => onEdit(task)}
+                        onEdit={
+                          task.archived ? undefined : () => onEdit(task)
+                        }
                         onDelete={() => onDelete(task.id)}
                         canEdit={canEdit}
                         canDelete={canDeleteProject}
-                      />
+                      >
+                        <TaskArchiveMenuItem
+                          task={task}
+                          canArchive={canEdit}
+                          onArchiveRequest={() =>
+                            setArchivingTaskId(task.id)
+                          }
+                          onUnarchive={() => onUnarchive(task.id)}
+                        />
+                      </ActionMenu>
                     </TableCell>
                   )}
                 </TableRow>
@@ -287,17 +323,21 @@ export function TasksTable({
                       taskId={task.id}
                       assignments={openRows}
                       onStatusChange={onStatusChange}
+                      readOnly={task.archived}
                     />
                     {task.recurrence === null && (
                       <TaskClosedAssignmentRows
                         taskId={task.id}
                         assignments={closedRows}
-                        onReopen={(assignmentId) =>
-                          onStatusChange(
-                            task.id,
-                            assignmentId,
-                            "todo"
-                          )
+                        onReopen={
+                          task.archived
+                            ? undefined
+                            : (assignmentId) =>
+                                onStatusChange(
+                                  task.id,
+                                  assignmentId,
+                                  "todo"
+                                )
                         }
                       />
                     )}
@@ -315,6 +355,11 @@ export function TasksTable({
           })}
         </TableBody>
       </Table>
+      <TaskArchiveDialog
+        open={archivingTaskId !== null}
+        onArchive={handleArchive}
+        onCancel={handleArchiveCancel}
+      />
     </div>
   )
 }

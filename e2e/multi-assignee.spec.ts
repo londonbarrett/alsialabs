@@ -98,12 +98,17 @@ test("a task with several assignees shows counts, stack, and per-person rows", a
     page.getByRole("button", { name: "Cargar más" })
   ).toHaveCount(0)
 
-  // Last assignment terminal: the whole task leaves the list.
+  // Last assignment terminal: status no longer drives list membership,
+  // so the task stays under Open until it is archived — with nothing
+  // left to edit.
   await user1Row.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
+  await expect(row).toContainText("2 cerradas")
+  await expect(user1Row).toContainText("Completado")
+  await expect(user1Row.getByRole("combobox")).toHaveCount(0)
   await expect(
     page.getByRole("row", { name: new RegExp(taskName) })
-  ).toHaveCount(0)
+  ).toHaveCount(1)
 })
 
 test("unassigning the last person asks what to do and leaves the task visible", async ({

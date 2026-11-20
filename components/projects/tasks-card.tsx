@@ -37,6 +37,8 @@ export function TasksCard() {
     createTask,
     updateTask,
     deleteTask,
+    archiveTask,
+    unarchiveTask,
     updateAssignmentStatus,
     updateTaskPriority,
   } = useProjectTasksActions()
@@ -48,9 +50,9 @@ export function TasksCard() {
     TaskWithAssignmentsDTO | undefined
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
-  const [filter, setFilter] = useState<TasksVisibilityFilter>("unfinished")
+  const [filter, setFilter] = useState<TasksVisibilityFilter>("open")
 
-  const visibleTasks = selectTasks(tasks, filter, new Date())
+  const visibleTasks = selectTasks(tasks, filter)
 
   const openNew = () => {
     setEditingTask(undefined)
@@ -170,8 +172,8 @@ export function TasksCard() {
       <CardContent>
         {visibleTasks.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            {filter === "finished"
-              ? t("projects.tasks.noFinished")
+            {filter === "archived"
+              ? t("projects.tasks.noArchived")
               : t("projects.tasks.noTasks")}
           </p>
         ) : (
@@ -190,6 +192,10 @@ export function TasksCard() {
             }
             onDelete={(taskId) => deleteTask(projectId, taskId)}
             onEdit={openEdit}
+            onArchive={(taskId, closeAs) =>
+              archiveTask(projectId, taskId, closeAs)
+            }
+            onUnarchive={(taskId) => unarchiveTask(projectId, taskId)}
             onComments={(task) => {
               setCommentsTask(task)
               setIsCommentsOpen(true)

@@ -4,6 +4,7 @@ import type {
   TaskAssignmentDTO,
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
+import { assignmentCounts } from "./filter"
 import {
   freshlyClosedRows,
   mergeClosedRows,
@@ -11,8 +12,6 @@ import {
   sortClosedRows,
   visibleAssignments,
 } from "./list"
-
-const NOW = new Date("2026-11-11T15:00:00")
 
 const makeAssignment = (
   overrides: Partial<TaskAssignmentDTO> = {}
@@ -147,12 +146,18 @@ describe("sortClosedRows", () => {
     // Same instant, three ids: stability is what makes a re-render of
     // the merged region jitter-free.
     const at = "2026-11-02T09:00:00"
-    const first = makeAssignment({ id: "a-first", startDate: new Date(at) })
+    const first = makeAssignment({
+      id: "a-first",
+      startDate: new Date(at),
+    })
     const second = makeAssignment({
       id: "a-second",
       startDate: new Date(at),
     })
-    const third = makeAssignment({ id: "a-third", startDate: new Date(at) })
+    const third = makeAssignment({
+      id: "a-third",
+      startDate: new Date(at),
+    })
 
     const sorted = sortClosedRows([first, second, third])
     expect(sorted.map((row) => row.id)).toEqual([
@@ -197,7 +202,10 @@ describe("mergeClosedRows", () => {
     const fetchedCopy = { ...storeRow, comment: "fetched" }
     const fetchedOnly = closed("a2", "2026-11-04T09:00:00")
 
-    const merged = mergeClosedRows([storeRow], [fetchedCopy, fetchedOnly])
+    const merged = mergeClosedRows(
+      [storeRow],
+      [fetchedCopy, fetchedOnly]
+    )
     expect(merged.map((row) => row.id)).toEqual(["a1", "a2"])
     // The first occurrence wins: the store row is the rendered copy.
     expect(merged[0]?.comment).toBeNull()
@@ -281,9 +289,9 @@ describe("freshlyClosedRows", () => {
 
   it("returns nothing for empty inputs", () => {
     expect(freshlyClosedRows(new Set(), [], new Set())).toEqual([])
-    expect(
-      freshlyClosedRows(new Set(["a1"]), [], new Set())
-    ).toEqual([])
+    expect(freshlyClosedRows(new Set(["a1"]), [], new Set())).toEqual(
+      []
+    )
     expect(
       freshlyClosedRows(new Set(), [terminal("a1")], new Set())
     ).toEqual([])
@@ -294,118 +302,79 @@ describe("freshlyClosedRows", () => {
 })
 
 describe("selectTasks", () => {
-  it("unfinished filters to shouldShowTask and orders by due date ascending, nulls last", () => {
-    const later = makeTask({
-      id: "t-later",
-      endDate: new Date("2026-11-20T00:00:00"),
-      assignments: [makeAssignment({ status: "blocked" })],
-    })
-    const hidden = makeTask({
-      id: "t-hidden",
-      endDate: new Date("2026-11-12T00:00:00"),
+  it("open lists non-archived tasks by endDate ascending, nulls last", () => {
+    const soon = makeTask({
+      id: "soon",
+      archived: false,
+      endDate: new Date("2026-11-15T00:00:00"),
       assignments: [makeAssignment({ status: "done" })],
+    })
+    const later = makeTask({
+      id: "later",
+      archived: false,
+      endDate: new Date("2026-11-20T00:00:00"),
     })
     const noDue = makeTask({
-      id: "t-no-due",
+      id: "no-due",
+      archived: false,
       endDate: null,
-      assignments: [makeAssignment({ status: "in_progress" })],
     })
-    const soon = makeTask({
-      id: "t-soon",
-      endDate: new Date("2026-11-15T00:00:00"),
-      assignments: [makeAssignment({ status: "todo" })],
+    const archived = makeTask({
+      id: "archived",
+      archived: true,
+      endDate: new Date("2026-11-01T00:00:00"),
     })
 
-    const result = selectTasks(
-      [later, hidden, noDue, soon],
-      "unfinished",
-      NOW
-    )
-    expect(result.map((t) => t.id)).toEqual([
-      "t-soon",
-      "t-later",
-      "t-no-due",
-    ])
+    expect(
+      selectTasks([archived, later, noDue, soon], "open").map(
+        (t) => t.id
+      )
+    ).toEqual(["soon", "later", "no-due"])
   })
 
-  it("finished filters to the complement and orders by due date descending, nulls last", () => {
-    const doneEarly = makeTask({
-      id: "t-done-early",
-      endDate: new Date("2026-11-05T00:00:00"),
-      assignments: [makeAssignment({ status: "done" })],
-    })
-    const stillOpen = makeTask({
-      id: "t-still-open",
-      endDate: new Date("2026-11-10T00:00:00"),
-      assignments: [makeAssignment({ status: "todo" })],
-    })
-    const doneNoDue = makeTask({
-      id: "t-done-no-due",
-      endDate: null,
-      assignments: [makeAssignment({ status: "done" })],
-    })
-    const doneLate = makeTask({
-      id: "t-done-late",
+  it("archived lists only archived tasks by endDate ascending, nulls last", () => {
+    const archivedLate = makeTask({
+      id: "archived-late",
+      archived: true,
       endDate: new Date("2026-11-25T00:00:00"),
-      assignments: [makeAssignment({ status: "done" })],
+    })
+    const archivedNoDue = makeTask({
+      id: "archived-no-due",
+      archived: true,
+      endDate: null,
+    })
+    const archivedEarly = makeTask({
+      id: "archived-early",
+      archived: true,
+      endDate: new Date("2026-11-05T00:00:00"),
+    })
+    const open = makeTask({
+      id: "open",
+      archived: false,
+      endDate: new Date("2026-11-01T00:00:00"),
     })
 
-    const result = selectTasks(
-      [doneEarly, stillOpen, doneNoDue, doneLate],
-      "finished",
-      NOW
-    )
-    expect(result.map((t) => t.id)).toEqual([
-      "t-done-late",
-      "t-done-early",
-      "t-done-no-due",
-    ])
+    expect(
+      selectTasks(
+        [archivedLate, open, archivedNoDue, archivedEarly],
+        "archived"
+      ).map((t) => t.id)
+    ).toEqual(["archived-early", "archived-late", "archived-no-due"])
   })
+})
 
-  it("both lists unfinished tasks before finished ones", () => {
-    const finishedEarly = makeTask({
-      id: "f-earlier",
-      endDate: new Date("2026-11-05T00:00:00"),
-      assignments: [makeAssignment({ status: "done" })],
-    })
-    const unfinishedLater = makeTask({
-      id: "u-later",
-      endDate: new Date("2026-11-20T00:00:00"),
-      assignments: [makeAssignment({ status: "todo" })],
-    })
-    const finishedLater = makeTask({
-      id: "f-later",
-      endDate: new Date("2026-11-25T00:00:00"),
-      assignments: [makeAssignment({ status: "done" })],
-    })
-    const unfinishedNoDue = makeTask({
-      id: "u-no-due",
-      endDate: null,
-      assignments: [makeAssignment({ status: "blocked" })],
-    })
-    const unfinishedSoon = makeTask({
-      id: "u-soon",
-      endDate: new Date("2026-11-15T00:00:00"),
-      assignments: [makeAssignment({ status: "in_review" })],
-    })
-
-    const result = selectTasks(
-      [
-        finishedEarly,
-        unfinishedLater,
-        finishedLater,
-        unfinishedNoDue,
-        unfinishedSoon,
-      ],
-      "both",
-      NOW
+describe("assignmentCounts", () => {
+  it("still counts a status mix", () => {
+    const rows = ["todo", "blocked", "in_review", "done"].map(
+      (status) =>
+        makeAssignment({
+          status: status as TaskAssignmentDTO["status"],
+        })
     )
-    expect(result.map((t) => t.id)).toEqual([
-      "u-soon",
-      "u-later",
-      "u-no-due",
-      "f-later",
-      "f-earlier",
-    ])
+    expect(assignmentCounts(rows)).toEqual({
+      open: 3,
+      blocked: 1,
+      review: 1,
+    })
   })
 })
