@@ -19,6 +19,7 @@ import { z } from "zod"
 import queries from "./queries"
 import {
   ALL_TASK_STATUSES,
+  ArchiveTaskSchema,
   AssignmentStatusResultSchema,
   COLLABORATOR_TASK_STATUSES,
   CreateTaskCommentSchema,
@@ -41,6 +42,7 @@ import {
 import {
   assertAssignees,
   assertCommentAccess,
+  assertTaskMutable,
   isUniqueViolation,
 } from "./util"
 
@@ -339,6 +341,22 @@ export const deleteTask = projectAction(
     const { projectId, taskId } = parsedInput
 
     await queries.deleteTask(taskId, projectId)
+
+    return { success: true }
+  })
+
+export const archiveTask = projectAction(ArchiveTaskSchema)
+  .metadata({ revalidate: ["/app/proyectos/:projectId"] })
+  .outputSchema(SuccessSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    if (!canManageWork(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
+    const { projectId, taskId, closeAs } = parsedInput
+
+    assertTaskMutable(await queries.getTaskRowInProject(taskId, projectId))
+    await queries.archiveTaskRow(taskId, projectId, closeAs)
 
     return { success: true }
   })

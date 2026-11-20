@@ -55,7 +55,10 @@ import { auth } from "@/lib/auth"
 import { resolveProjectAccess } from "@/actions/projects/util"
 import type { ProjectRole } from "@/lib/types"
 import queries from "@/actions/tasks/queries"
+import { assertTaskMutable } from "@/actions/tasks/util"
+import { defaultIsSuccess } from "@/lib/util/action-result"
 import {
+  archiveTask,
   createTask,
   deleteTask,
   getTaskAssignmentHistory,
@@ -1103,6 +1106,117 @@ describe("guards", () => {
       priority: "urgent",
     })
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+  })
+})
+
+describe("archiveTask", () => {
+  // Recorded calls accumulate across tests in this file (resetMocks only
+  // clears responders), so assertions read from this test's baseline.
+  let callsBefore = 0
+  beforeEach(() => {
+    callsBefore = state.mock.calls.length
+  })
+  function archiveCalls() {
+    return state.mock.calls.slice(callsBefore)
+  }
+
+  it("archives a repeating task, moves its due date to today, closes all open rows and spawns nothing", async () => {
+    // task row: recurrence "weekly", archived false, endDate in the future;
+    // two open assignments for two members; task_assignee rows for both.
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({
+        recurrence: "weekly",
+        archived: false,
+        endDate: new Date("2099-01-01T00:00:00"),
+      }),
+    ])
+    state.mock
+      .onUpdate(schema.tasksTable)
+      .respond([makeTaskRow({ archived: true })])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+
+    const result = await archiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      closeAs: "cancelled",
+    })
+
+    expect(defaultIsSuccess(result)).toBe(true)
+    const updates = archiveCalls().filter((c) =>
+      c.sql.includes('update "task"')
+    )
+    expect(updates.some((c) => c.sql.includes("archived"))).toBe(true)
+    expect(
+      archiveCalls().some((c) =>
+        c.sql.includes('insert into "task_assignment"')
+      )
+    ).toBe(false)
+    expect(
+      archiveCalls().some((c) =>
+        c.sql.includes('delete from "task_assignee"')
+      )
+    ).toBe(false)
+
+    // The task row's due date moves to today…
+    const taskUpdate = updates.find((c) => c.sql.includes('"archived"'))
+    expect(taskUpdate).toBeDefined()
+    const today = new Date().toDateString()
+    expect(
+      taskUpdate?.params.some((p) => {
+        const d = p instanceof Date ? p : typeof p === "string" ? new Date(p) : null
+        return d instanceof Date && !Number.isNaN(d.getTime()) && d.toDateString() === today
+      })
+    ).toBe(true)
+
+    // …and both open rows close with the chosen disposition, in place.
+    const closes = archiveCalls().filter((c) =>
+      c.sql.includes('update "task_assignment"')
+    )
+    expect(closes.length).toBeGreaterThan(0)
+    expect(closes.every((c) => c.params.includes("cancelled"))).toBe(true)
+    expect(
+      archiveCalls().some((c) =>
+        c.sql.includes('delete from "task_assignment"')
+      )
+    ).toBe(false)
+  })
+
+  it("rejects archive for a collaborator", async () => {
+    grantAccess("collaborator")
+    const result = await archiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      closeAs: "cancelled",
+    })
+    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+  })
+
+  it("rejects archiving a task that is already archived", async () => {
+    state.mock
+      .onSelect(schema.tasksTable)
+      .respond([makeTaskRow({ archived: true })])
+
+    const result = await archiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+      closeAs: "done",
+    })
+
+    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    expect(
+      archiveCalls().some((c) => c.sql.includes('update "task"'))
+    ).toBe(false)
+  })
+})
+
+describe("assertTaskMutable", () => {
+  it("throws FORBIDDEN for an archived task and lets a mutable one through", () => {
+    expect(() => assertTaskMutable({ archived: true })).toThrow("FORBIDDEN")
+    expect(() => assertTaskMutable({ archived: false })).not.toThrow()
+  })
+
+  it("throws NOT_FOUND for a missing row", () => {
+    expect(() => assertTaskMutable(undefined)).toThrow("NOT_FOUND")
   })
 })
 

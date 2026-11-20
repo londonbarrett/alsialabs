@@ -42,6 +42,19 @@ export async function assertTaskInProject(
 }
 
 /**
+ * The archived freeze: every task/assignment mutation rejects while
+ * `archived` is true. `unarchiveTask` and `deleteTask` are the exceptions and
+ * never call this. `undefined` means the row is gone (or belongs to another
+ * project), which is a not-found, not a freeze.
+ */
+export function assertTaskMutable(
+  task: { archived: boolean } | undefined
+): void {
+  if (!task) returnActionError("NOT_FOUND")
+  if (task.archived) returnActionError("FORBIDDEN")
+}
+
+/**
  * Project work is visible to owners and admins; a collaborator only sees a
  * task's comments while they hold an open assignment on it.
  */

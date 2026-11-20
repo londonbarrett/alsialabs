@@ -470,7 +470,7 @@ async function getProjectsForMyAssignments(
 
 async function getTaskRowInProject(taskId: string, projectId: string) {
   return db
-    .select({ id: tasksTable.id })
+    .select({ id: tasksTable.id, archived: tasksTable.archived })
     .from(tasksTable)
     .where(
       and(
@@ -1025,6 +1025,39 @@ async function deleteTask(
     )
 }
 
+/**
+ * Archive in one transaction: freeze the task (due date moves to today) and
+ * close every open assignment with the chosen disposition. Direct UPDATEs only —
+ * no spawn cascade, no membership writes, so archiving spawns nothing.
+ */
+async function archiveTaskRow(
+  taskId: string,
+  projectId: string,
+  closeAs: "done" | "cancelled"
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(tasksTable)
+      .set({ archived: true, endDate: new Date() })
+      .where(
+        and(
+          eq(tasksTable.id, taskId),
+          eq(tasksTable.projectId, projectId)
+        )
+      )
+
+    await tx
+      .update(taskAssignmentsTable)
+      .set({ status: closeAs })
+      .where(
+        and(
+          eq(taskAssignmentsTable.taskId, taskId),
+          notInArray(taskAssignmentsTable.status, ["done", "cancelled"])
+        )
+      )
+  })
+}
+
 async function createComment(
   taskId: string,
   authorId: string,
@@ -1078,6 +1111,7 @@ const queries = {
   updateAssignmentComment,
   updateTaskPriority,
   deleteTask,
+  archiveTaskRow,
   getTaskRowInProject,
   getOpenAssignmentId,
   getUserProfile,

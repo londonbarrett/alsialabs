@@ -8,6 +8,7 @@ export {
   updateAssignmentComment,
   updateTaskPriority,
   deleteTask,
+  archiveTask,
   getTaskComments,
   createComment,
   updateComment,
