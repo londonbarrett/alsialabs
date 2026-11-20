@@ -1,36 +1,36 @@
 "use client"
 
-import type { TaskAssignmentDTO } from "@/actions/tasks/schemas"
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import type { TaskAssigneeIdentity } from "@/lib/types"
 
 export function TaskAssigneeStack({
-  assignments,
+  assignees,
 }: {
-  assignments: TaskAssignmentDTO[]
+  assignees: TaskAssigneeIdentity[]
 }) {
-  if (assignments.length === 0) return null
+  if (assignees.length === 0) return null
 
-  const visible = assignments.slice(0, 3)
-  const overflow = assignments.length - visible.length
+  const visible = assignees.slice(0, 3)
+  const overflow = assignees.length - visible.length
 
   return (
     <span className="flex -space-x-2">
-      {visible.map((assignment) => (
+      {visible.map((assignee) => (
         <Avatar
-          key={assignment.id}
+          key={assignee.userId}
           size="sm"
           className="border-2 border-background"
         >
           <AvatarImage
-            src={assignment.userImage ?? undefined}
+            src={assignee.userImage ?? undefined}
             alt=""
           />
           <AvatarFallback>
-            {(assignment.userName || assignment.userEmail || "")
+            {(assignee.userName || assignee.userEmail || "?")
               .slice(0, 2)
               .toUpperCase()}
           </AvatarFallback>

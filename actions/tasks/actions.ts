@@ -124,7 +124,6 @@ export const updateTask = projectAction(UpdateTaskSchema)
 
     const previous = await queries.getTaskRowInProject(taskId, projectId)
     if (!previous) returnActionError("NOT_FOUND")
-    assertTaskMutable(previous)
 
     await assertAssignees(projectId, uniqueIds)
 
@@ -193,7 +192,6 @@ export const updateAssignmentStatus = projectAction(
       projectId
     )
     if (!row) returnActionError("NOT_FOUND")
-    if (row.archived) returnActionError("FORBIDDEN")
 
     if (!canChangeAnyAssignment(ctx.projectRole)) {
       if (row.userId !== ctx.session.user.id) {
@@ -297,7 +295,6 @@ export const updateAssignmentComment = projectAction(
       projectId
     )
     if (!row) returnActionError("NOT_FOUND")
-    if (row.archived) returnActionError("FORBIDDEN")
 
     if (!canChangeAnyAssignment(ctx.projectRole)) {
       returnActionError("FORBIDDEN")
@@ -328,7 +325,6 @@ export const updateTaskPriority = projectAction(
     }
 
     const { projectId, taskId, priority } = parsedInput
-    assertTaskMutable(await queries.getTaskRowInProject(taskId, projectId))
     const parsed = TaskPrioritySchema.safeParse(priority)
     if (!parsed.success) {
       returnActionError("VALIDATION_FAILED")
@@ -393,10 +389,9 @@ export const unarchiveTask = projectAction(UnarchiveTaskSchema)
 
     const { projectId, taskId } = parsedInput
 
-    // Freeze exception: no assertTaskMutable — unarchiving is the way out.
-    // The existence check still scopes the task to the project so a foreign
-    // taskId can never reach the spawn helper, and a live task is rejected so
-    // this never doubles as a "spawn now" button.
+    // The existence check scopes the task to the project so a foreign taskId
+    // can never reach the spawn helper, and a live task is rejected so this
+    // never doubles as a "spawn now" button.
     const task = await queries.getTaskRowInProject(taskId, projectId)
     if (!task) returnActionError("NOT_FOUND")
     if (!task.archived) returnActionError("VALIDATION_FAILED")
@@ -431,8 +426,7 @@ export const getTaskComments = projectAction(
       taskId,
       projectId,
       ctx.session.user.id,
-      ctx.projectRole,
-      { allowArchived: true }
+      ctx.projectRole
     )
 
     return queries.getTaskComments(taskId)

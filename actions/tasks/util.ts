@@ -43,10 +43,10 @@ export async function assertTaskInProject(
 }
 
 /**
- * The archived freeze: every task/assignment mutation rejects while
- * `archived` is true. `unarchiveTask` and `deleteTask` are the exceptions and
- * never call this. `undefined` means the row is gone (or belongs to another
- * project), which is a not-found, not a freeze.
+ * Guards `archiveTask` against a double archive: archiving an archived task
+ * would re-stamp its due date and re-close nothing. Archived tasks are
+ * otherwise editable like any other; they only never spawn. `undefined` means
+ * the row is gone (or belongs to another project), which is a not-found.
  */
 export function assertTaskMutable(
   task: { archived: boolean } | undefined
@@ -57,19 +57,15 @@ export function assertTaskMutable(
 
 /**
  * Project work is visible to owners and admins; a collaborator only sees a
- * task's comments while they hold an open assignment on it. The archived
- * freeze applies first: comment writes reject a frozen task, while reads opt
- * in with `allowArchived` — an archived task's discussion stays readable.
+ * task's comments while they hold an open assignment on it.
  */
 export async function assertCommentAccess(
   taskId: string,
   projectId: string,
   userId: string,
-  role: ProjectRole | null,
-  options: { allowArchived?: boolean } = {}
+  role: ProjectRole | null
 ): Promise<void> {
-  const task = await assertTaskInProject(taskId, projectId)
-  if (!options.allowArchived) assertTaskMutable(task)
+  await assertTaskInProject(taskId, projectId)
   if (canViewProject(role)) return
 
   const openAssignment = await queries.getOpenAssignmentId(

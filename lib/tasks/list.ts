@@ -3,6 +3,7 @@ import type {
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
 import { isOpenAssignment } from "@/lib/tasks/filter"
+import type { TaskAssigneeIdentity } from "@/lib/types"
 
 export type TasksVisibilityFilter = "open" | "archived"
 
@@ -22,6 +23,50 @@ export function visibleAssignments(
   return assignments.some(isOpenAssignment)
     ? assignments.filter(isOpenAssignment)
     : assignments
+}
+
+/**
+ * The people the assignee column shows. The roster (`assigneeIds`) is the
+ * source of truth for who is assigned, so a member without an assignment
+ * row — an out-of-range add on a repeating task, an archived task — still
+ * shows. Identity comes from the task's loaded rows, then the project
+ * members; an unresolvable id keeps an anonymous entry rather than
+ * dropping. Rows of `shown` set the order so a task whose roster matches
+ * its rows renders as before. An empty roster falls back to `shown`.
+ */
+export function assigneeIdentities(
+  assigneeIds: string[],
+  shown: TaskAssigneeIdentity[],
+  loaded: TaskAssigneeIdentity[],
+  members: TaskAssigneeIdentity[]
+): TaskAssigneeIdentity[] {
+  if (assigneeIds.length === 0) return shown
+
+  const roster = new Set(assigneeIds)
+  const seen = new Set<string>()
+  const result: TaskAssigneeIdentity[] = []
+
+  for (const identity of shown) {
+    if (!roster.has(identity.userId) || seen.has(identity.userId)) continue
+    seen.add(identity.userId)
+    result.push(identity)
+  }
+
+  for (const userId of assigneeIds) {
+    if (seen.has(userId)) continue
+    seen.add(userId)
+    result.push(
+      loaded.find((identity) => identity.userId === userId) ??
+        members.find((identity) => identity.userId === userId) ?? {
+          userId,
+          userName: null,
+          userEmail: null,
+          userImage: null,
+        }
+    )
+  }
+
+  return result
 }
 
 /**

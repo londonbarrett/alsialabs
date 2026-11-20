@@ -61,7 +61,6 @@ export function ProjectTaskCommentsPanel({
       loading={loading}
       currentUserId={currentUserId}
       canModerate={isOwner}
-      readOnly={task?.archived ?? false}
       open={open}
       onOpenChange={onOpenChange}
       onRefresh={refresh}

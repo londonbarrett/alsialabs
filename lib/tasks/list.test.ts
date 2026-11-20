@@ -4,8 +4,10 @@ import type {
   TaskAssignmentDTO,
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
+import type { TaskAssigneeIdentity } from "@/lib/types"
 import { assignmentCounts } from "./filter"
 import {
+  assigneeIdentities,
   freshlyClosedRows,
   mergeClosedRows,
   selectTasks,
@@ -95,6 +97,71 @@ describe("visibleAssignments", () => {
       makeAssignment({ id: "a2", userId: "u1", status: "cancelled" }),
     ]
     expect(visibleAssignments(rows, null)).toBe(rows)
+  })
+})
+
+describe("assigneeIdentities", () => {
+  const identity = (
+    userId: string,
+    userName: string | null = null
+  ): TaskAssigneeIdentity => ({
+    userId,
+    userName,
+    userEmail: `${userId}@test.local`,
+    userImage: null,
+  })
+
+  it("shows roster members without any assignment row — an archived task never reads Unassigned", () => {
+    const shown = [identity("u1", "One")]
+    const identities = assigneeIdentities(
+      ["u1", "u2"],
+      shown,
+      shown,
+      [identity("u1", "One"), identity("u2", "Two")]
+    )
+    expect(identities.map((i) => i.userId)).toEqual(["u1", "u2"])
+    expect(identities[1].userName).toBe("Two")
+  })
+
+  it("resolves an id from loaded rows before the project members", () => {
+    const loaded = identity("u1", "From row")
+    expect(
+      assigneeIdentities(["u1"], [], [loaded], [identity("u1", "From members")])
+    ).toEqual([loaded])
+  })
+
+  it("keeps an unresolvable id as an anonymous entry — a fallback avatar, never a drop", () => {
+    expect(assigneeIdentities(["ghost"], [], [], [])).toEqual([
+      {
+        userId: "ghost",
+        userName: null,
+        userEmail: null,
+        userImage: null,
+      },
+    ])
+  })
+
+  it("orders shown rows first, then the rest of the roster, without duplicates", () => {
+    const first = identity("u1", "One")
+    const second = identity("u2", "Two")
+    const third = identity("u3", "Three")
+    const identities = assigneeIdentities(
+      ["u3", "u1", "u2", "u1"],
+      [first, second, first],
+      [first, second, third],
+      []
+    )
+    expect(identities.map((i) => i.userId)).toEqual(["u1", "u2", "u3"])
+  })
+
+  it("falls back to shown when the roster is empty", () => {
+    const row = identity("u1", "One")
+    expect(assigneeIdentities([], [row], [row], [])).toEqual([row])
+  })
+
+  it("renders a roster-matching task exactly as its rows", () => {
+    const rows = [identity("u1", "One"), identity("u2", "Two")]
+    expect(assigneeIdentities(["u1", "u2"], rows, rows, [])).toEqual(rows)
   })
 })
 

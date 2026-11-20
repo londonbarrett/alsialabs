@@ -391,7 +391,7 @@ test("a repeating task emptied through the wizard stays under Open without reope
   await page.keyboard.press("Escape")
 })
 
-test("archiving a repeating task freezes it, spawns nothing, and unarchiving reopens it", async ({
+test("archiving a repeating task spawns nothing, stays editable, and unarchiving reopens it", async ({
   page,
   signInAs,
 }) => {
@@ -437,6 +437,14 @@ test("archiving a repeating task freezes it, spawns nothing, and unarchiving reo
   )
   await expect(row).toBeVisible()
 
+  // The assignee column is roster-driven: the collaborator's avatar shows
+  // on the archived row, never the Unassigned label.
+  await expect(row).not.toContainText("Sin asignar")
+  await expect(
+    row.locator('[data-slot="avatar-fallback"]')
+  ).toHaveCount(1)
+  await expect(row.getByText("E2", { exact: true })).toBeVisible()
+
   // Archive closed the open occurrence and spawned no successor.
   await expect(row).not.toContainText("abierta")
   await expect(row).toContainText("1 cerrada")
@@ -445,42 +453,49 @@ test("archiving a repeating task freezes it, spawns nothing, and unarchiving reo
   await expect(person).toHaveCount(1)
   await expect(person).toContainText("Completado")
 
-  // Frozen: no status select, no Reopen, no priority select; the due cell
-  // shows the archive day.
+  // The history rows are badge-only because repeat chains can't be
+  // reopened — recurrence, not a freeze. The row itself is editable: the
+  // priority select is live on the archived task; the due cell shows the
+  // archive day.
   await expect(person.getByRole("combobox")).toHaveCount(0)
   await expect(
     person.getByRole("button", { name: "Reabrir" })
   ).toHaveCount(0)
-  await expect(row.getByRole("combobox")).toHaveCount(0)
+  await expect(row.getByRole("combobox")).toHaveCount(1)
   const today = new Intl.DateTimeFormat("es-ES", {
     month: "short",
     day: "numeric",
   }).format(new Date())
   await expect(row.locator("td").nth(4)).toContainText(today)
 
-  // Comments stay readable but read-only: no input, edit or delete.
+  // Comments stay fully writable on the archived task: the note is
+  // readable, a new comment posts, and own comments keep edit/delete.
   await row.getByRole("button", { name: /^\d+$/ }).click()
-  const frozenSheet = page.getByRole("dialog", { name: taskName })
-  await expect(frozenSheet.getByText(note)).toBeVisible()
+  const archivedSheet = page.getByRole("dialog", { name: taskName })
+  await expect(archivedSheet.getByText(note)).toBeVisible()
+  const input = archivedSheet.getByPlaceholder("Agregar un comentario...")
+  await expect(input).toBeVisible()
+  await input.fill("E2E archived reply")
+  await page.keyboard.press("Enter")
   await expect(
-    frozenSheet.getByPlaceholder("Agregar un comentario...")
-  ).toHaveCount(0)
-  await expect(frozenSheet.locator(".lucide-pencil")).toHaveCount(0)
-  await expect(frozenSheet.locator(".lucide-trash-2")).toHaveCount(0)
+    archivedSheet.getByText("E2E archived reply")
+  ).toBeVisible()
+  await expect(archivedSheet.locator(".lucide-pencil")).toHaveCount(2)
+  await expect(archivedSheet.locator(".lucide-trash-2")).toHaveCount(2)
   await page.keyboard.press("Escape")
-  await expect(frozenSheet).toBeHidden()
+  await expect(archivedSheet).toBeHidden()
 
-  // Menu: Unarchive and Delete, never Edit or Archive.
+  // Menu: Edit, Unarchive and Delete; Archive is gone (already archived).
   await openTaskMenu(page, row, taskName)
+  await expect(
+    page.getByRole("menuitem", { name: `Editar ${taskName}` })
+  ).toBeVisible()
   await expect(
     page.getByRole("menuitem", { name: "Desarchivar", exact: true })
   ).toBeVisible()
   await expect(
     page.getByRole("menuitem", { name: `Eliminar ${taskName}` })
   ).toBeVisible()
-  await expect(
-    page.getByRole("menuitem", { name: `Editar ${taskName}` })
-  ).toHaveCount(0)
   await expect(
     page.getByRole("menuitem", { name: "Archivar", exact: true })
   ).toHaveCount(0)
@@ -524,13 +539,60 @@ test("a one-off task archived as cancelled returns to Open with its roster intac
 
   await archivedFilter(page).click()
   await expect(row).toBeVisible()
+
+  // The assignee column is roster-driven on an archived row too: the
+  // collaborator's avatar shows, never the Unassigned label.
+  await expect(row).not.toContainText("Sin asignar")
+  await expect(
+    row.locator('[data-slot="avatar-fallback"]')
+  ).toHaveCount(1)
+  await expect(row.getByText("E2", { exact: true })).toBeVisible()
+
   await expandAssignments(row)
   const person = personRows(row)
   await expect(person).toHaveCount(1)
   await expect(person).toContainText("Cancelado")
+
+  // Frozen no more: the archived row reopens its closed occurrence and
+  // the reopened row drives the status select. Re-closing as Cancelado
+  // leaves the task exactly as it was — nothing spawns while archived.
+  await pinRow(row)
+  const reopen = person.getByRole("button", { name: "Reabrir" })
+  await expect(reopen).toBeVisible()
+  await reopen.click()
   await expect(
-    person.getByRole("button", { name: "Reabrir" })
-  ).toHaveCount(0)
+    page.getByText("Estado actualizado").first()
+  ).toBeVisible()
+  await expect(row).toContainText("1 abierta")
+  await pinRow(person)
+  await person.getByRole("combobox").click()
+  await page.getByRole("option", { name: "Cancelado" }).click()
+  await expect(row).toContainText("1 cerrada")
+  await expect(row).not.toContainText("abierta")
+  await expect(person).toHaveCount(1)
+  await expect(person).toContainText("Cancelado")
+
+  // Editing the archived task is allowed: the added assignee takes the
+  // membership row but opens nothing, and the roster-driven column shows
+  // both people.
+  const edit = await openEdit(page, row, taskName)
+  await edit.getByRole("button", { name: "Agregar asignado" }).click()
+  await page
+    .getByRole("menuitemcheckbox", { name: /user1@test\.local/ })
+    .click()
+  await expect(
+    edit.getByRole("button", { name: "Eliminar user1@test.local" })
+  ).toBeVisible()
+  await saveEdit(page, edit)
+  await expect(row).toContainText("1 cerrada")
+  await expect(row).not.toContainText("abierta")
+  // The added owner has no assignment row (archived tasks never open
+  // one) yet the roster-driven column renders both people.
+  await expect(
+    row.locator('[data-slot="avatar-fallback"]')
+  ).toHaveCount(2)
+  await expect(row.getByText("E2", { exact: true })).toBeVisible()
+  await expect(row).not.toContainText("Sin asignar")
 
   await unarchiveTask(page, row, taskName)
   await expect(row).toHaveCount(0)

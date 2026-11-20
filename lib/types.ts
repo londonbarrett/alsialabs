@@ -69,3 +69,11 @@ export type SettleResult = {
   error?: string
   fieldErrors?: Record<string, string[] | undefined>
 }
+
+/** A person shown in a task's assignee column: resolved from an assignment row or a project member. */
+export type TaskAssigneeIdentity = {
+  userId: string
+  userName: string | null
+  userEmail: string | null
+  userImage: string | null
+}

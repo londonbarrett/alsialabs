@@ -1047,21 +1047,22 @@ describe("updateTask", () => {
     })
   })
 
-  it("only writes a live task, as a backstop to an archive racing the edit", async () => {
+  it("edits an archived task without filtering its row on archived", async () => {
     const baseline = state.mock.calls.length
-    state.mock
-      .onSelect(schema.tasksTable)
-      .respond([makeTaskRow({ archived: false })])
-    state.mock.onUpdate(schema.tasksTable).respond([])
+    const archived = makeTaskRow({ archived: true })
+    state.mock.onSelect(schema.tasksTable).respond([archived])
+    state.mock.onUpdate(schema.tasksTable).respond([archived])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
 
     const result = await updateTask({ ...validTask, taskId: TASK_ID })
 
-    expect(result.serverError).toEqual({ code: "NOT_FOUND" })
+    expect(result.serverError).toBeUndefined()
     const update = state.mock.calls
       .slice(baseline)
       .find((c) => c.sql.includes('update "task" set'))
-    expect(update?.sql).toMatch(/and "task"\."archived" = \$\d+\)/)
-    expect(update?.params.at(-1)).toBe(false)
+    expect(update?.sql).not.toMatch(/"task"\."archived"/)
+    expect(update?.sql).not.toMatch(/"archived" =/)
   })
 
   it("forbids a collaborator", async () => {
@@ -1401,7 +1402,7 @@ describe("updateAssignmentStatus", () => {
     expect(result.data?.nextAssignment?.userId).toBe(USER_ID)
   })
 
-  it("closing an assignment on an archived task spawns nothing", async () => {
+  it("closing an assignment on an archived task succeeds but spawns nothing", async () => {
     const baseline = state.mock.calls.length
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
       { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", archived: true,
@@ -1410,6 +1411,9 @@ describe("updateAssignmentStatus", () => {
         startTime: "09:00", endTime: "11:00" },
     ])
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "done" })])
     state.mock
       .onInsert(schema.taskAssignmentsTable)
       .respond([{ id: "should-not-happen" }])
@@ -1420,11 +1424,12 @@ describe("updateAssignmentStatus", () => {
       status: "done",
     })
 
-    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.nextAssignment).toBeNull()
     const calls = state.mock.calls.slice(baseline)
     expect(
       calls.some((c) => c.sql.includes('update "task_assignment"'))
-    ).toBe(false)
+    ).toBe(true)
     expect(
       calls.some((c) => c.sql.includes('insert into "task_assignment"'))
     ).toBe(false)
@@ -1750,8 +1755,8 @@ describe("unarchiveTask", () => {
 
   /**
    * The row reads archived on the action's pre-check and unarchived from the
-   * helper's read inside the transaction — pinning that no freeze check
-   * rejects the action (unarchive is the freeze exception) while rule 0 still
+   * helper's read inside the transaction — pinning that the action is not
+   * rejected for an archived task while rule 0 still
    * sees the post-write state.
    */
   function taskUnarchives(overrides: Record<string, unknown>) {
@@ -1924,88 +1929,136 @@ describe("unarchiveTask", () => {
   })
 })
 
-describe("archived freeze", () => {
-  it("freezes every mutation while archived", async () => {
-    state.mock.onSelect(schema.tasksTable).respond([
-      makeTaskRow({ archived: true }),
-    ])
+describe("archived tasks", () => {
+  it("edits an archived task like a live one", async () => {
+    const archived = makeTaskRow({ archived: true })
+    state.mock.onSelect(schema.tasksTable).respond([archived])
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
       { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", archived: true },
     ])
-    // The two exceptions still write against the same archived row.
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow()])
+    state.mock.onUpdate(schema.tasksTable).respond([archived])
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+
+    for (const [name, action] of [
+      ["updateTask", () => updateTask({ ...validTask, taskId: TASK_ID })],
+      ["updateAssignmentStatus", () => updateAssignmentStatus({ projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "in_progress" })],
+      ["updateAssignmentComment", () => updateAssignmentComment({ projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, comment: "hi" })],
+      ["updateTaskPriority", () => updateTaskPriority({ projectId: PROJECT_ID, taskId: TASK_ID, priority: "high" })],
+    ] as const) {
+      expect((await action()).serverError, name).toBeUndefined()
+    }
+  })
+
+  it("only rejects a second archive; unarchive and delete still succeed", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({ archived: true }),
+    ])
     state.mock.onUpdate(schema.tasksTable).respond([
       makeTaskRow({ archived: false }),
     ])
     state.mock.onDelete(schema.tasksTable).respond([])
 
-    for (const action of [
-      () => updateTask({ ...validTask, taskId: TASK_ID }),
-      () => updateAssignmentStatus({ projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "done" }),
-      () => updateAssignmentComment({ projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, comment: "hi" }),
-      () => updateTaskPriority({ projectId: PROJECT_ID, taskId: TASK_ID, priority: "high" }),
-      () => createComment({ projectId: PROJECT_ID, taskId: TASK_ID, content: "hi" }),
-      () => updateComment({ projectId: PROJECT_ID, taskId: TASK_ID, commentId: COMMENT_ID, content: "hi" }),
-      () => deleteComment({ projectId: PROJECT_ID, taskId: TASK_ID, commentId: COMMENT_ID }),
-    ]) expect((await action()).serverError?.code).toBe("FORBIDDEN")
-
-    const deleted = await deleteTask({
+    const archived = await archiveTask({
       projectId: PROJECT_ID,
       taskId: TASK_ID,
+      closeAs: "done",
     })
-    expect(deleted.serverError).toBeUndefined()
+    expect(archived.serverError).toEqual({ code: "FORBIDDEN" })
 
     const unarchived = await unarchiveTask({
       projectId: PROJECT_ID,
       taskId: TASK_ID,
     })
     expect(unarchived.serverError).toBeUndefined()
+
+    const deleted = await deleteTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+    expect(deleted.serverError).toBeUndefined()
+  })
+
+  it("adding an assignee to an archived non-repeating task writes membership but opens nothing", async () => {
+    const archived = makeTaskRow({ archived: true })
+    state.mock.onUpdate(schema.tasksTable).respond([archived])
+    state.mock.onSelect(schema.tasksTable).respond([archived])
+    state.mock.onSelect(schema.taskAssigneesTable).respond([])
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: USER_ID }])
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: USER_ID }, { userId: OTHER_ID }])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    const baseline = state.mock.calls.length
+
+    const result = await updateTask({
+      ...validTask,
+      taskId: TASK_ID,
+      assigneeIds: [OTHER_ID],
+    })
+
+    expect(result.serverError).toBeUndefined()
+    const calls = state.mock.calls.slice(baseline)
+    const membership = calls.filter((c) =>
+      c.sql.includes('insert into "task_assignee"')
+    )
+    expect(membership).toHaveLength(1)
+    expect(membership[0].params).toContain(OTHER_ID)
+    expect(
+      calls.some((c) => c.sql.includes('insert into "task_assignment"'))
+    ).toBe(false)
   })
 })
 
 describe("archived comments", () => {
-  it("lets a manager read an archived task's comments while every comment write stays frozen", async () => {
+  const authored = {
+    id: COMMENT_ID,
+    taskId: TASK_ID,
+    authorId: USER_ID,
+    authorName: "Test",
+    authorImage: null,
+    content: "hi",
+    createdAt: new Date("2026-10-30T08:00:00"),
+    updatedAt: new Date("2026-10-30T08:00:00"),
+  }
+
+  beforeEach(() => {
     state.mock
       .onSelect(schema.tasksTable)
       .respond([makeTaskRow({ archived: true })])
-    state.mock.onSelect(schema.taskCommentsTable).respond([])
+  })
+
+  it("reads and writes an archived task's comments like a live one", async () => {
+    state.mock.onSelect(schema.taskCommentsTable).respond([authored])
+    state.mock.onInsert(schema.taskCommentsTable).respond([authored])
+    state.mock.onUpdate(schema.taskCommentsTable).respond([])
+    state.mock.onDelete(schema.taskCommentsTable).respond([])
+    state.mock
+      .onSelect(schema.usersTable)
+      .respond([{ name: "Test", image: null }])
 
     const read = await getTaskComments({
       projectId: PROJECT_ID,
       taskId: TASK_ID,
     })
     expect(read.serverError).toBeUndefined()
-    expect(read.data).toEqual([])
 
-    for (const write of [
-      () =>
-        createComment({
-          projectId: PROJECT_ID,
-          taskId: TASK_ID,
-          content: "hi",
-        }),
-      () =>
-        updateComment({
-          projectId: PROJECT_ID,
-          taskId: TASK_ID,
-          commentId: COMMENT_ID,
-          content: "hi",
-        }),
-      () =>
-        deleteComment({
-          projectId: PROJECT_ID,
-          taskId: TASK_ID,
-          commentId: COMMENT_ID,
-        }),
-    ]) {
-      expect((await write()).serverError?.code).toBe("FORBIDDEN")
+    for (const [name, write] of [
+      ["createComment", () => createComment({ projectId: PROJECT_ID, taskId: TASK_ID, content: "hi" })],
+      ["updateComment", () => updateComment({ projectId: PROJECT_ID, taskId: TASK_ID, commentId: COMMENT_ID, content: "hi" })],
+      ["deleteComment", () => deleteComment({ projectId: PROJECT_ID, taskId: TASK_ID, commentId: COMMENT_ID })],
+    ] as const) {
+      expect((await write()).serverError, name).toBeUndefined()
     }
   })
 
   it("keeps a collaborator without an open assignment out of an archived task's comments", async () => {
     grantAccess("collaborator")
-    state.mock
-      .onSelect(schema.tasksTable)
-      .respond([makeTaskRow({ archived: true })])
     state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
     const read = await getTaskComments({
@@ -2017,7 +2070,7 @@ describe("archived comments", () => {
 })
 
 describe("assertTaskMutable", () => {
-  it("throws FORBIDDEN for an archived task and lets a mutable one through", () => {
+  it("is the double-archive guard: FORBIDDEN for an archived task, a live one passes", () => {
     expect(() => assertTaskMutable({ archived: true })).toThrow("FORBIDDEN")
     expect(() => assertTaskMutable({ archived: false })).not.toThrow()
   })

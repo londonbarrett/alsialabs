@@ -22,7 +22,7 @@ import {
   assignmentCounts,
   isOpenAssignment,
 } from "@/lib/tasks/filter"
-import { visibleAssignments } from "@/lib/tasks/list"
+import { assigneeIdentities, visibleAssignments } from "@/lib/tasks/list"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
@@ -65,7 +65,7 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
-  const { isOwner, isAdmin } = useProjectContextState()
+  const { isOwner, isAdmin, members } = useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
@@ -130,6 +130,12 @@ export function TasksTable({
             // Reopen); repeating tasks render only open rows here —
             // the history panel owns all closed display, seeded with
             // the store rows when none is open.
+            const assignees = assigneeIdentities(
+              task.assigneeIds,
+              shown,
+              task.assignments,
+              members
+            )
             const openRows = shown.filter(isOpenAssignment)
             const closedRows =
               task.recurrence === null
@@ -240,8 +246,8 @@ export function TasksTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    {shown.length > 0 ? (
-                      <TaskAssigneeStack assignments={shown} />
+                    {assignees.length > 0 ? (
+                      <TaskAssigneeStack assignees={assignees} />
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         {t("common.unassigned")}
@@ -250,7 +256,7 @@ export function TasksTable({
                   </TableCell>
                   <TableCell>{statusSummary}</TableCell>
                   <TableCell>
-                    {(isOwner || isAdmin) && canEdit && !task.archived ? (
+                    {(isOwner || isAdmin) && canEdit ? (
                       <TaskPrioritySelect
                         priority={task.priority}
                         onPriorityChange={(p) =>
@@ -292,9 +298,7 @@ export function TasksTable({
                     <TableCell>
                       <ActionMenu
                         entityName={task.name}
-                        onEdit={
-                          task.archived ? undefined : () => onEdit(task)
-                        }
+                        onEdit={() => onEdit(task)}
                         onDelete={() => onDelete(task.id)}
                         canEdit={canEdit}
                         canDelete={canDeleteProject}
@@ -317,21 +321,13 @@ export function TasksTable({
                       taskId={task.id}
                       assignments={openRows}
                       onStatusChange={onStatusChange}
-                      readOnly={task.archived}
                     />
                     {task.recurrence === null && (
                       <TaskClosedAssignmentRows
                         taskId={task.id}
                         assignments={closedRows}
-                        onReopen={
-                          task.archived
-                            ? undefined
-                            : (assignmentId) =>
-                                onStatusChange(
-                                  task.id,
-                                  assignmentId,
-                                  "todo"
-                                )
+                        onReopen={(assignmentId) =>
+                          onStatusChange(task.id, assignmentId, "todo")
                         }
                       />
                     )}

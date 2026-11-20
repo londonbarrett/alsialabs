@@ -407,7 +407,6 @@ async function getAssignmentForComment(
     .select({
       userId: taskAssignmentsTable.userId,
       status: taskAssignmentsTable.status,
-      archived: tasksTable.archived,
     })
     .from(taskAssignmentsTable)
     .innerJoin(
@@ -810,8 +809,7 @@ async function updateTaskRow(
     .where(
       and(
         eq(tasksTable.id, taskId),
-        eq(tasksTable.projectId, projectId),
-        eq(tasksTable.archived, false)
+        eq(tasksTable.projectId, projectId)
       )
     )
     .returning()
@@ -881,7 +879,10 @@ async function syncTaskAssignments(
       return
     }
 
-    const needsRow = added.filter((id) => !openUserIds.has(id))
+    // An archived task takes the membership row but never an open assignment.
+    const needsRow = taskRow.archived
+      ? []
+      : added.filter((id) => !openUserIds.has(id))
     if (needsRow.length > 0) {
       const window = firstAssignmentWindow(taskRow)
       await tx.insert(taskAssignmentsTable).values(
