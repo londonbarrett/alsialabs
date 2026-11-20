@@ -230,6 +230,80 @@ describe("createProjectTasksStore", () => {
     ).toEqual(["assignment-2"])
   })
 
+  it("setArchived closes every open row with the chosen disposition and bumps closedCount", () => {
+    const NOW = new Date("2024-06-01T12:00:00.000Z")
+    const store = createProjectTasksStore([
+      makeTask({
+        id: "a",
+        assignments: [
+          makeAssignment({ id: "assignment-1" }),
+          makeAssignment({
+            id: "assignment-2",
+            userId: "user-2",
+            userName: "Grace",
+          }),
+        ],
+      }),
+    ])
+    const id = store.getState().pend({
+      type: "setArchived",
+      taskId: "a",
+      archived: true,
+      closeAs: "cancelled",
+      endDate: NOW,
+    })
+    store.getState().commit(id)
+
+    const task = store.getState().optimistic.tasks[0]
+    expect(task.archived).toBe(true)
+    expect(task.endDate).toEqual(NOW)
+    expect(
+      task.assignments.every((row) => row.status === "cancelled")
+    ).toBe(true)
+    expect(task.closedCount).toBe(2)
+  })
+
+  it("setArchived false appends spawned rows and clears the archived flag", () => {
+    const closedRow = makeAssignment({ id: "closed-1", status: "done" })
+    const spawnedRow = makeAssignment({
+      id: "spawned-1",
+      userId: "user-2",
+      userName: "Grace",
+    })
+    const store = createProjectTasksStore([
+      makeTask({
+        id: "a",
+        archived: true,
+        assignments: [closedRow],
+        closedCount: 1,
+      }),
+    ])
+    const id = store.getState().pend({
+      type: "setArchived",
+      taskId: "a",
+      archived: false,
+    })
+    store.getState().commit(id, {
+      type: "setArchived",
+      taskId: "a",
+      archived: false,
+      // The second row repeats an id already present: it must neither be
+      // appended nor overwrite the existing history row.
+      spawned: [spawnedRow, { ...closedRow, status: "todo" }],
+    })
+
+    const task = store.getState().optimistic.tasks[0]
+    expect(task.archived).toBe(false)
+    expect(task.closedCount).toBe(1)
+    expect(task.assignments.map((row) => row.id)).toEqual([
+      "spawned-1",
+      "closed-1",
+    ])
+    expect(
+      task.assignments.find((row) => row.id === "closed-1")?.status
+    ).toBe("done")
+  })
+
   it("forgets loaded comments when the task is deleted", () => {
     const store = createProjectTasksStore([makeTask({ id: "a" })])
     store
