@@ -14,7 +14,6 @@ import type {
   TaskDetailsIssue,
   TaskDetailsValues,
 } from "@/lib/tasks/form-validation"
-import { isTerminalStatus } from "@/lib/util/project-roles"
 import { combineDateTime } from "@/lib/util/schedule"
 import { isAllDayDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
@@ -64,22 +63,18 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [priority, setPriority] = useState<TaskPriorityDTO>(
     task?.priority ?? null
   )
-  // Current members holding an open assignment on the server: the initial
-  // selection and the set whose removal needs the disposition dialog.
-  // Computed once from the task prop — terminal history never re-enters
-  // the selection, and a stranded open assignment left by a member who
-  // left the project is dropped here (sync closes it as cancelled on save)
-  // so it can never travel in the payload as an unrenderable chip.
+  // Current members on the task's assignee roster: the initial selection
+  // and the set whose removal needs the disposition dialog. Computed once
+  // from the task prop — the roster (not open rows) is the source, so a
+  // zero-open task still shows its assignees, and a roster user who left
+  // the project is dropped here so it can never travel in the payload as
+  // an unrenderable chip.
   const protectedIds = useMemo(
     () =>
       task
-        ? task.assignments
-            .filter(
-              (a) =>
-                !isTerminalStatus(a.status) &&
-                members.some((m) => m.userId === a.userId)
-            )
-            .map((a) => a.userId)
+        ? task.assigneeIds.filter((userId) =>
+            members.some((m) => m.userId === userId)
+          )
         : [],
     [task, members]
   )

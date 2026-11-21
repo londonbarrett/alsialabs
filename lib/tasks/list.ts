@@ -2,9 +2,10 @@ import type {
   TaskAssignmentDTO,
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
-import { isOpenAssignment, shouldShowTask } from "@/lib/tasks/filter"
+import { isOpenAssignment } from "@/lib/tasks/filter"
+import type { TaskAssigneeIdentity } from "@/lib/types"
 
-export type TasksVisibilityFilter = "unfinished" | "both" | "finished"
+export type TasksVisibilityFilter = "open" | "archived"
 
 /**
  * Rows to render for a task. Non-repeating tasks load their full
@@ -22,6 +23,53 @@ export function visibleAssignments(
   return assignments.some(isOpenAssignment)
     ? assignments.filter(isOpenAssignment)
     : assignments
+}
+
+/**
+ * The people the assignee column shows. The roster (`assigneeIds`) is the
+ * source of truth for who is assigned, so a member without an assignment
+ * row — an out-of-range add on a repeating task, an archived task — still
+ * shows. Identity comes from the task's loaded rows, then the project
+ * members; an unresolvable id keeps an anonymous entry rather than
+ * dropping. Rows of `shown` set the order so a task whose roster matches
+ * its rows renders as before. An empty roster means nobody is assigned —
+ * any rows that exist belong to removed users, so the column is empty
+ * (the table then renders its Unassigned label) and never adds an id that
+ * is not on the roster.
+ */
+export function assigneeIdentities(
+  assigneeIds: string[],
+  shown: TaskAssigneeIdentity[],
+  loaded: TaskAssigneeIdentity[],
+  members: TaskAssigneeIdentity[]
+): TaskAssigneeIdentity[] {
+  if (assigneeIds.length === 0) return []
+
+  const roster = new Set(assigneeIds)
+  const seen = new Set<string>()
+  const result: TaskAssigneeIdentity[] = []
+
+  for (const identity of shown) {
+    if (!roster.has(identity.userId) || seen.has(identity.userId)) continue
+    seen.add(identity.userId)
+    result.push(identity)
+  }
+
+  for (const userId of assigneeIds) {
+    if (seen.has(userId)) continue
+    seen.add(userId)
+    result.push(
+      loaded.find((identity) => identity.userId === userId) ??
+        members.find((identity) => identity.userId === userId) ?? {
+          userId,
+          userName: null,
+          userEmail: null,
+          userImage: null,
+        }
+    )
+  }
+
+  return result
 }
 
 /**
@@ -103,36 +151,12 @@ const byEndDateAsc = (
   return a.endDate.getTime() - b.endDate.getTime()
 }
 
-const byEndDateDesc = (
-  a: TaskWithAssignmentsDTO,
-  b: TaskWithAssignmentsDTO
-): number => {
-  if (!a.endDate) return b.endDate ? 1 : 0
-  if (!b.endDate) return -1
-  return b.endDate.getTime() - a.endDate.getTime()
-}
-
 export function selectTasks(
   tasks: TaskWithAssignmentsDTO[],
-  filter: TasksVisibilityFilter,
-  now: Date
+  filter: TasksVisibilityFilter
 ): TaskWithAssignmentsDTO[] {
-  const unfinished: TaskWithAssignmentsDTO[] = []
-  const finished: TaskWithAssignmentsDTO[] = []
-
-  for (const task of tasks) {
-    if (shouldShowTask(task, now)) unfinished.push(task)
-    else finished.push(task)
-  }
-
-  switch (filter) {
-    case "unfinished":
-      return unfinished.sort(byEndDateAsc)
-    case "finished":
-      return finished.sort(byEndDateDesc)
-    case "both":
-      unfinished.sort(byEndDateAsc)
-      finished.sort(byEndDateDesc)
-      return [...unfinished, ...finished]
-  }
+  const wantArchived = filter === "archived"
+  return tasks
+    .filter((task) => task.archived === wantArchived)
+    .sort(byEndDateAsc)
 }

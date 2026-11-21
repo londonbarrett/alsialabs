@@ -9,12 +9,14 @@ import {
 } from "@/actions/tasks/schemas"
 import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import {
+  archiveTask as archiveTaskAction,
   createComment as createCommentAction,
   createTask as createTaskAction,
   deleteComment as deleteCommentAction,
   deleteTask as deleteTaskAction,
   getTaskAssignmentHistory,
   getTaskComments,
+  unarchiveTask as unarchiveTaskAction,
   updateAssignmentComment as updateAssignmentCommentAction,
   updateAssignmentStatus as updateAssignmentStatusAction,
   updateComment as updateCommentAction,
@@ -68,6 +70,10 @@ export function useProjectTasksActions() {
   )
   const { executeAsync: executeHistory } = useAction(
     getTaskAssignmentHistory
+  )
+  const { executeAsync: executeArchive } = useAction(archiveTaskAction)
+  const { executeAsync: executeUnarchive } = useAction(
+    unarchiveTaskAction
   )
 
   const loadAssignmentHistory = useCallback(
@@ -179,6 +185,42 @@ export function useProjectTasksActions() {
       executeDelete({ projectId, taskId })
     )
     settle(result, t("projects.tasks.taskDeleted"))
+  }
+
+  async function archiveTask(
+    projectId: string,
+    taskId: string,
+    closeAs: "done" | "cancelled"
+  ) {
+    const result = await run(
+      {
+        type: "setArchived",
+        taskId,
+        archived: true,
+        closeAs,
+      },
+      () => executeArchive({ projectId, taskId, closeAs })
+    )
+    settle(result, t("projects.tasks.taskArchived"))
+  }
+
+  async function unarchiveTask(projectId: string, taskId: string) {
+    const result = await run(
+      { type: "setArchived", taskId, archived: false },
+      () => executeUnarchive({ projectId, taskId }),
+      {
+        commitAction: (r) =>
+          r.data
+            ? {
+                type: "setArchived",
+                taskId,
+                archived: false,
+                spawned: r.data.spawned,
+              }
+            : undefined,
+      }
+    )
+    settle(result, t("projects.tasks.taskUnarchived"))
   }
 
   async function updateAssignmentStatus(
@@ -353,6 +395,8 @@ export function useProjectTasksActions() {
     createTask,
     updateTask,
     deleteTask,
+    archiveTask,
+    unarchiveTask,
     updateAssignmentStatus,
     updateAssignmentComment,
     updateTaskPriority,

@@ -35,10 +35,24 @@ export async function assertAssignees(
 export async function assertTaskInProject(
   taskId: string,
   projectId: string
-): Promise<void> {
+) {
   const task = await queries.getTaskRowInProject(taskId, projectId)
 
   if (!task) returnActionError("NOT_FOUND")
+  return task
+}
+
+/**
+ * Guards `archiveTask` against a double archive: archiving an archived task
+ * would re-stamp its due date and re-close nothing. Archived tasks are
+ * otherwise editable like any other; they only never spawn. `undefined` means
+ * the row is gone (or belongs to another project), which is a not-found.
+ */
+export function assertTaskMutable(
+  task: { archived: boolean } | undefined
+): void {
+  if (!task) returnActionError("NOT_FOUND")
+  if (task.archived) returnActionError("FORBIDDEN")
 }
 
 /**

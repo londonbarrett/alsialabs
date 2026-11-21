@@ -2,12 +2,36 @@ import { describe, expect, it } from "vitest"
 
 import { CalendarAssignmentSchema } from "@/actions/calendar/schemas"
 import {
+  ArchiveTaskSchema,
   CreateTaskSchema,
   MyAssignmentSchema,
   TaskAssignmentSchema,
   TaskFormSchema,
+  TaskRecordSchema,
+  TaskWithAssignmentsSchema,
+  UnarchiveTaskSchema,
   UpdateTaskSchema,
 } from "@/actions/tasks/schemas"
+
+const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+const TASK_ID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+
+const minimalRow = {
+  id: "t1",
+  projectId: "p1",
+  name: "Task",
+  description: null,
+  priority: null,
+  startDate: null,
+  endDate: null,
+  recurrence: null,
+  interval: 1,
+  daysOfWeek: null,
+  startTime: null,
+  endTime: null,
+  createdAt: new Date("2026-11-01T09:00:00Z"),
+  updatedAt: new Date("2026-11-01T09:00:00Z"),
+}
 
 const base = {
   name: "Task",
@@ -173,5 +197,29 @@ describe("assignment dates from the detail view", () => {
 
     expect(parsed.startDate).toBeInstanceOf(Date)
     expect(parsed.endDate).toBeInstanceOf(Date)
+  })
+})
+
+describe("archive and assignee roster schemas", () => {
+  it("carries archived and the membership roster on task DTOs", () => {
+    expect(TaskRecordSchema.parse({ ...minimalRow, archived: false }))
+      .toMatchObject({ archived: false })
+    expect(
+      TaskWithAssignmentsSchema.parse({
+        ...minimalRow, archived: true, assigneeIds: ["u1"],
+        assignments: [], commentCount: 0, closedCount: 0,
+      })
+    ).toMatchObject({ archived: true, assigneeIds: ["u1"] })
+  })
+
+  it("validates archive and unarchive payloads", () => {
+    expect(ArchiveTaskSchema.parse({
+      projectId: PROJECT_ID, taskId: TASK_ID, closeAs: "done",
+    })).toEqual({ projectId: PROJECT_ID, taskId: TASK_ID, closeAs: "done" })
+    expect(ArchiveTaskSchema.safeParse({
+      projectId: PROJECT_ID, taskId: TASK_ID, closeAs: "paused",
+    }).success).toBe(false)
+    expect(UnarchiveTaskSchema.parse({ projectId: PROJECT_ID, taskId: TASK_ID }))
+      .toEqual({ projectId: PROJECT_ID, taskId: TASK_ID })
   })
 })

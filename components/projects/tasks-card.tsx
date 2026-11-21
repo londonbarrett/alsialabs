@@ -3,6 +3,7 @@
 import type {
   TaskAssignmentDTO,
   TaskPriorityDTO,
+  TaskStatus,
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
 import { useHasPermission } from "@/components/common/permissions-provider"
@@ -20,11 +21,13 @@ import { useProjectTasksActions } from "@/stores/project-tasks/use-project-tasks
 import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
 import { ListTodo, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useState } from "react"
+import { Activity, useState } from "react"
 import { ProjectTaskCommentsPanel } from "./project-task-comments-panel"
 import { TaskDialog, type TaskFormValues } from "./task-dialog"
 import { TasksFilter } from "./tasks-filter"
 import { TasksTable } from "./tasks-table"
+
+const VIEWS = ["open", "archived"] as const satisfies readonly TasksVisibilityFilter[]
 
 export function TasksCard() {
   const t = useTranslations()
@@ -37,6 +40,8 @@ export function TasksCard() {
     createTask,
     updateTask,
     deleteTask,
+    archiveTask,
+    unarchiveTask,
     updateAssignmentStatus,
     updateTaskPriority,
   } = useProjectTasksActions()
@@ -48,9 +53,7 @@ export function TasksCard() {
     TaskWithAssignmentsDTO | undefined
   >()
   const [isCommentsOpen, setIsCommentsOpen] = useState(false)
-  const [filter, setFilter] = useState<TasksVisibilityFilter>("unfinished")
-
-  const visibleTasks = selectTasks(tasks, filter, new Date())
+  const [filter, setFilter] = useState<TasksVisibilityFilter>("open")
 
   const openNew = () => {
     setEditingTask(undefined)
@@ -65,6 +68,27 @@ export function TasksCard() {
   const handleOpenChange = (open: boolean) => {
     setDialogOpen(open)
     if (!open) setEditingTask(undefined)
+  }
+
+  // Shared by both mounted views so the two TasksTable instances behave
+  // identically — only the tasks they render differ.
+  const tableProps = {
+    onStatusChange: (
+      taskId: string,
+      assignmentId: string,
+      status: TaskStatus
+    ) => updateAssignmentStatus(projectId, taskId, assignmentId, status),
+    onPriorityChange: (taskId: string, priority: TaskPriorityDTO) =>
+      updateTaskPriority(projectId, taskId, priority),
+    onDelete: (taskId: string) => deleteTask(projectId, taskId),
+    onEdit: openEdit,
+    onArchive: (taskId: string, closeAs: "done" | "cancelled") =>
+      archiveTask(projectId, taskId, closeAs),
+    onUnarchive: (taskId: string) => unarchiveTask(projectId, taskId),
+    onComments: (task: TaskWithAssignmentsDTO) => {
+      setCommentsTask(task)
+      setIsCommentsOpen(true)
+    },
   }
 
   function buildOptimisticTask(
@@ -112,9 +136,11 @@ export function TasksCard() {
       daysOfWeek: data.daysOfWeek.length > 0 ? data.daysOfWeek : null,
       startTime: data.startTime || null,
       endTime: data.endTime || null,
+      archived: editing?.archived ?? false,
       createdAt: editing?.createdAt ?? new Date(),
       updatedAt: new Date(),
       assignments,
+      assigneeIds: data.assigneeIds,
       commentCount: editing
         ? (tasks.find((t) => t.id === editing.id)?.commentCount ?? 0)
         : 0,
@@ -166,34 +192,26 @@ export function TasksCard() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {visibleTasks.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            {filter === "finished"
-              ? t("projects.tasks.noFinished")
-              : t("projects.tasks.noTasks")}
-          </p>
-        ) : (
-          <TasksTable
-            tasks={visibleTasks}
-            onStatusChange={(taskId, assignmentId, status) =>
-              updateAssignmentStatus(
-                projectId,
-                taskId,
-                assignmentId,
-                status
-              )
-            }
-            onPriorityChange={(taskId, priority) =>
-              updateTaskPriority(projectId, taskId, priority)
-            }
-            onDelete={(taskId) => deleteTask(projectId, taskId)}
-            onEdit={openEdit}
-            onComments={(task) => {
-              setCommentsTask(task)
-              setIsCommentsOpen(true)
-            }}
-          />
-        )}
+        {VIEWS.map((view) => {
+          const viewTasks = selectTasks(tasks, view)
+          return (
+            <Activity
+              key={view}
+              name={`tasks-${view}`}
+              mode={filter === view ? "visible" : "hidden"}
+            >
+              {viewTasks.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  {view === "archived"
+                    ? t("projects.tasks.noArchived")
+                    : t("projects.tasks.noTasks")}
+                </p>
+              ) : (
+                <TasksTable tasks={viewTasks} {...tableProps} />
+              )}
+            </Activity>
+          )
+        })}
       </CardContent>
 
       <TaskDialog

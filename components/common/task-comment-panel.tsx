@@ -37,6 +37,8 @@ interface TaskCommentPanelProps {
   currentUserId: string
   /** Whether the viewer may delete any comment on the task. */
   canModerate: boolean
+  /** Archived tasks: comments stay readable, with no input, edit or delete. */
+  readOnly?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   onRefresh: () => void
@@ -52,6 +54,7 @@ export function TaskCommentPanel({
   loading,
   currentUserId,
   canModerate,
+  readOnly = false,
   open,
   onOpenChange,
   onRefresh,
@@ -122,6 +125,7 @@ export function TaskCommentPanel({
                   comment={comment}
                   currentUserId={currentUserId}
                   canModerate={canModerate}
+                  readOnly={readOnly}
                   onEdit={onEdit}
                   onDelete={onDelete}
                 />
@@ -130,31 +134,33 @@ export function TaskCommentPanel({
           )}
         </div>
 
-        <div className="border-t px-4 py-3">
-          <div className="flex gap-2">
-            <Textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  handleCreate()
-                }
-              }}
-              placeholder={t("projects.tasks.comments.addComment")}
-              rows={2}
-              className="resize-none"
-            />
-            <Button
-              size="icon"
-              onClick={handleCreate}
-              disabled={!newComment.trim()}
-              className="shrink-0"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+        {!readOnly && (
+          <div className="border-t px-4 py-3">
+            <div className="flex gap-2">
+              <Textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleCreate()
+                  }
+                }}
+                placeholder={t("projects.tasks.comments.addComment")}
+                rows={2}
+                className="resize-none"
+              />
+              <Button
+                size="icon"
+                onClick={handleCreate}
+                disabled={!newComment.trim()}
+                className="shrink-0"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </SheetContent>
     </Sheet>
   )

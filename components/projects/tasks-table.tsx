@@ -22,15 +22,17 @@ import {
   assignmentCounts,
   isOpenAssignment,
 } from "@/lib/tasks/filter"
-import { visibleAssignments } from "@/lib/tasks/list"
+import { assigneeIdentities, visibleAssignments } from "@/lib/tasks/list"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { Fragment, useState } from "react"
+import { Fragment, useCallback, useState } from "react"
 import { cn } from "cn"
 import { DueDate } from "./due-date"
+import { TaskArchiveDialog } from "./task-archive-dialog"
+import { TaskArchiveMenuItem } from "./task-archive-menu-item"
 import { TaskAssigneeStack } from "./task-assignee-stack"
 import { TaskClosedAssignmentRows } from "./task-closed-assignment-rows"
 import { TaskHistoryPanel } from "./task-history-panel"
@@ -47,6 +49,8 @@ interface TasksTableProps {
   onPriorityChange: (taskId: string, priority: TaskPriorityDTO) => void
   onDelete: (taskId: string) => Promise<void>
   onEdit: (task: TaskWithAssignmentsDTO) => void
+  onArchive: (taskId: string, closeAs: "done" | "cancelled") => void
+  onUnarchive: (taskId: string) => void
   onComments: (task: TaskWithAssignmentsDTO) => void
 }
 
@@ -56,16 +60,39 @@ export function TasksTable({
   onPriorityChange,
   onDelete,
   onEdit,
+  onArchive,
+  onUnarchive,
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
-  const { isOwner, isAdmin } = useProjectContextState()
+  const { isOwner, isAdmin, members } = useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
   const canMutate =
     (isOwner || isAdmin) && (canEdit || canDeleteProject)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [archivingTaskId, setArchivingTaskId] = useState<string | null>(
+    null
+  )
+
+  const handleArchive = useCallback(
+    (taskId: string, closeAs: "done" | "cancelled") => {
+      onArchive(taskId, closeAs)
+      setArchivingTaskId(null)
+    },
+    [onArchive]
+  )
+  const handleDialogArchive = useCallback(
+    (closeAs: "done" | "cancelled") => {
+      if (archivingTaskId) handleArchive(archivingTaskId, closeAs)
+    },
+    [archivingTaskId, handleArchive]
+  )
+  const handleArchiveCancel = useCallback(
+    () => setArchivingTaskId(null),
+    []
+  )
 
   function toggleExpanded(taskId: string) {
     setExpanded((prev) => {
@@ -84,7 +111,9 @@ export function TasksTable({
             <TableHead scope="col">
               {t("projects.tasks.name")}
             </TableHead>
-            <TableHead scope="col">{t("common.assignee")}</TableHead>
+            <TableHead scope="col">
+              {t("projects.tasks.assignees")}
+            </TableHead>
             <TableHead scope="col">{t("common.status")}</TableHead>
             <TableHead scope="col">{t("common.priority")}</TableHead>
             <TableHead scope="col">{t("common.dueDate")}</TableHead>
@@ -109,6 +138,12 @@ export function TasksTable({
             // Reopen); repeating tasks render only open rows here —
             // the history panel owns all closed display, seeded with
             // the store rows when none is open.
+            const assignees = assigneeIdentities(
+              task.assigneeIds,
+              shown,
+              task.assignments,
+              members
+            )
             const openRows = shown.filter(isOpenAssignment)
             const closedRows =
               task.recurrence === null
@@ -124,7 +159,6 @@ export function TasksTable({
             )
             const openIds = open.map((assignment) => assignment.id)
             const counts = assignmentCounts(task.assignments)
-            const lead = open[0]
             const isExpanded = expanded.has(task.id)
             // Sorted so sortAssignments re-orders can't retrigger the
             // history panel's pagination reset.
@@ -133,9 +167,10 @@ export function TasksTable({
               .sort()
               .join(",")
             // Open work first (with its blocked/review detail), then
-            // the server-counted terminal total — which stands alone
-            // when nothing is open. No parts at all means the task has
-            // no assignments whatsoever.
+            // the server-counted terminal total. A task with nothing
+            // open but some closed reads "Done · N closed"; with open
+            // work the closed total stands alone. No parts at all means
+            // the task has no assignments whatsoever.
             const statusParts = [
               ...(open.length > 0
                 ? [
@@ -160,6 +195,9 @@ export function TasksTable({
                 : []),
               ...(task.closedCount > 0
                 ? [
+                    ...(open.length === 0
+                      ? [t("projects.tasks.status.done")]
+                      : []),
                     t("projects.tasks.closedCount", {
                       count: task.closedCount,
                     }),
@@ -173,9 +211,7 @@ export function TasksTable({
 
             return (
               <Fragment key={task.id}>
-                <TableRow
-                  onDoubleClick={() => onComments(task)}
-                >
+                <TableRow onDoubleClick={() => onComments(task)}>
                   <TableCell className="font-medium">
                     <div>
                       <div className="flex items-center gap-2">
@@ -221,8 +257,8 @@ export function TasksTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    {shown.length > 0 ? (
-                      <TaskAssigneeStack assignments={shown} />
+                    {assignees.length > 0 ? (
+                      <TaskAssigneeStack assignees={assignees} />
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         {t("common.unassigned")}
@@ -248,10 +284,10 @@ export function TasksTable({
                   </TableCell>
                   <TableCell>
                     <DueDate
-                      date={lead ? lead.endDate : task.endDate}
+                      date={task.endDate}
                       overdue={
-                        lead
-                          ? isTaskOverdue(lead.status, lead.endDate)
+                        open.length > 0
+                          ? isTaskOverdue(open[0].status, task.endDate)
                           : false
                       }
                       overdueLabel={t("common.overdue")}
@@ -277,7 +313,19 @@ export function TasksTable({
                         onDelete={() => onDelete(task.id)}
                         canEdit={canEdit}
                         canDelete={canDeleteProject}
-                      />
+                      >
+                        <TaskArchiveMenuItem
+                          task={task}
+                          canArchive={canEdit}
+                          onArchiveRequest={() =>
+                            setArchivingTaskId(task.id)
+                          }
+                          onArchiveDirect={() =>
+                            handleArchive(task.id, "cancelled")
+                          }
+                          onUnarchive={() => onUnarchive(task.id)}
+                        />
+                      </ActionMenu>
                     </TableCell>
                   )}
                 </TableRow>
@@ -293,11 +341,7 @@ export function TasksTable({
                         taskId={task.id}
                         assignments={closedRows}
                         onReopen={(assignmentId) =>
-                          onStatusChange(
-                            task.id,
-                            assignmentId,
-                            "todo"
-                          )
+                          onStatusChange(task.id, assignmentId, "todo")
                         }
                       />
                     )}
@@ -315,6 +359,11 @@ export function TasksTable({
           })}
         </TableBody>
       </Table>
+      <TaskArchiveDialog
+        open={archivingTaskId !== null}
+        onArchive={handleDialogArchive}
+        onCancel={handleArchiveCancel}
+      />
     </div>
   )
 }

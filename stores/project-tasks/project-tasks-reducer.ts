@@ -5,6 +5,7 @@ import type {
 } from "@/actions/tasks/schemas"
 import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import { sortAssignments } from "@/lib/tasks/assignments"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 
 export const EMPTY_COMMENTS: TaskCommentWithAuthorDTO[] = []
 
@@ -26,6 +27,13 @@ export type ProjectTaskAction =
       type: "updateTaskPriority"
       taskId: string
       priority: TaskPriorityDTO
+    }
+  | {
+      type: "setArchived"
+      taskId: string
+      archived: boolean
+      closeAs?: "done" | "cancelled"
+      spawned?: TaskAssignmentDTO[]
     }
   | {
       type: "upsertAssignment"
@@ -134,6 +142,48 @@ export function projectTasksReducer(
             ? { ...t, priority: action.priority }
             : t
         ),
+      }
+
+    case "setArchived":
+      return {
+        ...state,
+        tasks: state.tasks.map((task) => {
+          if (task.id !== action.taskId) return task
+
+          const closeAs = action.closeAs
+          const spawned = action.spawned
+          let assignments = task.assignments
+          let closedDelta = 0
+
+          // Archive mirrors archiveTaskRow: close every non-terminal row
+          // with the chosen disposition and count them into the server's
+          // terminal total. It never spawns; unarchive only appends the
+          // rows the server actually spawned, so history is never deleted
+          // or invented here.
+          if (closeAs !== undefined) {
+            closedDelta = assignments.filter(
+              (a) => !isTerminalStatus(a.status)
+            ).length
+            assignments = assignments.map((a) =>
+              isTerminalStatus(a.status) ? a : { ...a, status: closeAs }
+            )
+          }
+
+          if (spawned !== undefined) {
+            const present = new Set(assignments.map((a) => a.id))
+            assignments = sortAssignments([
+              ...assignments,
+              ...spawned.filter((s) => !present.has(s.id)),
+            ])
+          }
+
+          return {
+            ...task,
+            archived: action.archived,
+            closedCount: Math.max(0, task.closedCount + closedDelta),
+            assignments,
+          }
+        }),
       }
 
     case "upsertAssignment":

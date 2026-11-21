@@ -4,15 +4,16 @@ import type {
   TaskAssignmentDTO,
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
+import type { TaskAssigneeIdentity } from "@/lib/types"
+import { assignmentCounts } from "./filter"
 import {
+  assigneeIdentities,
   freshlyClosedRows,
   mergeClosedRows,
   selectTasks,
   sortClosedRows,
   visibleAssignments,
 } from "./list"
-
-const NOW = new Date("2026-11-11T15:00:00")
 
 const makeAssignment = (
   overrides: Partial<TaskAssignmentDTO> = {}
@@ -45,9 +46,11 @@ const makeTask = (
   daysOfWeek: null,
   startTime: null,
   endTime: null,
+  archived: false,
   createdAt: new Date("2026-11-01T00:00:00"),
   updatedAt: new Date("2026-11-01T00:00:00"),
   assignments: [],
+  assigneeIds: [],
   commentCount: 0,
   closedCount: 0,
   ...overrides,
@@ -94,6 +97,106 @@ describe("visibleAssignments", () => {
       makeAssignment({ id: "a2", userId: "u1", status: "cancelled" }),
     ]
     expect(visibleAssignments(rows, null)).toBe(rows)
+  })
+})
+
+describe("assigneeIdentities", () => {
+  const identity = (
+    userId: string,
+    userName: string | null = null
+  ): TaskAssigneeIdentity => ({
+    userId,
+    userName,
+    userEmail: `${userId}@test.local`,
+    userImage: null,
+  })
+
+  it("shows roster members without any assignment row — an archived task never reads Unassigned", () => {
+    const shown = [identity("u1", "One")]
+    const identities = assigneeIdentities(
+      ["u1", "u2"],
+      shown,
+      shown,
+      [identity("u1", "One"), identity("u2", "Two")]
+    )
+    expect(identities.map((i) => i.userId)).toEqual(["u1", "u2"])
+    expect(identities[1].userName).toBe("Two")
+  })
+
+  it("excludes an assignment row whose user is not in the roster", () => {
+    // The task_assignee roster — not open/closed assignment rows — decides
+    // who the column shows; a stale row for a removed member is dropped.
+    const stale = identity("u-removed", "Removed")
+    const current = identity("u1", "One")
+    expect(
+      assigneeIdentities(["u1"], [stale, current], [stale, current], [])
+    ).toEqual([current])
+  })
+
+  it("resolves an id from loaded rows before the project members", () => {
+    const loaded = identity("u1", "From row")
+    expect(
+      assigneeIdentities(["u1"], [], [loaded], [identity("u1", "From members")])
+    ).toEqual([loaded])
+  })
+
+  it("keeps an unresolvable id as an anonymous entry — a fallback avatar, never a drop", () => {
+    expect(assigneeIdentities(["ghost"], [], [], [])).toEqual([
+      {
+        userId: "ghost",
+        userName: null,
+        userEmail: null,
+        userImage: null,
+      },
+    ])
+  })
+
+  it("orders shown rows first, then the rest of the roster, without duplicates", () => {
+    const first = identity("u1", "One")
+    const second = identity("u2", "Two")
+    const third = identity("u3", "Three")
+    const identities = assigneeIdentities(
+      ["u3", "u1", "u2", "u1"],
+      [first, second, first],
+      [first, second, third],
+      []
+    )
+    expect(identities.map((i) => i.userId)).toEqual(["u1", "u2", "u3"])
+  })
+
+  it("returns no identities when the roster is empty, even when rows are shown", () => {
+    // An empty roster means nobody is assigned; the assignment rows that
+    // happen to exist belong to removed users and must not surface as
+    // avatars (the table renders its Unassigned label for this case).
+    const row = identity("u1", "One")
+    expect(assigneeIdentities([], [row], [row], [row])).toEqual([])
+  })
+
+  it("never surfaces an id outside the roster, even with an empty fallback", () => {
+    const stale = identity("u-removed", "Removed")
+    expect(
+      assigneeIdentities(["u1"], [stale], [stale], [stale]).map(
+        (i) => i.userId
+      )
+    ).toEqual(["u1"])
+  })
+
+  it("shows a roster id that has no row anywhere as an anonymous entry", () => {
+    const other = identity("u-other", "Other")
+    const identities = assigneeIdentities(["ghost"], [other], [other], [other])
+    expect(identities).toEqual([
+      {
+        userId: "ghost",
+        userName: null,
+        userEmail: null,
+        userImage: null,
+      },
+    ])
+  })
+
+  it("renders a roster-matching task exactly as its rows", () => {
+    const rows = [identity("u1", "One"), identity("u2", "Two")]
+    expect(assigneeIdentities(["u1", "u2"], rows, rows, [])).toEqual(rows)
   })
 })
 
@@ -145,12 +248,18 @@ describe("sortClosedRows", () => {
     // Same instant, three ids: stability is what makes a re-render of
     // the merged region jitter-free.
     const at = "2026-11-02T09:00:00"
-    const first = makeAssignment({ id: "a-first", startDate: new Date(at) })
+    const first = makeAssignment({
+      id: "a-first",
+      startDate: new Date(at),
+    })
     const second = makeAssignment({
       id: "a-second",
       startDate: new Date(at),
     })
-    const third = makeAssignment({ id: "a-third", startDate: new Date(at) })
+    const third = makeAssignment({
+      id: "a-third",
+      startDate: new Date(at),
+    })
 
     const sorted = sortClosedRows([first, second, third])
     expect(sorted.map((row) => row.id)).toEqual([
@@ -195,7 +304,10 @@ describe("mergeClosedRows", () => {
     const fetchedCopy = { ...storeRow, comment: "fetched" }
     const fetchedOnly = closed("a2", "2026-11-04T09:00:00")
 
-    const merged = mergeClosedRows([storeRow], [fetchedCopy, fetchedOnly])
+    const merged = mergeClosedRows(
+      [storeRow],
+      [fetchedCopy, fetchedOnly]
+    )
     expect(merged.map((row) => row.id)).toEqual(["a1", "a2"])
     // The first occurrence wins: the store row is the rendered copy.
     expect(merged[0]?.comment).toBeNull()
@@ -279,9 +391,9 @@ describe("freshlyClosedRows", () => {
 
   it("returns nothing for empty inputs", () => {
     expect(freshlyClosedRows(new Set(), [], new Set())).toEqual([])
-    expect(
-      freshlyClosedRows(new Set(["a1"]), [], new Set())
-    ).toEqual([])
+    expect(freshlyClosedRows(new Set(["a1"]), [], new Set())).toEqual(
+      []
+    )
     expect(
       freshlyClosedRows(new Set(), [terminal("a1")], new Set())
     ).toEqual([])
@@ -292,118 +404,79 @@ describe("freshlyClosedRows", () => {
 })
 
 describe("selectTasks", () => {
-  it("unfinished filters to shouldShowTask and orders by due date ascending, nulls last", () => {
-    const later = makeTask({
-      id: "t-later",
-      endDate: new Date("2026-11-20T00:00:00"),
-      assignments: [makeAssignment({ status: "blocked" })],
-    })
-    const hidden = makeTask({
-      id: "t-hidden",
-      endDate: new Date("2026-11-12T00:00:00"),
+  it("open lists non-archived tasks by endDate ascending, nulls last", () => {
+    const soon = makeTask({
+      id: "soon",
+      archived: false,
+      endDate: new Date("2026-11-15T00:00:00"),
       assignments: [makeAssignment({ status: "done" })],
+    })
+    const later = makeTask({
+      id: "later",
+      archived: false,
+      endDate: new Date("2026-11-20T00:00:00"),
     })
     const noDue = makeTask({
-      id: "t-no-due",
+      id: "no-due",
+      archived: false,
       endDate: null,
-      assignments: [makeAssignment({ status: "in_progress" })],
     })
-    const soon = makeTask({
-      id: "t-soon",
-      endDate: new Date("2026-11-15T00:00:00"),
-      assignments: [makeAssignment({ status: "todo" })],
+    const archived = makeTask({
+      id: "archived",
+      archived: true,
+      endDate: new Date("2026-11-01T00:00:00"),
     })
 
-    const result = selectTasks(
-      [later, hidden, noDue, soon],
-      "unfinished",
-      NOW
-    )
-    expect(result.map((t) => t.id)).toEqual([
-      "t-soon",
-      "t-later",
-      "t-no-due",
-    ])
+    expect(
+      selectTasks([archived, later, noDue, soon], "open").map(
+        (t) => t.id
+      )
+    ).toEqual(["soon", "later", "no-due"])
   })
 
-  it("finished filters to the complement and orders by due date descending, nulls last", () => {
-    const doneEarly = makeTask({
-      id: "t-done-early",
-      endDate: new Date("2026-11-05T00:00:00"),
-      assignments: [makeAssignment({ status: "done" })],
-    })
-    const stillOpen = makeTask({
-      id: "t-still-open",
-      endDate: new Date("2026-11-10T00:00:00"),
-      assignments: [makeAssignment({ status: "todo" })],
-    })
-    const doneNoDue = makeTask({
-      id: "t-done-no-due",
-      endDate: null,
-      assignments: [makeAssignment({ status: "done" })],
-    })
-    const doneLate = makeTask({
-      id: "t-done-late",
+  it("archived lists only archived tasks by endDate ascending, nulls last", () => {
+    const archivedLate = makeTask({
+      id: "archived-late",
+      archived: true,
       endDate: new Date("2026-11-25T00:00:00"),
-      assignments: [makeAssignment({ status: "done" })],
+    })
+    const archivedNoDue = makeTask({
+      id: "archived-no-due",
+      archived: true,
+      endDate: null,
+    })
+    const archivedEarly = makeTask({
+      id: "archived-early",
+      archived: true,
+      endDate: new Date("2026-11-05T00:00:00"),
+    })
+    const open = makeTask({
+      id: "open",
+      archived: false,
+      endDate: new Date("2026-11-01T00:00:00"),
     })
 
-    const result = selectTasks(
-      [doneEarly, stillOpen, doneNoDue, doneLate],
-      "finished",
-      NOW
-    )
-    expect(result.map((t) => t.id)).toEqual([
-      "t-done-late",
-      "t-done-early",
-      "t-done-no-due",
-    ])
+    expect(
+      selectTasks(
+        [archivedLate, open, archivedNoDue, archivedEarly],
+        "archived"
+      ).map((t) => t.id)
+    ).toEqual(["archived-early", "archived-late", "archived-no-due"])
   })
+})
 
-  it("both lists unfinished tasks before finished ones", () => {
-    const finishedEarly = makeTask({
-      id: "f-earlier",
-      endDate: new Date("2026-11-05T00:00:00"),
-      assignments: [makeAssignment({ status: "done" })],
-    })
-    const unfinishedLater = makeTask({
-      id: "u-later",
-      endDate: new Date("2026-11-20T00:00:00"),
-      assignments: [makeAssignment({ status: "todo" })],
-    })
-    const finishedLater = makeTask({
-      id: "f-later",
-      endDate: new Date("2026-11-25T00:00:00"),
-      assignments: [makeAssignment({ status: "done" })],
-    })
-    const unfinishedNoDue = makeTask({
-      id: "u-no-due",
-      endDate: null,
-      assignments: [makeAssignment({ status: "blocked" })],
-    })
-    const unfinishedSoon = makeTask({
-      id: "u-soon",
-      endDate: new Date("2026-11-15T00:00:00"),
-      assignments: [makeAssignment({ status: "in_review" })],
-    })
-
-    const result = selectTasks(
-      [
-        finishedEarly,
-        unfinishedLater,
-        finishedLater,
-        unfinishedNoDue,
-        unfinishedSoon,
-      ],
-      "both",
-      NOW
+describe("assignmentCounts", () => {
+  it("still counts a status mix", () => {
+    const rows = ["todo", "blocked", "in_review", "done"].map(
+      (status) =>
+        makeAssignment({
+          status: status as TaskAssignmentDTO["status"],
+        })
     )
-    expect(result.map((t) => t.id)).toEqual([
-      "u-soon",
-      "u-later",
-      "u-no-due",
-      "f-later",
-      "f-earlier",
-    ])
+    expect(assignmentCounts(rows)).toEqual({
+      open: 3,
+      blocked: 1,
+      review: 1,
+    })
   })
 })

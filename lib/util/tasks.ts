@@ -34,3 +34,17 @@ export function formatDueDate(date: Date, locale: string): string {
       : { hour: "numeric", minute: "2-digit" }),
   }).format(date)
 }
+
+/**
+ * Assignment-row label: an occurrence's due date with its time always
+ * shown, including a midnight value (rows are occurrences, not all-day
+ * task headers, so the time is meaningful).
+ */
+export function formatAssignmentDueDate(date: Date, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date)
+}

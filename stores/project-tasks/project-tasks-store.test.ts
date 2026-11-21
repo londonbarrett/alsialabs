@@ -38,11 +38,13 @@ function makeTask(
     daysOfWeek: null,
     startTime: null,
     endTime: null,
+    archived: false,
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     commentCount: 0,
     closedCount: 0,
     assignments: [makeAssignment()],
+    assigneeIds: ["user-1"],
     ...overrides,
   } satisfies TaskWithAssignmentsDTO
 }
@@ -226,6 +228,86 @@ describe("createProjectTasksStore", () => {
         .getState()
         .optimistic.tasks[0]?.assignments.map((a) => a.id)
     ).toEqual(["assignment-2"])
+  })
+
+  it("setArchived closes every open row with the chosen disposition and bumps closedCount", () => {
+    const store = createProjectTasksStore([
+      makeTask({
+        id: "a",
+        startDate: new Date("2024-05-30T09:00:00"),
+        endDate: new Date("2024-05-30T17:30:00"),
+        startTime: "09:00",
+        endTime: "17:30",
+        assignments: [
+          makeAssignment({ id: "assignment-1" }),
+          makeAssignment({
+            id: "assignment-2",
+            userId: "user-2",
+            userName: "Grace",
+          }),
+        ],
+      }),
+    ])
+    const id = store.getState().pend({
+      type: "setArchived",
+      taskId: "a",
+      archived: true,
+      closeAs: "cancelled",
+    })
+    store.getState().commit(id)
+
+    const task = store.getState().optimistic.tasks[0]
+    expect(task.archived).toBe(true)
+    // Archive preserves the original dates and times untouched.
+    expect(task.endDate).toEqual(new Date("2024-05-30T17:30:00"))
+    expect(task.startDate).toEqual(new Date("2024-05-30T09:00:00"))
+    expect(task.startTime).toBe("09:00")
+    expect(task.endTime).toBe("17:30")
+    expect(
+      task.assignments.every((row) => row.status === "cancelled")
+    ).toBe(true)
+    expect(task.closedCount).toBe(2)
+  })
+
+  it("setArchived false appends spawned rows and clears the archived flag", () => {
+    const closedRow = makeAssignment({ id: "closed-1", status: "done" })
+    const spawnedRow = makeAssignment({
+      id: "spawned-1",
+      userId: "user-2",
+      userName: "Grace",
+    })
+    const store = createProjectTasksStore([
+      makeTask({
+        id: "a",
+        archived: true,
+        assignments: [closedRow],
+        closedCount: 1,
+      }),
+    ])
+    const id = store.getState().pend({
+      type: "setArchived",
+      taskId: "a",
+      archived: false,
+    })
+    store.getState().commit(id, {
+      type: "setArchived",
+      taskId: "a",
+      archived: false,
+      // The second row repeats an id already present: it must neither be
+      // appended nor overwrite the existing history row.
+      spawned: [spawnedRow, { ...closedRow, status: "todo" }],
+    })
+
+    const task = store.getState().optimistic.tasks[0]
+    expect(task.archived).toBe(false)
+    expect(task.closedCount).toBe(1)
+    expect(task.assignments.map((row) => row.id)).toEqual([
+      "spawned-1",
+      "closed-1",
+    ])
+    expect(
+      task.assignments.find((row) => row.id === "closed-1")?.status
+    ).toBe("done")
   })
 
   it("forgets loaded comments when the task is deleted", () => {
