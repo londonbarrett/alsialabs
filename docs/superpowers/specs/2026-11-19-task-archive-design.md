@@ -1,6 +1,15 @@
 # Task Archive: Open/Archived Filter, Archive Actions, and Date-Edit Spawning
 
 Date: 2026-11-19
+Amended 2026-11-21: after implementation, user review reversed several
+original decisions. Archiving no longer touches dates or times; archived
+tasks are fully editable (the "freeze" was removed); the assignee column
+is roster-driven; the archive confirm dialog only appears when there is
+open work; and the two filter views stay mounted so view state survives
+switches. Everything below describes the FINAL implemented behavior. A
+few original lines are kept for context but explicitly marked superseded
+where they conflict.
+
 Background: supersedes the visibility-filter decisions of
 `docs/superpowers/specs/2026-11-15-finished-tasks-design.md` (Decision
 #1's three-way filter and anything that depended on it). The history
@@ -12,10 +21,13 @@ that spec stay unless explicitly changed here.
 The Tasks card filters work by finished/unfinished state derived from
 assignment statuses, but the user wants to _put work away_ rather than
 watch it age out of a filter. Archiving is a deliberate, explicit act:
-open a task's actions menu, choose Archive, confirm how its open
-assignments close, and the task disappears from the working queue into
-an Archived view. Assignment status remains real and visible — it just
-stops being a filter dimension.
+open a task's actions menu and choose Archive, and the task disappears
+from the working queue into an Archived view. When the task still has
+open assignments, a confirm dialog asks how to close them ("Mark as
+done" / "Mark as cancelled"); when it has none, archiving happens
+immediately with `closeAs: "cancelled"`. Assignment status remains real
+and visible — it just stops being a filter dimension. Archiving never
+changes dates or times, and archived tasks stay fully editable.
 
 Concretely this design adds:
 
@@ -26,10 +38,11 @@ Concretely this design adds:
    `task_assignment` rows),
 3. a two-way **Open / Archived** filter replacing
    unfinished/both/finished in the Tasks card,
-4. **Archive** and **Unarchive** actions in the task actions menu,
-   with a confirm dialog that closes all open assignments (done or
-   cancelled) and suppresses spawning; archived tasks are completely
-   frozen,
+4. **Archive** and **Unarchive** actions in the task actions menu.
+   Archive sets only `task.archived = true` and closes all open
+   assignments with the chosen done/cancelled disposition, spawning
+   nothing. The confirm dialog appears only when there is open work to
+   close. Archived tasks remain fully editable — no freeze.
 5. **recurrence-checked spawning** on repeating tasks, unified into
    one helper invoked by four triggers — **unarchive, due-date
    change, assignment close, and add-assignee** — that opens an
@@ -40,22 +53,35 @@ Concretely this design adds:
 
 - Owner/admin can archive a task from its actions menu; the task
   leaves the Open list immediately and appears under Archived.
-- Archiving asks the user how to close open assignments (reuse the
-  unassign `ActionConfirmDialog`: "Mark as done" / "Mark as
-  cancelled"), closes every open assignment with that status, and
-  spawns nothing.
-- Archiving sets the task's due date to the current date.
-- Archived tasks are **completely frozen**: the server rejects every
-  task/assignment mutation while `archived = true` except
-  `unarchiveTask` and `deleteTask`.
+- Archiving asks the user how to close open assignments **only when
+  the task has open assignments** (reuse the unassign
+  `ActionConfirmDialog`: "Mark as done" / "Mark as cancelled"), closes
+  every open assignment with that status, and spawns nothing. With
+  zero open assignments, clicking Archive archives immediately with
+  `closeAs: "cancelled"` — no dialog.
+- **Archiving does not touch dates or times.** `startDate`, `endDate`,
+  `startTime`, and `endTime` are preserved exactly. The original "set
+  `endDate` to today" rule and its `archivedWindow` helper are removed
+  (superseded).
+- **Archived tasks are fully editable** (the original freeze was
+  reversed after implementation): the edit form, priority, assignees,
+  assignment status, Reopen, and comments all work on an archived
+  task. Only `unarchiveTask` and `deleteTask` have special guards, and
+  archived tasks never spawn new assignments — see the complete guard
+  list in #6.
 - Archived tasks can be unarchived from the actions menu (visible in
   the Archived view). Unarchiving a **repeating** task runs the
-  recurrence-checked spawn immediately (the due date is today, from
-  archive); assignments otherwise stay closed.
+  recurrence-checked spawn immediately against its **preserved** due
+  date; assignments otherwise stay closed.
 - The Tasks card filter is exactly two options: **Open** (default) and
-  **Archived**, partitioned on `task.archived`. No auto-flip.
+  **Archived**, partitioned on `task.archived`. No auto-flip. Both
+  views stay mounted in React `<Activity mode="visible" | "hidden">`
+  boundaries, so switching views preserves each view's local state.
 - Assignment `status` is unchanged and still displayed in the status
-  column — it simply no longer drives list membership.
+  column — it simply no longer drives list membership. When a task has
+  **no open assignments but closed history**, the status column reads
+  "Done · N closed" (`projects.tasks.status.done` +
+  `projects.tasks.closedCount`).
 - Editing a repeating task's due date opens a fresh assignment for
   each **active assignee** (a `task_assignee` row) who has none open,
   when `computeNextOccurrence` from the new date yields an occurrence
@@ -76,6 +102,24 @@ Concretely this design adds:
 - The edit form's assignee selection seeds from `task_assignee`, so a
   zero-open task (just unarchived, all finished) shows its assignees
   instead of an empty selection.
+- The **assignee column is roster-driven**: avatars come strictly from
+  the `task_assignee` roster (`task.assigneeIds` →
+  `assigneeIdentities`), never from assignment rows. An empty roster
+  shows "Unassigned" (`common.unassigned`); a user with only assignment
+  history and no roster row is never displayed as assigned. The column
+  header is the plural `projects.tasks.assignees`
+  ("Assignees"/"Asignadas"); the singular `common.assignee` form label
+  is unchanged.
+- The task due-date column reads **`task.endDate` from the database**
+  (not from assignment rows), and all-day tasks display the date only
+  (`formatDueDate` + `isAllDayDate`). Assignment rows display their
+  due date **with the time** via `formatAssignmentDueDate` (not a
+  start–end date range).
+- Spawn eligibility includes the project owner: `getActiveAssigneeIds`
+  left-joins `project_membership` and also accepts
+  `projects.primaryOwnerId`, because `createProject` never inserts a
+  membership row for the primary owner — owning the project counts as
+  holding a place.
 - Calendar is untouched — it shows all assignment history, archived
   tasks included.
 - My Tasks is untouched — it shows assignments, and archived tasks
@@ -84,14 +128,21 @@ Concretely this design adds:
 
 ## Non-goals
 
-- No data migration. The local `task`, `task_assignment`, and
+- No data migration / no backfill in the local dev and test
+  environments. The local `task`, `task_assignment`, and
   `task_assignee` tables are truncated; `archived` defaults to
   `false` and membership rows are created fresh for future tasks.
+  **Caution:** a deployed database with pre-existing tasks still needs
+  `task_assignee` backfilled from open `task_assignment` rows —
+  otherwise those tasks have no roster and show "Unassigned" until
+  assignees are re-added. (No automatic backfill is shipped.)
 - No change to the calendar (reads `task_assignment_detail` by date
   range; no `archived` predicate).
 - No change to My Tasks' active/past tabs or their server split.
-- No change to assignment statuses, the status column display, the
-  history panel, or the transition rules of the 2026-11-15 spec. The
+- No change to assignment statuses, the history panel, or the
+  transition rules of the 2026-11-15 spec. The status column keeps its
+  existing counts but now also shows "Done · N closed" for zero-open
+  tasks with closed history (see Goals). The
   close-time spawn cascade is refactored to route through the shared
   spawn helper (#7) but keeps its guards and anchor; archive
   suppresses it (#8).
@@ -147,7 +198,8 @@ This table fixes that:
     disposition (done/cancelled) exactly as today — history is never
     deleted.
   - **Archive/unarchive** never touch membership — an archived task
-    keeps its roster for the unarchive spawn.
+    keeps its roster both for the unarchive spawn and for the
+     roster-driven assignee column.
   - Cascade delete with the task; `deleteTask` needs no extra work.
 - `syncTaskAssignments` (`actions/tasks/queries.ts:731-776`) becomes a
   membership sync with assignment side-effects:
@@ -156,7 +208,8 @@ This table fixes that:
     (#7): repeating task → range check decides whether an open row is
     created; non-repeating → insert the open row directly via
     `firstAssignmentWindow` (today's `toAdd` behavior — non-repeating
-    tasks never range-check);
+    tasks never range-check), **only when `!taskRow.archived`** — an
+    archived task takes the roster row but never an open assignment;
   - **removed member** → delete membership + close their open row with
     `unassignAs[userId] ?? "cancelled"` (today's `toRemove` behavior;
     if they had no open row, just delete the membership);
@@ -196,7 +249,9 @@ z.array(z.string())` — the membership roster, so the form can seed
 "archived"]`; `tasks-card.tsx` default state `"open"`; the empty
   state switches between `noTasks` and a new `noArchived` key.
 - Filter state stays local `useState` — no auto-flip, no URL, no
-  store.
+  store. `tasks-card.tsx` renders both views in React
+  `<Activity mode="visible" | "hidden">` boundaries so the hidden view
+  stays mounted and its local state is preserved across switches.
 
 ### #4 Archive action
 
@@ -209,13 +264,19 @@ closeAs: "done" | "cancelled" }`, output schema declared,
   `metadata.revalidate: ["/app/proyectos/:projectId"]`.
 - New leaf query `archiveTaskRow(taskId, projectId, closeAs)` in
   `queries.ts`, one transaction:
-  1. set `task.archived = true` and `task.endDate = now`;
-  2. close every open assignment of the task (`status = closeAs`,
-     match how `syncTaskAssignments` closes rows);
+  1. set **only** `task.archived = true` — dates and times
+     (`startDate`, `endDate`, `startTime`, `endTime`) are preserved
+     exactly. (The original "set `endDate = now`" step and the
+     `archivedWindow` helper are superseded and removed.) The WHERE
+     clause includes `archived = false`, so a second archive is a no-op
+     at the DB level; the action also rejects an already-archived task
+     via `assertTaskMutable`.
+  2. close every open assignment of the task (`status = closeAs`) with
+     a direct UPDATE that matches how `syncTaskAssignments` closes
+     rows;
   3. **no spawn** — the spawn cascade lives in `updateAssignmentStatus`
      (the action), not in the status write, so closing via this query
-     naturally spawns nothing. Guard against any shared helper that
-     would spawn.
+     naturally spawns nothing;
   4. membership rows untouched.
 - Export from `actions/tasks/index.ts` barrel.
 
@@ -225,7 +286,7 @@ closeAs: "done" | "cancelled" }`, output schema declared,
   `updateTaskPriority`), plus assignment updates for the closed rows
   (mirror `upsertAssignment`'s terminal handling without spawn; the
   commit re-seeds server truth via the existing revalidate/refetch
-  path).
+  path). The reducer never alters any date or time field.
 - `use-project-tasks-actions.ts`: `archiveTask(closeAs)` running
   through `run`/`settle` with toasts (new `taskArchived` key).
 
@@ -237,7 +298,10 @@ closeAs: "done" | "cancelled" }`, output schema declared,
   `task-assignee-select.tsx:165-182` — title/message plus two
   actions, "Mark as done" and "Mark as cancelled" — each invoking
   `archiveTask` with the chosen `closeAs`. Only one dialog instance
-  per row/menu.
+  per row/menu. **The dialog is shown only when the task has open
+  assignments** (`task.assignments.some(isOpenAssignment)`); with zero
+  open assignments there is no disposition to choose, so clicking
+  Archive immediately calls `archiveTask` with `closeAs: "cancelled"`.
 - New i18n keys under `projects.tasks.archive.*` (title, message,
   markDone, markCancelled) mirroring `unassign.*`
   (`messages/en.json:312-317`); `archiveTask`/`unarchiveTask` menu
@@ -249,14 +313,17 @@ closeAs: "done" | "cancelled" }`, output schema declared,
 
 - New action `unarchiveTask` (input `{ projectId, taskId }`), one
   transaction:
-  1. set `archived = false`;
+  1. set `archived = false`, guarded by a WHERE `archived = true` plus
+     a returned row count (a missing/already-unarchived row yields
+     `NOT_FOUND`; the action also rejects `!task.archived` with
+     `VALIDATION_FAILED` before the write);
   2. **run the spawn helper (#7) immediately** — trigger (a). The due
-     date is today (set at archive), so if the recurrence calculator
-     yields an occurrence in range (≤ `endOfDay(endDate)`), open
-     assignments for every active assignee without one. This makes
-     either order work: edit-while-archived can't happen (frozen), but
-     a task whose date already qualifies returns to work the moment
-     it's unarchived.
+     date is the **preserved** `task.endDate` (archive never changed
+     it), so if the recurrence calculator yields an occurrence in
+     range (≤ `endOfDay(endDate)`), open assignments for every active
+     assignee without one. `spawnEligibleAssignments` re-reads the task
+     inside the transaction, so rule 0 sees `archived = false` as just
+     written.
   3. Non-repeating tasks: no spawn (membership and closed history stay
      as-is).
 - Same permission guard, revalidate, output schema.
@@ -268,29 +335,42 @@ closeAs: "done" | "cancelled" }`, output schema declared,
 - i18n: `projects.tasks.unarchiveTask` menu label + `taskUnarchived`
   toast.
 
-### #6 Menu, views, and the archived freeze
+### #6 Menu, views, and the remaining archived guards
 
 - `ActionMenu` (`components/common/action-menu.tsx`) keeps its
   `children` slot: `tasks-table.tsx` composes Archive/Unarchive items
   as children (pattern: `expenses-table.tsx:108-119`) rather than
   growing `ActionMenuProps`. Which item renders is decided by
   `task.archived`.
-- **Archived view** (same table, `archived` rows):
-  - menu shows **Unarchive** + **Delete** (delete stays available —
-    cleanup must be possible; my call);
-  - **Edit is hidden**, and the row is read-only: no status selects,
-    no Reopen, no priority select, no comment input (my call, direct
-    consequence of "completely frozen");
-- **Server freeze** (defence in depth, not just hidden UI): every
-  mutation action checks `task.archived` and rejects while true —
-  `updateTask`, `updateAssignmentStatus`, `updateAssignmentComment`,
-  `updateTaskPriority`, comment CRUD — with the appropriate existing
-  error code (`FORBIDDEN` or `VALIDATION_FAILED`, builder's call).
-  `unarchiveTask` and `deleteTask` are the only exceptions. This
-  covers stale tabs and direct calls.
+- **Archived view** (same table, `archived` rows): the row is a normal
+  editable row — Archive becomes Unarchive, and **Edit, priority,
+  assignee selection, assignment status, Reopen, and comments all
+  remain available**. Delete also stays available. (Supersedes the
+  original "Edit hidden / read-only row" decision.)
+- **The complete list of remaining archived guards.** The freeze was
+  removed, but the following checks stay and are the only special
+  handling for archived tasks:
+  1. `spawnEligibleAssignments` **rule 0**: `if (!task || task.archived ||
+     !task.recurrence) return []` — an archived task opens assignments
+     under no circumstance. The `!row.archived` gate on the close-time
+     cascade's spawn descriptor is part of this defence.
+  2. `syncTaskAssignments`' non-repeating direct insert is gated by
+     `!taskRow.archived` — an archived task gets the roster row but no
+     new open assignment (#2).
+  3. `archiveTask` rejects an already-archived task via
+     `assertTaskMutable`, and `archiveTaskRow`'s UPDATE includes
+     `archived = false` in its WHERE (#4).
+  4. `unarchiveTask` rejects `!task.archived` with `VALIDATION_FAILED`
+     before the write; `unarchiveTaskRow`'s UPDATE includes
+     `archived = true` in its WHERE and checks the returned row count
+     (`NOT_FOUND` when nothing was flipped) (#5).
+  5. **No mutation action freezes on `archived = true` any more**:
+     `updateTask`, `updateAssignmentStatus`, `updateAssignmentComment`,
+     `updateTaskPriority`, and comment CRUD all work on archived tasks.
 - Archive while viewing Open: task disappears from the current list
   (the filter does not auto-flip; the user switches to Archived
-  themselves).
+  themselves). Both views stay mounted in `<Activity mode="visible" |
+  "hidden">` boundaries, so view state is preserved across switches.
 
 ### #7 The spawn helper: one rule, four triggers
 
@@ -303,14 +383,20 @@ the helper is never called from triggers (a)/(b)/(d); see below).
 **The rule (per assignee, evaluated for every active member):**
 
 0. **Archived → no spawn, ever.** The helper's very first statement
-   is `if (task.archived) return` — an archived task opens new
-   assignments under no circumstance, regardless of which trigger
-   called the helper. This is the single, obvious enforcement point;
-   the per-trigger gates and the mutation freeze (#6) remain as
-   defence in depth.
-1. **Active member**: has a `task_assignee` row and is still in
-   `project_membership` (someone removed from the project has no
-   membership rows — see #9 — so they're never candidates).
+   is `if (!task || task.archived || !task.recurrence) return []` — an
+   archived task opens new assignments under no circumstance,
+   regardless of which trigger called the helper. This is the single,
+   obvious enforcement point; the per-trigger gates and the other
+   remaining guards (#6) are defence in depth. (Archived tasks are
+   editable, so this rule — not a mutation freeze — is what prevents
+   spawning.)
+1. **Active member**: has a `task_assignee` row and still holds a
+   place on the project. `getActiveAssigneeIds` left-joins
+   `project_membership` and also accepts `projects.primaryOwnerId`,
+   because `createProject` never inserts a membership row for the
+   primary owner — owning the project counts as holding a place.
+   Someone removed from the project has neither membership nor
+   ownership, so they're never candidates (see #9).
 2. **No open assignment** for that `(taskId, userId)` — the partial
    unique index `task_assignment_open_unique` can't trip.
 3. **Date in range**: `computeNextOccurrence({ recurrence, interval,
@@ -345,8 +431,9 @@ Notes:
   behavior — you must be able to assign someone to a one-off task).
   Range-checking is a repeating-only concept.
 - **Trigger (b) gate**: run only when `recurrence != null` **and**
-  `endDate` actually changed **and** `task.archived` is false
-  (defensive — archived tasks are frozen and can't reach this code).
+  `endDate` actually changed. Rule 0 is the single, authoritative
+  archived check — an archived task can now be edited, so the helper
+  itself is what prevents a date edit from spawning on it.
   Trigger (a) runs only when `recurrence != null`. Trigger (c) keeps
   its existing recurrence gate. Trigger (d) runs for every new member
   on a repeating task.
@@ -406,6 +493,17 @@ Notes:
 | `projects.tasks.unarchiveTask`                         | Unarchive                                                                                                                      | Desarchivar                                                                                                                                       |
 | `projects.tasks.taskArchived`                          | Task archived                                                                                                                  | Tarea archivada                                                                                                                                   |
 | `projects.tasks.taskUnarchived`                        | Task restored                                                                                                                  | Tarea restaurada                                                                                                                                  |
+| `projects.tasks.assignees` (column header, plural)     | Assignees                                                                                                                      | Asignadas                                                                                                                                         |
+| `projects.tasks.status.done` (status "Done" part)      | Done                                                                                                                           | Finalizada                                                                                                                                        |
+| `projects.tasks.closedCount` (status "N closed" part)  | `{count, plural, ...}`                                                                                                         | `{count, plural, ...}`                                                                                                                            |
+| `common.unassigned` (empty-roster cell)                | Unassigned                                                                                                                     | Sin asignar                                                                                                                                       |
+
+The singular `common.assignee` form label is unchanged. The assignee
+column uses the plural `projects.tasks.assignees` header. Dynamic
+key maps (`errors.*`, `projects.tasks.status.*`,
+`projects.tasks.closedCount`, `activities.*`, etc.) are looked up by
+value and are **never renamed or merged**; only add keys. en/es stay
+structurally identical.
 
 Remove (if orphaned): `projects.tasks.both`, `unfinished`, `finished`,
 `noFinished` — check no other consumer first (`myTasks.*` is a
@@ -421,9 +519,11 @@ different namespace and stays).
     `taskAssigneesTable` defined with unique `(taskId, userId)` and
     cascades (mirror existing assertions).
   - `actions/tasks/tasks.test.ts`:
-    - `archiveTask` sets `archived=true`, `endDate=now`, closes all
-      open rows with `closeAs`, spawns nothing (repeating fixture),
-      leaves membership untouched;
+    - `archiveTask` sets `archived=true` only — `startDate`, `endDate`,
+      `startTime`, `endTime` are unchanged — closes all open rows with
+      `closeAs`, spawns nothing (repeating fixture), leaves membership
+      untouched; a second archive of an already-archived task is
+      rejected;
     - `unarchiveTask` (trigger a): repeating + in-range date → spawns
       for every active assignee without an open row; out of range →
       nothing; non-repeating → nothing; removed assignee (no
@@ -445,12 +545,23 @@ different namespace and stays).
     - `syncTaskAssignments`: removed member → membership deleted + open
       row closed with `unassignAs` disposition; existing member with
       no open row → **no insert** on plain save;
-    - freeze: `updateTask`, `updateAssignmentStatus`,
-      `updateTaskPriority`, comment actions all reject while
-      `archived=true`; `deleteTask` and `unarchiveTask` succeed;
+    - **no freeze** (supersedes the original freeze test): `updateTask`,
+      `updateAssignmentStatus`, `updateAssignmentComment`,
+      `updateTaskPriority`, Reopen, and all comment actions succeed on
+      an archived task; only the guards in #6 reject: double-archive →
+      error, `unarchiveTask` on a live task → `VALIDATION_FAILED`, a
+      vanished row → `NOT_FOUND`, an archived non-repeating
+      add-assignee → roster row only, no open assignment;
     - spawn helper: called directly with an archived task → returns
       immediately, inserts nothing (the rule-0 gate);
-    - `updateAssignmentStatus` spawn early-exit when archived.
+    - `updateAssignmentStatus`'s `!row.archived` spawn-descriptor gate
+      keeps a close on an archived task from spawning;
+    - `getActiveAssigneeIds` includes `projects.primaryOwnerId` even
+      with no `project_membership` row;
+    - `assigneeIdentities` uses only roster ids: a task with an empty
+      `assigneeIds` yields no avatars even if assignment rows exist;
+    - `formatDueDate`/`isAllDayDate` drop the time for all-day task
+      dates, while `formatAssignmentDueDate` always includes it.
   - `actions/projects/project-membership.test.ts`: member removal
     deletes that user's `task_assignee` rows across the project's
     tasks (existing open-assignment cancellation test stays).
@@ -462,15 +573,34 @@ different namespace and stays).
     `assigneeIds` (zero-open task shows its roster).
 - **E2E (Playwright, through the pages, `signInAs` fixtures):**
   - `e2e/task-filter.spec.ts` is rewritten around the new filter:
-    open list default; Archive from the actions menu → dialog with
-    "Mark as done"/"Mark as cancelled" → confirm → task gone from
-    Open → switch to Archived → task present, read-only row, Unarchive
-    in its menu → unarchive (repeating, in-range → assignments reopen
-    immediately; otherwise none) → back under Open; archive with a
+    open list default; Archive from the actions menu of a task with
+    open assignments → dialog with "Mark as done"/"Mark as cancelled"
+    → confirm → task gone from Open → switch to Archived → task
+    present and **fully editable**, Unarchive in its menu → unarchive
+    (repeating, in-range → assignments reopen immediately; otherwise
+    none) → back under Open; archiving a task with **zero open
+    assignments archives immediately with no dialog**; archive with a
     repeating task spawns no successor; empty states per view; no
     auto-flip.
-  - Frozen view: archived row has no status select, no Reopen, no
-    Edit menu item; Delete still present.
+  - **Editable archived view:** the archived row still has Edit, status
+    selects, Reopen, priority select, and comment input — e2e asserts
+    editing an archived task works (edit form, priority, assignees,
+    assignment status, Reopen, comments). Delete and Unarchive are
+    present.
+  - **Roster avatars:** the assignee column shows avatars only for
+    `task_assignee` roster ids (`common.unassigned` when empty); a
+    closed assignment row's user is never shown as assigned. The
+    column header is the plural `projects.tasks.assignees`.
+  - **Status column:** a task with no open assignments but closed
+    history reads "Done · N closed"
+    (`projects.tasks.status.done` + `projects.tasks.closedCount`).
+  - **Due dates:** the task due cell matches `task.endDate` read from
+    the database, and all-day tasks show the date only; assignment
+    rows show their due date **with the time** via
+    `formatAssignmentDueDate`. Archive/unarchive never changes dates.
+  - **Preserved view state:** after switching Open → Archived → Open,
+    the filter view's local state (e.g. expanded history panel) is
+    unchanged — both views stay mounted in React `Activity` boundaries.
   - Date-edit spawn: zero-open repeating task → edit due date → new
     open assignment appears; a removed assignee does not come back.
   - Removed vs finished: unassign someone (membership gone) → change
@@ -498,24 +628,27 @@ different namespace and stays).
   for unrelated reasons stay finished — intended, but e2e and specs
   assuming the old "wizard is the universal way back" must be audited
   (recorded above).
-- **Archive of a repeating task with recurrence:** due date set to
-  today + spawn suppressed; unarchive re-runs the check against
-  today's date, so a still-in-range task revives on unarchive alone;
-  otherwise the user edits the due date after unarchive (the exit).
-  A non-repeating unarchived task sits zero-open until Reopen or
-  remove/re-add — accepted.
-- **Due-date cell display:** the table's due cell prefers the lead
-  assignment's `endDate`, falling back to `task.endDate`. After
-  archive all assignments are closed — confirm the cell falls back to
-  the task's (now today's) date rather than a stale assignment date;
-  if not, adjust the fallback order for zero-open tasks.
+- **Archive of a repeating task with recurrence:** the due date is
+  preserved and spawn is suppressed; unarchive re-runs the check
+  against that preserved date, so a still-in-range task revives on
+  unarchive alone; otherwise the user edits the due date before or
+  after unarchive (the exit). A non-repeating unarchived task sits
+  zero-open until Reopen or remove/re-add — accepted.
+- **Due-date display:** the task due cell always reads `task.endDate`
+  from the database (never an assignment row), with all-day dates
+  rendered date-only by `formatDueDate`/`isAllDayDate`; assignment
+  rows use `formatAssignmentDueDate` and therefore always include the
+  time. The superseded "lead assignment fallback / now today's date"
+  concern no longer applies.
 - **Date-edit spawn vs. `hasLaterDatedAssignment` guard:** a fresh
   spawn inserted by the date edit is the latest-dated row for that
   assignee, so the existing close-time guard 4 still behaves. No
   interaction expected.
-- **Freeze vs. stale clients:** a tab that loaded before archive can
-  still submit edits; the server-side freeze is the backstop and
-  surfaces as a toast, never a crash.
+- **Archived editing vs. stale clients (supersedes the freeze risk):**
+  archived tasks are editable, so a stale tab can submit an edit
+  normally; there is no freeze rejection. Only the guards in #6 apply
+  (e.g. a second archive or an unarchive of a live row is rejected and
+  surfaces as a toast/action error, never a crash).
 - **Membership vs. project membership drift:** project-member removal
   deletes membership rows (#9); the helper also intersects with
   `project_membership` as cheap defence. Orphaned rows (future code
@@ -526,9 +659,10 @@ different namespace and stays).
   change is healing a member left rowless by an out-of-range date —
   accepted as more correct.
 - **Concurrent edit/archive:** archive and edit racing is backstopped
-  by the freeze check + the same unique index / stale-write patterns
-  already handled; worst case a rejected insert surfaces as
-  `VALIDATION_FAILED`.
+  by the `archived = false` WHERE in `archiveTaskRow`, the
+  `archived = true` WHERE + row-count in `unarchiveTaskRow`, and the
+  same unique index / stale-write patterns already handled; worst case
+  a rejected write surfaces as `VALIDATION_FAILED` or `NOT_FOUND`.
 - **Filter removal fallout:** anything importing
   `TasksVisibilityFilter`'s old members or `shouldShowTask` breaks at
   typecheck — the compiler finds them all.
@@ -536,11 +670,63 @@ different namespace and stays).
   unaffected except its seeded tasks now carry `archived` and
   `assigneeIds`.
 
+## Post-implementation revisions (2026-11-21)
+
+User review after implementation finalized these behaviors (each
+supersedes the corresponding original line above):
+
+1. **No date/time changes on archive.** Archive sets only
+   `task.archived = true` and closes open assignments with the chosen
+   `done`/`cancelled` disposition; it spawns nothing. The `endDate = now`
+   step and the `archivedWindow` helper are gone. All of `startDate`,
+   `endDate`, `startTime`, `endTime` are preserved exactly.
+2. **No archived freeze.** Archived tasks are fully editable (form,
+   priority, assignees, assignment status, Reopen, comments). Only the
+   guards summarized in #6 remain: rule 0 in `spawnEligibleAssignments`
+   (archived → `[]`), the `!row.archived` descriptor gate in the
+   close-time cascade, the `!archived` gate on `syncTaskAssignments`'s
+   non-repeating direct insert, `archiveTask`'s double-archive
+   rejection, `unarchiveTask`'s `!archived → VALIDATION_FAILED` check
+   plus WHERE and row-count guard, and `archiveTaskRow`'s
+   `archived = false` WHERE.
+3. **Roster-driven assignee column.** Avatars come strictly from the
+   `task_assignee` roster (`task.assigneeIds` → `assigneeIdentities`);
+   an empty roster shows "Unassigned" and an assignment-row user is
+   never shown as assigned. The header is plural
+   `projects.tasks.assignees`; the singular `common.assignee` form
+   label is unchanged.
+4. **Archive confirm dialog only with open work.** With zero open
+   assignments, archiving happens immediately with `closeAs:
+   "cancelled"`; no disposition dialog is shown.
+5. **Status column "Done · N closed".** A task with no open assignments
+   but closed history shows `projects.tasks.status.done` plus
+   `projects.tasks.closedCount`.
+6. **Due dates.** The task due column reads `task.endDate` from the
+   database (not assignment rows), with all-day dates formatted
+   date-only (`formatDueDate`/`isAllDayDate`); assignment rows show
+   their due date with time via `formatAssignmentDueDate`.
+7. **Owner is spawn-eligible.** `getActiveAssigneeIds` left-joins
+   `project_membership` and also accepts `projects.primaryOwnerId`
+   because the primary owner has no membership row.
+8. **View state preserved.** `tasks-card.tsx` renders both Open and
+   Archived views in React `<Activity mode="visible" | "hidden">`
+   boundaries so the hidden view stays mounted.
+9. **E2E/fixtures.** Seed-e2e membership rows exist; archived-task
+   tests assert editability, roster avatars, "Done · N closed",
+   DB-sourced task due date, assignment due-date+time, and preserved
+   view state.
+10. **No data migration / no backfill** remains the policy, with the
+    standing warning that a deployed DB holding pre-existing tasks
+    needs `task_assignee` backfilled from open `task_assignment` rows.
+11. **en/es structural parity** and the rule that dynamic key maps are
+    never renamed are unchanged.
+
 ## Calls I made (builder's discretion, flag if wrong)
 
-- Freeze scope: all task/assignment mutations rejected while archived
-  except `unarchiveTask` and `deleteTask`; Edit hidden, row read-only
-  in the Archived view.
+- Freeze scope (**SUPERSEDED 2026-11-21**): the freeze was removed
+  after user review. Archived tasks are fully editable; only the
+  guards in #6 remain. Edit, status, priority, assignees, Reopen, and
+  comments all work in the Archived view.
 - `deleteTask` remains available on archived tasks.
 - `syncTaskAssignments` never inserts for existing members — the
   2026-11-15 "wizard reopens finished work" path is superseded as
@@ -553,8 +739,10 @@ different namespace and stays).
   project members as defence; project-member removal itself deletes
   membership rows (#9).
 - `task_assignee` removal is a hard delete (no `removedAt` marker).
-- Freeze error code: `FORBIDDEN` for frozen mutations (builder may
-  prefer `VALIDATION_FAILED` to match existing task-domain catches).
+- Freeze error code (**SUPERSEDED 2026-11-21**): there are no frozen
+  mutations. The archive-specific errors are `FORBIDDEN` for a
+  double-archive attempt (via `assertTaskMutable`) and
+  `VALIDATION_FAILED` / `NOT_FOUND` for the unarchive guards (#6).
 - Assignee selection in the form seeds from `assigneeIds` including
   members with no open rows, so zero-open tasks show their roster.
 

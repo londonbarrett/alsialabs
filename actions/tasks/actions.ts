@@ -13,10 +13,7 @@ import {
   returnActionError,
   sessionAction,
 } from "@/actions/safe-action"
-import {
-  archivedWindow,
-  toTaskAssignmentDTO,
-} from "@/lib/tasks/assignments"
+import { toTaskAssignmentDTO } from "@/lib/tasks/assignments"
 import { z } from "zod"
 import queries from "./queries"
 import {
@@ -369,12 +366,7 @@ export const archiveTask = projectAction(ArchiveTaskSchema)
     if (!task) returnActionError("NOT_FOUND")
     assertTaskMutable(task)
 
-    await queries.archiveTaskRow(
-      taskId,
-      projectId,
-      closeAs,
-      archivedWindow(task, new Date())
-    )
+    await queries.archiveTaskRow(taskId, projectId, closeAs)
 
     return { success: true }
   })

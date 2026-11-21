@@ -198,7 +198,6 @@ export function useProjectTasksActions() {
         taskId,
         archived: true,
         closeAs,
-        archivedAt: new Date(),
       },
       () => executeArchive({ projectId, taskId, closeAs })
     )

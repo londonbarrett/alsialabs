@@ -1058,25 +1058,20 @@ async function deleteTask(
 }
 
 /**
- * Archive in one transaction: freeze the task (its dates move to today via
- * `archivedWindow`) and close every open assignment with the chosen
- * disposition. Direct UPDATEs only — no spawn cascade, no membership writes,
- * so archiving spawns nothing.
+ * Archive in one transaction: set `archived = true` and close every open
+ * assignment with the chosen disposition. Dates and times are left untouched.
+ * Direct UPDATEs only — no spawn cascade, no membership writes, so archiving
+ * spawns nothing.
  */
 async function archiveTaskRow(
   taskId: string,
   projectId: string,
-  closeAs: "done" | "cancelled",
-  window: { startDate: Date | null; endDate: Date }
+  closeAs: "done" | "cancelled"
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await tx
       .update(tasksTable)
-      .set({
-        archived: true,
-        startDate: window.startDate,
-        endDate: window.endDate,
-      })
+      .set({ archived: true })
       .where(
         and(
           eq(tasksTable.id, taskId),

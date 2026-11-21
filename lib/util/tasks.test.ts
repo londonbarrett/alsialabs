@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { formatDueDate, isAllDayDate, isTaskOverdue } from "./tasks"
+import {
+  formatAssignmentDueDate,
+  formatDueDate,
+  isAllDayDate,
+  isTaskOverdue,
+} from "./tasks"
 
 describe("isAllDayDate", () => {
   it("flags midnight timestamps and nothing else", () => {
@@ -50,5 +55,30 @@ describe("formatDueDate", () => {
     const label = formatDueDate(new Date(2026, 10, 20, 9, 30), "en-US")
     expect(label).toContain(":")
     expect(label).toContain("20")
+  })
+})
+
+describe("formatAssignmentDueDate", () => {
+  it("keeps the time even for a midnight timestamp — rows are occurrences, not all-day headers", () => {
+    const label = formatAssignmentDueDate(
+      new Date(2026, 10, 20, 0, 0),
+      "en-US"
+    )
+    expect(label).toContain(":")
+    expect(label).toContain("20")
+  })
+
+  it("shows the occurrence's due time", () => {
+    const label = formatAssignmentDueDate(
+      new Date(2026, 10, 20, 17, 0),
+      "es-ES"
+    )
+    expect(label).toContain(":")
+    expect(label).toContain("17:00")
+  })
+
+  it("formats with the requested locale", () => {
+    const date = new Date(2026, 10, 20, 17, 0)
+    expect(formatAssignmentDueDate(date, "es-ES")).toContain("20 nov")
   })
 })

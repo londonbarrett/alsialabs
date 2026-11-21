@@ -10,8 +10,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
+import { formatAssignmentDueDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { assignmentColumnCount } from "./assignment-columns"
 import { taskStatusColors } from "./task-status-select"
 
@@ -33,6 +34,7 @@ export function TaskClosedAssignmentRows({
   onReopen,
 }: TaskClosedAssignmentRowsProps) {
   const t = useTranslations()
+  const locale = useLocale()
   const { isOwner, isAdmin } = useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canDeleteProject = useHasPermission("projects:delete")
@@ -44,10 +46,11 @@ export function TaskClosedAssignmentRows({
   const columnCount = assignmentColumnCount(canMutate)
 
   return assignments.map((assignment) => {
-    const occurrence = [assignment.startDate, assignment.endDate]
-      .filter((date): date is Date => date !== null)
-      .map((date) => date.toLocaleDateString())
-      .join(" – ")
+    // A row is one occurrence: show its due timestamp (with time, even at
+    // midnight), never a start–end range or the task's all-day header date.
+    const occurrence = assignment.endDate
+      ? formatAssignmentDueDate(assignment.endDate, locale)
+      : "—"
 
     return (
       <TableRow key={assignment.id}>
@@ -79,7 +82,7 @@ export function TaskClosedAssignmentRows({
             </span>
           </span>
         </TableCell>
-        <TableCell>{occurrence || "—"}</TableCell>
+        <TableCell>{occurrence}</TableCell>
         <TableCell>
           <span className="flex items-center gap-2">
             <Badge className={taskStatusColors[assignment.status]}>

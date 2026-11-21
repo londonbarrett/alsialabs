@@ -175,19 +175,39 @@ function personRows(row: Locator, email = ASSIGNEE_EMAIL): Locator {
 }
 
 /**
- * The occurrence cell renders the row's start date first, in the pinned
- * es-ES locale ("dd/mm/yyyy – …"). Returns it as a day timestamp so a
- * region of cells can be checked newest-first.
+ * The occurrence cell renders the row's due date with time in the pinned
+ * es-ES locale ("20 nov, 17:00"). Returns its day as a timestamp so a
+ * region of cells can be checked newest-first. Year is inferred from the
+ * current date so ordering stays correct across a December→January run.
  */
+const ES_MONTHS = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+]
+
 function occurrenceStart(text: string): number {
-  const match = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  const match = text.match(/(\d{1,2})\s+([a-z]+)/i)
   if (!match) throw new Error(`unparseable occurrence cell: ${text}`)
-  const [, day, month, year] = match
-  return new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day)
-  ).getTime()
+  const day = Number(match[1])
+  const month = ES_MONTHS.findIndex((name) =>
+    (match![2] ?? "").toLowerCase().startsWith(name)
+  )
+  if (month < 0) throw new Error(`unparseable occurrence month: ${text}`)
+  const now = new Date()
+  let year = now.getFullYear()
+  if (month > now.getMonth() + 6) year -= 1
+  if (month < now.getMonth() - 6) year += 1
+  return new Date(year, month, day).getTime()
 }
 
 /**
@@ -399,13 +419,14 @@ test("archiving a repeating task spawns nothing, stays editable, and unarchiving
   await signInAs("user1")
   await page.goto(PROJECT_URL)
 
-  // Occurrence at 23:58 today: archive moves the due date to today, so the
-  // unarchive check finds an in-range occurrence later the same day.
+  // Occurrence at 23:58 today: archive preserves the dates and times, so the
+  // unarchive check finds the in-range occurrence later the same day.
+  const originalEndDate = daysFromNow(30)
   await createDailyRepeatingTask(page, {
     name: taskName,
     assignee: true,
     startDate: new Date(),
-    endDate: daysFromNow(30),
+    endDate: originalEndDate,
     startTime: "23:58",
     endTime: "23:59",
   })
@@ -455,18 +476,20 @@ test("archiving a repeating task spawns nothing, stays editable, and unarchiving
 
   // The history rows are badge-only because repeat chains can't be
   // reopened — recurrence, not a freeze. The row itself is editable: the
-  // priority select is live on the archived task; the due cell shows the
-  // archive day.
+  // priority select is live on the archived task; the due cell keeps the
+  // task's original date and time, unchanged by archive.
   await expect(person.getByRole("combobox")).toHaveCount(0)
   await expect(
     person.getByRole("button", { name: "Reabrir" })
   ).toHaveCount(0)
   await expect(row.getByRole("combobox")).toHaveCount(1)
-  const today = new Intl.DateTimeFormat("es-ES", {
+  const originalDueDay = new Intl.DateTimeFormat("es-ES", {
     month: "short",
     day: "numeric",
-  }).format(new Date())
-  await expect(row.locator("td").nth(4)).toContainText(today)
+  }).format(originalEndDate)
+  const dueCell = row.locator("td").nth(4)
+  await expect(dueCell).toContainText(originalDueDay)
+  await expect(dueCell).toContainText("23:59")
 
   // Comments stay fully writable on the archived task: the note is
   // readable, a new comment posts, and own comments keep edit/delete.
@@ -516,6 +539,55 @@ test("archiving a repeating task spawns nothing, stays editable, and unarchiving
   await expect(row).toContainText("1 abierta")
   await expandAssignments(row)
   await expect(person.getByRole("combobox")).toHaveCount(1)
+})
+
+test("archiving a task with no open assignments skips the disposition dialog", async ({
+  page,
+  signInAs,
+}) => {
+  const taskName = `E2E filter no-open archive ${Date.now()}`
+  await signInAs("user1")
+  await page.goto(PROJECT_URL)
+
+  // The column header is plural: it lists the roster, not one assignee.
+  await expect(
+    page.getByRole("columnheader", { name: "Asignadas" })
+  ).toBeVisible()
+
+  // A task without an assignee has zero assignment rows, so there is no
+  // open work for the disposition dialog to close.
+  const dueDay = daysFromNow(2)
+  await createOneOffTask(page, {
+    name: taskName,
+    assignee: false,
+    day: dueDay,
+  })
+  const row = page.getByRole("row", { name: new RegExp(taskName) })
+  await expect(row).toBeVisible()
+
+  // An all-day task's due cell shows the date only — no assignment-row
+  // date or time leaks into it.
+  const dueCell = (await row.locator("td").nth(4).textContent()) ?? ""
+  expect(dueCell).toContain(
+    new Intl.DateTimeFormat("es-ES", {
+      month: "short",
+      day: "numeric",
+    }).format(dueDay)
+  )
+  expect(dueCell).not.toContain(":")
+
+  await openTaskMenu(page, row, taskName)
+  await page.getByRole("menuitem", { name: "Archivar", exact: true }).click()
+
+  // No dialog: the archive fires immediately and the row leaves Open.
+  await expect(
+    page.getByRole("dialog", { name: "¿Archivar tarea?" })
+  ).toHaveCount(0)
+  await expect(page.getByText("Tarea archivada").first()).toBeVisible()
+  await expect(row).toHaveCount(0)
+
+  await archivedFilter(page).click()
+  await expect(row).toBeVisible()
 })
 
 test("a one-off task archived as cancelled returns to Open with its roster intact", async ({
@@ -828,11 +900,12 @@ test("closed assignment history pages ten rows at a time", async ({
   await signInAs("user1")
   await page.goto(PROJECT_URL)
 
+  const windowEnd = daysFromNow(30)
   await createDailyRepeatingTask(page, {
     name: taskName,
     assignee: true,
     startDate: new Date(),
-    endDate: daysFromNow(30),
+    endDate: windowEnd,
   })
   const row = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(row).toBeVisible()
@@ -843,6 +916,19 @@ test("closed assignment history pages ten rows at a time", async ({
   await expect(person).toHaveCount(1)
   const open = openOccurrenceRow(page, person)
   const occurrence = open.locator("td").nth(1)
+
+  // Display split: the due cell reads the task's own due date (the
+  // window end, 30 days out), not the lead occurrence's date, while an
+  // assignment row shows its own occurrence due time and never a range.
+  const dueCell = (await row.locator("td").nth(4).textContent()) ?? ""
+  const windowDay = new Intl.DateTimeFormat("es-ES", {
+    month: "short",
+    day: "numeric",
+  }).format(windowEnd)
+  expect(dueCell).toContain(windowDay)
+  const occurrenceCell = (await occurrence.textContent()) ?? ""
+  expect(occurrenceCell).toContain(":")
+  expect(occurrenceCell).not.toContain("–")
 
   // Close the open occurrence 11 times: every close spawns the next day's
   // successor, which is the row closed next. The last window read is the
@@ -1140,10 +1226,11 @@ test("a removed assignee can be reassigned with the closed row in history", asyn
   await removeAssigneeAsCancelled(page, firstEdit)
   await saveEdit(page, firstEdit)
 
-  // Zero-open lingering task: closed-count summary, closed row with
-  // Reopen — the terminal total replaces the old unassigned summary.
+  // Zero-open lingering task: a Done label leads the closed-count
+  // summary ("Completado · 1 cerrada"), plus a closed row with Reopen.
   await expect(row).toBeVisible()
   await expect(row).toContainText("1 cerrada")
+  await expect(row).toContainText("Completado")
   await expandAssignments(row)
   const person = personRows(row)
   await expect(person).toHaveCount(1)
@@ -1220,8 +1307,8 @@ test("a plain save after unarchive never reopens work, and extending the due dat
   await page.goto(PROJECT_URL)
 
   // A one-day schedule in the past with a 00:01 slot: a close spawns no
-  // successor, and after archive moves the due date to today the next slot
-  // (tomorrow) is out of range, so the task unarchives with zero open rows.
+  // successor, and archive preserves that past due date, so the next slot
+  // (tomorrow) is out of range and the task unarchives with zero open rows.
   await createDailyRepeatingTask(page, {
     name: taskName,
     assignee: true,
@@ -1242,7 +1329,14 @@ test("a plain save after unarchive never reopens work, and extending the due dat
   await expect(page.getByText("Estado actualizado").first()).toBeVisible()
   await expect(row).not.toContainText("abierta")
 
-  await archiveTask(page, row, taskName, "finalizada")
+  // The only row is already terminal, so there is no open work to close:
+  // Archive skips the disposition dialog and archives immediately.
+  await openTaskMenu(page, row, taskName)
+  await page.getByRole("menuitem", { name: "Archivar", exact: true }).click()
+  await expect(
+    page.getByRole("dialog", { name: "¿Archivar tarea?" })
+  ).toHaveCount(0)
+  await expect(page.getByText("Tarea archivada").first()).toBeVisible()
   await archivedFilter(page).click()
   await expect(row).toBeVisible()
   await unarchiveTask(page, row, taskName)
@@ -1251,7 +1345,7 @@ test("a plain save after unarchive never reopens work, and extending the due dat
   await expect(row).toContainText("1 cerrada")
   await expect(row).not.toContainText("abierta")
 
-  // A plain save (no date edit) keeps the archive-day due date untouched:
+  // A plain save (no date edit) keeps the preserved due date untouched:
   // it never reopens work.
   const plain = await openEdit(page, row, taskName)
   await saveEdit(page, plain)
@@ -1307,6 +1401,89 @@ test("a project owner's own repeating occurrence spawns a successor when closed"
   await expect(row).toContainText("1 abierta")
   await expect(row).toContainText("1 cerrada")
   await expect(openOccurrenceRow(page, person)).toHaveCount(1)
+})
+
+test("switching filters preserves each view's expanded task rows", async ({
+  page,
+  signInAs,
+}) => {
+  const stamp = Date.now()
+  const openName = `E2E state open ${stamp}`
+  const archivedName = `E2E state archived ${stamp}`
+  await signInAs("user1")
+  await page.goto(PROJECT_URL)
+
+  // One open task and one archived task, so each filter renders its own
+  // TasksTable and the two views can be expanded independently.
+  await createOneOffTask(page, {
+    name: openName,
+    assignee: true,
+    day: daysFromNow(2),
+  })
+  await createOneOffTask(page, {
+    name: archivedName,
+    assignee: true,
+    day: daysFromNow(3),
+  })
+  const openRow = page.getByRole("row", { name: new RegExp(openName) })
+  const archivedRow = page.getByRole("row", {
+    name: new RegExp(archivedName),
+  })
+  // Archive inline rather than via the toast-waiting helper: under full
+  // suite load a delayed sonner toast can flake, while the optimistic
+  // store update that moves the row is the signal this test cares about.
+  await openTaskMenu(page, archivedRow, archivedName)
+  await page.getByRole("menuitem", { name: "Archivar", exact: true }).click()
+  const archiveDialog = page.getByRole("dialog", { name: "¿Archivar tarea?" })
+  await expect(archiveDialog).toBeVisible()
+  await archiveDialog
+    .getByRole("button", { name: "Marcar como finalizada" })
+    .click()
+  await expect(archiveDialog).toBeHidden()
+  await expect(archivedRow).toHaveCount(0)
+
+  // Expand the open task's assignments, then leave the view.
+  await expandAssignments(openRow)
+  await expect(personRows(openRow)).toHaveCount(1)
+  await expect(
+    openRow.getByRole("button", { name: "Detalles de asignados" })
+  ).toHaveAttribute("aria-expanded", "true")
+
+  // The hidden view is removed from the accessibility tree, so the open
+  // row is gone while Archived is selected.
+  await archivedFilter(page).click()
+  await expect(archivedFilter(page)).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  )
+  await expect(openRow).toHaveCount(0)
+
+  // Expand the archived task's assignments too — its own view's state.
+  await expect(archivedRow).toBeVisible()
+  await expandAssignments(archivedRow)
+  await expect(personRows(archivedRow)).toHaveCount(1)
+  await expect(
+    archivedRow.getByRole("button", { name: "Detalles de asignados" })
+  ).toHaveAttribute("aria-expanded", "true")
+
+  // Back to Open: the open row kept its expanded assignment rows instead
+  // of remounting fresh, while the archived row is now hidden.
+  await openFilter(page).click()
+  await expect(openFilter(page)).toHaveAttribute("aria-pressed", "true")
+  await expect(archivedRow).toHaveCount(0)
+  await expect(openRow).toBeVisible()
+  await expect(
+    openRow.getByRole("button", { name: "Detalles de asignados" })
+  ).toHaveAttribute("aria-expanded", "true")
+  await expect(personRows(openRow)).toHaveCount(1)
+
+  // Switching again, the Archived view still holds its own expansion.
+  await archivedFilter(page).click()
+  await expect(archivedRow).toBeVisible()
+  await expect(
+    archivedRow.getByRole("button", { name: "Detalles de asignados" })
+  ).toHaveAttribute("aria-expanded", "true")
+  await expect(personRows(archivedRow)).toHaveCount(1)
 })
 
 test("a collaborator never sees a Reopen control", async ({

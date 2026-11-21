@@ -77,11 +77,17 @@ export function TasksTable({
   )
 
   const handleArchive = useCallback(
-    (closeAs: "done" | "cancelled") => {
-      if (archivingTaskId) onArchive(archivingTaskId, closeAs)
+    (taskId: string, closeAs: "done" | "cancelled") => {
+      onArchive(taskId, closeAs)
       setArchivingTaskId(null)
     },
-    [archivingTaskId, onArchive]
+    [onArchive]
+  )
+  const handleDialogArchive = useCallback(
+    (closeAs: "done" | "cancelled") => {
+      if (archivingTaskId) handleArchive(archivingTaskId, closeAs)
+    },
+    [archivingTaskId, handleArchive]
   )
   const handleArchiveCancel = useCallback(
     () => setArchivingTaskId(null),
@@ -105,7 +111,9 @@ export function TasksTable({
             <TableHead scope="col">
               {t("projects.tasks.name")}
             </TableHead>
-            <TableHead scope="col">{t("common.assignee")}</TableHead>
+            <TableHead scope="col">
+              {t("projects.tasks.assignees")}
+            </TableHead>
             <TableHead scope="col">{t("common.status")}</TableHead>
             <TableHead scope="col">{t("common.priority")}</TableHead>
             <TableHead scope="col">{t("common.dueDate")}</TableHead>
@@ -151,7 +159,6 @@ export function TasksTable({
             )
             const openIds = open.map((assignment) => assignment.id)
             const counts = assignmentCounts(task.assignments)
-            const lead = open[0]
             const isExpanded = expanded.has(task.id)
             // Sorted so sortAssignments re-orders can't retrigger the
             // history panel's pagination reset.
@@ -160,9 +167,10 @@ export function TasksTable({
               .sort()
               .join(",")
             // Open work first (with its blocked/review detail), then
-            // the server-counted terminal total — which stands alone
-            // when nothing is open. No parts at all means the task has
-            // no assignments whatsoever.
+            // the server-counted terminal total. A task with nothing
+            // open but some closed reads "Done · N closed"; with open
+            // work the closed total stands alone. No parts at all means
+            // the task has no assignments whatsoever.
             const statusParts = [
               ...(open.length > 0
                 ? [
@@ -187,6 +195,9 @@ export function TasksTable({
                 : []),
               ...(task.closedCount > 0
                 ? [
+                    ...(open.length === 0
+                      ? [t("projects.tasks.status.done")]
+                      : []),
                     t("projects.tasks.closedCount", {
                       count: task.closedCount,
                     }),
@@ -273,10 +284,10 @@ export function TasksTable({
                   </TableCell>
                   <TableCell>
                     <DueDate
-                      date={lead ? lead.endDate : task.endDate}
+                      date={task.endDate}
                       overdue={
-                        lead
-                          ? isTaskOverdue(lead.status, lead.endDate)
+                        open.length > 0
+                          ? isTaskOverdue(open[0].status, task.endDate)
                           : false
                       }
                       overdueLabel={t("common.overdue")}
@@ -308,6 +319,9 @@ export function TasksTable({
                           canArchive={canEdit}
                           onArchiveRequest={() =>
                             setArchivingTaskId(task.id)
+                          }
+                          onArchiveDirect={() =>
+                            handleArchive(task.id, "cancelled")
                           }
                           onUnarchive={() => onUnarchive(task.id)}
                         />
@@ -347,7 +361,7 @@ export function TasksTable({
       </Table>
       <TaskArchiveDialog
         open={archivingTaskId !== null}
-        onArchive={handleArchive}
+        onArchive={handleDialogArchive}
         onCancel={handleArchiveCancel}
       />
     </div>

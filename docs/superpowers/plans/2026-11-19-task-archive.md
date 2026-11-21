@@ -2,20 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add explicit archiving to project tasks — an Open/Archived filter, Archive/Unarchive menu actions with a confirm dialog, a server-side freeze on archived tasks, and one recurrence-checked spawn helper shared by four triggers (unarchive, due-date change, assignment close, add-assignee) backed by a new `task_assignee` membership table.
+**Goal:** Add explicit archiving to project tasks — an Open/Archived filter, Archive/Unarchive menu actions with a confirm dialog (only when open work exists), fully editable archived tasks with a small set of archive-specific guards, and one recurrence-checked spawn helper shared by four triggers (unarchive, due-date change, assignment close, add-assignee) backed by a new `task_assignee` membership table. Archiving never changes dates or times.
 
-**Architecture:** `task.archived` partitions the list; `task_assignee` is the source of truth for *who is assigned* (hard-deleted on unassign, distinct from terminal assignment history). All write logic stays in `actions/tasks/queries.ts`; `actions/tasks/actions.ts` only guards permissions/freeze and orchestrates. A single composed query `spawnEligibleAssignments` reads the task roster and open rows, uses the pure `computeNextOccurrence` for the range check, and inserts open assignments through one leaf write; its optional `client` parameter lets callers enlist it in their own transaction. The optimistic store mirrors archive/unarchive via one `setArchived` reducer case; `router.refresh()` in `useOptimisticAction` re-seeds server truth (including healed/spawned rows) after every mutation.
+**Architecture:** `task.archived` partitions the list; `task_assignee` is the source of truth for *who is assigned* (hard-deleted on unassign, distinct from terminal assignment history) and for the roster-driven assignee column. All write logic stays in `actions/tasks/queries.ts`; `actions/tasks/actions.ts` only guards permissions and the remaining archive-specific guards, then orchestrates. A single composed query `spawnEligibleAssignments` reads the task roster and open rows, uses the pure `computeNextOccurrence` for the range check, and inserts open assignments through one leaf write; its optional `client` parameter lets callers enlist it in their own transaction. `getActiveAssigneeIds` left-joins `project_membership` and also accepts `projects.primaryOwnerId` (the owner has no membership row). The optimistic store mirrors archive/unarchive via one `setArchived` reducer case; `router.refresh()` in `useOptimisticAction` re-seeds server truth (including healed/spawned rows) after every mutation. Both filter views stay mounted in React `<Activity mode="visible" | "hidden">` boundaries so view state survives switches.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript 6, Drizzle ORM + PostgreSQL, next-safe-action, Zod 4, Zustand optimistic stores, next-intl, Vitest + vitest-drizzle-mock, Playwright. Package manager: pnpm.
 
-**Spec:** `docs/superpowers/specs/2026-11-19-task-archive-design.md` (approved, currently uncommitted — commit it with Task 1 so the plan and spec travel together).
+**Spec:** `docs/superpowers/specs/2026-11-19-task-archive-design.md` (approved 2026-11-19; amended 2026-11-21 to describe the final implemented behavior after user review). Per the commit convention below, both docs still travel together in the first task's commit.
 
 ## Global Constraints
 
-- No data migration: local `task`, `task_assignment`, and `task_assignee` tables are truncated. `archived` defaults to `false`; membership rows are created fresh. (`spec`, Non-goals / #1)
+- No data migration / no backfill: local `task`, `task_assignment`, and `task_assignee` tables are truncated. `archived` defaults to `false`; membership rows are created fresh. **Warning:** a deployed database with pre-existing tasks must have `task_assignee` backfilled from open `task_assignment` rows, or those tasks will show "Unassigned". (`spec`, Non-goals / #1)
 - Generate SQL with `pnpm db:generate`; never hand-edit `drizzle/*.sql`, `drizzle/meta/_journal.json`, or `drizzle/meta/*_snapshot.json`. Apply with `pnpm db:migrate` (test DB: `pnpm test:db:migrate`). (`spec`, #1/#2)
-- Archived tasks are **completely frozen**: every task/assignment/comment mutation rejects while `archived = true`; only `unarchiveTask` and `deleteTask` are exceptions. No hidden UI is the only gate. (`spec`, Goals / #6)
-- Spawn rule 0: an archived task opens assignments under no circumstance — the helper checks `archived` first. (`spec`, #7)
+- **Archived tasks are fully editable** (the original freeze was reversed after implementation): edit form, priority, assignees, assignment status, Reopen, and comments all work while `archived = true`. Only the guards below are special. (`spec`, Goals / #6 / "Post-implementation revisions")
+- The **complete set of remaining archived guards** (no mutation freeze): spawn rule 0 (`spawnEligibleAssignments` returns `[]` when archived); the `!row.archived` descriptor gate in the close-time cascade; the `!archived` gate on `syncTaskAssignments`' non-repeating direct insert; `archiveTask`'s double-archive rejection (`assertTaskMutable` + `archived = false` WHERE in `archiveTaskRow`); `unarchiveTask`'s `!archived → VALIDATION_FAILED` pre-check plus `archived = true` WHERE and row-count (`NOT_FOUND` when nothing flipped). (`spec`, #4/#5/#6/#7)
+- **Archiving never touches dates/times.** `startDate`, `endDate`, `startTime`, `endTime` are preserved exactly; archive only sets `archived = true` and closes open assignments with the chosen disposition. The `endDate = now` step and `archivedWindow` helper are superseded. (`spec`, #4)
+- The **assignee column is roster-driven**: avatars come only from `task_assignee` (`assigneeIds` → `assigneeIdentities`); an empty roster shows "Unassigned" and no assignment-row user is shown as assigned. The header is plural `projects.tasks.assignees`; singular `common.assignee` is unchanged. (`spec`, Goals / #2)
+- **Display rules:** the task due column reads `task.endDate` from the database with all-day dates formatted date-only via `formatDueDate`/`isAllDayDate`; assignment rows show due date **with time** via `formatAssignmentDueDate`; a zero-open task with closed history shows "Done · N closed" (`projects.tasks.status.done` + `projects.tasks.closedCount`). (`spec`, Goals / #10)
+- Both filter views stay mounted in `<Activity mode="visible" | "hidden">` boundaries so the hidden view's state is preserved across Open/Archived switches. (`spec`, #3)
 - The filter has exactly two options, `"open" | "archived"`, partitioning on `task.archived`; no auto-flip, no URL/store persistence, no count badges, no "archived" status badge. (`spec`, Goals / #3)
 - Non-repeating tasks never gain assignments from a date edit or unarchive. Removing an assignee hard-deletes only that task's `task_assignee` row; `task_assignment` history is never deleted. (`spec`, Non-goals / #2)
 - `messages/en.json` and `messages/es.json` stay structurally identical; dynamic key maps (`errors.*`, `projects.tasks.status.*`, etc.) are never renamed or merged. (`spec`, #10 / AGENTS.md)
@@ -25,6 +29,44 @@
 - Every behavioral change ships tests beside the code. Gate: `pnpm verify` and `pnpm test:e2e`. (AGENTS.md)
 - **Commits require explicit user permission** (AGENTS.md). Each task's Commit step is subject to that gate; never commit or push without asking.
 
+## Post-implementation revisions (2026-11-21)
+
+User review after implementation finalized these behaviors. The
+task-by-task specs below have been updated where they stated the
+original behavior; any surviving original wording is explicitly marked
+superseded here.
+
+1. **Task 6:** archive sets only `archived = true` — no `endDate = now`
+   and no `archivedWindow` helper; all dates/times are preserved. The
+   confirm dialog (Task 11) appears only when there are open
+   assignments; with none, archive runs immediately with
+   `closeAs: "cancelled"`.
+2. **Tasks 6/8/11/12:** the server-side freeze is removed. Archived
+   tasks are fully editable; only the guards in Global Constraints
+   remain (rule 0, `!row.archived` descriptor gate, `!archived` gate on
+   the non-repeating direct insert, double-archive rejection,
+   unarchive `!archived → VALIDATION_FAILED` + WHERE + row count, and
+   `archived = false` WHERE in `archiveTaskRow`).
+3. **Tasks 10/11/12:** the assignee column is roster-driven
+   (`assigneeIds` → `assigneeIdentities`), "Unassigned" for an empty
+   roster, plural `projects.tasks.assignees` header, singular
+   `common.assignee` form label unchanged.
+4. **Tasks 11/12:** the task due column reads `task.endDate` from the
+   DB with all-day date-only formatting (`formatDueDate` /
+   `isAllDayDate`); assignment rows use `formatAssignmentDueDate`
+   (date + time); zero-open tasks with history show "Done · N closed".
+5. **Task 4:** `getActiveAssigneeIds` left-joins `project_membership`
+   and also accepts `projects.primaryOwnerId` (no membership row).
+6. **Task 10:** both filter views are rendered in React
+   `<Activity mode="visible" | "hidden">` boundaries so view state is
+   preserved across switches.
+7. **Tasks 5/12:** seed-e2e membership rows exist; archived-task e2e
+   asserts editability, roster avatars, "Done · N closed", DB-sourced
+   task due date, assignment due-date+time, and preserved view state.
+8. No data migration/backfill (with the deployed-DB `task_assignee`
+   warning), en/es structural parity, and never renaming dynamic key
+   maps are all unchanged.
+
 ## Review Focus
 
 These five inputs/failure modes are the most likely to break in normal use; each is pinned to a test in the task that owns the code.
@@ -32,8 +74,8 @@ These five inputs/failure modes are the most likely to break in normal use; each
 1. **A close or unarchive racing `archived = true` must never spawn a successor.** Pinned: Task 4's rule-0 direct helper test AND Task 6's "repeating fixture + open assignment archives without inserting a successor" test.
 2. **Zero-open repeating task: every active assignee gets exactly one successor, a removed-from-project assignee gets none.** Pinned: Task 7's unarchive triggers and Task 8's date-edit/close-time tests (including "removed assignee never spawned").
 3. **A plain wizard save (rename/priority) must not reopen finished work for members who were never removed.** Pinned: Task 5's `syncTaskAssignments` "existing member with no open row → no insert" test and Task 12's audit of wizard-save e2e expectations.
-4. **An archived task's due-date cell must show the task's now-today date, not a stale closed assignment's date.** Pinned: Task 12's frozen-view e2e assertion; if it fails, Task 11 changes `tasks-table.tsx`'s `lead ? lead.endDate : task.endDate` fallback for zero-open tasks.
-5. **A stale client tab submitting a mutation after archive must get a rejected action/toast, never a crash or a write; Delete and Unarchive still work.** Pinned: Task 8's freeze table test (`updateTask`, `updateAssignmentStatus`, `updateAssignmentComment`, `updateTaskPriority`, all comment actions rejected; `deleteTask`/`unarchiveTask` succeed).
+4. **The task due-date cell must show `task.endDate` from the DB, not a stale closed assignment's date; all-day tasks show date only, assignment rows show date + time.** Pinned: Task 11's rendering (`formatDueDate`/`isAllDayDate` for the task cell, `formatAssignmentDueDate` for rows) and Task 12's e2e assertions. (Supersedes the old "now-today date / lead-assignment fallback" focus.)
+5. **Archived tasks accept all edits; only the archive-specific guards reject — double archive, unarchive of a live or vanished row, and spawn on an archived task.** Delete and Unarchive still work. Pinned: Task 8's guard tests and Task 12's archived-editing e2e. (Supersedes the old "stale client gets rejected mutation" freeze focus.)
 
 ---
 
@@ -236,6 +278,7 @@ it("never spawns for an archived task (rule 0)", async () => {
 })
 it("never spawns for a non-repeating task", async () => { /* archived: false, recurrence: null → [] */ })
 it("requires an active member and no open row", async () => { /* no task_assignee rows → []; open row for the only member → [] */ })
+it("treats the project owner as active without a membership row", async () => { /* assignee id equals projects.primaryOwnerId, no project_membership row → spawned */ })
 it("skips candidates whose next occurrence is out of range", async () => { /* endDate in the past → [] */ })
 it("inserts one open assignment for an eligible member with the computed window", async () => {
   const ids = await queries.spawnEligibleAssignments(TASK_ID, {
@@ -263,7 +306,7 @@ Expected: FAIL — helper is not exported.
 
 - [ ] **Step 3: Implement the helper**
 
-In `queries.ts`: add `QueryClient`/`SpawnOptions`; thread an optional `client: QueryClient = db` parameter onto the existing leaves `getTaskRow`, `getOpenAssignments`, `hasLaterDatedAssignment` (all reads use `client.select/...`); add leaf `getActiveAssigneeIds(taskId, projectId, client)` selecting `taskAssigneesTable.userId` inner-joined to `projectMembershipTable` on `userId` + `projectId` (defence against drift); add leaf `insertAssignmentRows(rows: AssignmentSpawn[], client): Promise<string[]>` doing one `.insert(...).values(rows).returning({ id: ... })`. Implement `spawnEligibleAssignments` as a composed query (zero direct `db` calls): load task → `if (!task || task.archived || !task.recurrence) return []` → intersect `getActiveAssigneeIds` with `onlyUserIds` and subtract `getOpenAssignments` user ids → for each remaining user call `computeNextOccurrence({ recurrence, interval, daysOfWeek, startTime, endDate: task.endDate }, opts.anchor)` → skip when `opts.closing?.userId === userId && await hasLaterDatedAssignment(...)` → collect `AssignmentSpawn` with `endDate: atTime(next, task.endTime)` → `return insertAssignmentRows(spawns, opts.client ?? db)` (empty array short-circuits to `[]`). `computeNextOccurrence` already rejects occurrences past `endOfDay(task.endDate)`, so no second range check is needed. Export it in the `queries` object.
+In `queries.ts`: add `QueryClient`/`SpawnOptions`; thread an optional `client: QueryClient = db` parameter onto the existing leaves `getTaskRow`, `getOpenAssignments`, `hasLaterDatedAssignment` (all reads use `client.select/...`); add leaf `getActiveAssigneeIds(taskId, projectId, client)` selecting `taskAssigneesTable.userId` with a **left join** to `projectMembershipTable` on `userId` + `projectId`, accepting a row when `projectMembershipTable.userId` is non-null **or** `projectsTable.primaryOwnerId` equals the assignee (the primary owner has no membership row); add leaf `insertAssignmentRows(rows: AssignmentSpawn[], client): Promise<string[]>` doing one `.insert(...).values(rows).returning({ id: ... })`. Implement `spawnEligibleAssignments` as a composed query (zero direct `db` calls): load task → `if (!task || task.archived || !task.recurrence) return []` → intersect `getActiveAssigneeIds` with `onlyUserIds` and subtract `getOpenAssignments` user ids → for each remaining user call `computeNextOccurrence({ recurrence, interval, daysOfWeek, startTime, endDate: task.endDate }, opts.anchor)` → skip when `opts.closing?.userId === userId && await hasLaterDatedAssignment(...)` → collect `AssignmentSpawn` with `endDate: atTime(next, task.endTime)` → `return insertAssignmentRows(spawns, opts.client ?? db)` (empty array short-circuits to `[]`). `computeNextOccurrence` already rejects occurrences past `endOfDay(task.endDate)`, so no second range check is needed. Export it in the `queries` object.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -348,17 +391,22 @@ git commit -m "feat(tasks): track assignee membership and clean up on removal"
 In `tasks.test.ts`, import `archiveTask` from `@/actions/tasks` and add:
 
 ```ts
-it("archives a repeating task, moves its due date to today, closes all open rows and spawns nothing", async () => {
-  // task row: recurrence "weekly", archived false, endDate in the future;
+it("archives a repeating task, preserves all dates/times, closes all open rows and spawns nothing", async () => {
+  // task row: recurrence "weekly", archived false, endDate/startDate/startTime/endTime set;
   // two open assignments for two members; task_assignee rows for both.
   const result = await archiveTask({ projectId: PROJECT_ID, taskId: TASK_ID, closeAs: "cancelled" })
   expect(defaultIsSuccess(result)).toBe(true)
   const updates = state.mock.calls.filter((c) => c.sql.includes("update \"task\""))
   expect(updates.some((c) => c.sql.includes("archived"))).toBe(true)
+  expect(updates.some((c) => c.sql.includes("end_date") || c.sql.includes("start_date"))).toBe(false)
   expect(state.mock.calls.some((c) => c.sql.includes("insert into \"task_assignment\""))).toBe(false)
   expect(state.mock.calls.some((c) => c.sql.includes("delete from \"task_assignee\""))).toBe(false)
 })
 it("rejects archive for a collaborator", async () => { grantAccess("collaborator"); /* FORBIDDEN */ })
+it("rejects a second archive of an already-archived task", async () => {
+  // archived: true in getTaskRowInProject → FORBIDDEN (assertTaskMutable);
+  // archiveTaskRow's WHERE also includes archived = false.
+})
 ```
 
 Also add a direct `assertTaskMutable` unit case: `{ archived: true }` throws, `{ archived: false }` does not.
@@ -370,7 +418,7 @@ Expected: FAIL — `archiveTask` is not exported.
 
 - [ ] **Step 3: Implement the action and query**
 
-In `util.ts`, add `assertTaskMutable` using `returnActionError("FORBIDDEN")` for archived and `"NOT_FOUND"` for missing. In `queries.ts`, add leaf `archiveTaskRow`: one `db.transaction` that updates `tasksTable` (`archived: true`, `endDate: new Date()`) and directly updates every open `taskAssignmentsTable` row of that task to `closeAs` — no call to `updateAssignmentStatus`, no `spawnEligibleAssignments`, no membership writes. In `actions.ts`, add `archiveTask = projectAction(ArchiveTaskSchema)...` following `updateTaskPriority`: `canManageWork` guard → `assertTaskMutable(await queries.getTaskRowInProject(...))` → `queries.archiveTaskRow(...)` → `{ success: true }`. Add `getTaskRowInProject` to an enriched shape that includes `archived` (Task 8 extends it further). Export `archiveTask` from `index.ts`.
+In `util.ts`, add `assertTaskMutable` using `returnActionError("FORBIDDEN")` for archived and `"NOT_FOUND"` for missing. In `queries.ts`, add leaf `archiveTaskRow`: one `db.transaction` that updates `tasksTable` with **only** `{ archived: true }` (WHERE includes `archived = false`; no date/time column is written) and directly updates every open `taskAssignmentsTable` row of that task to `closeAs` — no call to `updateAssignmentStatus`, no `spawnEligibleAssignments`, no membership writes. In `actions.ts`, add `archiveTask = projectAction(ArchiveTaskSchema)...` following `updateTaskPriority`: `canManageWork` guard → `assertTaskMutable(await queries.getTaskRowInProject(...))` → `queries.archiveTaskRow(...)` → `{ success: true }`. Add `getTaskRowInProject` to an enriched shape that includes `archived` (Task 8 extends it further). Export `archiveTask` from `index.ts`.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -401,7 +449,7 @@ In `tasks.test.ts`:
 
 ```ts
 it("unarchiving a repeating in-range task spawns for every active assignee without an open row", async () => {
-  // archived task, recurrence weekly, endDate today, two task_assignee rows, no open rows
+  // archived task, recurrence weekly, preserved endDate in range, two task_assignee rows, no open rows
   const result = await unarchiveTask({ projectId: PROJECT_ID, taskId: TASK_ID })
   expect(result.data?.spawned).toHaveLength(2)
   expect(state.mock.calls.some((c) => c.sql.includes("insert into \"task_assignment\""))).toBe(true)
@@ -420,7 +468,7 @@ Expected: FAIL — `unarchiveTask` is not exported.
 
 - [ ] **Step 3: Implement the action and query**
 
-In `queries.ts`, add `unarchiveTaskRow`: one `db.transaction` that sets `archived = false`, then calls `spawnEligibleAssignments(taskId, { anchor: new Date(), client: tx })` and returns its ids. In `actions.ts`, add `unarchiveTask = projectAction(UnarchiveTaskSchema)...` with the same guard/revalidate as `archiveTask`; load each spawned id via `queries.getAssignmentViewById` and map with `toTaskAssignmentDTO`; return `{ spawned }`. Export from `index.ts`.
+In `queries.ts`, add `unarchiveTaskRow`: one `db.transaction` that sets `archived = false` with a WHERE including `archived = true`, checks the returned row count (no flipped row → return `null`, surfaced by the action as `NOT_FOUND`), then calls `spawnEligibleAssignments(taskId, { anchor: new Date(), client: tx })` and returns its ids (the helper re-reads the task inside `tx`, so rule 0 sees `archived = false`). In `actions.ts`, add `unarchiveTask = projectAction(UnarchiveTaskSchema)...` with the same guard/revalidate as `archiveTask` plus an explicit `if (!task.archived) returnActionError("VALIDATION_FAILED")` before the write; load each spawned id via `queries.getAssignmentViewById` and map with `toTaskAssignmentDTO`; return `{ spawned }`. Export from `index.ts`.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -436,14 +484,14 @@ git commit -m "feat(tasks): add unarchive with recurrence-checked spawn"
 
 ---
 
-### Task 8: Date-edit spawn (b), close-time cascade refactor (c), and the archived freeze
+### Task 8: Date-edit spawn (b), close-time cascade refactor (c), and the remaining archived guards
 
 **Files:**
 - Modify: `actions/tasks/queries.ts`, `actions/tasks/actions.ts`, `actions/tasks/util.ts`, `actions/tasks/tasks.test.ts`
 
 **Interfaces:**
-- Consumes: `spawnEligibleAssignments` (Task 4), `assertTaskMutable` (Task 6), `getTaskRowInProject` (extend to return `{ id, projectId, archived, endDate, recurrence }`), `getAssignmentForRow`/`getAssignmentForComment` (extend with `archived`).
-- Produces: `updateAssignmentStatus` now inserts `AssignmentSpawn[]` in one transaction and returns `string[]` of inserted ids; its output stays `AssignmentStatusResultSchema` with `nextAssignment` = the successor for the **closing** assignee (healed rows arrive via `router.refresh()` reseed). `assertTaskInProject` returns `{ archived: boolean }` so `assertCommentAccess` can freeze all comment actions.
+- Consumes: `spawnEligibleAssignments` (Task 4), `getTaskRowInProject` (extend to return `{ id, projectId, archived, endDate, recurrence }`), `getAssignmentForRow` (descriptor includes `archived` for the spawn gate).
+- Produces: `updateAssignmentStatus` now inserts `AssignmentSpawn[]` in one transaction and returns `string[]` of inserted ids; its output stays `AssignmentStatusResultSchema` with `nextAssignment` = the successor for the **closing** assignee (healed rows arrive via `router.refresh()` reseed). **No mutation action rejects an archived task** — `assertTaskMutable` is used only by `archiveTask` (Task 6) for double-archive rejection, and `getAssignmentForRow.archived` only gates the close-time spawn descriptor (`!row.archived`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -454,8 +502,8 @@ it("a due-date change on a repeating task spawns for an active member with no op
 it("a due-date change skips a member with an open row, a removed assignee, an unchanged date, a non-repeating task, and an out-of-range occurrence", async () => { /* table of five cases, zero inserts each */ })
 it("closing the latest assignment still spawns its successor with the closing row's date as anchor", async () => { /* existing case around line 627 stays passing */ })
 it("a second active member with no open row is healed on close, while a member with an open row is untouched", async () => { /* two inserts, one for each eligible user */ })
-it("closing an assignment on an archived task spawns nothing", async () => { /* archived: true in getAssignmentForRow → FORBIDDEN, zero inserts */ })
-it("freezes every mutation while archived", async () => {
+it("closing an assignment on an archived task spawns nothing", async () => { /* archived: true in getAssignmentForRow → status write succeeds, but the !row.archived spawn gate yields zero inserts */ })
+it("allows every mutation while archived (no freeze; supersedes the original freeze test)", async () => {
   for (const action of [
     () => updateTask({ ...validTask, taskId: TASK_ID }),
     () => updateAssignmentStatus({ projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "done" }),
@@ -464,23 +512,29 @@ it("freezes every mutation while archived", async () => {
     () => createComment({ projectId: PROJECT_ID, taskId: TASK_ID, content: "hi" }),
     () => updateComment({ projectId: PROJECT_ID, taskId: TASK_ID, commentId: COMMENT_ID, content: "hi" }),
     () => deleteComment({ projectId: PROJECT_ID, taskId: TASK_ID, commentId: COMMENT_ID }),
-  ]) expect((await action()).serverError?.code).toBe("FORBIDDEN")
-  // deleteTask and unarchiveTask still return success for the same archived row.
+  ]) expect(defaultIsSuccess(await action())).toBe(true)
+  // deleteTask and unarchiveTask succeed too; only the guards below reject.
+})
+it("keeps the archive-specific guards", async () => {
+  // archiveTask on an already-archived row → FORBIDDEN (assertTaskMutable);
+  // unarchiveTask on a live row → VALIDATION_FAILED, on a vanished row → NOT_FOUND;
+  // spawnEligibleAssignments with archived: true → [] (Task 4's rule-0 test);
+  // non-repeating add-assignee on an archived task → roster row, no open assignment (Task 5).
 })
 ```
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `pnpm vitest run actions/tasks/tasks.test.ts -t "spawn|freez|archived"`
-Expected: FAIL — no date-change spawn, no freeze checks, close-time cascade is still in the action.
+Run: `pnpm vitest run actions/tasks/tasks.test.ts -t "spawn|archiv"`
+Expected: FAIL — no date-change spawn, archived tasks still block edits, close-time cascade is still in the action.
 
 - [ ] **Step 3: Refactor the close-time cascade through the helper**
 
-In `actions.ts:updateAssignmentStatus`: keep permission and terminal/reopen validation, add `if (row.archived) returnActionError("FORBIDDEN")` immediately after `getAssignmentForRow`. Replace the inline `hasLaterDatedAssignment` + `computeNextOccurrence` block with one `spawnEligibleAssignments` call guarded by `crossesToTerminal && row.recurrence && !row.archived`, passing `anchor: row.endDate ?? new Date()` and `closing: { userId: row.userId, endDate: row.endDate }`. In `queries.ts`, change `updateAssignmentStatus(assignmentId, status, spawns: AssignmentSpawn[])` to insert all rows in its existing transaction and return `string[]`; in the action, load all returned view rows and set `nextAssignment` to the one whose `userId === row.userId` (null when none).
+In `actions.ts:updateAssignmentStatus`: keep permission and terminal/reopen validation (**no** `archived` rejection — archived tasks are editable). Replace the inline `hasLaterDatedAssignment` + `computeNextOccurrence` block with one `spawnEligibleAssignments` call guarded by `crossesToTerminal && row.recurrence && !row.archived`, passing `anchor: row.endDate ?? new Date()` and `closing: { userId: row.userId, endDate: row.endDate }`. The `!row.archived` descriptor gate stays: a close on an archived task is a normal edit but never spawns. In `queries.ts`, change `updateAssignmentStatus(assignmentId, status, spawns: AssignmentSpawn[])` to insert all rows in its existing transaction and return `string[]`; in the action, load all returned view rows and set `nextAssignment` to the one whose `userId === row.userId` (null when none).
 
-- [ ] **Step 4: Add trigger (b) and the freeze guards**
+- [ ] **Step 4: Add trigger (b) and keep the remaining archived guards**
 
-In `actions.ts:updateTask`: fetch `previous = await queries.getTaskRowInProject(taskId, projectId)` before `updateTaskRow`, call `assertTaskMutable(previous)`, then after `syncTaskAssignments` call `spawnEligibleAssignments(taskId, { anchor: previous.recurrence ? (parsedInput.startDate ? new Date(parsedInput.startDate) : new Date()) : new Date() })` only when `previous.recurrence && previousEnd !== nextEnd`, where `previousEnd = previous.endDate?.getTime() ?? null` and `nextEnd = parsedInput.endDate ? new Date(parsedInput.endDate).getTime() : null` (so unchanged/null dates compare equal and never spawn). Add `assertTaskMutable` to `updateTaskPriority`. In `queries.ts`, enrich `getAssignmentForRow` and `getAssignmentForComment` with `tasksTable.archived as archived` and check it in the two assignment actions. In `util.ts`, return the row from `assertTaskInProject` and reject archived rows inside `assertCommentAccess` (covers all four comment actions). Keep `deleteTask`/`unarchiveTask` exempt.
+In `actions.ts:updateTask`: fetch `previous = await queries.getTaskRowInProject(taskId, projectId)` before `updateTaskRow` (**no** `assertTaskMutable` call — archived tasks are editable), then after `syncTaskAssignments` call `spawnEligibleAssignments(taskId, { anchor: previous.recurrence ? (parsedInput.startDate ? new Date(parsedInput.startDate) : new Date()) : new Date() })` only when `previous.recurrence && previousEnd !== nextEnd`, where `previousEnd = previous.endDate?.getTime() ?? null` and `nextEnd = parsedInput.endDate ? new Date(parsedInput.endDate).getTime() : null` (so unchanged/null dates compare equal and never spawn). Rule 0 in the helper is the authoritative gate when the task is archived. Do **not** add archived checks to `updateTaskPriority`, `updateAssignmentComment`, or the comment CRUD actions. In `queries.ts`, enrich `getAssignmentForRow` with `tasksTable.archived as archived` solely for the close-time spawn descriptor gate; leave `getAssignmentForComment`/`assertCommentAccess` untouched. Keep `archiveTask`/`unarchiveTask` as the only actions with archived-status guards.
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -491,7 +545,7 @@ Expected: PASS (all pre-existing cases, including `nextAssignment` assertions, s
 
 ```bash
 git add actions/tasks/queries.ts actions/tasks/actions.ts actions/tasks/util.ts actions/tasks/tasks.test.ts
-git commit -m "feat(tasks): unify spawn triggers and freeze archived tasks"
+git commit -m "feat(tasks): unify spawn triggers and keep archive guards"
 ```
 
 ---
@@ -505,7 +559,7 @@ git commit -m "feat(tasks): unify spawn triggers and freeze archived tasks"
 
 **Interfaces:**
 - Consumes: `archiveTask`/`unarchiveTask` server actions from `@/actions/tasks` (Tasks 6–7), `run`/`settle` from `useOptimisticAction`/`useSettle`.
-- Produces: reducer case `{ type: "setArchived"; taskId: string; archived: boolean; closeAs?: "done" | "cancelled"; spawned?: TaskAssignmentDTO[]; endDate?: Date }`; hooks `archiveTask(projectId: string, taskId: string, closeAs: "done" | "cancelled"): Promise<void>` and `unarchiveTask(projectId: string, taskId: string): Promise<void>` returned from `useProjectTasksActions()`.
+- Produces: reducer case `{ type: "setArchived"; taskId: string; archived: boolean; closeAs?: "done" | "cancelled"; spawned?: TaskAssignmentDTO[] }` (no date field — archive never changes dates/times); hooks `archiveTask(projectId: string, taskId: string, closeAs: "done" | "cancelled"): Promise<void>` and `unarchiveTask(projectId: string, taskId: string): Promise<void>` returned from `useProjectTasksActions()`.
 
 - [ ] **Step 1: Write the failing reducer tests**
 
@@ -515,7 +569,7 @@ In `project-tasks-store.test.ts`:
 it("setArchived closes every open row with the chosen disposition and bumps closedCount", () => {
   store.getState().pend({
     type: "setArchived", taskId: "a", archived: true,
-    closeAs: "cancelled", endDate: NOW,
+    closeAs: "cancelled",
   })
   store.getState().commit(id)
   expect(store.getState().optimistic.tasks[0].archived).toBe(true)
@@ -536,7 +590,7 @@ Expected: FAIL — unknown action type.
 
 - [ ] **Step 3: Implement the reducer case**
 
-Add the `setArchived` variant to `ProjectTaskAction`. In the switch, map the target task: set `archived` (and `endDate` when supplied); when `closeAs` is present, map only open rows to that status and add their count to `closedCount` (clamped at ≥0); when `spawned` is present, append any row whose id is not already present and re-run `sortAssignments`. Never spawn or delete history in the reducer.
+Add the `setArchived` variant to `ProjectTaskAction`. In the switch, map the target task: set `archived` only (never touch `endDate`/`startDate`/`startTime`/`endTime`); when `closeAs` is present, map only open rows to that status and add their count to `closedCount` (clamped at ≥0); when `spawned` is present, append any row whose id is not already present and re-run `sortAssignments`. Never spawn or delete history in the reducer.
 
 - [ ] **Step 4: Implement the hooks**
 
@@ -545,7 +599,7 @@ In `use-project-tasks-actions.ts`, import the two actions aliased, add `executeA
 ```ts
 async function archiveTask(projectId: string, taskId: string, closeAs: "done" | "cancelled") {
   const result = await run(
-    { type: "setArchived", taskId, archived: true, closeAs, endDate: new Date() },
+    { type: "setArchived", taskId, archived: true, closeAs },
     () => executeArchive({ projectId, taskId, closeAs })
   )
   settle(result, t("projects.tasks.taskArchived"))
@@ -592,7 +646,7 @@ git commit -m "feat(tasks): add archive state to the optimistic store"
 
 **Interfaces:**
 - Consumes: `TasksVisibilityFilter` from `lib/tasks/list.ts`; `TaskWithAssignmentsDTO.assigneeIds` from Task 2.
-- Produces: `TasksVisibilityFilter = "open" | "archived"`; `selectTasks(tasks, filter, now)` partitions on `archived` and sorts both views by `endDate` ascending, nulls last; `isOpenAssignment` and `assignmentCounts` remain exported from `lib/tasks/filter.ts`; `shouldShowTask` is removed.
+- Produces: `TasksVisibilityFilter = "open" | "archived"`; `selectTasks(tasks, filter, now)` partitions on `archived` and sorts both views by `endDate` ascending, nulls last; `isOpenAssignment` and `assignmentCounts` remain exported from `lib/tasks/filter.ts`; `shouldShowTask` is removed. `assigneeIdentities(assigneeIds, shown, loaded, members)` returns avatars strictly from the `task_assignee` roster — an empty roster yields `[]` (the table shows "Unassigned") and an assignment-row user with no roster id is never shown as assigned. `tasks-card.tsx` renders both views in `<Activity mode="visible" | "hidden">` boundaries so hidden view state is preserved.
 
 - [ ] **Step 1: Write the failing tests and delete the obsolete ones**
 
@@ -621,7 +675,7 @@ Expected: FAIL — `"open"`/`"archived"` are not valid filter values.
 
 - [ ] **Step 3: Implement the filter change**
 
-In `lib/tasks/list.ts`, change the type to `"open" | "archived"`, partition with `task.archived`, and use `byEndDateAsc` for both cases (remove `byEndDateDesc` if unused). In `lib/tasks/filter.ts`, delete `shouldShowTask` and the now-unused `endOfDay`/`TaskAssignmentDTO` imports; keep `isOpenAssignment` and `assignmentCounts`. In `components/projects/tasks-filter.tsx`, set `OPTIONS = ["open", "archived"] as const`. In `components/projects/tasks-card.tsx`, default `useState<TasksVisibilityFilter>("open")`, switch the empty-state key to `filter === "archived" ? t("projects.tasks.noArchived") : t("projects.tasks.noTasks")`, and destructure `archiveTask`/`unarchiveTask` from `useProjectTasksActions()` (wiring into the table happens in Task 11).
+In `lib/tasks/list.ts`, change the type to `"open" | "archived"`, partition with `task.archived`, and use `byEndDateAsc` for both cases (remove `byEndDateDesc` if unused). In `lib/tasks/filter.ts`, delete `shouldShowTask` and the now-unused `endOfDay`/`TaskAssignmentDTO` imports; keep `isOpenAssignment` and `assignmentCounts`. In `components/projects/tasks-filter.tsx`, set `OPTIONS = ["open", "archived"] as const`. In `components/projects/tasks-card.tsx`, default `useState<TasksVisibilityFilter>("open")`, switch the empty-state key to `filter === "archived" ? t("projects.tasks.noArchived") : t("projects.tasks.noTasks")`, and destructure `archiveTask`/`unarchiveTask` from `useProjectTasksActions()` (wiring into the table happens in Task 11). Render the Open and Archived tables inside two React `<Activity mode={filter === view ? "visible" : "hidden"}>` boundaries so switching filters preserves each view's local state (e.g. expanded history panels).
 
 - [ ] **Step 4: Seed the form from membership, not open rows**
 
@@ -629,7 +683,7 @@ In `components/projects/task-form.tsx`, derive the protected/seeded ids from `ta
 
 - [ ] **Step 5: Update translations in both files identically**
 
-Replace `both`/`unfinished`/`finished`/`noFinished` with `open`, `archived`, `noArchived`; keep `filterLabel` (reword only if needed). Add `archive: { title, message, markDone, markCancelled }`, `archiveTask`, `unarchiveTask`, `taskArchived`, `taskUnarchived` using the exact en/es copy from spec table #10. Do not touch `myTasks.*` or any dynamic key map.
+Replace `both`/`unfinished`/`finished`/`noFinished` with `open`, `archived`, `noArchived`; keep `filterLabel` (reword only if needed). Add `archive: { title, message, markDone, markCancelled }`, `archiveTask`, `unarchiveTask`, `taskArchived`, `taskUnarchived` using the exact en/es copy from spec table #10, plus the plural `projects.tasks.assignees` column header ("Assignees"/"Asignadas"), `projects.tasks.status.done` and `projects.tasks.closedCount` for the "Done · N closed" status, and `common.unassigned` for an empty roster. Keep the singular `common.assignee` form label unchanged. Do not touch `myTasks.*`, and **never rename or merge dynamic key maps** (`errors.*`, `projects.tasks.status.*`, `projects.tasks.closedCount`, `activities.*`, etc.) — they are looked up by value. en/es stay structurally identical.
 
 - [ ] **Step 6: Run tests, typecheck and translation parity**
 
@@ -645,31 +699,31 @@ git commit -m "feat(tasks): switch to open/archived filter and membership seedin
 
 ---
 
-### Task 11: Archive menu, frozen read-only archived rows, and due-date fallback
+### Task 11: Archive menu, editable archived rows, and roster/due-date rendering
 
 **Files:**
 - Create: `components/projects/task-archive-menu-item.tsx`
-- Modify: `components/projects/tasks-table.tsx:40-67, 98-283`, `components/projects/task-open-assignment-rows.tsx:26-68`, `components/projects/tasks-card.tsx:176-195`
+- Modify: `components/projects/tasks-table.tsx`, `components/projects/task-open-assignment-rows.tsx`, `components/projects/tasks-card.tsx`
 
 **Interfaces:**
-- Consumes: `ActionMenu`'s `children` slot (`components/common/action-menu.tsx:59`), `ActionConfirmDialog` (`components/common/action-confirm-dialog.tsx`), `archiveTask`/`unarchiveTask` hooks from Task 9, `canMutate` computation at `tasks-table.tsx:62-67`.
-- Produces: `TaskArchiveMenuItem` with props `{ task: TaskWithAssignmentsDTO; canArchive: boolean; onArchive: (closeAs: "done" | "cancelled") => void; onUnarchive: () => void }`; `TaskOpenAssignmentRows` gains `readOnly?: boolean` to suppress status selects (badge instead).
+- Consumes: `ActionMenu`'s `children` slot (`components/common/action-menu.tsx:59`), `ActionConfirmDialog` (`components/common/action-confirm-dialog.tsx`), `archiveTask`/`unarchiveTask` hooks from Task 9, `canMutate` computation in `tasks-table.tsx`, `assigneeIdentities` from `lib/tasks/list.ts` (Task 10), `formatDueDate`/`isAllDayDate`/`formatAssignmentDueDate` from `lib/util/tasks.ts`.
+- Produces: `TaskArchiveMenuItem` with props `{ task; canArchive; onArchiveRequest: () => void; onArchiveDirect: () => void; onUnarchive: () => void }` — no `readOnly` mode on assignment rows; archived rows are ordinary editable rows.
 
 - [ ] **Step 1: Write the failing assertions (UI is covered by Task 12 e2e)**
 
-Add to `e2e/task-filter.spec.ts` the frozen-view assertions described in Task 12 Step 1 now, then run them to confirm they fail because the menu items and read-only state do not exist yet: no Archive/Unarchive menu item, no "Mark as done"/"Mark as cancelled" dialog, status selects still render on archived rows. (Single e2e file is shared with Task 12; commit this task's slice of it here, then extend it in Task 12.)
+Add to `e2e/task-filter.spec.ts` the editable-archived-view assertions described in Task 12 Step 1 now, then run them to confirm they fail because the menu items and the dialog do not exist yet: no Archive/Unarchive menu item, no "Mark as done"/"Mark as cancelled" dialog when open work exists, and no immediate archive when it does not. (Single e2e file is shared with Task 12; commit this task's slice of it here, then extend it in Task 12.)
 
 - [ ] **Step 2: Implement the menu item component**
 
-Create `components/projects/task-archive-menu-item.tsx`: one `DropdownMenuItem` labeled `t("projects.tasks.archiveTask")` (or `unarchiveTask` when `task.archived`), shown only when `canArchive`, with an `Archive`/`Archive` icon from `lucide-react`; clicking Archive opens a single `ActionConfirmDialog` (`projects.tasks.archive.title/message`) with the two actions `markDone`/`markCancelled` wired to `onArchive("done")`/`onArchive("cancelled")`. Unarchive has no dialog and calls `onUnarchive()` directly.
+Create `components/projects/task-archive-menu-item.tsx`: one `DropdownMenuItem` labeled `t("projects.tasks.archiveTask")` (or `unarchiveTask` when `task.archived`), shown only when `canArchive`, with `Archive`/`ArchiveRestore` icons from `lucide-react`. On click, **if `task.assignments.some(isOpenAssignment)`** call `onArchiveRequest()` (the table owns the single `ActionConfirmDialog`, `projects.tasks.archive.title/message`, with `markDone`/`markCancelled` wired to `onArchive("done")`/`onArchive("cancelled")`); otherwise call `onArchiveDirect()` which archives immediately with `closeAs: "cancelled"` and shows no dialog. Unarchive has no dialog and calls `onUnarchive()` directly.
 
-- [ ] **Step 3: Wire the table and freeze the archived row**
+- [ ] **Step 3: Wire the table, keeping archived rows editable**
 
-In `tasks-table.tsx`: add `onArchive(taskId, closeAs)` and `onUnarchive(taskId)` props; pass `children={<TaskArchiveMenuItem task={task} canArchive={canEdit} ... />}` into `ActionMenu`; pass no `onEdit` when `task.archived` (Edit hidden; Delete still shown). For archived rows: render priority as a plain span (not `TaskPrioritySelect`), pass `readOnly` to `TaskOpenAssignmentRows`, do not pass `onReopen` to `TaskClosedAssignmentRows`, and hide the comment button / disable `onDoubleClick`. `TaskHistoryPanel` stays available (read-only). In `task-open-assignment-rows.tsx`, add `readOnly?: boolean` and use it in the `allowed` computation (`readOnly ? null : getAllowedStatuses(...)`). In `tasks-card.tsx`, pass the two new callbacks from the store hooks.
+In `tasks-table.tsx`: add `onArchive(taskId, closeAs)` and `onUnarchive(taskId)` props plus the `archivingTaskId` state and the single confirm dialog; pass `children={<TaskArchiveMenuItem task={task} canArchive={canEdit} ... />}` into `ActionMenu`. **Do not hide Edit, status selects, Reopen, priority select, or comments on archived rows** (supersedes the original frozen-row step): the only UI difference is the Archive → Unarchive menu item. `TaskHistoryPanel` stays available. In `tasks-card.tsx`, pass the archive/unarchive callbacks from the store hooks. Keep the assignee column roster-driven: `assigneeIdentities(task.assigneeIds, shown, task.assignments, members)` with the plural `projects.tasks.assignees` header and `common.unassigned` for an empty roster — assignment-row users are never added to the roster.
 
-- [ ] **Step 4: Fix the due-date fallback if the e2e assertion fails**
+- [ ] **Step 4: Render the status and due-date columns from final rules**
 
-In `tasks-table.tsx:249-259`, if an archived task with all assignments closed shows a stale date, change `date={lead ? lead.endDate : task.endDate}` to prefer `task.endDate` whenever `open.length === 0` (archive sets it to today). Keep `overdue` false for frozen rows.
+In `tasks-table.tsx`, build the status summary so a task with zero open assignments and `closedCount > 0` reads `t("projects.tasks.status.done") + " · " + t("projects.tasks.closedCount", { count })`; keep the open/blocked/review counts when there is open work. The task due cell is `date={task.endDate}` — always `task.endDate` from the DB, never an assignment row — rendered by `DueDate`/`formatDueDate` (all-day dates via `isAllDayDate` show date only). In `task-open-assignment-rows.tsx`, display each open row's due date with `formatAssignmentDueDate` (date **with time**, not a start–end range). No fallback to a lead assignment's `endDate` is needed.
 
 - [ ] **Step 5: Verify locally**
 
@@ -680,7 +734,7 @@ Expected: PASS. E2E verification completes in Task 12.
 
 ```bash
 git add components/projects/task-archive-menu-item.tsx components/projects/tasks-table.tsx components/projects/task-open-assignment-rows.tsx components/projects/tasks-card.tsx e2e/task-filter.spec.ts
-git commit -m "feat(tasks): add archive menu and frozen archived rows"
+git commit -m "feat(tasks): add archive menu and roster/due-date rendering"
 ```
 
 ---
@@ -702,10 +756,19 @@ Replace obsolete `"Unfinished"`/`"Finished"`/`"Both"`/`"Sin finalizar"`/`"Finali
 ```ts
 test("archive closes open work and hides the task from Open until unarchived", async ({ page }) => {
   // signInAs("admin"), create a repeating task with an assignee,
-  // open the row menu → Archive → choose "Mark as done",
-  // expect the row gone from Open, no successor created,
-  // switch to Archived → row present, read-only (no status select / Reopen / Edit / comment input,
-  // Delete present, due cell shows today), menu → Unarchive → row back under Open.
+  // open the row menu → Archive → dialog "Mark as done"/"Mark as cancelled" → choose done,
+  // expect the row gone from Open, no successor created, dates/times unchanged,
+  // switch to Archived → row present and FULLY EDITABLE
+  //   (Edit, status selects, Reopen, priority, comments all still work; Delete present),
+  //   assignee avatars come from the roster only (empty roster → "Unassigned"),
+  //   zero-open + closed history shows "Done · N closed",
+  //   task due cell equals task.endDate from the DB (date only for all-day tasks),
+  //   assignment rows show due date + time,
+  //   switching Open → Archived → Open preserves the view's local state,
+  // menu → Unarchive → row back under Open.
+})
+test("archive with zero open assignments skips the dialog", async ({ page }) => {
+  // zero-open task → Archive → archived immediately with no confirm dialog.
 })
 test("date-edit spawn opens only for active assignees", async ({ page }) => { /* zero-open repeating task → edit due date → one row for remaining member; removed assignee absent */ })
 test("a removed project member never spawns on a later date change", async ({ page }) => { /* remove from project → date edit → no row for that user */ })
@@ -721,7 +784,7 @@ Search those four specs for `"Unfinished"`, `"Finished"`, `"Both"`, `"Finalizada
 - [ ] **Step 3: Run the focused e2e suite**
 
 Run: `pnpm test:e2e -- task-filter.spec.ts`
-Expected: PASS (Docker test DB boots, migration applies, seed inserts membership rows, all archive/spawn/frozen assertions pass).
+Expected: PASS (Docker test DB boots, migration applies, seed inserts membership rows, all archive/editing/roster/due-date/view-state assertions pass).
 
 - [ ] **Step 4: Run the full gate**
 
@@ -732,5 +795,5 @@ Expected: PASS — typecheck, lint with zero warnings, unit tests with coverage 
 
 ```bash
 git add e2e/task-filter.spec.ts e2e/multi-assignee.spec.ts e2e/repeating-tasks.spec.ts e2e/task-assignments.spec.ts e2e/task-wizard-validation.spec.ts lib/drizzle/seed-e2e.ts
-git commit -m "test(tasks): cover archive, frozen rows and spawn triggers end to end"
+git commit -m "test(tasks): cover archive, archived editing and spawn triggers end to end"
 ```

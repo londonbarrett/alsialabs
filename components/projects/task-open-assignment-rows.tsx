@@ -18,8 +18,9 @@ import { Badge } from "@/components/ui/badge"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { sortAssignments } from "@/lib/tasks/assignments"
 import { isTerminalStatus } from "@/lib/util/project-roles"
+import { formatAssignmentDueDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { assignmentColumnCount } from "./assignment-columns"
 import { TaskStatusSelect, taskStatusColors } from "./task-status-select"
 
@@ -39,6 +40,7 @@ export function TaskOpenAssignmentRows({
   onStatusChange,
 }: TaskOpenAssignmentRowsProps) {
   const t = useTranslations()
+  const locale = useLocale()
   const { currentUserId, isOwner, isAdmin, isCollaborator } =
     useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
@@ -66,10 +68,11 @@ export function TaskOpenAssignmentRows({
     const allowed = isTerminalStatus(assignment.status)
       ? null
       : getAllowedStatuses(assignment)
-    const occurrence = [assignment.startDate, assignment.endDate]
-      .filter((date): date is Date => date !== null)
-      .map((date) => date.toLocaleDateString())
-      .join(" – ")
+    // A row is one occurrence: show its due timestamp (with time, even at
+    // midnight), never a start–end range or the task's all-day header date.
+    const occurrence = assignment.endDate
+      ? formatAssignmentDueDate(assignment.endDate, locale)
+      : "—"
 
     return (
       <TableRow key={assignment.id}>
@@ -101,7 +104,7 @@ export function TaskOpenAssignmentRows({
             </span>
           </span>
         </TableCell>
-        <TableCell>{occurrence || "—"}</TableCell>
+        <TableCell>{occurrence}</TableCell>
         <TableCell>
           {allowed ? (
             <TaskStatusSelect

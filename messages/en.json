@@ -312,6 +312,7 @@
       "closedCount": "{count, plural, one {# closed} other {# closed}}",
       "assignmentsToggle": "Assignee details",
       "addAssignee": "Add assignee",
+      "assignees": "Assignees",
       "archive": {
         "title": "Archive task?",
         "message": "This closes all open assignments and moves the task to Archived. Completed history is kept and no more occurrences will spawn.",

@@ -312,6 +312,7 @@
       "closedCount": "{count, plural, one {# cerrada} other {# cerradas}}",
       "assignmentsToggle": "Detalles de asignados",
       "addAssignee": "Agregar asignado",
+      "assignees": "Asignadas",
       "archive": {
         "title": "¿Archivar tarea?",
         "message": "Esto cierra todas las asignaciones abiertas y mueve la tarea a Archivadas. El historial completado se conserva y no se generarán más ocurrencias.",

@@ -32,7 +32,10 @@ export function visibleAssignments(
  * shows. Identity comes from the task's loaded rows, then the project
  * members; an unresolvable id keeps an anonymous entry rather than
  * dropping. Rows of `shown` set the order so a task whose roster matches
- * its rows renders as before. An empty roster falls back to `shown`.
+ * its rows renders as before. An empty roster means nobody is assigned —
+ * any rows that exist belong to removed users, so the column is empty
+ * (the table then renders its Unassigned label) and never adds an id that
+ * is not on the roster.
  */
 export function assigneeIdentities(
   assigneeIds: string[],
@@ -40,7 +43,7 @@ export function assigneeIdentities(
   loaded: TaskAssigneeIdentity[],
   members: TaskAssigneeIdentity[]
 ): TaskAssigneeIdentity[] {
-  if (assigneeIds.length === 0) return shown
+  if (assigneeIds.length === 0) return []
 
   const roster = new Set(assigneeIds)
   const seen = new Set<string>()

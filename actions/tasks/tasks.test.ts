@@ -57,7 +57,6 @@ import { resolveProjectAccess } from "@/actions/projects/util"
 import type { ProjectRole } from "@/lib/types"
 import queries from "@/actions/tasks/queries"
 import { assertTaskMutable } from "@/actions/tasks/util"
-import { archivedWindow } from "@/lib/tasks/assignments"
 import { defaultIsSuccess } from "@/lib/util/action-result"
 import {
   archiveTask,
@@ -900,26 +899,18 @@ describe("updateTask", () => {
       // Seconds and milliseconds on the clock: a raw-clock due date would not
       // survive the form's minute-precision round trip.
       vi.setSystemTime(new Date("2026-11-20T08:00:11.456"))
-      const archivedAs = (endDate: Date) =>
-        archivedWindow(
-          {
-            recurrence: "daily",
-            startDate: new Date("2026-11-02T09:00:00"),
-            endDate,
-          },
-          new Date()
-        ).endDate
       const toFormValue = (date: Date) => {
         const pad = (n: number) => `${n}`.padStart(2, "0")
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`
       }
 
-      // A timed task and an all-day task, each as archive stored it.
+      // Archive preserves the original due date and time — a timed task and
+      // an all-day task each keep what they had.
       for (const original of [
         new Date("2026-12-31T17:30:00"),
         new Date("2026-12-31T00:00:00"),
       ]) {
-        const stored = archivedAs(original)
+        const stored = original
         const baseline = state.mock.calls.length
         dateEditFixtures({
           recurrence: "daily",
@@ -1574,7 +1565,7 @@ describe("archiveTask", () => {
     return state.mock.calls.slice(callsBefore)
   }
 
-  it("archives a repeating task, moves its due date to today, closes all open rows and spawns nothing", async () => {
+  it("archives a repeating task, preserves its dates and times, closes all open rows and spawns nothing", async () => {
     // task row: recurrence "weekly", archived false, endDate in the future;
     // two open assignments for two members; task_assignee rows for both.
     state.mock.onSelect(schema.tasksTable).respond([
@@ -1611,18 +1602,23 @@ describe("archiveTask", () => {
       )
     ).toBe(false)
 
-    // The task row's due date moves to today…
+    // The task UPDATE writes only `archived` — no date or time column is
+    // touched, so the original schedule (including the 2099 due date) stays.
     const taskUpdate = updates.find((c) => c.sql.includes('"archived"'))
     expect(taskUpdate).toBeDefined()
-    const today = new Date().toDateString()
-    expect(
-      taskUpdate?.params.some((p) => {
-        const d = p instanceof Date ? p : typeof p === "string" ? new Date(p) : null
-        return d instanceof Date && !Number.isNaN(d.getTime()) && d.toDateString() === today
-      })
-    ).toBe(true)
+    const setClause = taskUpdate!.sql.slice(
+      0,
+      taskUpdate!.sql.indexOf(" where ")
+    )
+    const columns = [...setClause.matchAll(/"([a-z_]+)" = \$/g)].map(
+      (m) => m[1]
+    )
+    expect(columns).toContain("archived")
+    for (const col of ["start_date", "end_date", "start_time", "end_time"]) {
+      expect(columns).not.toContain(col)
+    }
 
-    // …and both open rows close with the chosen disposition, in place.
+    // Both open rows close with the chosen disposition, in place.
     const closes = archiveCalls().filter((c) =>
       c.sql.includes('update "task_assignment"')
     )
@@ -1633,48 +1629,6 @@ describe("archiveTask", () => {
         c.sql.includes('delete from "task_assignment"')
       )
     ).toBe(false)
-  })
-
-  it("keeps the stored time of day when archiving, never the raw clock time", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] })
-    vi.setSystemTime(new Date("2026-11-19T14:23:11.456"))
-    try {
-      state.mock.onSelect(schema.tasksTable).respond([
-        makeTaskRow({
-          recurrence: null,
-          startDate: new Date("2026-11-02T09:00:00"),
-          endDate: new Date("2026-11-02T17:30:00"),
-        }),
-      ])
-      state.mock
-        .onUpdate(schema.tasksTable)
-        .respond([makeTaskRow({ archived: true })])
-      state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
-
-      const result = await archiveTask({
-        projectId: PROJECT_ID,
-        taskId: TASK_ID,
-        closeAs: "done",
-      })
-
-      expect(defaultIsSuccess(result)).toBe(true)
-      const taskUpdate = archiveCalls().find((c) =>
-        c.sql.includes('update "task" set')
-      )
-      const times = (taskUpdate?.params ?? [])
-        .map((p) =>
-          p instanceof Date
-            ? p.getTime()
-            : typeof p === "string"
-              ? Date.parse(p)
-              : NaN
-        )
-        .filter((t) => !Number.isNaN(t))
-      expect(times).toContain(new Date("2026-11-19T17:30:00").getTime())
-      expect(times).toContain(new Date("2026-11-19T09:00:00").getTime())
-    } finally {
-      vi.useRealTimers()
-    }
   })
 
   it("only archives a task that is still live", async () => {

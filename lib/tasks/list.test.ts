@@ -123,6 +123,16 @@ describe("assigneeIdentities", () => {
     expect(identities[1].userName).toBe("Two")
   })
 
+  it("excludes an assignment row whose user is not in the roster", () => {
+    // The task_assignee roster — not open/closed assignment rows — decides
+    // who the column shows; a stale row for a removed member is dropped.
+    const stale = identity("u-removed", "Removed")
+    const current = identity("u1", "One")
+    expect(
+      assigneeIdentities(["u1"], [stale, current], [stale, current], [])
+    ).toEqual([current])
+  })
+
   it("resolves an id from loaded rows before the project members", () => {
     const loaded = identity("u1", "From row")
     expect(
@@ -154,9 +164,34 @@ describe("assigneeIdentities", () => {
     expect(identities.map((i) => i.userId)).toEqual(["u1", "u2", "u3"])
   })
 
-  it("falls back to shown when the roster is empty", () => {
+  it("returns no identities when the roster is empty, even when rows are shown", () => {
+    // An empty roster means nobody is assigned; the assignment rows that
+    // happen to exist belong to removed users and must not surface as
+    // avatars (the table renders its Unassigned label for this case).
     const row = identity("u1", "One")
-    expect(assigneeIdentities([], [row], [row], [])).toEqual([row])
+    expect(assigneeIdentities([], [row], [row], [row])).toEqual([])
+  })
+
+  it("never surfaces an id outside the roster, even with an empty fallback", () => {
+    const stale = identity("u-removed", "Removed")
+    expect(
+      assigneeIdentities(["u1"], [stale], [stale], [stale]).map(
+        (i) => i.userId
+      )
+    ).toEqual(["u1"])
+  })
+
+  it("shows a roster id that has no row anywhere as an anonymous entry", () => {
+    const other = identity("u-other", "Other")
+    const identities = assigneeIdentities(["ghost"], [other], [other], [other])
+    expect(identities).toEqual([
+      {
+        userId: "ghost",
+        userName: null,
+        userEmail: null,
+        userImage: null,
+      },
+    ])
   })
 
   it("renders a roster-matching task exactly as its rows", () => {
