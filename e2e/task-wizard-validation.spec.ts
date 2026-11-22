@@ -162,3 +162,101 @@ test("a repeating schedule shows dates anchored on a start date that defaults to
     dialog.getByRole("switch", { name: "Todo el día" })
   ).not.toBeChecked()
 })
+
+test("the cost entered in step one is saved and prefilled on edit", async ({
+  page,
+  signInAs,
+}) => {
+  const taskName = `E2E cost gate ${Date.now()}`
+  const today = toDateInput(new Date())
+
+  await signInAs("user1")
+  await page.goto(PROJECT_URL)
+  await page.getByRole("button", { name: "Agregar Tarea" }).click()
+  const dialog = page.getByRole("dialog")
+
+  // Cost lives on step one with its assignment-specific label and hint.
+  await expect(dialog.getByLabel("Costo base por asignación")).toBeVisible()
+  await expect(
+    dialog.getByText("El costo se puede cambiar por asignación más tarde.")
+  ).toBeVisible()
+  await dialog.getByLabel("Costo base por asignación").fill("150")
+  await dialog.getByLabel("Nombre de la tarea").fill(taskName)
+  await dialog.getByRole("button", { name: "Continuar" }).click()
+
+  // One-off scheduling: a due date of today, no times needed (all-day).
+  await dialog.getByLabel("Fecha de vencimiento").fill(today)
+  await dialog.getByRole("button", { name: "Crear Tarea" }).click()
+  await expect(dialog).toBeHidden()
+
+  // Reopen the task: the stored cost is prefilled in the edit dialog.
+  const row = page.getByRole("row", { name: new RegExp(taskName) })
+  await expect(row).toBeVisible()
+  await row.getByRole("button", { name: "Editar", exact: true }).click()
+  await expect(dialog.getByLabel("Costo base por asignación")).toHaveValue("$150")
+})
+
+test("editing a costed task without touching the cost field preserves it", async ({
+  page,
+  signInAs,
+}) => {
+  // Two server mutations plus two reloads; the dev server compiles routes on
+  // demand and the suite shares it with parallel workers.
+  test.setTimeout(120_000)
+  const taskName = `E2E cost edit ${Date.now()}`
+  const renamedTaskName = `${taskName} renamed`
+  const today = toDateInput(new Date())
+
+  await signInAs("user1")
+  await page.goto(PROJECT_URL)
+  await page.getByRole("button", { name: "Agregar Tarea" }).click()
+  const dialog = page.getByRole("dialog")
+
+  // Create a costed task.
+  await dialog.getByLabel("Costo base por asignación").fill("150")
+  await dialog.getByLabel("Nombre de la tarea").fill(taskName)
+  await dialog.getByRole("button", { name: "Continuar" }).click()
+  await dialog.getByLabel("Fecha de vencimiento").fill(today)
+  await dialog.getByRole("button", { name: "Crear Tarea" }).click()
+  await expect(dialog).toBeHidden()
+
+  // Wait for the create to settle, then reload so the row carries its real
+  // server UUID (the optimistic row's temp id would fail the update schema).
+  await expect(page.getByText("Tarea creada")).toBeVisible({
+    timeout: 20_000,
+  })
+  await page.reload()
+
+  const row = page.getByRole("row", { name: new RegExp(taskName) })
+  await expect(row).toBeVisible()
+
+  // Reopen: the server returns the decimal string "150.00"; the form must
+  // normalize it to integer digits so the untouched value passes the
+  // CostInputSchema regex on resubmit.
+  await row.getByRole("button", { name: "Editar", exact: true }).click()
+  await expect(dialog.getByLabel("Costo base por asignación")).toHaveValue("$150")
+  await dialog.getByLabel("Nombre de la tarea").fill(renamedTaskName)
+  await dialog.getByRole("button", { name: "Continuar" }).click()
+  await dialog.getByRole("button", { name: "Guardar cambios" }).click()
+  await expect(dialog).toBeHidden()
+
+  // The dialog closes before the action resolves, so wait for its success
+  // toast before reloading (a reload mid-flight would abort the mutation).
+  await expect(page.getByText("Tarea actualizada")).toBeVisible({
+    timeout: 20_000,
+  })
+
+  // Reload so we assert against persisted server state, not the optimistic
+  // rename (which stays visible even when the action fails validation).
+  await page.reload()
+  const renamedRow = page.getByRole("row", {
+    name: new RegExp(renamedTaskName),
+  })
+  await expect(renamedRow).toBeVisible()
+
+  // Reopen again: the cost survived an edit that never touched its field.
+  await renamedRow
+    .getByRole("button", { name: "Editar", exact: true })
+    .click()
+  await expect(dialog.getByLabel("Costo base por asignación")).toHaveValue("$150")
+})

@@ -1,8 +1,8 @@
 "use client"
 
 import { Dialog } from "@/components/common/dialog"
-import { taskPriorityColors } from "@/components/projects/task-priority-select"
-import { taskStatusColors } from "@/components/projects/task-status-select"
+import { taskPriorityColors } from "@/components/projects/tasks/task-priority-select"
+import { taskStatusColors } from "@/components/projects/tasks/task-status-select"
 import { Badge } from "@/components/ui/badge"
 import type { CalendarEvent } from "@/lib/calendar"
 import { formatWhen } from "@/lib/calendar/util/date"

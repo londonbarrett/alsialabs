@@ -5,6 +5,7 @@ export {
   createTask,
   updateTask,
   updateAssignmentStatus,
+  updateAssignmentCost,
   updateAssignmentComment,
   updateTaskPriority,
   deleteTask,

@@ -47,6 +47,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     priority: null,
     status: "todo",
     comment: null,
+    cost: "0",
     startDate: new Date("2026-10-30T09:00:00"),
     endDate: new Date("2026-10-30T11:00:00"),
     recurrence: null,

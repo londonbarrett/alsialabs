@@ -1,5 +1,5 @@
-import { ProjectTasksProvider } from "@/components/projects/project-tasks-provider"
-import { TasksCard } from "@/components/projects/tasks-card"
+import { ProjectTasksProvider } from "@/components/projects/tasks/project-tasks-provider"
+import { TasksCard } from "@/components/projects/tasks/tasks-card"
 import { getTasks } from "@/actions/tasks"
 import { unwrapResponse } from "@/lib/util/unwrap"
 

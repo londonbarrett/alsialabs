@@ -8,6 +8,8 @@ Invoicing and business-management web app: clients, sales/invoices, projects, pr
 
 **Always check for available related skills first.** Load the relevant skill using the `skill` tool before beginning work. This ensures you follow project-specific patterns and best practices.
 
+**Always work in the current branch unless a worktree is required.**
+
 Common triggers:
 
 - **UI components** → load `shadcn`, `tailwind-css-patterns`, `frontend-design`

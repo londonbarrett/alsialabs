@@ -10,6 +10,7 @@ import {
   TaskRecordSchema,
   TaskWithAssignmentsSchema,
   UnarchiveTaskSchema,
+  UpdateAssignmentCostSchema,
   UpdateTaskSchema,
 } from "@/actions/tasks/schemas"
 
@@ -22,6 +23,7 @@ const minimalRow = {
   name: "Task",
   description: null,
   priority: null,
+  cost: "0",
   startDate: null,
   endDate: null,
   recurrence: null,
@@ -144,6 +146,7 @@ describe("assignment dates from the detail view", () => {
       name: "Task",
       description: null,
       priority: null,
+      cost: "0",
       projectName: "Project",
       projectColor: "#0f766e",
       projectOwnerName: null,
@@ -169,6 +172,7 @@ describe("assignment dates from the detail view", () => {
       userImage: null,
       status: "todo",
       comment: null,
+      cost: "0",
       ...rawDates,
     })
 
@@ -197,6 +201,35 @@ describe("assignment dates from the detail view", () => {
 
     expect(parsed.startDate).toBeInstanceOf(Date)
     expect(parsed.endDate).toBeInstanceOf(Date)
+  })
+})
+
+describe("assignment cost schema", () => {
+  const costInput = {
+    projectId: PROJECT_ID,
+    assignmentId: TASK_ID,
+  }
+
+  it("rejects negative and decimal costs", () => {
+    expect(
+      UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "-5" })
+        .success
+    ).toBe(false)
+    expect(
+      UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "12.50" })
+        .success
+    ).toBe(false)
+  })
+
+  it("accepts a whole-unit cost and an empty field", () => {
+    expect(
+      UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "120" })
+        .success
+    ).toBe(true)
+    expect(
+      UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "" })
+        .success
+    ).toBe(true)
   })
 })
 

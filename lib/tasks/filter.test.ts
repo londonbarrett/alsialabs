@@ -12,6 +12,7 @@ const assignment = (status: string): TaskAssignmentDTO => ({
   userImage: null,
   status: status as TaskAssignmentDTO["status"],
   comment: null,
+  cost: "0",
   startDate: null,
   endDate: null,
 })

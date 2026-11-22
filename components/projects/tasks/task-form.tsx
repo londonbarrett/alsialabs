@@ -14,6 +14,7 @@ import type {
   TaskDetailsIssue,
   TaskDetailsValues,
 } from "@/lib/tasks/form-validation"
+import { costToNumber } from "@/lib/tasks/cost"
 import { combineDateTime } from "@/lib/util/schedule"
 import { isAllDayDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
@@ -35,6 +36,7 @@ interface TaskFormProps {
   task?: TaskWithAssignmentsDTO
   onSubmit: (data: {
     name: string
+    cost: string
     description: string
     priority: string | null
     assigneeIds: string[]
@@ -57,6 +59,9 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [step, setStep] = useState(1)
   const [step1Done, setStep1Done] = useState(false)
   const [name, setName] = useState(task?.name ?? "")
+  const [cost, setCost] = useState(
+    task?.cost ? String(costToNumber(task.cost)) : ""
+  )
   const [description, setDescription] = useState(
     task?.description ?? ""
   )
@@ -275,6 +280,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
 
     onSubmit({
       name: name.trim(),
+      cost,
       description: description.trim(),
       priority,
       assigneeIds,
@@ -307,6 +313,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
       {step === 1 ? (
         <TaskFormDetailsStep
           name={name}
+          cost={cost}
           description={description}
           priority={priority}
           assigneeIds={assigneeIds}
@@ -314,6 +321,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
           protectedIds={protectedIds}
           errors={errors}
           onNameChange={setName}
+          onCostChange={setCost}
           onDescriptionChange={setDescription}
           onPriorityChange={setPriority}
           onAssigneeChange={setAssigneeIds}

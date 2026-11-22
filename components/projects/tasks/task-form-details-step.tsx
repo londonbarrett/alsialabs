@@ -2,9 +2,11 @@
 
 import type { TaskPriorityDTO } from "@/actions/tasks/schemas"
 import type { ProjectMemberRowDTO } from "@/actions/projects/schemas"
+import { MoneyInput } from "@/components/common/money-input"
 import { Button } from "@/components/ui/button"
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -17,6 +19,7 @@ import { TaskPrioritySelect } from "./task-priority-select"
 
 export function TaskFormDetailsStep({
   name,
+  cost,
   description,
   priority,
   assigneeIds,
@@ -24,6 +27,7 @@ export function TaskFormDetailsStep({
   protectedIds,
   errors,
   onNameChange,
+  onCostChange,
   onDescriptionChange,
   onPriorityChange,
   onAssigneeChange,
@@ -32,6 +36,7 @@ export function TaskFormDetailsStep({
   onCancel,
 }: {
   name: string
+  cost: string
   description: string
   priority: TaskPriorityDTO
   assigneeIds: string[]
@@ -39,6 +44,7 @@ export function TaskFormDetailsStep({
   protectedIds: string[]
   errors: Record<string, string>
   onNameChange: (value: string) => void
+  onCostChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onPriorityChange: (value: TaskPriorityDTO) => void
   onAssigneeChange: (value: string[]) => void
@@ -62,6 +68,20 @@ export function TaskFormDetailsStep({
           aria-invalid={!!errors.name || undefined}
         />
         {errors.name && <FieldError>{errors.name}</FieldError>}
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="cost">
+          {t("projects.tasks.baseCostPerAssignment")}
+        </FieldLabel>
+        <MoneyInput
+          id="cost"
+          value={cost}
+          onChange={onCostChange}
+          aria-describedby="cost-help"
+        />
+        <FieldDescription id="cost-help">
+          {t("projects.tasks.baseCostHelp")}
+        </FieldDescription>
       </Field>
       <Field>
         <FieldLabel htmlFor="description">

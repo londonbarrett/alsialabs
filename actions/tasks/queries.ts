@@ -51,6 +51,7 @@ const ASSIGNMENT_VIEW_COLUMNS = {
   userId: taskAssignmentDetailView.userId,
   status: taskAssignmentDetailView.status,
   comment: taskAssignmentDetailView.comment,
+  cost: taskAssignmentDetailView.cost,
   startDate: taskAssignmentDetailView.startDate,
   endDate: taskAssignmentDetailView.endDate,
   userName: taskAssignmentDetailView.userName,
@@ -64,6 +65,7 @@ const LATEST_ASSIGNMENT_COLUMNS = {
   userId: taskAssignmentLatestView.userId,
   status: taskAssignmentLatestView.status,
   comment: taskAssignmentLatestView.comment,
+  cost: taskAssignmentLatestView.cost,
   startDate: taskAssignmentLatestView.startDate,
   endDate: taskAssignmentLatestView.endDate,
   userName: taskAssignmentLatestView.userName,
@@ -91,6 +93,7 @@ function toTaskRecord(
     name: row.name,
     description: row.description,
     priority: row.priority,
+    cost: row.cost,
     startDate: row.startDate,
     endDate: row.endDate,
     recurrence: row.recurrence,
@@ -233,6 +236,32 @@ async function getClosedCountsByTaskIds(taskIds: string[]) {
       )
     )
     .groupBy(taskAssignmentsTable.taskId)
+}
+
+/**
+ * The task-row total: the sum of EVERY assignment's cost, with no status
+ * filter and no pagination. Repeating tasks hide history behind Load More,
+ * so deriving this from loaded rows would silently undercount.
+ */
+async function getCostTotalsByTaskIds(taskIds: string[]) {
+  return db
+    .select({
+      taskId: taskAssignmentsTable.taskId,
+      total: sql<number>`coalesce(sum(${taskAssignmentsTable.cost}), 0)::int`,
+    })
+    .from(taskAssignmentsTable)
+    .where(inArray(taskAssignmentsTable.taskId, taskIds))
+    .groupBy(taskAssignmentsTable.taskId)
+}
+
+async function getCostTotalByTaskId(taskId: string): Promise<number> {
+  return db
+    .select({
+      total: sql<number>`coalesce(sum(${taskAssignmentsTable.cost}), 0)::int`,
+    })
+    .from(taskAssignmentsTable)
+    .where(eq(taskAssignmentsTable.taskId, taskId))
+    .then((rows) => rows[0]?.total ?? 0)
 }
 
 async function getAssigneeUserIdsByTaskIds(taskIds: string[]) {
@@ -439,6 +468,7 @@ async function getMyAssignmentRows(userId: string, view: MyTasksTab) {
       priority: taskAssignmentDetailView.taskPriority,
       status: taskAssignmentDetailView.status,
       comment: taskAssignmentDetailView.comment,
+      cost: taskAssignmentDetailView.cost,
       startDate: taskAssignmentDetailView.startDate,
       endDate: taskAssignmentDetailView.endDate,
       recurrence: taskAssignmentDetailView.taskRecurrence,
@@ -578,7 +608,7 @@ async function getTasksWithAssignments(
     else latestIds.push(row.id)
   }
 
-  const [fullRows, latestRows, commentRows, closedRows, assigneeRows] =
+  const [fullRows, latestRows, commentRows, closedRows, assigneeRows, costRows] =
     await Promise.all([
       fullIds.length > 0
         ? getFullAssignmentRowsByTaskIds(fullIds)
@@ -589,6 +619,7 @@ async function getTasksWithAssignments(
       getCommentCountsByTaskIds(ids),
       getClosedCountsByTaskIds(ids),
       getAssigneeUserIdsByTaskIds(ids),
+      getCostTotalsByTaskIds(ids),
     ])
 
   const assignmentRows = [...fullRows, ...latestRows]
@@ -602,6 +633,7 @@ async function getTasksWithAssignments(
 
   const counts = new Map(commentRows.map((r) => [r.taskId, r.cnt]))
   const closedCounts = new Map(closedRows.map((r) => [r.taskId, r.cnt]))
+  const costTotals = new Map(costRows.map((r) => [r.taskId, r.total]))
   const assigneesByTask = new Map<string, string[]>()
   for (const row of assigneeRows) {
     const list = assigneesByTask.get(row.taskId) ?? []
@@ -615,6 +647,7 @@ async function getTasksWithAssignments(
     assigneeIds: assigneesByTask.get(row.id) ?? [],
     commentCount: counts.get(row.id) ?? 0,
     closedCount: closedCounts.get(row.id) ?? 0,
+    totalCost: costTotals.get(row.id) ?? 0,
   }))
 }
 
@@ -623,17 +656,20 @@ async function getTaskWithAssignments(taskId: string): Promise<{
   assignments: TaskAssignmentDTO[]
   closedCount: number
   assigneeIds: string[]
+  totalCost: number
 } | null> {
   const row = await getTaskRow(taskId)
   if (!row) return null
 
-  const [assignmentRows, closedRows, assigneeRows] = await Promise.all([
-    row.recurrence
-      ? getLatestAssignmentRowsByTaskId(taskId)
-      : getFullAssignmentRowsByTaskId(taskId),
-    getClosedCountsByTaskIds([taskId]),
-    getAssigneeUserIdsByTaskIds([taskId]),
-  ])
+  const [assignmentRows, closedRows, assigneeRows, totalCost] =
+    await Promise.all([
+      row.recurrence
+        ? getLatestAssignmentRowsByTaskId(taskId)
+        : getFullAssignmentRowsByTaskId(taskId),
+      getClosedCountsByTaskIds([taskId]),
+      getAssigneeUserIdsByTaskIds([taskId]),
+      getCostTotalByTaskId(taskId),
+    ])
 
   return {
     record: toTaskRecord(row),
@@ -642,6 +678,7 @@ async function getTaskWithAssignments(taskId: string): Promise<{
     ),
     closedCount: closedRows[0]?.cnt ?? 0,
     assigneeIds: assigneeRows.map((r) => r.userId),
+    totalCost,
   }
 }
 
@@ -713,6 +750,7 @@ async function createTask(
   const {
     projectId,
     name,
+    cost,
     description,
     priority,
     startDate,
@@ -731,6 +769,7 @@ async function createTask(
       .values({
         projectId,
         name,
+        cost: cost || "0",
         description: description || null,
         priority: priority ?? null,
         startDate: startDate
@@ -760,6 +799,7 @@ async function createTask(
           taskId: row.id,
           userId,
           status: "todo" as const,
+          cost: cost || "0",
           startDate: window.startDate,
           endDate: window.endDate,
         }))
@@ -777,6 +817,7 @@ async function updateTaskRow(
     projectId,
     taskId,
     name,
+    cost,
     description,
     priority,
     startDate,
@@ -792,6 +833,7 @@ async function updateTaskRow(
     .update(tasksTable)
     .set({
       name,
+      cost: cost || "0",
       description: description || null,
       priority: priority ?? null,
       startDate: startDate
@@ -890,6 +932,7 @@ async function syncTaskAssignments(
           taskId,
           userId,
           status: "todo" as const,
+          cost: taskRow.cost,
           startDate: window.startDate,
           endDate: window.endDate,
         }))
@@ -901,6 +944,7 @@ async function syncTaskAssignments(
 type AssignmentSpawn = {
   taskId: string
   userId: string
+  cost: string
   startDate: Date
   endDate: Date
 }
@@ -971,6 +1015,8 @@ async function spawnEligibleAssignments(
     spawns.push({
       taskId,
       userId,
+      // Snapshot the task's CURRENT default: later edits never rewrite rows.
+      cost: task.cost,
       startDate: next,
       endDate: atTime(next, task.endTime),
     })
@@ -1015,6 +1061,16 @@ async function updateAssignmentStatus(
   })
 
   return spawnedIds
+}
+
+async function updateAssignmentCost(
+  assignmentId: string,
+  cost: string
+): Promise<void> {
+  await db
+    .update(taskAssignmentsTable)
+    .set({ cost })
+    .where(eq(taskAssignmentsTable.id, assignmentId))
 }
 
 async function updateAssignmentComment(
@@ -1186,6 +1242,9 @@ const queries = {
   deleteTask,
   archiveTaskRow,
   unarchiveTaskRow,
+  getCostTotalsByTaskIds,
+  getCostTotalByTaskId,
+  updateAssignmentCost,
   getTaskRowInProject,
   getOpenAssignmentId,
   getUserProfile,

@@ -16,6 +16,7 @@ function makeAssignment(
     userImage: null,
     status: "todo",
     comment: null,
+    cost: "0",
     startDate: null,
     endDate: null,
     ...overrides,
@@ -31,6 +32,7 @@ function makeTask(
     name: "Fix the roof",
     description: null,
     priority: null,
+    cost: "0",
     startDate: null,
     endDate: null,
     recurrence: null,
@@ -43,6 +45,7 @@ function makeTask(
     updatedAt: new Date("2024-01-01"),
     commentCount: 0,
     closedCount: 0,
+    totalCost: 0,
     assignments: [makeAssignment()],
     assigneeIds: ["user-1"],
     ...overrides,
@@ -470,5 +473,127 @@ describe("createProjectTasksStore reseedFromServer", () => {
     expect(store.getState().optimistic.tasks.map((t) => t.id)).toEqual([
       "a",
     ])
+  })
+})
+
+describe("cost deltas", () => {
+  it("setAssignmentCost changes the assignment and lowers totalCost by costDelta", () => {
+    const assignment = makeAssignment({
+      id: "assignment-1",
+      cost: "120",
+    })
+    const store = createProjectTasksStore([
+      makeTask({ id: "a", assignments: [assignment], totalCost: 200 }),
+    ])
+
+    store.getState().commit(
+      store.getState().pend({
+        type: "setAssignmentCost",
+        taskId: "a",
+        assignmentId: "assignment-1",
+        cost: "80",
+        costDelta: -40,
+      })
+    )
+
+    const task = store.getState().optimistic.tasks[0]
+    expect(task.assignments[0]?.cost).toBe("80")
+    expect(task.totalCost).toBe(160)
+  })
+
+  it("setAssignmentCost moves totalCost for a history row absent from the store's assignments", () => {
+    // History-panel rows can come from a fetched page, not the store's task
+    // rows. The delta must still land on the task total; the assignment map
+    // simply has nobody to update.
+    const store = createProjectTasksStore([
+      makeTask({ id: "a", assignments: [], totalCost: 100 }),
+    ])
+
+    store.getState().commit(
+      store.getState().pend({
+        type: "setAssignmentCost",
+        taskId: "a",
+        assignmentId: "fetched-history-row",
+        cost: "150",
+        costDelta: 50,
+      })
+    )
+
+    const task = store.getState().optimistic.tasks[0]
+    expect(task.assignments).toEqual([])
+    expect(task.totalCost).toBe(150)
+  })
+
+  it("upsertAssignment with a spawned successor raises totalCost by costDelta", () => {
+    const assignment = makeAssignment({
+      id: "assignment-1",
+      cost: "100",
+    })
+    const store = createProjectTasksStore([
+      makeTask({ id: "a", assignments: [assignment], totalCost: 100 }),
+    ])
+
+    store.getState().commit(
+      store.getState().pend({
+        type: "upsertAssignment",
+        taskId: "a",
+        assignment: { ...assignment, status: "done" },
+        nextAssignment: makeAssignment({
+          id: "assignment-2",
+          userId: "user-2",
+          cost: "120",
+        }),
+        costDelta: 120,
+      })
+    )
+
+    const task = store.getState().optimistic.tasks[0]
+    expect(task.assignments.some((a) => a.id === "assignment-2")).toBe(true)
+    expect(task.assignments.find((a) => a.id === "assignment-2")?.cost).toBe(
+      "120"
+    )
+    expect(task.totalCost).toBe(220)
+  })
+
+  it("setArchived with spawned rows raises totalCost by costDelta", () => {
+    const closedRow = makeAssignment({
+      id: "closed-1",
+      status: "done",
+      cost: "100",
+    })
+    const store = createProjectTasksStore([
+      makeTask({
+        id: "a",
+        archived: true,
+        assignments: [closedRow],
+        totalCost: 100,
+      }),
+    ])
+
+    store.getState().commit(
+      store.getState().pend({
+        type: "setArchived",
+        taskId: "a",
+        archived: false,
+        spawned: [
+          makeAssignment({
+            id: "spawned-1",
+            userId: "user-2",
+            cost: "120",
+          }),
+          makeAssignment({
+            id: "spawned-2",
+            userId: "user-3",
+            cost: "120",
+          }),
+        ],
+        costDelta: 240,
+      })
+    )
+
+    const task = store.getState().optimistic.tasks[0]
+    expect(task.assignments.some((a) => a.id === "spawned-1")).toBe(true)
+    expect(task.assignments.some((a) => a.id === "spawned-2")).toBe(true)
+    expect(task.totalCost).toBe(340)
   })
 })

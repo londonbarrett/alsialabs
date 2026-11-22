@@ -1,12 +1,13 @@
 "use client"
 
 import type { MyAssignmentDTO, TaskStatus } from "@/actions/tasks/schemas"
+import { Money } from "@/components/common/money"
 import { DueDate } from "@/components/projects/due-date"
-import { taskPriorityColors } from "@/components/projects/task-priority-select"
+import { taskPriorityColors } from "@/components/projects/tasks/task-priority-select"
 import {
   TaskStatusSelect,
   taskStatusColors,
-} from "@/components/projects/task-status-select"
+} from "@/components/projects/tasks/task-status-select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -90,7 +91,10 @@ export function MyTasksList({
                   <TableHead scope="col">
                     {t("common.dueDate")}
                   </TableHead>
-                  <TableHead scope="col" className="w-12" />
+                  <TableHead scope="col">{t("common.cost")}</TableHead>
+                  <TableHead scope="col" className="w-12 text-center">
+                    {t("common.comments")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -187,6 +191,9 @@ export function MyTasksList({
                         />
                       </TableCell>
                       <TableCell>
+                        <Money value={assignment.cost} />
+                      </TableCell>
+                      <TableCell className="text-center">
                         {readOnly ? (
                           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                             <MessageSquare className="h-4 w-4" />
