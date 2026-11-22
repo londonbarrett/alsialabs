@@ -6,6 +6,8 @@
  * schemas in `actions/<domain>/schemas.ts`.
  */
 
+import type { LucideIcon } from "lucide-react"
+
 /** Project roles, as resolved by `resolveProjectAccess` and checked by the capability helpers in `lib/util/project-roles.ts`. */
 export type ProjectRole = "owner" | "admin" | "collaborator"
 
@@ -76,4 +78,18 @@ export type TaskAssigneeIdentity = {
   userName: string | null
   userEmail: string | null
   userImage: string | null
+}
+
+/**
+ * One row action, shared by the inline icon buttons (desktop) and the dropdown
+ * items (mobile) rendered by `ActionMenu`. `label` is the short tooltip label,
+ * not a sentence about the entity.
+ */
+export type MenuAction = {
+  key: string
+  label: string
+  icon: LucideIcon
+  onSelect: () => void
+  destructive?: boolean
+  disabled?: boolean
 }

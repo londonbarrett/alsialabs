@@ -152,12 +152,7 @@ test("unassigning the last person asks what to do and leaves the task visible", 
   await expect(row).toBeVisible()
 
   // Edit reopens on step 1 (Details), where the assignee chips live.
-  await row
-    .getByRole("button", { name: `Acciones para ${taskName}` })
-    .click()
-  await page
-    .getByRole("menuitem", { name: `Editar ${taskName}` })
-    .click()
+  await row.getByRole("button", { name: "Editar", exact: true }).click()
 
   const editDialog = page.getByRole("dialog", { name: "Editar Tarea" })
   await expect(editDialog).toBeVisible()
@@ -231,12 +226,7 @@ test("unassigning the last person asks what to do and leaves the task visible", 
 
   // Reopening the form seeds assignees from current members only: the
   // closed collaborator must not come back as a chip on step 1.
-  await row
-    .getByRole("button", { name: `Acciones para ${taskName}` })
-    .click()
-  await page
-    .getByRole("menuitem", { name: `Editar ${taskName}` })
-    .click()
+  await row.getByRole("button", { name: "Editar", exact: true }).click()
   await expect(editDialog).toBeVisible()
   await expect(
     editDialog.getByRole("button", { name: "Agregar asignado" })

@@ -6,7 +6,6 @@ import { ActionMenu } from "@/components/common/action-menu"
 import { DestructiveDialog } from "@/components/common/destructive-dialog"
 import { Money } from "@/components/common/money"
 import { Badge } from "@/components/ui/badge"
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import {
   Table,
   TableBody,
@@ -109,15 +108,16 @@ export function ExpensesTable({
                       entityName={row.invoice.invoiceNumber}
                       canEdit={false}
                       canDelete={false}
-                    >
-                      <DropdownMenuItem
-                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                        onClick={() => setUnbindTarget(row.invoice)}
-                      >
-                        <Unlink className="mr-2 h-4 w-4" />
-                        {t("myInvoices.unbindToProject")}
-                      </DropdownMenuItem>
-                    </ActionMenu>
+                      actions={[
+                        {
+                          key: "unbind",
+                          label: t("myInvoices.unbindToProject"),
+                          icon: Unlink,
+                          destructive: true,
+                          onSelect: () => setUnbindTarget(row.invoice),
+                        },
+                      ]}
+                    />
                   ) : (
                     <ActionMenu
                       entityName={row.expense.description}

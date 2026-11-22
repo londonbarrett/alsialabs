@@ -189,13 +189,13 @@ The implementation shipped with the following human-directed changes; where they
 
 ### Expenses surface
 
-- Invoice rows also get an unbind action, as a destructive item in the row's `ActionMenu` with a `DestructiveDialog` confirm (`myInvoices.confirmUnbind`, confirm label `myInvoices.unbind` via the new optional `DestructiveDialog.confirmLabel` prop). It runs through the expenses store (`unbindInvoice` reducer case filters the row; `run` → `bindInvoiceToProject({ projectId: null })`; discard restores on failure).
+- Invoice rows also get an unbind action, as a destructive `MenuAction` passed through the row `ActionMenu`'s `actions` prop, with a `DestructiveDialog` confirm (`myInvoices.confirmUnbind`, confirm label `myInvoices.unbind` via the new optional `DestructiveDialog.confirmLabel` prop). It runs through the expenses store (`unbindInvoice` reducer case filters the row; `run` → `bindInvoiceToProject({ projectId: null })`; discard restores on failure).
 - Description cells carry type icons: `ListTodo` for tasks, `Receipt` for expenses **and** invoices (human's choice; the amber badge distinguishes invoices).
 - `getProjectsWithDetails` adds a fourth aggregate (invoice `paidAmount` by project) folded into `project.expenses`, so the projects-list card budget bars match the detail page totals.
 
 ### Shared components / conventions
 
-- `ActionMenu`: `onDelete` is optional and `() => void`; the delete-loading indicator was removed (`DestructiveDialog` keeps its `loading` prop for other callers and gained optional `confirmLabel`).
+- `ActionMenu`: `onDelete` is optional and `() => void`; the delete-loading indicator was removed (`DestructiveDialog` keeps its `loading` prop for other callers and gained optional `confirmLabel`). Extra row actions are `MenuAction` descriptors via the `actions` prop; the menu renders them as inline tooltipped icons at `md` and up and as dropdown items below `md`.
 - Fire-and-forget call sites for these mutations are sync with bare calls (no `async`/`await`/`void` at component level); the action hooks keep `async`/`await` internally (inferred `Promise` return, never annotated). Prop types are `() => void`.
 - `unwrapResponse` calls seeding the my-invoices page pass explicit fallbacks (`{ clientId: null, invoices: [] }` / `[]`).
 - i18n: added `myInvoices.bindToProject`, `bindTitle`, `bindDescription`, `bind`, `bindSuccess`, `noOwnedProjects`, `unbindToProject`, `unbind`, `confirmUnbind`, and `common.invoice`; removed `myInvoices.clear` and `noProject`.

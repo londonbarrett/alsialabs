@@ -1,9 +1,9 @@
 "use client"
 
-import { useTranslations } from "next-intl"
-import { UserPlus } from "lucide-react"
 import { ActionMenu } from "@/components/common/action-menu"
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import type { MenuAction } from "@/lib/types"
+import { UserPlus } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 interface ClientActionMenuProps {
   entityName: string
@@ -22,14 +22,17 @@ export function ClientActionMenu({
   ...rest
 }: ClientActionMenuProps) {
   const tc = useTranslations("common")
-  return (
-    <ActionMenu {...rest}>
-      {onInvite && canInvite && (
-        <DropdownMenuItem onClick={onInvite}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          {tc("invite")}
-        </DropdownMenuItem>
-      )}
-    </ActionMenu>
-  )
+  const actions: MenuAction[] =
+    onInvite && canInvite
+      ? [
+          {
+            key: "invite",
+            label: tc("invite"),
+            icon: UserPlus,
+            onSelect: onInvite,
+          },
+        ]
+      : []
+
+  return <ActionMenu {...rest} actions={actions} />
 }

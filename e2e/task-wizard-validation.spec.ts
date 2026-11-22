@@ -151,12 +151,7 @@ test("a repeating schedule shows dates anchored on a start date that defaults to
   // and the task carries a time, so All-day comes back unchecked.
   const row = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(row).toBeVisible()
-  await row
-    .getByRole("button", { name: `Acciones para ${taskName}` })
-    .click()
-  await page
-    .getByRole("menuitem", { name: `Editar ${taskName}` })
-    .click()
+  await row.getByRole("button", { name: "Editar", exact: true }).click()
   await dialog.getByRole("button", { name: "Continuar" }).click()
   await expect(dialog.getByLabel("Fecha de inicio")).toHaveValue(today)
   await expect(dialog.getByLabel("Fecha de vencimiento")).toHaveValue(

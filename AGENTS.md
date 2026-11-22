@@ -137,6 +137,7 @@ Never:
 ## Testing
 
 - **E2E** (`e2e/*.spec.ts`, Playwright) — proves functionality works all together; drive it through the Next.js pages a user would interact with, never by invoking actions or helpers directly.
+- **Browser checks for UI changes** — after changing components, pages, or styling, open the app in Chrome with `browse` to verify rendering and interactions; this complements, never replaces, `pnpm verify` and E2E.
 - **Server actions and util functions** — covered by vitest unit tests (beside-file `*.test.ts`, including `actions/<domain>/`; legacy locations `actions/legacy/*.test.ts` and `actions/__tests__/` until their domain migrates), not by e2e.
 - **Auth in e2e** — import `test`/`expect` from `./fixtures`, not `@playwright/test`, and call `signInAs("<role>")` (see `TEST_USERS`) for an authenticated context.
 - **Every behavioral change ships with tests** — superpowers adds e2e and/or unit coverage alongside features, fixes, and behavior edits; docs/config-only changes are exempt.

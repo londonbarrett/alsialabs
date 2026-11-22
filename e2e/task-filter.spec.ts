@@ -107,17 +107,8 @@ async function createDailyRepeatingTask(
   await expect(page.getByText("Tarea creada").first()).toBeVisible()
 }
 
-async function openEdit(
-  page: Page,
-  row: Locator,
-  taskName: string
-): Promise<Locator> {
-  await row
-    .getByRole("button", { name: `Acciones para ${taskName}` })
-    .click()
-  await page
-    .getByRole("menuitem", { name: `Editar ${taskName}` })
-    .click()
+async function openEdit(page: Page, row: Locator): Promise<Locator> {
+  await row.getByRole("button", { name: "Editar", exact: true }).click()
   const dialog = page.getByRole("dialog", { name: "Editar Tarea" })
   await expect(dialog).toBeVisible()
   return dialog
@@ -240,26 +231,16 @@ const openFilter = (page: Page): Locator =>
 const archivedFilter = (page: Page): Locator =>
   page.getByRole("button", { name: "Archivadas", exact: true })
 
-async function openTaskMenu(
-  page: Page,
-  row: Locator,
-  taskName: string
-): Promise<void> {
-  await row
-    .getByRole("button", { name: `Acciones para ${taskName}` })
-    .click()
+async function clickRowAction(row: Locator, name: string): Promise<void> {
+  await row.getByRole("button", { name, exact: true }).click()
 }
 
 async function archiveTask(
   page: Page,
   row: Locator,
-  taskName: string,
   closeAs: "finalizada" | "cancelada"
 ): Promise<void> {
-  await openTaskMenu(page, row, taskName)
-  await page
-    .getByRole("menuitem", { name: "Archivar", exact: true })
-    .click()
+  await clickRowAction(row, "Archivar")
   const dialog = page.getByRole("dialog", { name: "¿Archivar tarea?" })
   await expect(dialog).toBeVisible()
   await dialog
@@ -269,15 +250,8 @@ async function archiveTask(
   await expect(page.getByText("Tarea archivada").first()).toBeVisible()
 }
 
-async function unarchiveTask(
-  page: Page,
-  row: Locator,
-  taskName: string
-): Promise<void> {
-  await openTaskMenu(page, row, taskName)
-  await page
-    .getByRole("menuitem", { name: "Desarchivar", exact: true })
-    .click()
+async function unarchiveTask(page: Page, row: Locator): Promise<void> {
+  await clickRowAction(row, "Desarchivar")
   await expect(page.getByText("Tarea restaurada").first()).toBeVisible()
 }
 
@@ -373,7 +347,7 @@ test("a repeating task emptied through the wizard stays under Open without reope
   await expect(row).toBeVisible()
   await expect(row).toContainText("Recurrente")
 
-  const dialog = await openEdit(page, row, taskName)
+  const dialog = await openEdit(page, row)
   await removeAssigneeAsCancelled(page, dialog)
   await saveEdit(page, dialog)
 
@@ -403,12 +377,10 @@ test("a repeating task emptied through the wizard stays under Open without reope
   await expect(loadMore).toHaveCount(0)
   await expect(person).toHaveCount(1)
 
-  // The wizard is still the way back: Edit stays in the action menu.
-  await openTaskMenu(page, row, taskName)
+  // The wizard is still the way back: Edit stays as an inline icon.
   await expect(
-    page.getByRole("menuitem", { name: `Editar ${taskName}` })
+    row.getByRole("button", { name: "Editar", exact: true })
   ).toBeVisible()
-  await page.keyboard.press("Escape")
 })
 
 test("archiving a repeating task spawns nothing, stays editable, and unarchiving reopens it", async ({
@@ -445,7 +417,7 @@ test("archiving a repeating task spawns nothing, stays editable, and unarchiving
   await page.keyboard.press("Escape")
   await expect(liveSheet).toBeHidden()
 
-  await archiveTask(page, row, taskName, "finalizada")
+  await archiveTask(page, row, "finalizada")
 
   // The task leaves Open; the filter never auto-flips.
   await expect(row).toHaveCount(0)
@@ -508,25 +480,23 @@ test("archiving a repeating task spawns nothing, stays editable, and unarchiving
   await page.keyboard.press("Escape")
   await expect(archivedSheet).toBeHidden()
 
-  // Menu: Edit, Unarchive and Delete; Archive is gone (already archived).
-  await openTaskMenu(page, row, taskName)
+  // Inline icons: Edit, Unarchive and Delete; Archive is gone (already archived).
   await expect(
-    page.getByRole("menuitem", { name: `Editar ${taskName}` })
+    row.getByRole("button", { name: "Editar", exact: true })
   ).toBeVisible()
   await expect(
-    page.getByRole("menuitem", { name: "Desarchivar", exact: true })
+    row.getByRole("button", { name: "Desarchivar", exact: true })
   ).toBeVisible()
   await expect(
-    page.getByRole("menuitem", { name: `Eliminar ${taskName}` })
+    row.getByRole("button", { name: "Eliminar", exact: true })
   ).toBeVisible()
   await expect(
-    page.getByRole("menuitem", { name: "Archivar", exact: true })
+    row.getByRole("button", { name: "Archivar", exact: true })
   ).toHaveCount(0)
-  await page.keyboard.press("Escape")
 
   // Unarchive: the row leaves Archived (no auto-flip) and, being
   // repeating with an in-range occurrence, reopens work immediately.
-  await unarchiveTask(page, row, taskName)
+  await unarchiveTask(page, row)
   await expect(row).toHaveCount(0)
   await expect(archivedFilter(page)).toHaveAttribute(
     "aria-pressed",
@@ -576,8 +546,7 @@ test("archiving a task with no open assignments skips the disposition dialog", a
   )
   expect(dueCell).not.toContain(":")
 
-  await openTaskMenu(page, row, taskName)
-  await page.getByRole("menuitem", { name: "Archivar", exact: true }).click()
+  await clickRowAction(row, "Archivar")
 
   // No dialog: the archive fires immediately and the row leaves Open.
   await expect(
@@ -606,7 +575,7 @@ test("a one-off task archived as cancelled returns to Open with its roster intac
   const row = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(row).toBeVisible()
 
-  await archiveTask(page, row, taskName, "cancelada")
+  await archiveTask(page, row, "cancelada")
   await expect(row).toHaveCount(0)
 
   await archivedFilter(page).click()
@@ -647,7 +616,7 @@ test("a one-off task archived as cancelled returns to Open with its roster intac
   // Editing the archived task is allowed: the added assignee takes the
   // membership row but opens nothing, and the roster-driven column shows
   // both people.
-  const edit = await openEdit(page, row, taskName)
+  const edit = await openEdit(page, row)
   await edit.getByRole("button", { name: "Agregar asignado" }).click()
   await page
     .getByRole("menuitemcheckbox", { name: /user1@test\.local/ })
@@ -666,7 +635,7 @@ test("a one-off task archived as cancelled returns to Open with its roster intac
   await expect(row.getByText("E2", { exact: true })).toBeVisible()
   await expect(row).not.toContainText("Sin asignar")
 
-  await unarchiveTask(page, row, taskName)
+  await unarchiveTask(page, row)
   await expect(row).toHaveCount(0)
   await openFilter(page).click()
   await expect(row).toBeVisible()
@@ -684,7 +653,7 @@ test("a one-off task archived as cancelled returns to Open with its roster intac
 
   // The form seeds from the roster, not from open rows: a zero-open task
   // still shows its assignee.
-  const dialog = await openEdit(page, row, taskName)
+  const dialog = await openEdit(page, row)
   await expect(
     dialog.getByRole("button", { name: "Eliminar E2E Collaborator" })
   ).toBeVisible()
@@ -714,7 +683,7 @@ test("date-edit spawn opens only for active assignees", async ({
 
   // Unassign the collaborator (membership gone), then close the owner's
   // occurrence: zero-open, one active assignee left.
-  const dialog = await openEdit(page, row, taskName)
+  const dialog = await openEdit(page, row)
   await removeAssigneeAsCancelled(page, dialog)
   await saveEdit(page, dialog)
   await expect(row).toContainText("1 abierta")
@@ -731,7 +700,7 @@ test("date-edit spawn opens only for active assignees", async ({
   await expect(row).toContainText("2 cerradas")
 
   // Moving the due date out opens a fresh row for the owner only.
-  const edit = await openEdit(page, row, taskName)
+  const edit = await openEdit(page, row)
   await changeDueDate(page, edit, daysFromNow(10))
   await expect(row).toContainText("1 abierta")
   await expect(row).toContainText("2 cerradas")
@@ -785,7 +754,7 @@ test("a removed project member never spawns on a later date change", async ({
   await expect(row).not.toContainText("abierta")
 
   // The date change finds no active assignee: nothing spawns.
-  const dialog = await openEdit(page, row, taskName)
+  const dialog = await openEdit(page, row)
   await changeDueDate(page, dialog, daysFromNow(10))
   await expect(row).toContainText("1 cerrada")
   await expect(row).not.toContainText("abierta")
@@ -808,7 +777,7 @@ test("adding an assignee to a repeating task with an in-range date opens their a
   await expect(row).toBeVisible()
   await expect(row).toContainText("Sin asignar")
 
-  const dialog = await openEdit(page, row, taskName)
+  const dialog = await openEdit(page, row)
   await dialog.getByRole("button", { name: "Agregar asignado" }).click()
   await page
     .getByRole("menuitemcheckbox", { name: COLLABORATOR })
@@ -1222,7 +1191,7 @@ test("a removed assignee can be reassigned with the closed row in history", asyn
   await expect(row).toBeVisible()
 
   // Removal through the wizard closes the assignment with no spawn.
-  const firstEdit = await openEdit(page, row, taskName)
+  const firstEdit = await openEdit(page, row)
   await removeAssigneeAsCancelled(page, firstEdit)
   await saveEdit(page, firstEdit)
 
@@ -1244,7 +1213,7 @@ test("a removed assignee can be reassigned with the closed row in history", asyn
   // re-selectable) and their open row lands beside the old cancelled
   // row — non-repeating tasks load full history, so both show
   // immediately and there is no Load More control.
-  const secondEdit = await openEdit(page, row, taskName)
+  const secondEdit = await openEdit(page, row)
   await secondEdit
     .getByRole("button", { name: "Agregar asignado" })
     .click()
@@ -1331,15 +1300,14 @@ test("a plain save after unarchive never reopens work, and extending the due dat
 
   // The only row is already terminal, so there is no open work to close:
   // Archive skips the disposition dialog and archives immediately.
-  await openTaskMenu(page, row, taskName)
-  await page.getByRole("menuitem", { name: "Archivar", exact: true }).click()
+  await clickRowAction(row, "Archivar")
   await expect(
     page.getByRole("dialog", { name: "¿Archivar tarea?" })
   ).toHaveCount(0)
   await expect(page.getByText("Tarea archivada").first()).toBeVisible()
   await archivedFilter(page).click()
   await expect(row).toBeVisible()
-  await unarchiveTask(page, row, taskName)
+  await unarchiveTask(page, row)
   await openFilter(page).click()
   await expect(row).toBeVisible()
   await expect(row).toContainText("1 cerrada")
@@ -1347,14 +1315,14 @@ test("a plain save after unarchive never reopens work, and extending the due dat
 
   // A plain save (no date edit) keeps the preserved due date untouched:
   // it never reopens work.
-  const plain = await openEdit(page, row, taskName)
+  const plain = await openEdit(page, row)
   await saveEdit(page, plain)
   await expect(row).toContainText("1 cerrada")
   await expect(row).not.toContainText("abierta")
 
   // Extending the due date is the way back: the new occurrence starts
   // from today, never at the task's original (past) start date.
-  const edit = await openEdit(page, row, taskName)
+  const edit = await openEdit(page, row)
   await changeDueDate(page, edit, daysFromNow(10))
   await expect(row).toContainText("1 abierta")
   await expandAssignments(row)
@@ -1432,8 +1400,7 @@ test("switching filters preserves each view's expanded task rows", async ({
   // Archive inline rather than via the toast-waiting helper: under full
   // suite load a delayed sonner toast can flake, while the optimistic
   // store update that moves the row is the signal this test cares about.
-  await openTaskMenu(page, archivedRow, archivedName)
-  await page.getByRole("menuitem", { name: "Archivar", exact: true }).click()
+  await clickRowAction(archivedRow, "Archivar")
   const archiveDialog = page.getByRole("dialog", { name: "¿Archivar tarea?" })
   await expect(archiveDialog).toBeVisible()
   await archiveDialog
