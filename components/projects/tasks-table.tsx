@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import type { MenuAction } from "@/lib/types"
 import { sortAssignments } from "@/lib/tasks/assignments"
 import {
   assignmentCounts,
@@ -32,7 +33,7 @@ import { Fragment, useCallback, useState } from "react"
 import { cn } from "cn"
 import { DueDate } from "./due-date"
 import { TaskArchiveDialog } from "./task-archive-dialog"
-import { TaskArchiveMenuItem } from "./task-archive-menu-item"
+import { createTaskArchiveAction } from "./task-archive-action"
 import { TaskAssigneeStack } from "./task-assignee-stack"
 import { TaskClosedAssignmentRows } from "./task-closed-assignment-rows"
 import { TaskHistoryPanel } from "./task-history-panel"
@@ -313,19 +314,24 @@ export function TasksTable({
                         onDelete={() => onDelete(task.id)}
                         canEdit={canEdit}
                         canDelete={canDeleteProject}
-                      >
-                        <TaskArchiveMenuItem
-                          task={task}
-                          canArchive={canEdit}
-                          onArchiveRequest={() =>
-                            setArchivingTaskId(task.id)
-                          }
-                          onArchiveDirect={() =>
-                            handleArchive(task.id, "cancelled")
-                          }
-                          onUnarchive={() => onUnarchive(task.id)}
-                        />
-                      </ActionMenu>
+                        actions={[
+                          createTaskArchiveAction({
+                            labels: {
+                              archive: t("projects.tasks.archiveTask"),
+                              unarchive: t("projects.tasks.unarchiveTask"),
+                            },
+                            task,
+                            canArchive: canEdit,
+                            onArchiveRequest: () =>
+                              setArchivingTaskId(task.id),
+                            onArchiveDirect: () =>
+                              handleArchive(task.id, "cancelled"),
+                            onUnarchive: () => onUnarchive(task.id),
+                          }),
+                        ].filter(
+                          (action): action is MenuAction => action !== null
+                        )}
+                      />
                     </TableCell>
                   )}
                 </TableRow>

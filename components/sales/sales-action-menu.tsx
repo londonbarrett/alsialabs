@@ -1,7 +1,7 @@
 "use client"
 
 import { ActionMenu } from "@/components/common/action-menu"
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import type { MenuAction } from "@/lib/types"
 import {
   cancelInvoice,
   deleteInvoice,
@@ -104,45 +104,63 @@ export function SalesActionMenu({
         } else toast.error(t("common.somethingWentWrong"))
       }
 
+  const actions: MenuAction[] = [
+    {
+      key: "view-payments",
+      label: t("sales.viewPayments"),
+      icon: Banknote,
+      onSelect: onViewPayments,
+    },
+  ]
+
+  if (invoice.status === "draft") {
+    actions.push({
+      key: "send",
+      label: t("sales.sendInvoice"),
+      icon: Send,
+      onSelect: handleSend,
+    })
+  }
+  if (
+    canCreate &&
+    invoice.status !== "paid" &&
+    invoice.status !== "cancelled"
+  ) {
+    actions.push({
+      key: "record-payment",
+      label: t("sales.recordPayment"),
+      icon: HandCoins,
+      onSelect: onRecordPayment,
+    })
+  }
+  if (
+    invoice.status !== "cancelled" &&
+    invoice.status !== "paid" &&
+    canEdit
+  ) {
+    actions.push({
+      key: "cancel",
+      label: t("sales.cancelInvoice"),
+      icon: X,
+      onSelect: handleCancel,
+    })
+  }
+  if (invoice.status === "cancelled") {
+    actions.push({
+      key: "reopen",
+      label: t("sales.reopenInvoice"),
+      icon: Undo2,
+      onSelect: handleReopen,
+    })
+  }
+
   return (
     <ActionMenu
       entityName={t("invoiceItem.invoice")}
       onEdit={canEdit ? onEdit : undefined}
       onDelete={handleDelete}
       canDelete={canDelete}
-    >
-      <DropdownMenuItem onClick={onViewPayments}>
-        <Banknote className="mr-2 h-4 w-4" />
-        {t("sales.viewPayments")}
-      </DropdownMenuItem>
-      {invoice.status === "draft" && (
-        <DropdownMenuItem onClick={handleSend}>
-          <Send className="mr-2 h-4 w-4" />
-          {t("sales.sendInvoice")}
-        </DropdownMenuItem>
-      )}
-      {canCreate &&
-        invoice.status !== "paid" &&
-        invoice.status !== "cancelled" && (
-          <DropdownMenuItem onClick={onRecordPayment}>
-            <HandCoins className="mr-2 h-4 w-4" />
-            {t("sales.recordPayment")}
-          </DropdownMenuItem>
-        )}
-      {invoice.status !== "cancelled" &&
-        invoice.status !== "paid" &&
-        canEdit && (
-          <DropdownMenuItem onClick={handleCancel}>
-            <X className="mr-2 h-4 w-4" />
-            {t("sales.cancelInvoice")}
-          </DropdownMenuItem>
-        )}
-      {invoice.status === "cancelled" && (
-        <DropdownMenuItem onClick={handleReopen}>
-          <Undo2 className="mr-2 h-4 w-4" />
-          {t("sales.reopenInvoice")}
-        </DropdownMenuItem>
-      )}
-    </ActionMenu>
+      actions={actions}
+    />
   )
 }
