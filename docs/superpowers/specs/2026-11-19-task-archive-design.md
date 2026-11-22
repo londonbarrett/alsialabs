@@ -337,11 +337,14 @@ closeAs: "done" | "cancelled" }`, output schema declared,
 
 ### #6 Menu, views, and the remaining archived guards
 
-- `ActionMenu` (`components/common/action-menu.tsx`) keeps its
-  `children` slot: `tasks-table.tsx` composes Archive/Unarchive items
-  as children (pattern: `expenses-table.tsx:108-119`) rather than
-  growing `ActionMenuProps`. Which item renders is decided by
-  `task.archived`.
+- `ActionMenu` (`components/common/action-menu/`) takes extra row
+  actions as a `MenuAction[]` `actions` prop instead of
+  `DropdownMenuItem` children; it renders the list as tooltip-labelled
+  inline icons at `md` and up and as dropdown items below `md`.
+  `tasks-table.tsx` builds the Archive/Unarchive entry with
+  `createTaskArchiveAction` (`components/projects/task-archive-action.ts`),
+  which returns `null` when the user cannot archive. Which action renders
+  is decided by `task.archived`.
 - **Archived view** (same table, `archived` rows): the row is a normal
   editable row — Archive becomes Unarchive, and **Edit, priority,
   assignee selection, assignment status, Reopen, and comments all
