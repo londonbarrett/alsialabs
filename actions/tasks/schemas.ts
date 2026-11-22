@@ -17,6 +17,17 @@ export const TaskPrioritySchema = z.enum(TASK_PRIORITIES).nullable()
 
 export type TaskPriorityDTO = z.infer<typeof TaskPrioritySchema>
 
+/**
+ * Costs are whole currency units: `MoneyInput` only produces digits, and an
+ * untouched or cleared field is the empty string. Both the task form and the
+ * inline recost payload share this shape.
+ */
+const CostInputSchema = z
+  .string()
+  .regex(/^\d*$/, { message: "INVALID_COST" })
+  .optional()
+  .default("")
+
 // ---------- Response schemas ----------
 
 // ---------- Assignment-era task schemas ----------
@@ -26,6 +37,7 @@ const TaskFormBaseSchema = z.object({
     .string()
     .min(1, { message: "NAME_REQUIRED" })
     .transform((v) => v.trim()),
+  cost: CostInputSchema,
   description: z
     .string()
     .transform((v) => v.trim())
@@ -141,6 +153,7 @@ export const TaskAssignmentSchema = z.object({
   userImage: z.string().nullable(),
   status: z.enum(TASK_STATUSES),
   comment: z.string().nullable(),
+  cost: z.string(),
   startDate: z.coerce.date().nullable(),
   endDate: z.coerce.date().nullable(),
 })
@@ -151,6 +164,7 @@ export const TaskRecordSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   priority: z.enum(TASK_PRIORITIES).nullable(),
+  cost: z.string(),
   startDate: z.date().nullable(),
   endDate: z.date().nullable(),
   recurrence: z.enum(["daily", "weekly"]).nullable(),
@@ -175,6 +189,13 @@ export const TaskWithAssignmentsSchema = TaskRecordSchema.extend({
    * never derive this from loaded rows.
    */
   closedCount: z.number(),
+  /**
+   * Server-authoritative sum over EVERY assignment of the task — no status
+   * filter, no pagination. Defaulted so actions that construct a task DTO
+   * before the total is threaded through still validate; the query always
+   * supplies the real value.
+   */
+  totalCost: z.number().default(0),
 })
 
 export const MyTasksTabSchema = z.enum(["active", "past"])
@@ -193,6 +214,7 @@ export const MyAssignmentSchema = z.object({
   role: z.enum(["owner", "admin", "collaborator"]),
   status: z.enum(TASK_STATUSES),
   comment: z.string().nullable(),
+  cost: z.string(),
   startDate: z.coerce.date().nullable(),
   endDate: z.coerce.date().nullable(),
   recurrence: z.enum(["daily", "weekly"]).nullable(),
@@ -202,6 +224,14 @@ export const MyAssignmentSchema = z.object({
 export const AssignmentStatusResultSchema = z.object({
   assignment: TaskAssignmentSchema,
   nextAssignment: TaskAssignmentSchema.nullable(),
+  /** Sum of the costs of every assignment spawned by this status change. */
+  spawnedCostTotal: z.number().default(0),
+})
+
+export const UpdateAssignmentCostSchema = z.object({
+  projectId: z.uuid(),
+  assignmentId: z.uuid(),
+  cost: CostInputSchema,
 })
 
 export const ArchiveTaskSchema = z.object({
@@ -249,6 +279,9 @@ export type TaskWithAssignmentsDTO = z.infer<
 export type MyAssignmentDTO = z.infer<typeof MyAssignmentSchema>
 export type AssignmentStatusResultDTO = z.infer<
   typeof AssignmentStatusResultSchema
+>
+export type UpdateAssignmentCostDTO = z.infer<
+  typeof UpdateAssignmentCostSchema
 >
 export type ArchiveTaskDTO = z.infer<typeof ArchiveTaskSchema>
 export type UnarchiveTaskDTO = z.infer<typeof UnarchiveTaskSchema>

@@ -1,6 +1,6 @@
 import { ExpensesProvider } from "@/components/projects/expenses/expenses-provider"
 import { ProjectExpenses } from "@/components/projects/expenses/project-expenses"
-import { ProjectTasksProvider } from "@/components/projects/project-tasks-provider"
+import { ProjectTasksProvider } from "@/components/projects/tasks/project-tasks-provider"
 import {
   getExpenseCategories,
   getExpensesByProjectId,

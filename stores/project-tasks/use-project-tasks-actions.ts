@@ -17,14 +17,16 @@ import {
   getTaskAssignmentHistory,
   getTaskComments,
   unarchiveTask as unarchiveTaskAction,
+  updateAssignmentCost as updateAssignmentCostAction,
   updateAssignmentComment as updateAssignmentCommentAction,
   updateAssignmentStatus as updateAssignmentStatusAction,
   updateComment as updateCommentAction,
   updateTask as updateTaskAction,
   updateTaskPriority as updateTaskPriorityAction,
 } from "@/actions/tasks"
-import type { TaskFormValues } from "@/components/projects/task-dialog"
+import type { TaskFormValues } from "@/components/projects/tasks/task-dialog"
 import { useSettle } from "@/hooks/use-settle"
+import { costToNumber, sumCosts } from "@/lib/tasks/cost"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
@@ -37,6 +39,7 @@ function toTaskPayload(projectId: string, values: TaskFormValues) {
   return {
     projectId,
     name: values.name,
+    cost: values.cost,
     description: values.description,
     priority: values.priority as TaskPriorityDTO,
     assigneeIds: values.assigneeIds,
@@ -62,6 +65,7 @@ export function useProjectTasksActions() {
   const { executeAsync: executeStatus } = useAction(
     updateAssignmentStatusAction
   )
+  const { executeAsync: executeCost } = useAction(updateAssignmentCostAction)
   const { executeAsync: executeComment } = useAction(
     updateAssignmentCommentAction
   )
@@ -216,6 +220,7 @@ export function useProjectTasksActions() {
                 taskId,
                 archived: false,
                 spawned: r.data.spawned,
+                costDelta: sumCosts(r.data.spawned),
               }
             : undefined,
       }
@@ -264,6 +269,7 @@ export function useProjectTasksActions() {
                 taskId,
                 assignment: r.data.assignment,
                 nextAssignment: r.data.nextAssignment,
+                costDelta: r.data.spawnedCostTotal,
               }
             : undefined,
       }
@@ -308,6 +314,46 @@ export function useProjectTasksActions() {
       }
     )
     settle(result, t("projects.tasks.comments.commentUpdated"))
+  }
+
+  async function updateAssignmentCost(
+    projectId: string,
+    taskId: string,
+    assignmentId: string,
+    cost: string,
+    previousCost?: string
+  ) {
+    const nextCost = cost || "0"
+    // The caller supplies the pre-edit cost because history-panel rows are
+    // fetched, not necessarily store-backed — a lookup here would silently
+    // no-op on those rows. The task's total is a server aggregate between
+    // reseeds: move it by the difference now, keep that adjustment on commit
+    // (which carries no fresh delta), and revert it with the pend on failure.
+    const costDelta =
+      costToNumber(nextCost) - costToNumber(previousCost || "0")
+    const result = await run(
+      {
+        type: "setAssignmentCost",
+        taskId,
+        assignmentId,
+        cost: nextCost,
+        costDelta,
+      },
+      () => executeCost({ projectId, assignmentId, cost: nextCost }),
+      {
+        commitAction: (r) =>
+          r.data
+            ? {
+                type: "setAssignmentCost",
+                taskId,
+                assignmentId,
+                cost: r.data.cost,
+                costDelta: 0,
+              }
+            : undefined,
+      }
+    )
+    settle(result, t("projects.tasks.taskUpdated"))
   }
 
   async function updateTaskPriority(
@@ -398,6 +444,7 @@ export function useProjectTasksActions() {
     archiveTask,
     unarchiveTask,
     updateAssignmentStatus,
+    updateAssignmentCost,
     updateAssignmentComment,
     updateTaskPriority,
     createComment,

@@ -14,6 +14,7 @@ import {
   sessionAction,
 } from "@/actions/safe-action"
 import { toTaskAssignmentDTO } from "@/lib/tasks/assignments"
+import { costToNumber } from "@/lib/tasks/cost"
 import { z } from "zod"
 import queries from "./queries"
 import {
@@ -36,6 +37,7 @@ import {
   TaskWithAssignmentsSchema,
   UnarchiveTaskResultSchema,
   UnarchiveTaskSchema,
+  UpdateAssignmentCostSchema,
   UpdateTaskCommentSchema,
   UpdateTaskSchema,
   type TaskAssignmentDTO,
@@ -105,6 +107,7 @@ export const createTask = projectAction(CreateTaskSchema)
       assigneeIds: loaded.assigneeIds,
       commentCount: 0,
       closedCount: loaded.closedCount,
+      totalCost: loaded.totalCost,
     }
   })
 
@@ -169,6 +172,7 @@ export const updateTask = projectAction(UpdateTaskSchema)
       assigneeIds: loaded.assigneeIds,
       commentCount: 0,
       closedCount: loaded.closedCount,
+      totalCost: loaded.totalCost,
     }
   })
 
@@ -259,20 +263,51 @@ export const updateAssignmentStatus = projectAction(
     // Healed members arrive via the list reseed; nextAssignment reports only
     // the closing assignee's own successor.
     let nextAssignment: TaskAssignmentDTO | null = null
+    let spawnedCostTotal = 0
 
     for (const id of spawnedIds) {
       const nextView = await queries.getAssignmentViewById(id)
+      if (!nextView) continue
 
-      if (nextView?.userId === row.userId) {
+      // Every spawned row contributes to the task's total, including the
+      // healed members that `nextAssignment` does not report.
+      spawnedCostTotal += costToNumber(nextView.cost)
+      if (nextView.userId === row.userId && !nextAssignment) {
         nextAssignment = toTaskAssignmentDTO(nextView)
-        break
       }
     }
 
     return {
       assignment: toTaskAssignmentDTO(viewRow),
       nextAssignment,
+      spawnedCostTotal,
     }
+  })
+
+/**
+ * Inline recost of one assignment. Only work managers may change money, and
+ * the assignment must resolve inside the action's project — the scope check
+ * runs before any write so a crafted payload cannot touch another project's
+ * row. An empty input persists the task's "no cost" sentinel, "0".
+ */
+export const updateAssignmentCost = projectAction(UpdateAssignmentCostSchema)
+  .metadata({})
+  .outputSchema(TaskAssignmentSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { projectId, assignmentId } = parsedInput
+    if (!canManageWork(ctx.projectRole)) {
+      returnActionError("FORBIDDEN")
+    }
+
+    const row = await queries.getAssignmentForRow(assignmentId, projectId)
+    if (!row) returnActionError("NOT_FOUND")
+
+    await queries.updateAssignmentCost(assignmentId, parsedInput.cost || "0")
+
+    const viewRow = await queries.getAssignmentViewById(assignmentId)
+    if (!viewRow) returnActionError("NOT_FOUND")
+
+    return toTaskAssignmentDTO(viewRow)
   })
 
 export const updateAssignmentComment = projectAction(

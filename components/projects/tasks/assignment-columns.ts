@@ -5,5 +5,5 @@
  * here so the rows components and the history panel can never drift.
  */
 export function assignmentColumnCount(canMutate: boolean): number {
-  return canMutate ? 7 : 6
+  return canMutate ? 8 : 7
 }

@@ -59,6 +59,7 @@ it("keeps the schedule fields and drops the legacy task columns", () => {
   for (const column of [
     "startDate",
     "endDate",
+    "cost",
     "recurrence",
     "interval",
     "daysOfWeek",
@@ -67,7 +68,7 @@ it("keeps the schedule fields and drops the legacy task columns", () => {
   ]) {
     expect(taskColumns).toHaveProperty(column)
   }
-  for (const column of ["cost", "status", "assigneeId", "routineId", "dueDate"]) {
+  for (const column of ["status", "assigneeId", "routineId", "dueDate"]) {
     expect(taskColumns).not.toHaveProperty(column)
   }
 })

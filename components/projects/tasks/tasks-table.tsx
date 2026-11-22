@@ -6,6 +6,7 @@ import type {
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
 import { ActionMenu } from "@/components/common/action-menu"
+import { Money } from "@/components/common/money"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,7 +32,7 @@ import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Fragment, useCallback, useState } from "react"
 import { cn } from "cn"
-import { DueDate } from "./due-date"
+import { DueDate } from "../due-date"
 import { TaskArchiveDialog } from "./task-archive-dialog"
 import { createTaskArchiveAction } from "./task-archive-action"
 import { TaskAssigneeStack } from "./task-assignee-stack"
@@ -118,9 +119,14 @@ export function TasksTable({
             <TableHead scope="col">{t("common.status")}</TableHead>
             <TableHead scope="col">{t("common.priority")}</TableHead>
             <TableHead scope="col">{t("common.dueDate")}</TableHead>
-            <TableHead scope="col" className="w-12" />
+            <TableHead scope="col">{t("projects.tasks.totalCost")}</TableHead>
+            <TableHead scope="col" className="w-12 text-center">
+              {t("common.comments")}
+            </TableHead>
             {canMutate && (
-              <TableHead scope="col">{t("common.actions")}</TableHead>
+              <TableHead scope="col" className="text-center">
+                {t("common.actions")}
+              </TableHead>
             )}
           </TableRow>
         </TableHeader>
@@ -295,6 +301,9 @@ export function TasksTable({
                     />
                   </TableCell>
                   <TableCell>
+                    <Money value={task.totalCost} />
+                  </TableCell>
+                  <TableCell className="text-center">
                     <Button
                       variant="secondary"
                       onClick={() => onComments(task)}
@@ -307,31 +316,33 @@ export function TasksTable({
                     </Button>
                   </TableCell>
                   {canMutate && (
-                    <TableCell>
-                      <ActionMenu
-                        entityName={task.name}
-                        onEdit={() => onEdit(task)}
-                        onDelete={() => onDelete(task.id)}
-                        canEdit={canEdit}
-                        canDelete={canDeleteProject}
-                        actions={[
-                          createTaskArchiveAction({
-                            labels: {
-                              archive: t("projects.tasks.archiveTask"),
-                              unarchive: t("projects.tasks.unarchiveTask"),
-                            },
-                            task,
-                            canArchive: canEdit,
-                            onArchiveRequest: () =>
-                              setArchivingTaskId(task.id),
-                            onArchiveDirect: () =>
-                              handleArchive(task.id, "cancelled"),
-                            onUnarchive: () => onUnarchive(task.id),
-                          }),
-                        ].filter(
-                          (action): action is MenuAction => action !== null
-                        )}
-                      />
+                    <TableCell className="text-center">
+                      <div className="flex justify-center">
+                        <ActionMenu
+                          entityName={task.name}
+                          onEdit={() => onEdit(task)}
+                          onDelete={() => onDelete(task.id)}
+                          canEdit={canEdit}
+                          canDelete={canDeleteProject}
+                          actions={[
+                            createTaskArchiveAction({
+                              labels: {
+                                archive: t("projects.tasks.archiveTask"),
+                                unarchive: t("projects.tasks.unarchiveTask"),
+                              },
+                              task,
+                              canArchive: canEdit,
+                              onArchiveRequest: () =>
+                                setArchivingTaskId(task.id),
+                              onArchiveDirect: () =>
+                                handleArchive(task.id, "cancelled"),
+                              onUnarchive: () => onUnarchive(task.id),
+                            }),
+                          ].filter(
+                            (action): action is MenuAction => action !== null
+                          )}
+                        />
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>

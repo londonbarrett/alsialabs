@@ -34,6 +34,8 @@ export type ProjectTaskAction =
       archived: boolean
       closeAs?: "done" | "cancelled"
       spawned?: TaskAssignmentDTO[]
+      /** Sum of the costs of the rows `spawned` appends. */
+      costDelta?: number
     }
   | {
       type: "upsertAssignment"
@@ -47,6 +49,16 @@ export type ProjectTaskAction =
        * and a discard reverts it with the rest of the pend.
        */
       closedDelta?: number
+      /** Cost of a spawned successor, added to the task's server total. */
+      costDelta?: number
+    }
+  | {
+      type: "setAssignmentCost"
+      taskId: string
+      assignmentId: string
+      cost: string
+      /** New cost minus old cost, applied to the server-counting total. */
+      costDelta: number
     }
   | {
       type: "setComments"
@@ -181,9 +193,26 @@ export function projectTasksReducer(
             ...task,
             archived: action.archived,
             closedCount: Math.max(0, task.closedCount + closedDelta),
+            totalCost: Math.max(0, task.totalCost + (action.costDelta ?? 0)),
             assignments,
           }
         }),
+      }
+
+    case "setAssignmentCost":
+      return {
+        ...state,
+        tasks: state.tasks.map((task) =>
+          task.id === action.taskId
+            ? {
+                ...task,
+                totalCost: Math.max(0, task.totalCost + action.costDelta),
+                assignments: task.assignments.map((a) =>
+                  a.id === action.assignmentId ? { ...a, cost: action.cost } : a
+                ),
+              }
+            : task
+        ),
       }
 
     case "upsertAssignment":
@@ -201,18 +230,19 @@ export function projectTasksReducer(
               )
             : [...task.assignments, action.assignment]
 
-          const withClosedCount = {
+          const withDeltas = {
             ...task,
             closedCount: Math.max(
               0,
               task.closedCount + (action.closedDelta ?? 0)
             ),
+            totalCost: Math.max(0, task.totalCost + (action.costDelta ?? 0)),
           }
 
           const next = action.nextAssignment
           if (!next) {
             return {
-              ...withClosedCount,
+              ...withDeltas,
               assignments: sortAssignments(withAssignment),
             }
           }
@@ -225,7 +255,7 @@ export function projectTasksReducer(
             : [...withoutSameUser, next]
 
           return {
-            ...withClosedCount,
+            ...withDeltas,
             assignments: sortAssignments(withNext),
           }
         }),

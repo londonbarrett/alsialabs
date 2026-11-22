@@ -55,6 +55,7 @@ import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
 import { resolveProjectAccess } from "@/actions/projects/util"
 import type { ProjectRole } from "@/lib/types"
+import { sumCosts } from "@/lib/tasks/cost"
 import queries from "@/actions/tasks/queries"
 import { assertTaskMutable } from "@/actions/tasks/util"
 import { defaultIsSuccess } from "@/lib/util/action-result"
@@ -74,6 +75,7 @@ import {
   updateTask,
   updateTaskPriority,
 } from "@/actions/tasks"
+import { updateAssignmentCost } from "@/actions/tasks/actions"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockResolveAccess = vi.mocked(resolveProjectAccess)
@@ -99,6 +101,7 @@ function makeTaskRow(overrides: Record<string, unknown> = {}) {
     projectId: PROJECT_ID,
     name: "Fix the roof",
     description: null,
+    cost: "0",
     status: "todo",
     priority: null,
     routineId: null,
@@ -125,6 +128,7 @@ function makeAssignmentRow(overrides: Record<string, unknown> = {}) {
     userId: USER_ID,
     status: "todo",
     comment: null,
+    cost: "0",
     startDate: new Date("2026-10-30T09:00:00"),
     endDate: new Date("2026-10-30T11:00:00"),
     userName: "Ada",
@@ -208,6 +212,39 @@ describe("getTasks", () => {
     // The status cell's total comes from the terminal-row count query,
     // not from the loaded (recurrence-aware) rows.
     expect(result.data?.[0]?.closedCount).toBe(3)
+  })
+
+  it("sums every assignment's cost into totalCost including cancelled rows", async () => {
+    // The aggregate has no status filter: cancelled/hidden rows still count.
+    const everyAssignment = [
+      { taskId: TASK_ID, cost: "50", status: "todo" },
+      { taskId: TASK_ID, cost: "70", status: "done" },
+      { taskId: TASK_ID, cost: "30", status: "cancelled" },
+    ]
+    const expected = sumCosts(everyAssignment)
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock
+      .onSelect(schema.taskAssignmentLatestView)
+      .respond([makeAssignmentRow()])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respondWith((sql) =>
+        sql.includes("sum(")
+          ? [{ taskId: TASK_ID, total: expected }]
+          : [{ taskId: TASK_ID, cnt: 3 }]
+      )
+    const before = state.mock.calls.length
+
+    const result = await getTasks({ projectId: PROJECT_ID })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.[0]?.totalCost).toBe(150)
+    const costSql =
+      state.mock.calls
+        .slice(before)
+        .find((c) => c.sql.includes("sum("))?.sql ?? ""
+    expect(costSql).not.toContain("status")
   })
 
   it("carries the archived flag and the assignee roster", async () => {
@@ -303,6 +340,22 @@ describe("createTask", () => {
     expect(result.data?.closedCount).toBe(0)
   })
 
+  it("createTask result includes totalCost from the loaded task", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respondWith((sql) =>
+        sql.includes("sum(") ? [{ taskId: TASK_ID, total: 150 }] : []
+      )
+    state.mock.onInsert(schema.tasksTable).respond([makeTaskRow()])
+
+    const result = await createTask(validTask)
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.totalCost).toBe(150)
+  })
+
   it("inserts one membership row per unique assignee before their assignments", async () => {
     state.mock
       .onSelect(schema.projectsTable)
@@ -343,6 +396,38 @@ describe("createTask", () => {
     ).toHaveLength(1)
   })
 
+  it("copies the task's default cost onto assignments created with the task", async () => {
+    state.mock
+      .onSelect(schema.projectsTable)
+      .respond([{ primaryOwnerId: USER_ID }])
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: USER_ID }])
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.tasksTable)
+      .respond([makeTaskRow({ cost: "120" })])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "new-assignment" }])
+    const before = state.mock.calls.length
+
+    const result = await createTask({
+      ...validTask,
+      cost: "120",
+      assigneeIds: [USER_ID],
+    })
+
+    expect(result.serverError).toBeUndefined()
+    const inserts = state.mock.calls
+      .slice(before)
+      .filter((c) => c.sql.includes('insert into "task_assignment"'))
+    expect(inserts).toHaveLength(1)
+    expect(inserts[0].params).toContain("120")
+  })
+
   it("rejects an assignee outside the project", async () => {
     state.mock
       .onSelect(schema.projectsTable)
@@ -375,12 +460,12 @@ describe("updateTask", () => {
     state.mock.onUpdate(schema.tasksTable).respond([makeTaskRow()])
     rosterIs(USER_ID)
     let openSql = ""
-    // One table, two shapes: the open-assignments diff read and the
-    // terminal-count read that follows it — routed by SQL.
+    // One table, three shapes: the open-assignments diff read, the
+    // terminal-count read and the cost-total aggregate — routed by SQL.
     state.mock
       .onSelect(schema.taskAssignmentsTable)
       .respondWith((sql) => {
-        if (sql.includes("count(")) return []
+        if (sql.includes("count(") || sql.includes("sum(")) return []
         openSql = sql
         return [{ id: "open-assignment", userId: USER_ID }]
       })
@@ -861,6 +946,40 @@ describe("updateTask", () => {
       expect(dates).toContain(new Date("2026-11-20T09:00:00").getTime())
       expect(dates).toContain(new Date("2026-11-20T11:00:00").getTime())
       expect(dates).not.toContain(new Date("2026-11-17T09:00:00").getTime())
+    })
+
+    it("a spawned assignment inherits the task's edited cost, not a stale default", async () => {
+      // The helper re-reads the task inside its transaction; the updated row
+      // carries the new default, so the successor snapshots "200".
+      dateEditFixtures({
+        recurrence: "daily",
+        startTime: "09:00",
+        endTime: "11:00",
+        startDate: new Date("2026-11-16T09:00:00"),
+        endDate: new Date("2026-11-30T23:59:59"),
+        cost: "200",
+      })
+      rosterIs(USER_ID)
+      state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+      state.mock
+        .onInsert(schema.taskAssignmentsTable)
+        .respond([{ id: "spawned-1" }])
+
+      const result = await updateTask({
+        ...validTask,
+        taskId: TASK_ID,
+        cost: "200",
+        assigneeIds: [USER_ID],
+        recurrence: "daily",
+        startTime: "09:00",
+        endTime: "11:00",
+        startDate: "2026-11-16T09:00:00",
+        endDate: "2099-01-01T00:00:00",
+      })
+
+      expect(result.serverError).toBeUndefined()
+      const [insert] = assignmentInserts()
+      expect(insert.params).toContain("200")
     })
 
     it("a future start date anchors the spawn inclusively, so an occurrence on that date is kept", async () => {
@@ -1393,6 +1512,59 @@ describe("updateAssignmentStatus", () => {
     expect(result.data?.nextAssignment?.userId).toBe(USER_ID)
   })
 
+  it("spawnedCostTotal sums the successor and every healed member's cost", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({
+        recurrence: "daily",
+        interval: 1,
+        daysOfWeek: null,
+        startTime: "09:00",
+        endTime: "11:00",
+        endDate: new Date("2026-11-30T23:59:59"),
+        archived: false,
+      }),
+    ])
+    rosterIs(USER_ID, OTHER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) => {
+      if (sql.includes("exists")) return []
+      if (sql.includes("not in")) return []
+      return [
+        { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo",
+          endDate: new Date("2026-10-30T11:00:00"),
+          taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
+          startTime: "09:00", endTime: "11:00", archived: false },
+      ]
+    })
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    state.mock.onInsert(schema.taskAssignmentsTable).respond([
+      { id: "successor" }, { id: "healed-other" },
+    ])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respondWith((_sql, params) =>
+        params[0] === ASSIGNMENT_ID
+          ? [makeAssignmentRow({ status: "done" })]
+          : [
+              makeAssignmentRow({
+                assignmentId: String(params[0]),
+                userId: params[0] === "successor" ? USER_ID : OTHER_ID,
+                cost: params[0] === "successor" ? "120" : "80",
+                status: "todo",
+              }),
+            ]
+      )
+
+    const result = await updateAssignmentStatus({
+      projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "done",
+    })
+
+    expect(result.serverError).toBeUndefined()
+    // Both spawned rows count, even though nextAssignment reports one.
+    expect(result.data?.spawnedCostTotal).toBe(200)
+    expect(result.data?.nextAssignment?.id).toBe("successor")
+    expect(result.data?.nextAssignment?.cost).toBe("120")
+  })
+
   it("closing an assignment on an archived task succeeds but spawns nothing", async () => {
     const baseline = state.mock.calls.length
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
@@ -1479,6 +1651,100 @@ describe("updateAssignmentStatus", () => {
       projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "todo",
     })
     expect(result.serverError).toEqual({ code: "VALIDATION_FAILED" })
+  })
+})
+
+describe("updateAssignmentCost (recost)", () => {
+  const recostInput = {
+    projectId: PROJECT_ID,
+    assignmentId: ASSIGNMENT_ID,
+    cost: "150",
+  }
+
+  function mockScopedAssignment() {
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([
+      {
+        id: ASSIGNMENT_ID,
+        userId: USER_ID,
+        status: "todo",
+        endDate: new Date("2026-10-30T11:00:00"),
+        taskId: TASK_ID,
+      },
+    ])
+  }
+
+  function mockRecostView(cost: string) {
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ cost })])
+  }
+
+  function recostUpdates(since: number) {
+    return state.mock.calls
+      .slice(since)
+      .filter((c) => c.sql.includes('update "task_assignment"'))
+  }
+
+  it("recost: an owner recosts an assignment and the DTO carries the new cost", async () => {
+    mockScopedAssignment()
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    mockRecostView("150")
+    const before = state.mock.calls.length
+
+    const result = await updateAssignmentCost(recostInput)
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.id).toBe(ASSIGNMENT_ID)
+    expect(result.data?.cost).toBe("150")
+    const updates = recostUpdates(before)
+    expect(updates).toHaveLength(1)
+    expect(updates[0].params).toContain("150")
+  })
+
+  it("recost: a collaborator is forbidden", async () => {
+    grantAccess("collaborator")
+    const before = state.mock.calls.length
+
+    const result = await updateAssignmentCost(recostInput)
+
+    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    expect(recostUpdates(before)).toHaveLength(0)
+  })
+
+  it("recost: an assignment outside the project is rejected without an update", async () => {
+    // The scoped read returns nothing: the assignment is not in projectId.
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    const before = state.mock.calls.length
+
+    const result = await updateAssignmentCost(recostInput)
+
+    expect(["FORBIDDEN", "NOT_FOUND"]).toContain(result.serverError?.code)
+    expect(recostUpdates(before)).toHaveLength(0)
+
+    // The rejection is only a valid authorization boundary if the read was
+    // scoped to the input project: dropping `eq(tasksTable.projectId,
+    // projectId)` would still reject here but allow a real cross-project id.
+    const scopedSelect = state.mock.calls
+      .slice(before)
+      .find((c) => c.sql.includes('from "task_assignment"'))
+    expect(scopedSelect?.sql).toContain("project_id")
+    expect(scopedSelect?.params).toContain(ASSIGNMENT_ID)
+    expect(scopedSelect?.params).toContain(PROJECT_ID)
+  })
+
+  it("recost: a cleared cost returns and stores zero", async () => {
+    mockScopedAssignment()
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    mockRecostView("0")
+    const before = state.mock.calls.length
+
+    const result = await updateAssignmentCost({ ...recostInput, cost: "" })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.cost).toBe("0")
+    const updates = recostUpdates(before)
+    expect(updates).toHaveLength(1)
+    expect(updates[0].params).toContain("0")
   })
 })
 

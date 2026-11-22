@@ -26,6 +26,7 @@ const makeAssignment = (
   userImage: null,
   status: "todo",
   comment: null,
+  cost: "0",
   startDate: null,
   endDate: null,
   ...overrides,
@@ -39,6 +40,7 @@ const makeTask = (
   name: "Task one",
   description: null,
   priority: null,
+  cost: "0",
   startDate: null,
   endDate: null,
   recurrence: null,
@@ -53,6 +55,7 @@ const makeTask = (
   assigneeIds: [],
   commentCount: 0,
   closedCount: 0,
+  totalCost: 0,
   ...overrides,
 })
 

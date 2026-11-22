@@ -1,0 +1,10 @@
+DROP VIEW "public"."task_assignment_latest";--> statement-breakpoint
+DROP VIEW "public"."task_assignment_detail";--> statement-breakpoint
+ALTER TABLE "task_assignment" ADD COLUMN "cost" numeric(12, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "task" ADD COLUMN "cost" numeric(12, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+CREATE VIEW "public"."task_assignment_detail" AS (select "task_assignment"."id" as "assignment_id", "task"."id" as "task_id", "user"."id" as "user_id", "task_assignment"."status" as "status", "task_assignment"."comment" as "comment", "task_assignment"."cost" as "cost", "task_assignment"."start_date" as "start_date", "task_assignment"."end_date" as "end_date", "task_assignment"."created_at" as "created_at", "task"."name" as "task_name", "task"."description" as "task_description", "task"."priority" as "task_priority", "task"."recurrence" as "task_recurrence", "task"."project_id" as "project_id", "user"."name" as "user_name", "user"."email" as "user_email", "user"."image" as "user_image" from "task_assignment" inner join "task" on "task_assignment"."task_id" = "task"."id" inner join "user" on "task_assignment"."user_id" = "user"."id");--> statement-breakpoint
+CREATE VIEW "public"."task_assignment_latest" AS (select "assignment_id", "task_id", "user_id", "status", "comment", "cost", "start_date", "end_date", "user_name", "user_email", "user_image" from (select "assignment_id", "task_id", "user_id", "status", "comment", "cost", "start_date", "end_date", "user_name", "user_email", "user_image", row_number() over (
+          partition by "task_id", "user_id"
+          order by (case when "status" in ('done','cancelled') then 1 else 0 end) asc,
+                   "start_date" desc nulls last
+        ) as "rn" from "task_assignment_detail") "numbered" where "rn" = 1);

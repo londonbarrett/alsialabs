@@ -7,6 +7,7 @@ import { TaskForm } from "./task-form"
 
 export interface TaskFormValues {
   name: string
+  cost: string
   description: string
   priority: string | null
   assigneeIds: string[]

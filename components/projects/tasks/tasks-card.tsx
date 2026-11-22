@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { sumCosts } from "@/lib/tasks/cost"
 import { selectTasks, type TasksVisibilityFilter } from "@/lib/tasks/list"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
@@ -114,6 +115,8 @@ export function TasksCard() {
           userImage: member?.userImage ?? existing?.userImage ?? null,
           status: existing?.status ?? "todo",
           comment: existing?.comment ?? null,
+          // A task default change never rewrites an existing assignment.
+          cost: existing?.cost ?? (data.cost || "0"),
           startDate: existing?.startDate ?? startDate,
           endDate: existing?.endDate ?? endDate,
         }
@@ -126,6 +129,8 @@ export function TasksCard() {
       name: data.name,
       description: data.description || null,
       priority: data.priority as TaskPriorityDTO,
+      cost: data.cost || "0",
+      totalCost: sumCosts(assignments),
       startDate,
       endDate,
       // The form owns the schedule it just submitted — taking it from

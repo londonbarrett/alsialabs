@@ -112,6 +112,7 @@ type AssignmentRow = {
   userId: string
   status: string
   comment: string | null
+  cost: string
   startDate: Date | null
   endDate: Date | null
   userName: string | null
@@ -128,6 +129,7 @@ export function toTaskAssignmentDTO(
     userId: row.userId,
     status: row.status as TaskStatus,
     comment: row.comment,
+    cost: row.cost,
     startDate: row.startDate,
     endDate: row.endDate,
     userName: row.userName,

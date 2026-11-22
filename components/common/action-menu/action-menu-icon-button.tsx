@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { cn } from "cn"
 import {
   Tooltip,
   TooltipContent,
@@ -21,8 +22,11 @@ export function ActionMenuIconButton({ action }: ActionMenuIconButtonProps) {
       <TooltipTrigger
         render={
           <Button
-            variant={action.destructive ? "destructive" : "ghost"}
+            variant="ghost"
             size="icon-sm"
+            className={cn(
+              action.destructive && "text-destructive hover:text-destructive"
+            )}
             aria-label={action.label}
             disabled={action.disabled}
             onClick={action.onSelect}

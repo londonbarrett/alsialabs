@@ -211,6 +211,13 @@
       "when": 1795115778037,
       "tag": "0029_sweet_tempest",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795371225405,
+      "tag": "0030_lush_solo",
+      "breakpoints": true
     }
   ]
 }
