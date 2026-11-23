@@ -36,6 +36,7 @@ function buildOptimisticProject(
     startDate: values.startDate,
     endDate: values.endDate || "",
     location: values.location || null,
+    country: values.country,
     budget: values.budget ? Number(values.budget) : 0,
     expenses: 0,
     tasksTotal: 0,
@@ -89,6 +90,7 @@ export function useProjectsActions(
                   startDate: r.data.startDate,
                   endDate: r.data.endDate ?? "",
                   location: r.data.location,
+                  country: r.data.country,
                   budget: r.data.budget ? Number(r.data.budget) : 0,
                 }
               : {}),

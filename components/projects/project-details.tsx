@@ -19,11 +19,18 @@ import { Spinner } from "@/components/ui/spinner"
 import { useLoadingIndicator } from "@/hooks/use-loading-indicator"
 import { getProjectForEdit } from "@/actions/projects"
 import type { Project as DbProject } from "@/lib/drizzle/schema"
+import {
+  countryLabel,
+  currencyDisplayLabel,
+  currencyForCountry,
+  projectMoneyProps,
+} from "@/lib/projects/location"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { useProjectActions } from "@/stores/project-context/use-project-actions"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import {
   Calendar,
+  CircleDollarSign,
   ClipboardList,
   Crown,
   FileText,
@@ -33,15 +40,17 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useState } from "react"
 import { toast } from "sonner"
 import { ProjectDialog } from "./project-dialog"
 
 export function ProjectDetails() {
   const t = useTranslations()
+  const locale = useLocale()
   const { project, categories, members, isOwner } =
     useProjectContextState()
+  const currency = currencyForCountry(project.country)
   const primaryOwner =
     members.find((member) => member.isPrimaryOwner) ?? null
   const canEditProject = useHasPermission("projects:edit")
@@ -151,6 +160,28 @@ export function ProjectDetails() {
             </div>
           </div>
           <div className="flex items-start gap-3">
+            <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="mb-1 text-xs text-muted-foreground">
+                {t("common.country")}
+              </p>
+              <p className="text-sm font-medium">
+                {countryLabel(project.country, locale)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <CircleDollarSign className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="mb-1 text-xs text-muted-foreground">
+                {t("common.currency")}
+              </p>
+              <p className="text-sm font-medium">
+                {currencyDisplayLabel(currency, locale)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
             <Calendar className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <div>
               <p className="mb-1 text-xs text-muted-foreground">
@@ -177,7 +208,10 @@ export function ProjectDetails() {
                 {t("common.budget")}
               </p>
               <p className="text-sm font-medium">
-                <Money value={project.budget} />
+                <Money
+                  value={project.budget}
+                  {...projectMoneyProps(project.country)}
+                />
               </p>
             </div>
           </div>

@@ -210,13 +210,28 @@ describe("assignment cost schema", () => {
     assignmentId: TASK_ID,
   }
 
-  it("rejects negative and decimal costs", () => {
+  it("accepts decimal costs and a trailing separator", () => {
+    expect(
+      UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "12.50" })
+        .success
+    ).toBe(true)
+    expect(
+      UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "12." })
+        .success
+    ).toBe(true)
+  })
+
+  it("rejects negative, non-numeric, and over-precise costs", () => {
     expect(
       UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "-5" })
         .success
     ).toBe(false)
     expect(
-      UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "12.50" })
+      UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "abc" })
+        .success
+    ).toBe(false)
+    expect(
+      UpdateAssignmentCostSchema.safeParse({ ...costInput, cost: "1.234" })
         .success
     ).toBe(false)
   })

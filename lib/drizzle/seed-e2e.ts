@@ -147,6 +147,7 @@ async function seedRolesProject(): Promise<void> {
     categoryId: category.id,
     name: "E2E Roles Project",
     startDate: "2026-01-01",
+    country: "CO",
     color: "#b45309",
   })
 
@@ -264,6 +265,7 @@ async function seedEmptyTasksProject(): Promise<void> {
     categoryId: category.id,
     name: "E2E Empty Tasks Project",
     startDate: "2026-01-01",
+    country: "CO",
     color: "#b45309",
   })
 

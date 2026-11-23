@@ -18,13 +18,14 @@ export const TaskPrioritySchema = z.enum(TASK_PRIORITIES).nullable()
 export type TaskPriorityDTO = z.infer<typeof TaskPrioritySchema>
 
 /**
- * Costs are whole currency units: `MoneyInput` only produces digits, and an
+ * Costs are whole or fractional currency units (up to two decimals):
+ * `MoneyInput` produces digits with an optional decimal point, and an
  * untouched or cleared field is the empty string. Both the task form and the
  * inline recost payload share this shape.
  */
 const CostInputSchema = z
   .string()
-  .regex(/^\d*$/, { message: "INVALID_COST" })
+  .regex(/^\d*(?:\.\d{0,2})?$/, { message: "INVALID_COST" })
   .optional()
   .default("")
 

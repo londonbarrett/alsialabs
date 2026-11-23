@@ -38,6 +38,9 @@
     "invite": "Invite",
     "searching": "Searching...",
     "location": "Location",
+    "country": "Country",
+    "countryCurrency": "Country - Currency",
+    "currency": "Currency",
     "comments": "Comments",
     "createInvoice": "Create Invoice",
     "dateRequired": "Date is required",
@@ -231,6 +234,7 @@
     "collaboratorRemoved": "Collaborator removed",
     "startDateRequired": "Start date is required",
     "locationRequired": "Location is required",
+    "countryRequired": "Country is required",
     "colorRequired": "Color is required",
     "colors": {
       "yellow": "Yellow",

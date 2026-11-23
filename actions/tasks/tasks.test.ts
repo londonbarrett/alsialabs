@@ -247,6 +247,41 @@ describe("getTasks", () => {
     expect(costSql).not.toContain("status")
   })
 
+  it("sums decimal assignment costs into totalCost without rounding", async () => {
+    // A text cast returns the exact decimal as a string; the old integer cast
+    // rounds it. The mock emulates that based on the SQL so this assertion
+    // proves the aggregate no longer rounds fractional costs.
+    const everyAssignment = [
+      { taskId: TASK_ID, cost: "12.50", status: "todo" },
+      { taskId: TASK_ID, cost: "7.25", status: "done" },
+    ]
+    const expected = sumCosts(everyAssignment)
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock
+      .onSelect(schema.taskAssignmentLatestView)
+      .respond([makeAssignmentRow()])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock
+      .onSelect(schema.taskAssignmentsTable)
+      .respondWith((sql) =>
+        sql.includes("sum(")
+          ? [
+              {
+                taskId: TASK_ID,
+                total: sql.includes("::int")
+                  ? Math.round(expected)
+                  : String(expected),
+              },
+            ]
+          : [{ taskId: TASK_ID, cnt: 3 }]
+      )
+
+    const result = await getTasks({ projectId: PROJECT_ID })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.[0]?.totalCost).toBe(19.75)
+  })
+
   it("carries the archived flag and the assignee roster", async () => {
     state.mock
       .onSelect(schema.tasksTable)

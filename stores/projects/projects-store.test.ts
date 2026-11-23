@@ -24,6 +24,7 @@ function makeProject(
     startDate: "2026-08-01",
     endDate: "",
     location: "Medellin",
+    country: "CO",
     budget: 1000,
     expenses: 250,
     tasksTotal: 4,

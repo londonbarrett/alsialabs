@@ -16,6 +16,7 @@ import {
 } from "drizzle-orm/pg-core"
 import { eq, sql } from "drizzle-orm"
 import { PROJECT_COLORS } from "@/components/projects/colors"
+import { type ProjectCountry } from "@/lib/projects/location"
 
 export const usersTable = pgTable("user", {
   id: text()
@@ -390,6 +391,7 @@ export const projectsTable = pgTable("project", {
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   location: text(),
+  country: text("country").notNull().$type<ProjectCountry>(),
   budget: decimal("budget", { precision: 12, scale: 2 }),
   color: text().notNull().default(PROJECT_COLORS[0]),
   createdAt: timestamp("created_at", { mode: "date" })

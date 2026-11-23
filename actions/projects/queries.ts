@@ -25,6 +25,7 @@ async function getProjectOptions(userId: string) {
       startDate: projectsTable.startDate,
       endDate: projectsTable.endDate,
       location: projectsTable.location,
+      country: projectsTable.country,
       budget: projectsTable.budget,
       color: projectsTable.color,
       createdAt: projectsTable.createdAt,
@@ -63,6 +64,7 @@ async function getProjectsForUser(userId: string) {
       startDate: projectsTable.startDate,
       endDate: projectsTable.endDate,
       location: projectsTable.location,
+      country: projectsTable.country,
       budget: projectsTable.budget,
       color: projectsTable.color,
       createdAt: projectsTable.createdAt,
@@ -338,6 +340,7 @@ async function getProjectSummaries(userId: string) {
       startDate: p.startDate,
       endDate: p.endDate ?? "",
       location: p.location,
+      country: p.country,
       budget,
       expenses,
       tasksTotal: tasks.total,
@@ -360,6 +363,7 @@ async function getProjectById(projectId: string) {
       startDate: projectsTable.startDate,
       endDate: projectsTable.endDate,
       location: projectsTable.location,
+      country: projectsTable.country,
       budget: projectsTable.budget,
       color: projectsTable.color,
       createdAt: projectsTable.createdAt,
@@ -388,6 +392,7 @@ async function createProject(
     startDate,
     endDate,
     location,
+    country,
     budget,
     color,
   } = values
@@ -402,6 +407,7 @@ async function createProject(
       startDate,
       endDate: endDate || null,
       location: location || null,
+      country,
       budget: budget ? budget : null,
       color,
     })
@@ -419,6 +425,7 @@ async function updateProject(values: UpdateProjectDTO) {
     startDate,
     endDate,
     location,
+    country,
     budget,
     color,
   } = values
@@ -432,6 +439,7 @@ async function updateProject(values: UpdateProjectDTO) {
       startDate,
       endDate: endDate || null,
       location: location || null,
+      country,
       budget: budget ? budget : null,
       color,
     })

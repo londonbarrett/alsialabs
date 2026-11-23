@@ -247,7 +247,7 @@ async function getCostTotalsByTaskIds(taskIds: string[]) {
   return db
     .select({
       taskId: taskAssignmentsTable.taskId,
-      total: sql<number>`coalesce(sum(${taskAssignmentsTable.cost}), 0)::int`,
+      total: sql<string>`coalesce(sum(${taskAssignmentsTable.cost}), 0)::text`,
     })
     .from(taskAssignmentsTable)
     .where(inArray(taskAssignmentsTable.taskId, taskIds))
@@ -257,11 +257,11 @@ async function getCostTotalsByTaskIds(taskIds: string[]) {
 async function getCostTotalByTaskId(taskId: string): Promise<number> {
   return db
     .select({
-      total: sql<number>`coalesce(sum(${taskAssignmentsTable.cost}), 0)::int`,
+      total: sql<string>`coalesce(sum(${taskAssignmentsTable.cost}), 0)::text`,
     })
     .from(taskAssignmentsTable)
     .where(eq(taskAssignmentsTable.taskId, taskId))
-    .then((rows) => rows[0]?.total ?? 0)
+    .then((rows) => Number(rows[0]?.total ?? 0))
 }
 
 async function getAssigneeUserIdsByTaskIds(taskIds: string[]) {
@@ -647,7 +647,7 @@ async function getTasksWithAssignments(
     assigneeIds: assigneesByTask.get(row.id) ?? [],
     commentCount: counts.get(row.id) ?? 0,
     closedCount: closedCounts.get(row.id) ?? 0,
-    totalCost: costTotals.get(row.id) ?? 0,
+    totalCost: Number(costTotals.get(row.id) ?? 0),
   }))
 }
 

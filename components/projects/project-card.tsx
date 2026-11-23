@@ -1,15 +1,17 @@
 import {
   ArrowRight,
   Calendar,
+  CircleDollarSign,
   Crown,
   ListTodo,
   MapPin,
   Users,
   Wallet,
 } from "lucide-react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import Link from "next/link"
 
+import { Money } from "@/components/common/money"
 import {
   Avatar,
   AvatarFallback,
@@ -29,6 +31,12 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import type { ProjectSummaryDTO } from "@/actions/projects/schemas"
+import {
+  countryLabel,
+  currencyDisplayLabel,
+  currencyForCountry,
+  projectMoneyProps,
+} from "@/lib/projects/location"
 import { cn } from "cn"
 
 const statusConfig: Record<
@@ -61,12 +69,6 @@ const statusConfig: Record<
   },
 }
 
-const currency = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-})
-
 const dateFmt = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -89,6 +91,7 @@ type ProjectCardProps = {
 
 export function ProjectCard({ project, isPending }: ProjectCardProps) {
   const t = useTranslations()
+  const locale = useLocale()
   const status = statusConfig[project.status]
   const primaryOwner = project.members.find(
     (member) => member.id === project.primaryOwnerId
@@ -209,6 +212,31 @@ export function ProjectCard({ project, isPending }: ProjectCardProps) {
               </dd>
             </div>
           </div>
+          <div className="col-span-2 flex items-center gap-2">
+            <MapPin className="size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">
+                {t("common.country")}
+              </dt>
+              <dd className="truncate font-medium">
+                {countryLabel(project.country, locale)}
+              </dd>
+            </div>
+          </div>
+          <div className="col-span-2 flex items-center gap-2">
+            <CircleDollarSign className="size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">
+                {t("common.currency")}
+              </dt>
+              <dd className="truncate font-medium">
+                {currencyDisplayLabel(
+                  currencyForCountry(project.country),
+                  locale
+                )}
+              </dd>
+            </div>
+          </div>
         </dl>
 
         <Separator />
@@ -226,9 +254,16 @@ export function ProjectCard({ project, isPending }: ProjectCardProps) {
                 overBudget && "text-red-600 dark:text-red-400"
               )}
             >
-              {currency.format(project.expenses)}{" "}
+              <Money
+                value={project.expenses}
+                {...projectMoneyProps(project.country)}
+              />{" "}
               <span className="text-muted-foreground">
-                / {currency.format(project.budget)}
+                /{" "}
+                <Money
+                  value={project.budget}
+                  {...projectMoneyProps(project.country)}
+                />
               </span>
             </span>
           </div>

@@ -38,6 +38,9 @@
     "invite": "Invitar",
     "searching": "Buscando...",
     "location": "Ubicación",
+    "country": "País",
+    "countryCurrency": "País - Moneda",
+    "currency": "Moneda",
     "comments": "Comentarios",
     "createInvoice": "Crear Factura",
     "dateRequired": "La fecha es obligatoria",
@@ -231,6 +234,7 @@
     "collaboratorRemoved": "Colaborador eliminado",
     "startDateRequired": "La fecha de inicio es obligatoria",
     "locationRequired": "La ubicación es obligatoria",
+    "countryRequired": "El país es obligatorio",
     "colorRequired": "El color es obligatorio",
     "colors": {
       "yellow": "Amarillo",

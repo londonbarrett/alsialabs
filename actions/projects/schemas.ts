@@ -2,6 +2,7 @@ import { type ProjectStatus as ProjectStatusType } from "@/lib/drizzle/schema"
 import { z } from "zod"
 import { PROJECT_COLORS } from "@/components/projects/colors"
 import { CategoryOptionSchema } from "@/actions/legacy/schemas/category"
+import { PROJECT_COUNTRIES } from "@/lib/projects/location"
 
 export const ProjectMemberRoleSchema = z.enum([
   "owner",
@@ -79,6 +80,7 @@ export const ProjectSchema = z.object({
     .string()
     .min(1, { message: "Location is required" })
     .transform((v) => v.trim()),
+  country: z.enum(PROJECT_COUNTRIES),
   budget: z.string().optional().default(""),
   color: z.enum(PROJECT_COLORS, {
     message: "Color is required",
@@ -123,6 +125,7 @@ export const ProjectRecordSchema = z.object({
   startDate: z.string(),
   endDate: z.string().nullable(),
   location: z.string().nullable(),
+  country: z.enum(PROJECT_COUNTRIES),
   budget: z.string().nullable(),
   color: z.string(),
   createdAt: z.date(),
@@ -162,6 +165,7 @@ export const ProjectSummarySchema = z.object({
   startDate: z.string(),
   endDate: z.string(),
   location: z.string().nullable(),
+  country: z.enum(PROJECT_COUNTRIES),
   budget: z.number(),
   expenses: z.number(),
   tasksTotal: z.number(),
