@@ -2,12 +2,7 @@
 
 import { type ReactNode } from "react"
 
-const defaultFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-})
+import { formatMoney } from "@/lib/util/money"
 
 interface MoneyProps {
   value: number | string | null | undefined
@@ -37,17 +32,19 @@ export function Money({
     return <>{fallback}</>
   }
 
-  const formatter =
-    currency === "USD" &&
+  if (
     minimumFractionDigits === undefined &&
     maximumFractionDigits === undefined
-      ? defaultFormatter
-      : new Intl.NumberFormat(locale, {
-          style: "currency",
-          currency,
-          minimumFractionDigits: minimumFractionDigits ?? 0,
-          maximumFractionDigits: maximumFractionDigits ?? 2,
-        })
+  ) {
+    return <>{formatMoney(value, { currency, locale })}</>
+  }
+
+  const formatter = new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: minimumFractionDigits ?? 0,
+    maximumFractionDigits: maximumFractionDigits ?? 2,
+  })
 
   return <>{formatter.format(numericValue)}</>
 }

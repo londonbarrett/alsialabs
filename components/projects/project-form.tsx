@@ -11,8 +11,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Project } from "@/lib/drizzle/schema"
-import { useTranslations } from "next-intl"
-import { useState } from "react"
+import {
+  countryOptionLabel,
+  projectMoneyProps,
+  sortedProjectCountries,
+  type ProjectCountry,
+} from "@/lib/projects/location"
+import { useLocale, useTranslations } from "next-intl"
+import { useMemo, useState } from "react"
 import { type ProjectColor } from "./colors"
 import { ProjectColorField } from "./project-color-field"
 
@@ -24,6 +30,7 @@ export type ProjectFormValues = {
   startDate: string
   endDate: string
   location: string
+  country: ProjectCountry
   budget: string
   color: ProjectColor
 }
@@ -44,6 +51,7 @@ export function ProjectForm({
   onCancel,
 }: ProjectFormProps) {
   const t = useTranslations()
+  const locale = useLocale()
   const [name, setName] = useState(project?.name ?? "")
   const [categoryId, setCategoryId] = useState(
     project?.categoryId ?? ""
@@ -57,9 +65,21 @@ export function ProjectForm({
   const [startDate, setStartDate] = useState(project?.startDate ?? "")
   const [endDate, setEndDate] = useState(project?.endDate ?? "")
   const [location, setLocation] = useState(project?.location ?? "")
+  const [country, setCountry] = useState<ProjectCountry | "">(
+    project?.country ?? ""
+  )
   const [budget, setBudget] = useState(project?.budget ?? "")
   const [color, setColor] = useState<string | undefined>(project?.color)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const countryOptions = useMemo(
+    () =>
+      sortedProjectCountries(locale).map((code) => ({
+        value: code,
+        label: countryOptionLabel(code, locale),
+      })),
+    [locale]
+  )
 
   function validate() {
     const fieldErrors: Record<string, string> = {}
@@ -70,6 +90,7 @@ export function ProjectForm({
       fieldErrors.startDate = t("projects.startDateRequired")
     if (!location.trim())
       fieldErrors.location = t("projects.locationRequired")
+    if (!country) fieldErrors.country = t("projects.countryRequired")
     if (!color) fieldErrors.color = t("projects.colorRequired")
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
@@ -78,6 +99,7 @@ export function ProjectForm({
   function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault()
     if (!validate()) return
+    if (!country) return
 
     const data: ProjectFormValues = {
       name: name.trim(),
@@ -87,6 +109,7 @@ export function ProjectForm({
       startDate,
       endDate: endDate.trim(),
       location: location.trim(),
+      country,
       budget: budget.trim(),
       color: color as ProjectColor,
     }
@@ -227,6 +250,44 @@ export function ProjectForm({
         />
       </div>
 
+      <div
+        className="flex flex-col gap-2"
+        data-invalid={!!errors.country || undefined}
+      >
+        <Label htmlFor="country">{t("common.countryCurrency")}</Label>
+        <Select
+          value={country}
+          onValueChange={(value) => {
+            if (value) setCountry(value as ProjectCountry)
+          }}
+          items={countryOptions}
+        >
+          <SelectTrigger
+            id="country"
+            className="w-full"
+            aria-invalid={!!errors.country}
+          >
+            <SelectValue placeholder={t("common.countryCurrency")} />
+          </SelectTrigger>
+          <SelectContent className="w-auto min-w-(--anchor-width)">
+            {countryOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errors.country && (
+          <p
+            id="country-error"
+            className="text-xs text-destructive"
+            role="alert"
+          >
+            {errors.country}
+          </p>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <Field
           name="location"
@@ -241,7 +302,8 @@ export function ProjectForm({
           value={budget}
           onChange={setBudget}
           error={errors.budget}
-          type="number"
+          type="money"
+          {...(country ? projectMoneyProps(country) : {})}
         />
       </div>
 

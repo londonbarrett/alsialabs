@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { cn } from "cn"
+import {
+  currencyFractionDigits,
+  formatMoney,
+  getDecimalSeparator,
+  normalizeMoneyInput,
+} from "@/lib/util/money"
 
 export interface MoneyInputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -14,56 +20,38 @@ export interface MoneyInputProps extends Omit<
   locale?: string
 }
 
-const defaultFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-})
-
-function formatInteger(
-  value: string,
-  currency = "USD",
-  locale = "en-US"
-): string {
-  const numericString = parseInteger(value)
-  const num = parseInt(numericString, 10)
-  if (Number.isNaN(num)) return ""
-
-  if (currency === "USD" && locale === "en-US") {
-    return defaultFormatter.format(num)
+function formatValue(value: string, currency: string, locale: string): string {
+  // A trailing separator must stay visible while typing, otherwise the next
+  // digit is appended to the integer part and cents can never be entered.
+  if (value.endsWith(".") && currencyFractionDigits(currency, locale) > 0) {
+    const whole = formatMoney(value.slice(0, -1), { currency, locale })
+    return whole ? `${whole}${getDecimalSeparator(locale)}` : ""
   }
-
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(num)
+  return formatMoney(value, { currency, locale })
 }
 
-function parseInteger(value: string): string {
-  const intPart = value.split(".")[0]
-  return intPart.replace(/[^0-9]/g, "")
-}
-
-function countDigitsBefore(str: string, pos: number): number {
+function countSignificantBefore(
+  str: string,
+  pos: number,
+  decimalSeparator: string
+): number {
   let count = 0
   for (let i = 0; i < pos && i < str.length; i++) {
-    if (/\d/.test(str[i])) count++
+    if (/\d/.test(str[i]) || str[i] === decimalSeparator) count++
   }
   return count
 }
 
-function findDigitPosition(
+function findSignificantPosition(
   formatted: string,
-  digitIndex: number
+  significantIndex: number,
+  decimalSeparator: string
 ): number {
   let count = 0
   for (let i = 0; i < formatted.length; i++) {
-    if (/\d/.test(formatted[i])) {
+    if (/\d/.test(formatted[i]) || formatted[i] === decimalSeparator) {
       count++
-      if (count === digitIndex) return i + 1
+      if (count === significantIndex) return i + 1
     }
   }
   return formatted.length
@@ -80,9 +68,7 @@ export function MoneyInput({
   const inputRef = useRef<HTMLInputElement>(null)
   const cursorRef = useRef<number | null>(null)
 
-  const displayValue = value
-    ? formatInteger(value, currency, locale)
-    : ""
+  const displayValue = value ? formatValue(value, currency, locale) : ""
 
   useEffect(() => {
     if (cursorRef.current !== null && inputRef.current) {
@@ -100,15 +86,22 @@ export function MoneyInput({
       const raw = input.value
       const cursorPos = input.selectionStart ?? raw.length
 
-      const parsed = parseInteger(raw)
-      const formatted = parsed
-        ? formatInteger(parsed, currency, locale)
-        : ""
-      const digitsBeforeCursor = countDigitsBefore(raw, cursorPos)
+      const parsed = normalizeMoneyInput(raw, { currency, locale })
+      const formatted = formatValue(parsed, currency, locale)
+      const decimalSeparator = getDecimalSeparator(locale)
+      // Group separators and symbols are not significant; counting digits and
+      // the decimal separator in the raw value maps the caret to its position
+      // in the reformatted value.
+      const significantBeforeCursor = countSignificantBefore(
+        raw,
+        cursorPos,
+        decimalSeparator
+      )
 
-      cursorRef.current = findDigitPosition(
+      cursorRef.current = findSignificantPosition(
         formatted,
-        digitsBeforeCursor
+        significantBeforeCursor,
+        decimalSeparator
       )
       onChange(parsed)
     },
@@ -119,7 +112,7 @@ export function MoneyInput({
     <Input
       ref={inputRef}
       type="text"
-      inputMode="numeric"
+      inputMode="decimal"
       value={displayValue}
       onChange={handleChange}
       className={cn("tabular-nums", className)}

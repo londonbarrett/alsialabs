@@ -14,7 +14,6 @@ import type {
   TaskDetailsIssue,
   TaskDetailsValues,
 } from "@/lib/tasks/form-validation"
-import { costToNumber } from "@/lib/tasks/cost"
 import { combineDateTime } from "@/lib/util/schedule"
 import { isAllDayDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
@@ -59,9 +58,7 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [step, setStep] = useState(1)
   const [step1Done, setStep1Done] = useState(false)
   const [name, setName] = useState(task?.name ?? "")
-  const [cost, setCost] = useState(
-    task?.cost ? String(costToNumber(task.cost)) : ""
-  )
+  const [cost, setCost] = useState(task?.cost ?? "")
   const [description, setDescription] = useState(
     task?.description ?? ""
   )

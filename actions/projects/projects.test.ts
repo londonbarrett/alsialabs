@@ -29,8 +29,18 @@ const state = vi.hoisted(() => ({
         fn: (sql: string, params: unknown[]) => unknown
       ): unknown
     }
-    onInsert(table: unknown): { respond(data: unknown): unknown }
-    onUpdate(table: unknown): { respond(data: unknown): unknown }
+    onInsert(table: unknown): {
+      respond(data: unknown): unknown
+      respondWith(
+        fn: (sql: string, params: unknown[]) => unknown
+      ): unknown
+    }
+    onUpdate(table: unknown): {
+      respond(data: unknown): unknown
+      respondWith(
+        fn: (sql: string, params: unknown[]) => unknown
+      ): unknown
+    }
     onDelete(table: unknown): { respond(data: unknown): unknown }
   },
 }))
@@ -53,6 +63,7 @@ import {
 } from "@/lib/auth"
 import { getProjectCategories } from "@/actions/legacy/categories"
 import { resolveProjectAccess } from "@/actions/projects/util"
+import { ProjectSchema } from "@/actions/projects/schemas"
 import type {
   ProjectDetailDTO,
   ProjectOptionDTO,
@@ -87,6 +98,7 @@ function makeProjectRow(overrides: Record<string, unknown> = {}) {
     startDate: "2026-08-01",
     endDate: null,
     location: "Test Location",
+    country: "CO",
     budget: null,
     color: "#3b82f6",
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -131,12 +143,55 @@ describe("projects actions", () => {
         startDate: "2026-08-01",
         endDate: "",
         location: "Test Location",
+        country: "CO",
         budget: "",
         color: "#3b82f6",
       })
 
       expect(result.serverError).toBeUndefined()
       expect(result.data).toBeDefined()
+    })
+
+    it("persists the supplied country", async () => {
+      let insertParams: unknown[] = []
+      state.mock
+        .onInsert(schema.projectsTable)
+        .respondWith((_sql, params) => {
+          insertParams = params
+          return [makeProjectRow({ country: "MX" })]
+        })
+
+      const result = await createProject({
+        name: "New Project",
+        categoryId: CATEGORY_ID,
+        status: "active",
+        description: "",
+        startDate: "2026-08-01",
+        endDate: "",
+        location: "Test Location",
+        budget: "",
+        color: "#3b82f6",
+        country: "MX",
+      })
+
+      expect(result.serverError).toBeUndefined()
+      expect(insertParams).toContain("MX")
+    })
+
+    it("requires a country", () => {
+      const result = ProjectSchema.safeParse({
+        name: "New Project",
+        categoryId: CATEGORY_ID,
+        status: "active",
+        description: "",
+        startDate: "2026-08-01",
+        endDate: "",
+        location: "Test Location",
+        budget: "",
+        color: "#3b82f6",
+      })
+
+      expect(result.success).toBe(false)
     })
 
     it("rejects missing required fields", async () => {
@@ -148,6 +203,7 @@ describe("projects actions", () => {
         startDate: "",
         endDate: "",
         location: "",
+        country: "CO",
         budget: "",
         color: "#3b82f6",
       })
@@ -171,11 +227,39 @@ describe("projects actions", () => {
         startDate: "2026-08-01",
         endDate: "",
         location: "Test Location",
+        country: "CO",
         budget: "",
         color: "#3b82f6",
       })
 
       expect(result.serverError).toBeUndefined()
+    })
+
+    it("updates the project country", async () => {
+      let updateParams: unknown[] = []
+      state.mock
+        .onUpdate(schema.projectsTable)
+        .respondWith((_sql, params) => {
+          updateParams = params
+          return [makeProjectRow({ country: "BR" })]
+        })
+
+      const result = await updateProject({
+        projectId: PROJECT_ID,
+        name: "Updated",
+        categoryId: CATEGORY_ID,
+        status: "active",
+        description: "",
+        startDate: "2026-08-01",
+        endDate: "",
+        location: "Test Location",
+        budget: "",
+        color: "#3b82f6",
+        country: "BR",
+      })
+
+      expect(result.serverError).toBeUndefined()
+      expect(updateParams).toContain("BR")
     })
 
     it("returns FORBIDDEN when not owner", async () => {
@@ -190,6 +274,7 @@ describe("projects actions", () => {
         startDate: "2026-08-01",
         endDate: "",
         location: "Test Location",
+        country: "CO",
         budget: "",
         color: "#3b82f6",
       })
@@ -209,6 +294,7 @@ describe("projects actions", () => {
         startDate: "2026-08-01",
         endDate: "",
         location: "Test Location",
+        country: "CO",
         budget: "",
         color: "#3b82f6",
       })
@@ -230,6 +316,7 @@ describe("projects actions", () => {
         startDate: "2026-08-01",
         endDate: null,
         location: "Test Location",
+        country: "CO",
         budget: null,
         color: "#3b82f6",
         createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -296,6 +383,7 @@ describe("projects actions", () => {
         startDate: "2026-08-01",
         endDate: null,
         location: "Test Location",
+        country: "CO",
         budget: null,
         color: "#3b82f6",
         createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -340,6 +428,41 @@ describe("projects actions", () => {
       expect(invoiceSql).toContain("paid_amount")
       expect(invoiceSql).not.toContain("grand_total")
     })
+
+    it("includes country in the summary output", async () => {
+      mockIsSuperUser.mockReturnValue(false)
+      const PROJECT: ProjectDetailDTO = {
+        id: PROJECT_ID,
+        primaryOwnerId: "user-1",
+        categoryId: CATEGORY_ID,
+        name: "Owned Project",
+        description: null,
+        status: "active",
+        startDate: "2026-08-01",
+        endDate: null,
+        location: "Test Location",
+        country: "AR",
+        budget: null,
+        color: "#3b82f6",
+        createdAt: new Date("2026-08-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+        categorySlug: null,
+        categoryName: null,
+      }
+      state.mock
+        .onSelect(schema.projectsTable)
+        .respondWith((sql) =>
+          sql.includes('inner join "user"') ? [] : [PROJECT]
+        )
+      state.mock.onSelect(schema.tasksTable).respond([])
+      state.mock.onSelect(schema.expensesTable).respond([])
+      state.mock.onSelect(schema.invoicesTable).respond([])
+      state.mock.onSelect(schema.projectMembershipTable).respond([])
+
+      const result = await getProjectsWithDetails()
+
+      expect(result.data?.[0]?.country).toBe("AR")
+    })
   })
 
   describe("getProjectForEdit", () => {
@@ -347,13 +470,18 @@ describe("projects actions", () => {
       state.mock
         .onSelect(schema.projectsTable)
         .respond([
-          makeProjectRow({ categorySlug: "dev", categoryName: "Dev" }),
+          makeProjectRow({
+            country: "AR",
+            categorySlug: "dev",
+            categoryName: "Dev",
+          }),
         ])
 
       const result = await getProjectForEdit({ projectId: PROJECT_ID })
 
       expect(result.serverError).toBeUndefined()
       expect(result.data?.id).toBe(PROJECT_ID)
+      expect(result.data?.country).toBe("AR")
       expect(result.data && "categorySlug" in result.data).toBe(false)
       expect(result.data && "categoryName" in result.data).toBe(false)
     })

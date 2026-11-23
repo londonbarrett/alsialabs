@@ -1,5 +1,13 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
+// `use-project-actions` imports the server-action barrel; stub it so the pure
+// `toOptimisticPatch` helper can be imported in the node test environment.
+vi.mock("@/actions/projects", () => ({
+  deleteProject: vi.fn(),
+  updateProject: vi.fn(),
+}))
+
+import { toOptimisticPatch } from "./use-project-actions"
 import type { ProjectContextDTO } from "@/actions/projects/schemas"
 import type { ProjectMemberRowDTO } from "@/actions/projects/schemas"
 import {
@@ -118,5 +126,30 @@ describe("project context reducer", () => {
     expect(
       result.members.find((m) => m.userId === "owner-1")?.role
     ).toBe("owner")
+  })
+})
+
+describe("toOptimisticPatch (via stores/project-context/use-project-actions)", () => {
+  const values = {
+    name: "Remodel",
+    categoryId: "category-1",
+    status: "active" as const,
+    description: "Kitchen",
+    startDate: "2026-08-01",
+    endDate: "",
+    location: "Medellin",
+    country: "CO" as const,
+    budget: "1000",
+    color: "#3b82f6" as const,
+  }
+
+  it("carries the form country into the optimistic patch", () => {
+    expect(toOptimisticPatch(values).country).toBe("CO")
+  })
+
+  it("does not hardcode the country", () => {
+    expect(toOptimisticPatch({ ...values, country: "US" }).country).toBe(
+      "US"
+    )
   })
 })

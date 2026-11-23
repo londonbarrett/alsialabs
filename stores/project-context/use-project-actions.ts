@@ -22,7 +22,7 @@ type ProjectUpdateValues = Omit<UpdateProjectDTO, "projectId">
  * optimistic patch has to coerce identically or the header would briefly show
  * "" where the committed value is null.
  */
-function toOptimisticPatch(
+export function toOptimisticPatch(
   values: ProjectUpdateValues
 ): Partial<ProjectDetailDTO> {
   return {
@@ -33,6 +33,7 @@ function toOptimisticPatch(
     startDate: values.startDate,
     endDate: values.endDate || null,
     location: values.location || null,
+    country: values.country,
     budget: values.budget ? values.budget : null,
     color: values.color,
   }
