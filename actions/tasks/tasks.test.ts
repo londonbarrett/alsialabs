@@ -88,6 +88,9 @@ const OTHER_ID = "user-2"
 const THIRD_ID = "user-3"
 const COMMENT_ID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 
+/** Local midnight of a November 2026 day — how all-day slots are stored. */
+const allDayDate = (day: number): Date => new Date(2026, 10, day)
+
 function grantAccess(role: ProjectRole = "owner") {
   mockResolveAccess.mockResolvedValue({
     hasAccess: true,
@@ -787,9 +790,9 @@ describe("updateTask", () => {
       // opened their assignments on 2026-11-24 because the spawn anchored on
       // "now" instead of the task's start date.
       const NOW = new Date("2026-11-23T22:22:00.000Z")
-      // Midnight 2026-11-25 in Bogotá — how an all-day start date is stored.
-      const START = new Date("2026-11-25T05:00:00.000Z")
-      const END = new Date("2026-11-27T05:00:00.000Z")
+      // Midnight 2026-11-25 locally — how an all-day start date is stored.
+      const START = allDayDate(25)
+      const END = allDayDate(27)
 
       beforeEach(() => {
         vi.useFakeTimers({ toFake: ["Date"] })
@@ -814,10 +817,10 @@ describe("updateTask", () => {
           )
 
         const result = await updateTask({
-          ...repeatingInput("2026-11-27T05:00:00.000Z"),
+          ...repeatingInput(allDayDate(27).toISOString()),
           startTime: "",
           endTime: "",
-          startDate: "2026-11-25T05:00:00.000Z",
+          startDate: allDayDate(25).toISOString(),
           assigneeIds: [OTHER_ID],
         })
 
@@ -1121,15 +1124,15 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "",
         endTime: "",
-        startDate: "2026-11-25T05:00:00.000Z",
+        startDate: allDayDate(25).toISOString(),
         endDate: "2099-01-01T00:00:00",
       })
 
       expect(result.serverError).toBeUndefined()
       const [insert] = assignmentInserts()
       const dates = insertedTimes(insert.params)
-      expect(dates).toContain(new Date("2026-11-25T05:00:00.000Z").getTime())
-      expect(dates).not.toContain(new Date("2026-11-26T05:00:00.000Z").getTime())
+      expect(dates).toContain(allDayDate(25).getTime())
+      expect(dates).not.toContain(allDayDate(26).getTime())
     })
 
     it("a plain save after unarchive never reopens work: the archived due date round-trips unchanged", async () => {
@@ -2170,8 +2173,8 @@ describe("unarchiveTask", () => {
       daysOfWeek: null,
       startTime: null,
       endTime: null,
-      startDate: new Date("2026-11-25T05:00:00.000Z"),
-      endDate: new Date("2026-11-27T05:00:00.000Z"),
+      startDate: allDayDate(25),
+      endDate: allDayDate(27),
       archived: true,
     })
     rosterIs(USER_ID, OTHER_ID)
@@ -2200,8 +2203,8 @@ describe("unarchiveTask", () => {
       .filter((p): p is string => typeof p === "string")
       .map((p) => Date.parse(p))
       .filter((t) => !Number.isNaN(t))
-    expect(times).toContain(new Date("2026-11-25T05:00:00.000Z").getTime())
-    expect(times).not.toContain(new Date("2026-11-24T05:00:00.000Z").getTime())
+    expect(times).toContain(allDayDate(25).getTime())
+    expect(times).not.toContain(allDayDate(24).getTime())
   })
 
   it("unarchiving out of range spawns nothing", async () => {
@@ -2644,8 +2647,8 @@ describe("spawnEligibleAssignments", () => {
       repeatingTask({
         startTime: null,
         endTime: null,
-        startDate: new Date("2026-11-25T05:00:00.000Z"),
-        endDate: new Date("2026-11-27T05:00:00.000Z"),
+        startDate: allDayDate(25),
+        endDate: allDayDate(27),
       }),
     ])
     rosterOf(USER_ID)
@@ -2664,8 +2667,8 @@ describe("spawnEligibleAssignments", () => {
       .filter((p): p is string => typeof p === "string")
       .map((p) => Date.parse(p))
       .filter((t) => !Number.isNaN(t))
-    expect(dates).toContain(new Date("2026-11-25T05:00:00.000Z").getTime())
-    expect(dates).not.toContain(new Date("2026-11-24T05:00:00.000Z").getTime())
+    expect(dates).toContain(allDayDate(25).getTime())
+    expect(dates).not.toContain(allDayDate(24).getTime())
   })
 
   it("inserts one open assignment for an eligible member with the computed window", async () => {
