@@ -13,7 +13,11 @@ import {
   type TaskStatus,
 } from "@/lib/drizzle/schema"
 import { isTerminalStatus } from "@/lib/util/project-roles"
-import { computeNextOccurrence } from "@/lib/tasks/recurrence"
+import { isAllDayWindow } from "@/lib/util/tasks"
+import {
+  computeNextOccurrence,
+  firstOccurrenceAnchor,
+} from "@/lib/tasks/recurrence"
 import {
   atTime,
   firstAssignmentWindow,
@@ -732,6 +736,9 @@ async function getMyTasks(
   return visible.map(({ row, project, role }) =>
     MyAssignmentSchema.parse({
       ...row,
+      // Derived at the DTO boundary so every surface just consumes the
+      // boolean instead of guessing from a timestamp's hour.
+      allDay: isAllDayWindow(row.startDate, row.endDate),
       projectName: project?.projectName ?? "",
       projectColor: project?.projectColor ?? "",
       projectOwnerName: project?.projectOwnerName ?? null,
@@ -914,7 +921,7 @@ async function syncTaskAssignments(
 
     if (taskRow.recurrence) {
       await spawnEligibleAssignments(taskId, {
-        anchor: new Date(),
+        ...firstOccurrenceAnchor(taskRow),
         client: tx,
         onlyUserIds: added,
       })
@@ -992,6 +999,7 @@ async function spawnEligibleAssignments(
       interval: task.interval,
       daysOfWeek: task.daysOfWeek,
       startTime: task.startTime,
+      startDate: task.startDate,
       endDate: task.endDate,
     },
     opts.anchor,

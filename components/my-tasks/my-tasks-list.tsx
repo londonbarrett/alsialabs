@@ -183,6 +183,7 @@ export function MyTasksList({
                       <TableCell>
                         <DueDate
                           date={assignment.endDate}
+                          allDay={assignment.allDay}
                           overdue={isTaskOverdue(
                             assignment.status,
                             assignment.endDate

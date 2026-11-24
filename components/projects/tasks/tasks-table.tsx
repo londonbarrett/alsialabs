@@ -292,6 +292,7 @@ export function TasksTable({
                   <TableCell>
                     <DueDate
                       date={task.endDate}
+                      allDay={!task.startTime}
                       overdue={
                         open.length > 0
                           ? isTaskOverdue(open[0].status, task.endDate)
@@ -351,12 +352,14 @@ export function TasksTable({
                     <TaskOpenAssignmentRows
                       taskId={task.id}
                       assignments={openRows}
+                      allDay={!task.startTime}
                       onStatusChange={onStatusChange}
                     />
                     {task.recurrence === null && (
                       <TaskClosedAssignmentRows
                         taskId={task.id}
                         assignments={closedRows}
+                        allDay={!task.startTime}
                         onReopen={(assignmentId) =>
                           onStatusChange(task.id, assignmentId, "todo")
                         }
@@ -365,6 +368,7 @@ export function TasksTable({
                     <TaskHistoryPanel
                       taskId={task.id}
                       recurrence={task.recurrence}
+                      allDay={!task.startTime}
                       storeTerminal={storeTerminal}
                       openIds={openIds}
                       historySignature={historySignature}

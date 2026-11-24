@@ -23,6 +23,7 @@ function makeAssignment(
     cost: "0",
     startDate: null,
     endDate: null,
+    allDay: false,
     recurrence: null,
     commentCount: 0,
     ...overrides,

@@ -2,10 +2,9 @@ import type { Task, TaskStatus } from "@/lib/drizzle/schema"
 import type { TaskAssignmentDTO } from "@/actions/tasks/schemas"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import {
-  computeScheduledFor,
-  startOfDay,
-  type ScheduleConfig,
-} from "@/lib/util/schedule"
+  computeNextOccurrence,
+  firstOccurrenceAnchor,
+} from "./recurrence"
 
 /**
  * Open occurrences first, earliest start first. Consumers that read
@@ -70,34 +69,8 @@ export function firstAssignmentWindow(
     return { startDate: task.startDate, endDate: task.endDate }
   }
 
-  const allDay = !task.startTime
-  const schedule: ScheduleConfig = {
-    recurrence: task.recurrence,
-    interval: task.interval,
-    daysOfWeek: task.daysOfWeek ?? [],
-    time: task.startTime ?? "00:00",
-  }
-  const anchor = task.startDate ? startOfDay(task.startDate) : null
-
-  let from: Date
-  let inclusive: boolean
-  if (allDay) {
-    // An all-day slot is its whole calendar day: anchor on the day itself
-    // (never before today) and include the slot equal to the anchor — its
-    // midnight timestamp would fail a strict "after now" comparison even
-    // though the day is still ahead.
-    const today = startOfDay(new Date())
-    from = anchor && anchor.getTime() > today.getTime() ? anchor : today
-    inclusive = true
-  } else {
-    // A future start date anchors the schedule (the form defaults it to
-    // today); anything else anchors at "now" so the first occurrence is
-    // never in the past.
-    from = anchor && anchor.getTime() > Date.now() ? anchor : new Date()
-    inclusive = false
-  }
-
-  const occurrence = computeScheduledFor(from, schedule, { inclusive })
+  const { anchor, inclusive } = firstOccurrenceAnchor(task)
+  const occurrence = computeNextOccurrence(task, anchor, { inclusive })
   if (!occurrence) return { startDate: null, endDate: null }
 
   return {

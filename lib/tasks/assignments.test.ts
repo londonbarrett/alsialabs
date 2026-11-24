@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { startOfDay } from "@/lib/util/schedule"
 import { firstAssignmentWindow, sortAssignments } from "./assignments"
+import { computeNextOccurrence, firstOccurrenceAnchor } from "./recurrence"
 
 const row = (
   id: string,
@@ -155,5 +156,36 @@ describe("firstAssignmentWindow", () => {
       })
       expect(window.startDate).toEqual(startOfDay(now))
     }
+  })
+
+  it("returns no window when the first occurrence falls past the end date", () => {
+    const window = firstAssignmentWindow({
+      ...repeating,
+      recurrence: "weekly",
+      daysOfWeek: ["monday"],
+      startTime: "09:00",
+      endTime: "11:00",
+      startDate: new Date(2026, 10, 25, 9, 0), // Wednesday
+      endDate: new Date(2026, 10, 27), // Friday — no Monday in range
+    })
+
+    expect(window).toEqual({ startDate: null, endDate: null })
+  })
+
+  it("gives the same date as the spawn path for the same task", () => {
+    const task = {
+      ...repeating,
+      recurrence: "daily" as const,
+      daysOfWeek: [] as string[],
+      startTime: null,
+      endTime: null,
+      startDate: new Date(2026, 10, 25, 5, 0),
+      endDate: new Date(2026, 10, 27, 5, 0),
+    }
+    const { anchor, inclusive } = firstOccurrenceAnchor(task)
+
+    expect(firstAssignmentWindow(task).startDate).toEqual(
+      computeNextOccurrence(task, anchor, { inclusive })
+    )
   })
 })
