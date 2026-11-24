@@ -29,6 +29,8 @@ import { TaskStatusSelect, taskStatusColors } from "./task-status-select"
 interface TaskOpenAssignmentRowsProps {
   taskId: string
   assignments: TaskAssignmentDTO[]
+  /** The task's all-day flag — an all-day row shows only its date. */
+  allDay: boolean
   onStatusChange: (
     taskId: string,
     assignmentId: string,
@@ -39,6 +41,7 @@ interface TaskOpenAssignmentRowsProps {
 export function TaskOpenAssignmentRows({
   taskId,
   assignments,
+  allDay,
   onStatusChange,
 }: TaskOpenAssignmentRowsProps) {
   const t = useTranslations()
@@ -73,10 +76,10 @@ export function TaskOpenAssignmentRows({
     const allowed = isTerminalStatus(assignment.status)
       ? null
       : getAllowedStatuses(assignment)
-    // A row is one occurrence: show its due timestamp (with time, even at
-    // midnight), never a start–end range or the task's all-day header date.
+    // A row is one occurrence: show its due date, with time only for timed
+    // work, never a start–end range or the task's all-day header date.
     const occurrence = assignment.endDate
-      ? formatAssignmentDueDate(assignment.endDate, locale)
+      ? formatAssignmentDueDate(assignment.endDate, locale, allDay)
       : "—"
 
     return (

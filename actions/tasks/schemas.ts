@@ -218,6 +218,8 @@ export const MyAssignmentSchema = z.object({
   cost: z.string(),
   startDate: z.coerce.date().nullable(),
   endDate: z.coerce.date().nullable(),
+  /** All-day work keeps a single midnight timestamp for its whole window. */
+  allDay: z.boolean().default(false),
   recurrence: z.enum(["daily", "weekly"]).nullable(),
   commentCount: z.number(),
 })

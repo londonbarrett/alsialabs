@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { computeNextOccurrence } from "./recurrence"
+import { computeNextOccurrence, firstOccurrenceAnchor } from "./recurrence"
 
 const daily = {
   recurrence: "daily" as const,
@@ -56,6 +56,33 @@ describe("computeNextOccurrence", () => {
   })
 })
 
+describe("firstOccurrenceAnchor", () => {
+  const now = new Date(2026, 10, 23, 22, 22)
+
+  it("keeps a future all-day start on its own day, inclusively", () => {
+    // A stored all-day start carries its timezone offset (05:00Z in Bogotá),
+    // so it must be normalized to midnight before the inclusive comparison.
+    const start = new Date(2026, 10, 25, 5, 0)
+    expect(
+      firstOccurrenceAnchor({ startDate: start, startTime: null }, now)
+    ).toEqual({ anchor: new Date(2026, 10, 25), inclusive: true })
+  })
+
+  it("keeps a future timed start at its scheduled time", () => {
+    const start = new Date(2026, 10, 25, 9, 0)
+    expect(
+      firstOccurrenceAnchor({ startDate: start, startTime: "09:00" }, now)
+    ).toEqual({ anchor: start, inclusive: true })
+  })
+
+  it("anchors on now, strictly, once the start date is reached", () => {
+    const start = new Date(2026, 10, 20, 9, 0)
+    expect(
+      firstOccurrenceAnchor({ startDate: start, startTime: "09:00" }, now)
+    ).toEqual({ anchor: now, inclusive: false })
+  })
+})
+
 describe("computeNextOccurrence end date", () => {
   const dailyTask = {
     recurrence: "daily" as const,
@@ -99,5 +126,51 @@ describe("computeNextOccurrence end date", () => {
     )
 
     expect(next).toEqual(new Date(2026, 9, 29, 9, 0))
+  })
+})
+
+describe("computeNextOccurrence start date", () => {
+  const allDay = {
+    recurrence: "daily" as const,
+    interval: 1,
+    daysOfWeek: null,
+    startTime: null,
+  }
+
+  it("re-anchors on the start day when the trigger's anchor is earlier", () => {
+    // Unarchive anchors on now, which can precede a future start date.
+    const next = computeNextOccurrence(
+      { ...allDay, startDate: new Date(2026, 10, 25, 5, 0) },
+      new Date(2026, 10, 23, 19, 25)
+    )
+
+    expect(next).toEqual(new Date(2026, 10, 25))
+  })
+
+  it("keeps the start date's own slot for a timed task", () => {
+    const start = new Date(2026, 10, 25, 9, 0)
+    const next = computeNextOccurrence(
+      { ...daily, startDate: start },
+      new Date(2026, 10, 23, 19, 25),
+      { inclusive: true }
+    )
+
+    expect(next).toEqual(start)
+  })
+
+  it("applies the end date to the re-anchored occurrence", () => {
+    const next = computeNextOccurrence(
+      {
+        recurrence: "weekly",
+        interval: 1,
+        daysOfWeek: ["monday"],
+        startTime: "09:00",
+        startDate: new Date(2026, 10, 25, 9, 0), // Wednesday
+        endDate: new Date(2026, 10, 27), // Friday — no Monday in range
+      },
+      new Date(2026, 10, 23, 8, 0)
+    )
+
+    expect(next).toBeNull()
   })
 })

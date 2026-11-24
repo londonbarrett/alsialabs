@@ -14,6 +14,7 @@ import {
   sessionAction,
 } from "@/actions/safe-action"
 import { toTaskAssignmentDTO } from "@/lib/tasks/assignments"
+import { firstOccurrenceAnchor } from "@/lib/tasks/recurrence"
 import { costToNumber } from "@/lib/tasks/cost"
 import { z } from "zod"
 import queries from "./queries"
@@ -151,16 +152,14 @@ export const updateTask = projectAction(UpdateTaskSchema)
       : null
 
     if (previous.recurrence && previousEnd !== nextEnd) {
-      const now = new Date()
-      const start = parsedInput.startDate
-        ? new Date(parsedInput.startDate)
-        : null
-      const startsLater = start !== null && start.getTime() > now.getTime()
-
-      await queries.spawnEligibleAssignments(taskId, {
-        anchor: startsLater ? start : now,
-        inclusive: startsLater,
+      const { anchor, inclusive } = firstOccurrenceAnchor({
+        startDate: parsedInput.startDate
+          ? new Date(parsedInput.startDate)
+          : null,
+        startTime: parsedInput.startTime || null,
       })
+
+      await queries.spawnEligibleAssignments(taskId, { anchor, inclusive })
     }
 
     const loaded = await queries.getTaskWithAssignments(taskId)

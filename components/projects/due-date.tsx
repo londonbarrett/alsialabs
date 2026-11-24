@@ -7,10 +7,13 @@ import { formatDueDate } from "@/lib/util/tasks"
 
 export function DueDate({
   date,
+  allDay,
   overdue,
   overdueLabel,
 }: {
   date: Date | string | null | undefined
+  /** Known all-day work renders as a date without a time. */
+  allDay?: boolean
   overdue?: boolean
   overdueLabel?: string
 }) {
@@ -20,8 +23,8 @@ export function DueDate({
     if (!date) return null
     const d = typeof date === "string" ? new Date(date) : date
     if (Number.isNaN(d.getTime())) return null
-    return formatDueDate(d, locale)
-  }, [date, locale])
+    return formatDueDate(d, locale, allDay)
+  }, [date, locale, allDay])
 
   if (!label) {
     return <span className="text-xs text-muted-foreground">{"—"}</span>

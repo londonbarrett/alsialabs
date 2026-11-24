@@ -18,6 +18,8 @@ import { TaskClosedAssignmentRows } from "./task-closed-assignment-rows"
 interface TaskHistoryPanelProps {
   taskId: string
   recurrence: "daily" | "weekly" | null
+  /** The task's all-day flag — passed to each closed row's date label. */
+  allDay: boolean
   /**
    * Every terminal row of the task as the store holds it. A zero-open
    * task renders these from first paint (its initial block renders
@@ -42,6 +44,7 @@ const NO_CLOSED_SCOPE: TaskAssignmentDTO[] = []
 export function TaskHistoryPanel({
   taskId,
   recurrence,
+  allDay,
   storeTerminal,
   openIds,
   historySignature,
@@ -178,6 +181,7 @@ export function TaskHistoryPanel({
       <TaskClosedAssignmentRows
         taskId={taskId}
         assignments={closed}
+        allDay={allDay}
       />
       {hasMore && (
         <TableRow>

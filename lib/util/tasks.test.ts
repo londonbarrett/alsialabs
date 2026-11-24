@@ -4,6 +4,7 @@ import {
   formatAssignmentDueDate,
   formatDueDate,
   isAllDayDate,
+  isAllDayWindow,
   isTaskOverdue,
 } from "./tasks"
 
@@ -12,6 +13,33 @@ describe("isAllDayDate", () => {
     expect(isAllDayDate(new Date(2026, 10, 20, 0, 0))).toBe(true)
     expect(isAllDayDate(new Date(2026, 10, 20, 9, 30))).toBe(false)
     expect(isAllDayDate(new Date(2026, 10, 20, 0, 30))).toBe(false)
+  })
+})
+
+describe("isAllDayWindow", () => {
+  it("recognizes a single-timestamp window from raw driver strings", () => {
+    expect(
+      isAllDayWindow(
+        "2026-11-25T05:00:00.000Z",
+        "2026-11-25T05:00:00.000Z"
+      )
+    ).toBe(true)
+    expect(
+      isAllDayWindow(
+        new Date(2026, 10, 25, 5, 0),
+        new Date(2026, 10, 25, 5, 0)
+      )
+    ).toBe(true)
+  })
+
+  it("rejects timed windows and missing dates", () => {
+    expect(
+      isAllDayWindow(
+        new Date(2026, 10, 25, 9, 0),
+        new Date(2026, 10, 25, 11, 0)
+      )
+    ).toBe(false)
+    expect(isAllDayWindow(null, null)).toBe(false)
   })
 })
 
@@ -56,22 +84,36 @@ describe("formatDueDate", () => {
     expect(label).toContain(":")
     expect(label).toContain("20")
   })
+
+  it("honors an explicit all-day flag over the midnight heuristic", () => {
+    // An all-day slot can read back as 05:00 depending on the server's
+    // timezone, so callers that know the task is all-day must be able to say so.
+    const label = formatDueDate(
+      new Date(2026, 10, 25, 5, 0),
+      "en-US",
+      true
+    )
+    expect(label).not.toContain(":")
+    expect(label).toContain("25")
+  })
 })
 
 describe("formatAssignmentDueDate", () => {
-  it("keeps the time even for a midnight timestamp — rows are occurrences, not all-day headers", () => {
+  it("drops the time for an all-day occurrence whatever its stored hour", () => {
     const label = formatAssignmentDueDate(
-      new Date(2026, 10, 20, 0, 0),
-      "en-US"
+      new Date(2026, 10, 25, 5, 0),
+      "es-ES",
+      true
     )
-    expect(label).toContain(":")
-    expect(label).toContain("20")
+    expect(label).not.toContain(":")
+    expect(label).toContain("25 nov")
   })
 
-  it("shows the occurrence's due time", () => {
+  it("shows the occurrence's due time for timed work", () => {
     const label = formatAssignmentDueDate(
       new Date(2026, 10, 20, 17, 0),
-      "es-ES"
+      "es-ES",
+      false
     )
     expect(label).toContain(":")
     expect(label).toContain("17:00")
@@ -79,6 +121,6 @@ describe("formatAssignmentDueDate", () => {
 
   it("formats with the requested locale", () => {
     const date = new Date(2026, 10, 20, 17, 0)
-    expect(formatAssignmentDueDate(date, "es-ES")).toContain("20 nov")
+    expect(formatAssignmentDueDate(date, "es-ES", false)).toContain("20 nov")
   })
 })

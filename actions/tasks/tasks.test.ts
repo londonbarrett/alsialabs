@@ -782,6 +782,57 @@ describe("updateTask", () => {
       expect(opened[0].params).toContain("todo")
     })
 
+    describe("all-day repeating task with a future start", () => {
+      // The incident: editing a task that starts 2026-11-25 to add two people
+      // opened their assignments on 2026-11-24 because the spawn anchored on
+      // "now" instead of the task's start date.
+      const NOW = new Date("2026-11-23T22:22:00.000Z")
+      // Midnight 2026-11-25 in Bogotá — how an all-day start date is stored.
+      const START = new Date("2026-11-25T05:00:00.000Z")
+      const END = new Date("2026-11-27T05:00:00.000Z")
+
+      beforeEach(() => {
+        vi.useFakeTimers({ toFake: ["Date"] })
+        vi.setSystemTime(NOW)
+      })
+      afterEach(() => vi.useRealTimers())
+
+      it("opens a new member on the start date, never the day before", async () => {
+        const allDay = futureRepeating({
+          recurrence: "daily",
+          startTime: null,
+          endTime: null,
+          startDate: START,
+          endDate: END,
+        })
+        state.mock.onUpdate(schema.tasksTable).respond([allDay])
+        state.mock.onSelect(schema.tasksTable).respond([allDay])
+        state.mock
+          .onSelect(schema.taskAssigneesTable)
+          .respondWith((sql) =>
+            sql.includes("inner join") ? [{ userId: OTHER_ID }] : []
+          )
+
+        const result = await updateTask({
+          ...repeatingInput("2026-11-27T05:00:00.000Z"),
+          startTime: "",
+          endTime: "",
+          startDate: "2026-11-25T05:00:00.000Z",
+          assigneeIds: [OTHER_ID],
+        })
+
+        expect(result.serverError).toBeUndefined()
+        const [opened] = callsMatching('insert into "task_assignment"')
+        expect(opened).toBeDefined()
+        const times = opened.params
+          .filter((p): p is string => typeof p === "string")
+          .map((p) => Date.parse(p))
+          .filter((t) => !Number.isNaN(t))
+        expect(times).toContain(START.getTime())
+        expect(times).not.toContain(START.getTime() - 86_400_000)
+      })
+    })
+
     it("a new member of a repeating task past its end date gets membership only", async () => {
       const ended = futureRepeating({
         endDate: new Date("2020-01-01T00:00:00"),
@@ -1047,6 +1098,38 @@ describe("updateTask", () => {
       const dates = insertedTimes(insert.params)
       expect(dates).toContain(new Date("2026-11-25T09:00:00").getTime())
       expect(dates).toContain(new Date("2026-11-25T11:00:00").getTime())
+    })
+
+    it("an all-day future start keeps its own day as the first occurrence", async () => {
+      dateEditFixtures({
+        recurrence: "daily",
+        startTime: null,
+        endTime: null,
+        startDate: new Date("2026-10-30T09:00:00"),
+        endDate: new Date("2026-11-30T00:00:00"),
+      })
+      rosterIs(USER_ID)
+      state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+      state.mock
+        .onInsert(schema.taskAssignmentsTable)
+        .respond([{ id: "spawned-1" }])
+
+      const result = await updateTask({
+        ...validTask,
+        taskId: TASK_ID,
+        assigneeIds: [USER_ID],
+        recurrence: "daily",
+        startTime: "",
+        endTime: "",
+        startDate: "2026-11-25T05:00:00.000Z",
+        endDate: "2099-01-01T00:00:00",
+      })
+
+      expect(result.serverError).toBeUndefined()
+      const [insert] = assignmentInserts()
+      const dates = insertedTimes(insert.params)
+      expect(dates).toContain(new Date("2026-11-25T05:00:00.000Z").getTime())
+      expect(dates).not.toContain(new Date("2026-11-26T05:00:00.000Z").getTime())
     })
 
     it("a plain save after unarchive never reopens work: the archived due date round-trips unchanged", async () => {
@@ -2078,6 +2161,49 @@ describe("unarchiveTask", () => {
     ).toBe(false)
   })
 
+  it("unarchiving before a future start never opens an earlier occurrence", async () => {
+    // The incident: an all-day daily task starting 2026-11-25 was archived and
+    // unarchived before that date, which reopened both people on 2026-11-24.
+    taskUnarchives({
+      recurrence: "daily",
+      interval: 1,
+      daysOfWeek: null,
+      startTime: null,
+      endTime: null,
+      startDate: new Date("2026-11-25T05:00:00.000Z"),
+      endDate: new Date("2026-11-27T05:00:00.000Z"),
+      archived: true,
+    })
+    rosterIs(USER_ID, OTHER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "spawned-1" }, { id: "spawned-2" }])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respondWith((_sql, params) => [
+        makeAssignmentRow({
+          assignmentId: String(params[0]),
+          userId: params[0] === "spawned-1" ? USER_ID : OTHER_ID,
+        }),
+      ])
+
+    const result = await unarchiveTask({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    })
+
+    expect(defaultIsSuccess(result)).toBe(true)
+    const [insert] = inserts()
+    expect(insert).toBeDefined()
+    const times = insert.params
+      .filter((p): p is string => typeof p === "string")
+      .map((p) => Date.parse(p))
+      .filter((t) => !Number.isNaN(t))
+    expect(times).toContain(new Date("2026-11-25T05:00:00.000Z").getTime())
+    expect(times).not.toContain(new Date("2026-11-24T05:00:00.000Z").getTime())
+  })
+
   it("unarchiving out of range spawns nothing", async () => {
     // endDate in the past → spawned: []
     taskUnarchives({
@@ -2509,6 +2635,37 @@ describe("spawnEligibleAssignments", () => {
       await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
     ).toEqual([])
     expect(inserts()).toHaveLength(0)
+  })
+
+  it("never opens before the task's start date, whatever the trigger's anchor", async () => {
+    // An all-day daily task starting 2026-11-25 (stored as local midnight),
+    // spawned by a trigger anchored on 2026-11-23 the way unarchive is.
+    state.mock.onSelect(schema.tasksTable).respond([
+      repeatingTask({
+        startTime: null,
+        endTime: null,
+        startDate: new Date("2026-11-25T05:00:00.000Z"),
+        endDate: new Date("2026-11-27T05:00:00.000Z"),
+      }),
+    ])
+    rosterOf(USER_ID)
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "spawned-1" }])
+
+    const ids = await queries.spawnEligibleAssignments(TASK_ID, {
+      anchor: new Date("2026-11-23T22:00:00.000Z"),
+    })
+
+    expect(ids).toEqual(["spawned-1"])
+    const [insert] = inserts()
+    const dates = insert.params
+      .filter((p): p is string => typeof p === "string")
+      .map((p) => Date.parse(p))
+      .filter((t) => !Number.isNaN(t))
+    expect(dates).toContain(new Date("2026-11-25T05:00:00.000Z").getTime())
+    expect(dates).not.toContain(new Date("2026-11-24T05:00:00.000Z").getTime())
   })
 
   it("inserts one open assignment for an eligible member with the computed window", async () => {

@@ -791,6 +791,39 @@ test("adding an assignee to a repeating task with an in-range date opens their a
   await expect(person.getByRole("combobox")).toHaveCount(1)
 })
 
+test("an all-day assignment row shows only the date, not a time", async ({
+  page,
+  signInAs,
+}) => {
+  const taskName = `E2E filter allday ${Date.now()}`
+  await signInAs("user1")
+  await page.goto(PROJECT_URL)
+
+  const dialog = await openCreateDialog(page)
+  await fillDetails(page, dialog, taskName, [COLLABORATOR])
+  await dialog.getByRole("switch", { name: "Repetir esta tarea" }).click()
+  // "Todo el día" is the default — leave it on: all-day rows must not show
+  // the 05:00 timestamp their midnight slot is stored as.
+  await dialog.getByLabel("Fecha de inicio").fill(toDateInput(daysFromNow(2)))
+  await dialog
+    .getByLabel("Fecha de vencimiento")
+    .fill(toDateInput(daysFromNow(30)))
+  await dialog.getByLabel("Frecuencia").click()
+  await page.getByRole("option", { name: "Diaria" }).click()
+  await dialog.getByRole("button", { name: "Crear Tarea" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.getByText("Tarea creada").first()).toBeVisible()
+
+  const row = page.getByRole("row", { name: new RegExp(taskName) })
+  await expect(row).toContainText("1 abierta")
+  await expandAssignments(row)
+  const person = personRows(row)
+  await expect(person).toHaveCount(1)
+  const label = ((await person.locator("td").nth(1).textContent()) ?? "").trim()
+  expect(label).toMatch(/\d{1,2}\s+\w+/)
+  expect(label).not.toContain(":")
+})
+
 test("the Open view orders by due date ascending regardless of status", async ({
   page,
   signInAs,

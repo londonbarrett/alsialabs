@@ -9,6 +9,23 @@ export function isAllDayDate(date: Date): boolean {
 }
 
 /**
+ * An all-day assignment's window is a single timestamp. View rows hand dates
+ * back as raw driver strings, so this accepts both strings and Dates; the
+ * midnight-hour heuristic is not reliable once a timezone offset is involved.
+ */
+export function isAllDayWindow(
+  start: Date | string | null | undefined,
+  end: Date | string | null | undefined
+): boolean {
+  const time = (value: Date | string | null | undefined): number => {
+    if (!value) return Number.NaN
+    return value instanceof Date ? value.getTime() : Date.parse(value)
+  }
+  const startMs = time(start)
+  return !Number.isNaN(startMs) && startMs === time(end)
+}
+
+/**
  * All-day work is due through its whole calendar day: a midnight deadline
  * only becomes overdue once that day ends, not from its first minute.
  */
@@ -24,27 +41,29 @@ export function isTaskOverdue(
   return deadline.getTime() < Date.now()
 }
 
-/** Due-date cell label: all-day timestamps drop the time-of-day. */
-export function formatDueDate(date: Date, locale: string): string {
+/**
+ * Due-date cell label. Callers that know the task is all-day pass `allDay`
+ * explicitly: an all-day slot can read back as 05:00 depending on the
+ * server's timezone, so the midnight heuristic alone is not reliable.
+ */
+export function formatDueDate(
+  date: Date,
+  locale: string,
+  allDay?: boolean
+): string {
+  const isAllDay = allDay ?? isAllDayDate(date)
   return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
-    ...(isAllDayDate(date)
-      ? {}
-      : { hour: "numeric", minute: "2-digit" }),
+    ...(isAllDay ? {} : { hour: "numeric", minute: "2-digit" }),
   }).format(date)
 }
 
-/**
- * Assignment-row label: an occurrence's due date with its time always
- * shown, including a midnight value (rows are occurrences, not all-day
- * task headers, so the time is meaningful).
- */
-export function formatAssignmentDueDate(date: Date, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date)
+/** Assignment-row label: all-day occurrences show only their date. */
+export function formatAssignmentDueDate(
+  date: Date,
+  locale: string,
+  allDay: boolean
+): string {
+  return formatDueDate(date, locale, allDay)
 }
