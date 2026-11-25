@@ -537,14 +537,16 @@ test("archiving a task with no open assignments skips the disposition dialog", a
 
   // An all-day task's due cell shows the date only — no assignment-row
   // date or time leaks into it.
-  const dueCell = (await row.locator("td").nth(4).textContent()) ?? ""
-  expect(dueCell).toContain(
+  const dueCell = row.locator("td").nth(4)
+  await expect(dueCell).toContainText(
     new Intl.DateTimeFormat("es-ES", {
       month: "short",
       day: "numeric",
     }).format(dueDay)
   )
-  expect(dueCell).not.toContain(":")
+  // Only the formatted date value itself must stay time-free.
+  const dueValue = (await dueCell.locator("span > span").first().textContent()) ?? ""
+  expect(dueValue).not.toContain(":")
 
   await clickRowAction(row, "Archivar")
 
@@ -819,7 +821,10 @@ test("an all-day assignment row shows only the date, not a time", async ({
   await expandAssignments(row)
   const person = personRows(row)
   await expect(person).toHaveCount(1)
-  const label = ((await person.locator("td").nth(1).textContent()) ?? "").trim()
+  // The assignment cell is the date value itself — no nested label.
+  const label = (
+    (await person.locator("td").nth(1).textContent()) ?? ""
+  ).trim()
   expect(label).toMatch(/\d{1,2}\s+\w+/)
   expect(label).not.toContain(":")
 })

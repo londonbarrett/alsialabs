@@ -29,6 +29,22 @@ const CostInputSchema = z
   .optional()
   .default("")
 
+/**
+ * Forms submit a wall-clock calendar day, never an ISO instant. Appending `Z`
+ * only validates the calendar value; the project zone is applied server-side
+ * when the day is combined with its time strings.
+ */
+const DateKeySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "INVALID_DATE" })
+  .refine((value) => {
+    const parsed = new Date(`${value}T00:00:00Z`)
+    return (
+      !Number.isNaN(parsed.getTime()) &&
+      parsed.toISOString().slice(0, 10) === value
+    )
+  }, { message: "INVALID_DATE" })
+
 // ---------- Response schemas ----------
 
 // ---------- Assignment-era task schemas ----------
@@ -46,8 +62,8 @@ const TaskFormBaseSchema = z.object({
     .default(""),
   priority: z.enum(TASK_PRIORITIES).nullable().optional(),
   assigneeIds: z.array(z.string().min(1)).optional().default([]),
-  startDate: z.string().nullable().optional(),
-  endDate: z.string().nullable().optional(),
+  startDate: DateKeySchema.nullable().optional(),
+  endDate: DateKeySchema.nullable().optional(),
   recurrence: z.enum(["daily", "weekly"]).nullable().optional(),
   interval: z.coerce.number().int().min(1).max(365).default(1),
   daysOfWeek: z.array(z.string()).optional().default([]),
@@ -77,27 +93,15 @@ function refineTaskWindow(
       })
     }
     if (value.startDate && value.endDate) {
-      const start = new Date(value.startDate)
-      const end = new Date(value.endDate)
-      if (
-        Number.isNaN(start.getTime()) ||
-        Number.isNaN(end.getTime())
-      ) {
-        ctx.addIssue({
-          code: "custom",
-          message: "INVALID_DATE",
-          path: ["startDate"],
-        })
-        return
-      }
-      if (end.getTime() < start.getTime()) {
+      // Date keys sort chronologically as strings; no host-local `Date` parse.
+      if (value.endDate < value.startDate) {
         ctx.addIssue({
           code: "custom",
           message: "END_BEFORE_START",
           path: ["endDate"],
         })
       }
-      if (start.toDateString() !== end.toDateString()) {
+      if (value.startDate !== value.endDate) {
         ctx.addIssue({
           code: "custom",
           message: "SAME_DAY_REQUIRED",
@@ -105,22 +109,27 @@ function refineTaskWindow(
         })
       }
     }
-    return
-  }
-
-  // The end date is an optional "until" for the schedule — compared at day
-  // precision, since its stored time is the occurrence time, not a deadline.
-  // An all-day repeating task has no occurrence time at all, so none is
-  // required here; the form gates the time inputs behind its All-day switch.
-  if (
+  } else if (
     value.startDate &&
     value.endDate &&
-    value.endDate.slice(0, 10) < value.startDate.slice(0, 10)
+    value.endDate < value.startDate
   ) {
+    // The end date is an optional "until" for the schedule, compared at day
+    // precision. An all-day repeating task needs no occurrence time.
     ctx.addIssue({
       code: "custom",
       message: "END_BEFORE_START",
       path: ["endDate"],
+    })
+  }
+
+  // A timed task needs both ends of its window: all-day is the only case that
+  // submits empty times, and a lone time cannot be resolved into an instant.
+  if (Boolean(value.startTime) !== Boolean(value.endTime)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "END_TIME_REQUIRED",
+      path: ["endTime"],
     })
   }
 }
@@ -157,6 +166,10 @@ export const TaskAssignmentSchema = z.object({
   cost: z.string(),
   startDate: z.coerce.date().nullable(),
   endDate: z.coerce.date().nullable(),
+  /** Project zone the instants above are displayed in. */
+  timeZone: z.string(),
+  /** Wall-clock occurrence time; `null` is the authoritative all-day flag. */
+  startTime: z.string().nullable(),
 })
 
 export const TaskRecordSchema = z.object({
@@ -197,6 +210,12 @@ export const TaskWithAssignmentsSchema = TaskRecordSchema.extend({
    * supplies the real value.
    */
   totalCost: z.number().default(0),
+  /**
+   * Computed at fetch time from the first open assignment in the project
+   * zone; the client only reads it. Defaulted so actions that build a task
+   * DTO before a refetch still validate.
+   */
+  overdue: z.boolean().default(false),
 })
 
 export const MyTasksTabSchema = z.enum(["active", "past"])
@@ -218,10 +237,14 @@ export const MyAssignmentSchema = z.object({
   cost: z.string(),
   startDate: z.coerce.date().nullable(),
   endDate: z.coerce.date().nullable(),
-  /** All-day work keeps a single midnight timestamp for its whole window. */
-  allDay: z.boolean().default(false),
+  /** Each row formats its own instants in its own project's zone. */
+  timeZone: z.string(),
+  /** `null` is all-day; never infer it from an instant's hour. */
+  startTime: z.string().nullable(),
   recurrence: z.enum(["daily", "weekly"]).nullable(),
   commentCount: z.number(),
+  /** Computed server-side in the row's own project zone. */
+  overdue: z.boolean().default(false),
 })
 
 export const AssignmentStatusResultSchema = z.object({
@@ -271,6 +294,18 @@ export const TaskAssignmentHistoryResultSchema = z.object({
 export type TaskFormDTO = z.infer<typeof TaskFormSchema>
 export type CreateTaskDTO = z.infer<typeof CreateTaskSchema>
 export type UpdateTaskDTO = z.infer<typeof UpdateTaskSchema>
+
+/**
+ * Wall-clock form values after the action resolves them to instants in the
+ * project zone. Internal to the action → query boundary; never sent to a
+ * client.
+ */
+export type TaskWriteDTO<
+  Input extends { startDate?: unknown; endDate?: unknown },
+> = Omit<Input, "startDate" | "endDate"> & {
+  startDate: Date | null
+  endDate: Date | null
+}
 export type TaskAssignmentDTO = z.infer<typeof TaskAssignmentSchema>
 export type TaskAssignmentHistoryDTO = z.infer<
   typeof TaskAssignmentHistoryResultSchema

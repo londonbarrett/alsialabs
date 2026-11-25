@@ -1,5 +1,6 @@
 import type { Task, TaskStatus } from "@/lib/drizzle/schema"
 import type { TaskAssignmentDTO } from "@/actions/tasks/schemas"
+import { atZonedTime, startOfZonedDay } from "@/lib/time/zone"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import {
   computeNextOccurrence,
@@ -33,15 +34,17 @@ export function sortAssignments<
   })
 }
 
-export function atTime(date: Date, time: string | null): Date {
-  if (!time) return new Date(date)
-  const [hours, minutes] = time.split(":").map(Number)
+/**
+ * The date's calendar day in `timeZone` at a wall-clock time; `null` means
+ * midnight of that same day. The day is taken from the zone, never the host.
+ */
+export function atTime(
+  date: Date,
+  time: string | null,
+  timeZone: string
+): Date {
   return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    hours || 0,
-    minutes || 0
+    atZonedTime(startOfZonedDay(date, timeZone), time).epochMilliseconds
   )
 }
 
@@ -63,19 +66,30 @@ type SchedulableTask = Pick<
 
 /** The window copied onto the assignments created with a task. */
 export function firstAssignmentWindow(
-  task: SchedulableTask
+  task: SchedulableTask,
+  timeZone: string
 ): AssignmentWindow {
   if (!task.recurrence) {
     return { startDate: task.startDate, endDate: task.endDate }
   }
 
-  const { anchor, inclusive } = firstOccurrenceAnchor(task)
-  const occurrence = computeNextOccurrence(task, anchor, { inclusive })
-  if (!occurrence) return { startDate: null, endDate: null }
+  const { anchor, inclusive } = firstOccurrenceAnchor(task, timeZone)
+  const occurrence = computeNextOccurrence(task, anchor, timeZone, {
+    inclusive,
+  })
+  if (!occurrence) {
+    // A past-ended (or otherwise slot-less) schedule is still legitimate
+    // historical work: its assignees get the task's own window, never NULL
+    // dates — that was the original incident. A task with no start at all
+    // has no usable window, so keep returning null for the action guard.
+    return task.startDate
+      ? { startDate: task.startDate, endDate: task.endDate }
+      : { startDate: null, endDate: null }
+  }
 
   return {
     startDate: occurrence,
-    endDate: atTime(occurrence, task.endTime),
+    endDate: atTime(occurrence, task.endTime, timeZone),
   }
 }
 
@@ -88,13 +102,15 @@ type AssignmentRow = {
   cost: string
   startDate: Date | null
   endDate: Date | null
+  startTime: string | null
   userName: string | null
   userEmail: string | null
   userImage: string | null
 }
 
 export function toTaskAssignmentDTO(
-  row: AssignmentRow
+  row: AssignmentRow,
+  timeZone: string
 ): TaskAssignmentDTO {
   return {
     id: row.assignmentId,
@@ -108,5 +124,7 @@ export function toTaskAssignmentDTO(
     userName: row.userName,
     userEmail: row.userEmail,
     userImage: row.userImage,
+    timeZone,
+    startTime: row.startTime,
   }
 }

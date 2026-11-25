@@ -15,6 +15,8 @@ const assignment = (status: string): TaskAssignmentDTO => ({
   cost: "0",
   startDate: null,
   endDate: null,
+  timeZone: "America/Bogota",
+  startTime: null,
 })
 
 describe("assignmentCounts", () => {

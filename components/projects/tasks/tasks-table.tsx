@@ -26,7 +26,6 @@ import {
 } from "@/lib/tasks/filter"
 import { assigneeIdentities, visibleAssignments } from "@/lib/tasks/list"
 import { isTerminalStatus } from "@/lib/util/project-roles"
-import { isTaskOverdue } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -67,7 +66,7 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
-  const { isOwner, isAdmin, members } = useProjectContextState()
+  const { project, isOwner, isAdmin, members } = useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
@@ -292,12 +291,9 @@ export function TasksTable({
                   <TableCell>
                     <DueDate
                       date={task.endDate}
-                      allDay={!task.startTime}
-                      overdue={
-                        open.length > 0
-                          ? isTaskOverdue(open[0].status, task.endDate)
-                          : false
-                      }
+                      timeZone={project.timeZone}
+                      startTime={task.startTime}
+                      overdue={task.overdue}
                       overdueLabel={t("common.overdue")}
                     />
                   </TableCell>
@@ -352,14 +348,14 @@ export function TasksTable({
                     <TaskOpenAssignmentRows
                       taskId={task.id}
                       assignments={openRows}
-                      allDay={!task.startTime}
+                      timeZone={project.timeZone}
                       onStatusChange={onStatusChange}
                     />
                     {task.recurrence === null && (
                       <TaskClosedAssignmentRows
                         taskId={task.id}
                         assignments={closedRows}
-                        allDay={!task.startTime}
+                        timeZone={project.timeZone}
                         onReopen={(assignmentId) =>
                           onStatusChange(task.id, assignmentId, "todo")
                         }
@@ -368,7 +364,7 @@ export function TasksTable({
                     <TaskHistoryPanel
                       taskId={task.id}
                       recurrence={task.recurrence}
-                      allDay={!task.startTime}
+                      timeZone={project.timeZone}
                       storeTerminal={storeTerminal}
                       openIds={openIds}
                       historySignature={historySignature}

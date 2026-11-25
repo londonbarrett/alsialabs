@@ -231,23 +231,34 @@ export function formatWhen(
   event: CalendarEvent,
   locale: string
 ): string {
+  // Task events carry their real instants and the zone they belong to. Format
+  // those with an explicit zone — never the wall-clock grid Date — so the
+  // detail line agrees with both the chip and the event's actual instant.
+  const zoneOptions = event.meta?.timeZone
+    ? { timeZone: event.meta.timeZone }
+    : {}
   const dateFmt = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
+    ...zoneOptions,
   })
   const timeFmt = new Intl.DateTimeFormat(locale, {
     hour: "numeric",
     minute: "2-digit",
+    ...zoneOptions,
   })
+  const startIso = event.meta?.startDateIso
+  const start = startIso ? new Date(startIso) : event.start
+  if (Number.isNaN(start.getTime())) return ""
 
-  if (event.allDay) return dateFmt.format(event.start)
+  if (event.allDay) return dateFmt.format(start)
 
-  const start = `${dateFmt.format(event.start)} · ${timeFmt.format(
-    event.start
-  )}`
-  if (event.end.getTime() !== event.start.getTime()) {
-    return `${start} – ${timeFmt.format(event.end)}`
+  const endIso = event.meta?.endDateIso
+  const end = endIso ? new Date(endIso) : event.end
+  const label = `${dateFmt.format(start)} · ${timeFmt.format(start)}`
+  if (!Number.isNaN(end.getTime()) && end.getTime() !== start.getTime()) {
+    return `${label} – ${timeFmt.format(end)}`
   }
-  return start
+  return label
 }
 
 /** Expands a visible range by a week on each side so grid overflow days have data. */

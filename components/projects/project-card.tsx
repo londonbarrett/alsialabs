@@ -2,6 +2,7 @@ import {
   ArrowRight,
   Calendar,
   CircleDollarSign,
+  Clock,
   Crown,
   ListTodo,
   MapPin,
@@ -221,6 +222,15 @@ export function ProjectCard({ project, isPending }: ProjectCardProps) {
               <dd className="truncate font-medium">
                 {countryLabel(project.country, locale)}
               </dd>
+            </div>
+          </div>
+          <div className="col-span-2 flex items-center gap-2">
+            <Clock className="size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">
+                {t("common.timeZone")}
+              </dt>
+              <dd className="truncate font-medium">{project.timeZone}</dd>
             </div>
           </div>
           <div className="col-span-2 flex items-center gap-2">

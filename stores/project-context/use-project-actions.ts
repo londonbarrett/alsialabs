@@ -34,6 +34,7 @@ export function toOptimisticPatch(
     endDate: values.endDate || null,
     location: values.location || null,
     country: values.country,
+    timeZone: values.timeZone,
     budget: values.budget ? values.budget : null,
     color: values.color,
   }

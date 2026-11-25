@@ -36,6 +36,10 @@ export type CalendarEventMeta = {
   assigneeName?: string | null
   commentCount?: number
   recurrence?: string | null
+  /** Project zone this event is placed and labelled in. */
+  timeZone?: string
+  /** View wall-clock start time; `null` is the all-day flag. */
+  startTime?: string | null
   startDateIso?: string | null
   endDateIso?: string | null
   assignees?: CalendarEventAssignee[]

@@ -1,13 +1,25 @@
 import type { CalendarEvent } from "../types"
 import type { CalendarAssignmentDTO } from "@/actions/calendar/schemas"
-import { startOfDay } from "@/lib/util/schedule"
 
 const HOUR_MS = 60 * 60 * 1000
 
 /**
- * One event per task per day. An assignment carries its own date, so two
- * assignees of the same task can legitimately be on different days and are
- * never merged across them.
+ * The grid iterates host-local days, so hand it a Date whose local fields are
+ * the project's wall clock — otherwise a late-evening event would land in the
+ * next day's column. Both inputs are plain strings resolved on the server:
+ * no Temporal and no zone arithmetic in the browser. The real instant stays
+ * in `meta.startDateIso` / `meta.endDateIso`.
+ */
+function gridDate(dateKey: string, time: string | null): Date {
+  const [year, month, day] = dateKey.split("-").map(Number)
+  const [hour, minute] = (time || "00:00").split(":").map(Number)
+  return new Date(year, month - 1, day, hour, minute)
+}
+
+/**
+ * One event per task per day in the day's own project zone. An assignment
+ * carries its own date and zone, so two assignees of the same task can
+ * legitimately be on different days and are never merged across them.
  */
 export function buildCalendarEvents(
   assignments: CalendarAssignmentDTO[],
@@ -24,7 +36,7 @@ export function buildCalendarEvents(
     ) {
       continue
     }
-    const key = `${assignment.taskId}|${startOfDay(assignment.startDate).getTime()}`
+    const key = `${assignment.taskId}|${assignment.dateKey}`
     const list = groups.get(key) ?? []
     list.push(assignment)
     groups.set(key, list)
@@ -33,28 +45,35 @@ export function buildCalendarEvents(
   return [...groups.entries()].map(([key, group]) => {
     const first = group[0]
     const start = first.startDate!
-    const isAllDay = start.getHours() === 0 && start.getMinutes() === 0
-    let end = first.endDate
-    if (!end || (isAllDay && end.getTime() <= start.getTime())) {
-      // All-day events span their whole day with an exclusive midnight end:
-      // the week/day lane's strict `end > dayStart` filter would otherwise
-      // drop a zero-duration midnight-to-midnight event, and month-view
-      // "past" styling would dim it from its first minute.
-      end = isAllDay
+    const isAllDay = first.startTime === null
+    const displayStart = gridDate(first.dateKey, first.startTime)
+
+    // An all-day event spans its whole day with an exclusive midnight end:
+    // the week/day lane's strict `end > dayStart` filter would otherwise
+    // drop a zero-duration midnight-to-midnight event, and month-view
+    // "past" styling would dim it from its first minute.
+    const exclusiveEnd =
+      isAllDay &&
+      (!first.endDate || first.endDate.getTime() <= start.getTime())
         ? new Date(
-            start.getFullYear(),
-            start.getMonth(),
-            start.getDate() + 1
+            displayStart.getFullYear(),
+            displayStart.getMonth(),
+            displayStart.getDate() + 1
           )
-        : new Date(start.getTime() + HOUR_MS)
-    }
+        : null
+    const end = first.endDate ?? new Date(start.getTime() + HOUR_MS)
+    // Carry the window's duration over to the grid date; only the anchor is
+    // a wall-clock value, never the instants themselves.
+    const displayEnd =
+      exclusiveEnd ??
+      new Date(displayStart.getTime() + (end.getTime() - start.getTime()))
 
     return {
       id: `assignment-group-${key}`,
       title: first.taskName,
       description: first.projectName,
-      start,
-      end,
+      start: displayStart,
+      end: displayEnd,
       allDay: isAllDay,
       color: first.projectColor,
       meta: {
@@ -68,6 +87,8 @@ export function buildCalendarEvents(
         assigneeName: first.userName,
         commentCount: first.commentCount,
         recurrence: first.recurrence,
+        timeZone: first.timeZone,
+        startTime: first.startTime,
         startDateIso: start.toISOString(),
         endDateIso: first.endDate?.toISOString() ?? null,
         assignees: group.map((assignment) => ({

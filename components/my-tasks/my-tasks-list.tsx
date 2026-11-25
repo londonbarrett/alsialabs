@@ -23,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { isTaskOverdue } from "@/lib/util/tasks"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useState } from "react"
@@ -183,11 +182,9 @@ export function MyTasksList({
                       <TableCell>
                         <DueDate
                           date={assignment.endDate}
-                          allDay={assignment.allDay}
-                          overdue={isTaskOverdue(
-                            assignment.status,
-                            assignment.endDate
-                          )}
+                          timeZone={assignment.timeZone}
+                          startTime={assignment.startTime}
+                          overdue={assignment.overdue}
                           overdueLabel={t("common.overdue")}
                         />
                       </TableCell>

@@ -29,8 +29,8 @@ import { TaskStatusSelect, taskStatusColors } from "./task-status-select"
 interface TaskOpenAssignmentRowsProps {
   taskId: string
   assignments: TaskAssignmentDTO[]
-  /** The task's all-day flag — an all-day row shows only its date. */
-  allDay: boolean
+  /** Project zone every occurrence in this task is displayed in. */
+  timeZone: string
   onStatusChange: (
     taskId: string,
     assignmentId: string,
@@ -41,7 +41,7 @@ interface TaskOpenAssignmentRowsProps {
 export function TaskOpenAssignmentRows({
   taskId,
   assignments,
-  allDay,
+  timeZone,
   onStatusChange,
 }: TaskOpenAssignmentRowsProps) {
   const t = useTranslations()
@@ -79,7 +79,12 @@ export function TaskOpenAssignmentRows({
     // A row is one occurrence: show its due date, with time only for timed
     // work, never a start–end range or the task's all-day header date.
     const occurrence = assignment.endDate
-      ? formatAssignmentDueDate(assignment.endDate, locale, allDay)
+      ? formatAssignmentDueDate(
+          assignment.endDate,
+          locale,
+          timeZone,
+          assignment.startTime
+        )
       : "—"
 
     return (
@@ -112,7 +117,9 @@ export function TaskOpenAssignmentRows({
             </span>
           </span>
         </TableCell>
-        <TableCell>{occurrence}</TableCell>
+        <TableCell>
+          <span>{occurrence}</span>
+        </TableCell>
         <TableCell>
           {allowed ? (
             <TaskStatusSelect

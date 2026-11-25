@@ -2,7 +2,12 @@ import { type ProjectStatus as ProjectStatusType } from "@/lib/drizzle/schema"
 import { z } from "zod"
 import { PROJECT_COLORS } from "@/components/projects/colors"
 import { CategoryOptionSchema } from "@/actions/legacy/schemas/category"
-import { PROJECT_COUNTRIES } from "@/lib/projects/location"
+import {
+  PROJECT_COUNTRIES,
+  defaultTimeZoneForCountry,
+  isSupportedTimeZone,
+  type ProjectCountry,
+} from "@/lib/projects/location"
 
 export const ProjectMemberRoleSchema = z.enum([
   "owner",
@@ -59,7 +64,7 @@ export type ProjectPrimaryOwnerDTO = z.infer<
   typeof ProjectPrimaryOwnerSchema
 >
 
-export const ProjectSchema = z.object({
+const ProjectFieldsSchema = z.object({
   name: z
     .string()
     .min(1, { message: "Name is required" })
@@ -81,17 +86,47 @@ export const ProjectSchema = z.object({
     .min(1, { message: "Location is required" })
     .transform((v) => v.trim()),
   country: z.enum(PROJECT_COUNTRIES),
+  timeZone: z.string().optional(),
   budget: z.string().optional().default(""),
   color: z.enum(PROJECT_COLORS, {
     message: "Color is required",
   }),
 })
 
+/** A country only suggests a zone; an explicit choice always wins. */
+function resolveTimeZone<
+  T extends { country: ProjectCountry; timeZone?: string },
+>(values: T) {
+  return {
+    ...values,
+    timeZone: values.timeZone ?? defaultTimeZoneForCountry(values.country),
+  }
+}
+
+function refineTimeZone(
+  value: { timeZone: string },
+  ctx: z.RefinementCtx
+) {
+  if (!isSupportedTimeZone(value.timeZone)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["timeZone"],
+      message: "Unsupported time zone",
+    })
+  }
+}
+
+export const ProjectSchema = ProjectFieldsSchema.transform(
+  resolveTimeZone
+).superRefine(refineTimeZone)
+
 export const CreateProjectSchema = ProjectSchema
 
-export const UpdateProjectSchema = ProjectSchema.extend({
+export const UpdateProjectSchema = ProjectFieldsSchema.extend({
   projectId: z.uuid(),
 })
+  .transform(resolveTimeZone)
+  .superRefine(refineTimeZone)
 
 export const ProjectAccessResultSchema = z.object({
   hasAccess: z.boolean(),
@@ -126,6 +161,7 @@ export const ProjectRecordSchema = z.object({
   endDate: z.string().nullable(),
   location: z.string().nullable(),
   country: z.enum(PROJECT_COUNTRIES),
+  timeZone: z.string(),
   budget: z.string().nullable(),
   color: z.string(),
   createdAt: z.date(),
@@ -166,6 +202,7 @@ export const ProjectSummarySchema = z.object({
   endDate: z.string(),
   location: z.string().nullable(),
   country: z.enum(PROJECT_COUNTRIES),
+  timeZone: z.string(),
   budget: z.number(),
   expenses: z.number(),
   tasksTotal: z.number(),

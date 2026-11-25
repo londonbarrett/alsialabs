@@ -1,3 +1,5 @@
+import { addZonedDays, atZonedTime, startOfZonedDay } from "@/lib/time/zone"
+
 export type RoutineRecurrence = "daily" | "weekly"
 
 export interface ScheduleConfig {
@@ -78,14 +80,6 @@ export function startOfWeek(date: Date): Date {
   )
 }
 
-function addDays(date: Date, days: number): Date {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate() + days
-  )
-}
-
 function applyTime(date: Date, time: string | null): Date {
   if (!time) return date
   const [hours, minutes] = time.split(":").map(Number)
@@ -100,6 +94,11 @@ function applyTime(date: Date, time: string | null): Date {
 
 function weekdayOffset(jsDay: number): number {
   return jsDay === 0 ? 6 : jsDay - 1
+}
+
+/** The instant a zoned wall-clock value resolves to, in the `Date` shape callers use. */
+function toDate(zoned: Temporal.ZonedDateTime): Date {
+  return new Date(zoned.epochMilliseconds)
 }
 
 export interface RoutineWindow {
@@ -117,27 +116,33 @@ export interface RoutineWindow {
 export function computeScheduledFor(
   from: Date,
   schedule: ScheduleConfig,
+  timeZone: string,
   options?: { inclusive?: boolean }
 ): Date | null {
   if (!schedule.time) return null
-  const after = (candidate: number): boolean =>
-    options?.inclusive
-      ? candidate >= from.getTime()
-      : candidate > from.getTime()
+
+  const fromMs = from.getTime()
+  // Temporal keeps the wall-clock fields while `addZonedDays` crosses DST
+  // boundaries; only the final instant is handed back to `Date` callers.
+  const fromZoned = Temporal.Instant.fromEpochMilliseconds(fromMs)
+    .toZonedDateTimeISO(timeZone)
+  const anchor = startOfZonedDay(from, timeZone)
+  const after = (candidate: Temporal.ZonedDateTime): boolean => {
+    const ms = candidate.epochMilliseconds
+    return options?.inclusive ? ms >= fromMs : ms > fromMs
+  }
 
   switch (schedule.recurrence) {
     case "daily": {
-      const anchor = startOfDay(from)
       for (let k = 0; k <= schedule.interval; k++) {
-        const candidate = applyTime(
-          addDays(anchor, k * schedule.interval),
+        const candidate = atZonedTime(
+          addZonedDays(anchor, k * schedule.interval),
           schedule.time
         )
-        if (after(candidate.getTime())) return candidate
+        if (after(candidate)) return toDate(candidate)
       }
-      return applyTime(
-        addDays(anchor, schedule.interval),
-        schedule.time
+      return toDate(
+        atZonedTime(addZonedDays(anchor, schedule.interval), schedule.time)
       )
     }
 
@@ -146,29 +151,29 @@ export function computeScheduledFor(
         schedule.daysOfWeek.length > 0
           ? [...new Set(schedule.daysOfWeek)]
               .map((d) => WEEKDAY_TO_JS[d])
-              .filter((d) => d !== undefined)
+              .filter((d): d is number => d !== undefined)
               .sort((a, b) => a - b)
-          : [from.getDay()]
-      const monday = startOfWeek(from)
-      let best: Date | null = null
+          : [fromZoned.dayOfWeek % 7]
+      const monday = addZonedDays(anchor, -(fromZoned.dayOfWeek - 1))
+      let best: Temporal.ZonedDateTime | null = null
       for (let k = 0; k <= schedule.interval; k++) {
         if (k % schedule.interval !== 0) continue
         for (const jsDay of days) {
-          const candidate = applyTime(
-            addDays(monday, k * 7 + weekdayOffset(jsDay)),
+          const candidate = atZonedTime(
+            addZonedDays(monday, k * 7 + weekdayOffset(jsDay)),
             schedule.time
           )
-          if (after(candidate.getTime())) {
-            if (!best || candidate.getTime() < best.getTime()) {
-              best = candidate
-            }
+          if (
+            after(candidate) &&
+            (!best || candidate.epochMilliseconds < best.epochMilliseconds)
+          ) {
+            best = candidate
           }
         }
       }
-      if (best) return best
-      return applyTime(
-        addDays(from, schedule.interval * 7),
-        schedule.time
+      if (best) return toDate(best)
+      return toDate(
+        atZonedTime(addZonedDays(anchor, schedule.interval * 7), schedule.time)
       )
     }
 

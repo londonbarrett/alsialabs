@@ -1,7 +1,10 @@
 import type { MyAssignmentDTO, TaskAssignmentDTO } from "@/actions/tasks/schemas"
 import type { TaskCommentWithAuthorDTO } from "@/actions/tasks/schemas"
 import { describe, expect, it } from "vitest"
-import type { MyTasksState } from "./my-tasks-reducer"
+import {
+  myTasksReducer,
+  type MyTasksState,
+} from "./my-tasks-reducer"
 import { createMyTasksStore } from "./my-tasks-store"
 
 function makeAssignment(
@@ -23,9 +26,11 @@ function makeAssignment(
     cost: "0",
     startDate: null,
     endDate: null,
-    allDay: false,
+    timeZone: "America/Bogota",
+    startTime: "09:00",
     recurrence: null,
     commentCount: 0,
+    overdue: false,
     ...overrides,
   }
 }
@@ -45,6 +50,8 @@ function makeNextAssignment(
     cost: "0",
     startDate: new Date("2026-11-06T09:00:00"),
     endDate: new Date("2026-11-06T11:00:00"),
+    timeZone: "America/Bogota",
+    startTime: "09:00",
     ...overrides,
   }
 }
@@ -307,5 +314,34 @@ describe("myTasksReducer state shape", () => {
       "assignments",
       "commentsByTask",
     ])
+  })
+})
+
+describe("myTasksReducer insertNextAssignment", () => {
+  it("does not copy the completed row's overdue flag to a future occurrence", () => {
+    const source = makeAssignment({
+      assignmentId: "a",
+      status: "done",
+      overdue: true,
+    })
+    const initial: MyTasksState = {
+      assignments: [makeAssignment({ assignmentId: "b" })],
+      commentsByTask: {},
+    }
+
+    const state = myTasksReducer(initial, {
+      type: "insertNextAssignment",
+      source,
+      assignment: makeNextAssignment({
+        id: "future",
+        startDate: new Date("2099-01-01T09:00:00"),
+        endDate: new Date("2099-01-01T11:00:00"),
+        status: "todo",
+      }),
+    })
+
+    expect(source.overdue).toBe(true)
+    expect(state.assignments[0].assignmentId).toBe("future")
+    expect(state.assignments[0].overdue).toBe(false)
   })
 })

@@ -1,9 +1,9 @@
 import type { Task } from "@/lib/drizzle/schema"
 import {
-  computeScheduledFor,
-  startOfDay,
-  type ScheduleConfig,
-} from "@/lib/util/schedule"
+  addZonedDays,
+  startOfZonedDay,
+} from "@/lib/time/zone"
+import { computeScheduledFor, type ScheduleConfig } from "@/lib/util/schedule"
 
 type RecurringTask = Pick<
   Task,
@@ -26,17 +26,23 @@ type RecurringTask = Pick<
  */
 export function firstOccurrenceAnchor(
   task: Pick<Task, "startDate" | "startTime">,
+  timeZone: string,
   now: Date = new Date()
 ): { anchor: Date; inclusive: boolean } {
   const start = task.startDate
   if (!task.startTime) {
-    // An all-day slot is a whole calendar day: compare at day precision and
-    // keep the anchor itself (strict "after" would push it to tomorrow).
-    const today = startOfDay(now)
-    const firstDay = start ? startOfDay(start) : null
+    // An all-day slot is a whole calendar day: compare at project-zone day
+    // precision and keep the anchor itself (strict "after" would push it to
+    // tomorrow). A stored midnight carries the project's offset, so normalise
+    // both sides to that zone's midnight before comparing instants.
+    const todayMs = startOfZonedDay(now, timeZone).epochMilliseconds
+    const firstMs = start
+      ? startOfZonedDay(start, timeZone).epochMilliseconds
+      : null
     return {
-      anchor:
-        firstDay && firstDay.getTime() > today.getTime() ? firstDay : today,
+      anchor: new Date(
+        firstMs !== null && firstMs > todayMs ? firstMs : todayMs
+      ),
       inclusive: true,
     }
   }
@@ -62,6 +68,7 @@ export function firstOccurrenceAnchor(
 export function computeNextOccurrence(
   task: RecurringTask,
   after: Date,
+  timeZone: string,
   options?: { inclusive?: boolean }
 ): Date | null {
   if (!task.recurrence) return null
@@ -73,24 +80,34 @@ export function computeNextOccurrence(
     time: task.startTime ?? "00:00",
   }
 
-  let next = computeScheduledFor(after, schedule, options)
+  let next = computeScheduledFor(after, schedule, timeZone, options)
   if (!next) return null
 
   if (task.startDate) {
-    const firstDay = startOfDay(task.startDate)
-    if (next.getTime() < firstDay.getTime()) {
-      const anchored = computeScheduledFor(firstDay, schedule, {
-        inclusive: true,
-      })
+    const firstDayMs = startOfZonedDay(
+      task.startDate,
+      timeZone
+    ).epochMilliseconds
+    if (next.getTime() < firstDayMs) {
+      const anchored = computeScheduledFor(
+        new Date(firstDayMs),
+        schedule,
+        timeZone,
+        { inclusive: true }
+      )
       if (!anchored) return null
       next = anchored
     }
   }
 
   if (task.endDate) {
-    const lastDay = startOfDay(task.endDate)
-    lastDay.setHours(23, 59, 59, 999)
-    if (next.getTime() > lastDay.getTime()) return null
+    // Inclusive through the whole project-zone end day: compare against the
+    // following day's midnight so no host-local end-of-day arithmetic leaks in.
+    const dayAfterEndMs = addZonedDays(
+      startOfZonedDay(task.endDate, timeZone),
+      1
+    ).epochMilliseconds
+    if (next.getTime() >= dayAfterEndMs) return null
   }
 
   return next

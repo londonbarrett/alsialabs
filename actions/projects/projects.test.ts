@@ -22,7 +22,9 @@ vi.mock("next/cache", () => ({
 
 const state = vi.hoisted(() => ({
   mock: null as unknown as {
+    calls: { sql: string; params: unknown[]; timestamp: number }[]
     resetMocks(): void
+    resetCalls(): void
     onSelect(table: unknown): {
       respond(data: unknown): unknown
       respondWith(
@@ -55,6 +57,7 @@ vi.mock("@/lib/drizzle/client", async () => {
 })
 
 import * as schema from "@/lib/drizzle/schema"
+import { db } from "@/lib/drizzle/client"
 import {
   auth,
   hasPermission,
@@ -99,6 +102,7 @@ function makeProjectRow(overrides: Record<string, unknown> = {}) {
     endDate: null,
     location: "Test Location",
     country: "CO",
+    timeZone: "America/Bogota",
     budget: null,
     color: "#3b82f6",
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -118,6 +122,7 @@ describe("projects actions", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     state.mock.resetMocks()
+    state.mock.resetCalls()
     mockAuth.mockResolvedValue({
       user: { id: "user-1", role: "user", name: "Test" },
       expires: new Date(Date.now() + 86400000).toISOString(),
@@ -303,6 +308,120 @@ describe("projects actions", () => {
     })
   })
 
+  describe("time zone", () => {
+    const zoneInput = {
+      name: "New Project",
+      categoryId: CATEGORY_ID,
+      status: "active" as const,
+      description: "",
+      startDate: "2026-08-01",
+      endDate: "",
+      location: "Test Location",
+      country: "CO" as const,
+      budget: "",
+      color: "#3b82f6" as const,
+    }
+
+    it("stores the country's default zone when none is supplied", async () => {
+      let insertParams: unknown[] = []
+      state.mock
+        .onInsert(schema.projectsTable)
+        .respondWith((_sql, params) => {
+          insertParams = params
+          return [makeProjectRow({ timeZone: "America/Bogota" })]
+        })
+
+      const result = await createProject(zoneInput)
+
+      expect(result.serverError).toBeUndefined()
+      expect(insertParams).toContain("America/Bogota")
+      expect(result.data?.timeZone).toBe("America/Bogota")
+    })
+
+    it("stores an explicitly chosen supported zone", async () => {
+      let insertParams: unknown[] = []
+      state.mock
+        .onInsert(schema.projectsTable)
+        .respondWith((_sql, params) => {
+          insertParams = params
+          return [makeProjectRow({ timeZone: "America/Mexico_City" })]
+        })
+
+      const result = await createProject({
+        ...zoneInput,
+        timeZone: "America/Mexico_City",
+      })
+
+      expect(result.serverError).toBeUndefined()
+      expect(insertParams).toContain("America/Mexico_City")
+      expect(result.data?.timeZone).toBe("America/Mexico_City")
+    })
+
+    it("rejects an unsupported zone", async () => {
+      const result = await createProject({
+        ...zoneInput,
+        timeZone: "Mars/Olympus",
+      })
+
+      expect(result.validationErrors).toBeDefined()
+    })
+
+    it("leaves task and assignment timestamps untouched when only the zone changes", async () => {
+      const taskInstant = new Date("2026-08-01T09:00:00.000Z")
+      const assignmentInstant = new Date("2026-08-02T15:30:00.000Z")
+      state.mock
+        .onSelect(schema.tasksTable)
+        .respond([{ startDate: taskInstant }])
+      state.mock
+        .onSelect(schema.taskAssignmentsTable)
+        .respond([{ startDate: assignmentInstant }])
+
+      const readTimestamps = async () => {
+        const [task] = await db
+          .select({ startDate: schema.tasksTable.startDate })
+          .from(schema.tasksTable)
+        const [assignment] = await db
+          .select({ startDate: schema.taskAssignmentsTable.startDate })
+          .from(schema.taskAssignmentsTable)
+        return { task: task?.startDate, assignment: assignment?.startDate }
+      }
+
+      const before = await readTimestamps()
+      expect(before.task).toEqual(taskInstant)
+
+      let projectUpdateSql = ""
+      state.mock
+        .onUpdate(schema.projectsTable)
+        .respondWith((sql) => {
+          projectUpdateSql = sql
+          return [makeProjectRow({ timeZone: "America/Mexico_City" })]
+        })
+
+      const result = await updateProject({
+        ...zoneInput,
+        projectId: PROJECT_ID,
+        timeZone: "America/Mexico_City",
+      })
+
+      const after = await readTimestamps()
+      const updateCalls = state.mock.calls.filter((call) =>
+        call.sql.startsWith("update")
+      )
+
+      expect(result.serverError).toBeUndefined()
+      const setClause = projectUpdateSql.slice(
+        0,
+        projectUpdateSql.indexOf(" where ")
+      )
+      expect(setClause).toContain('"time_zone" = ')
+      // Only the project row is touched: no task, assignment, comment or
+      // expense timestamp is rewritten when the zone changes.
+      expect(updateCalls).toHaveLength(1)
+      expect(updateCalls[0]?.sql).toContain('update "project"')
+      expect(after).toEqual(before)
+    })
+  })
+
   describe("getProjects", () => {
     it("returns projects without checking the projects:view permission", async () => {
       mockIsSuperUser.mockReturnValue(false)
@@ -317,6 +436,7 @@ describe("projects actions", () => {
         endDate: null,
         location: "Test Location",
         country: "CO",
+        timeZone: "America/Bogota",
         budget: null,
         color: "#3b82f6",
         createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -384,6 +504,7 @@ describe("projects actions", () => {
         endDate: null,
         location: "Test Location",
         country: "CO",
+        timeZone: "America/Bogota",
         budget: null,
         color: "#3b82f6",
         createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -442,6 +563,7 @@ describe("projects actions", () => {
         endDate: null,
         location: "Test Location",
         country: "AR",
+        timeZone: "America/Bogota",
         budget: null,
         color: "#3b82f6",
         createdAt: new Date("2026-08-01T00:00:00.000Z"),

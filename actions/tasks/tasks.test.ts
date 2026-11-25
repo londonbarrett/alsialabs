@@ -65,6 +65,7 @@ import {
   createTask,
   deleteComment,
   deleteTask,
+  getMyTasks,
   getTaskAssignmentHistory,
   getTaskComments,
   getTasks,
@@ -81,6 +82,7 @@ const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockResolveAccess = vi.mocked(resolveProjectAccess)
 
 const PROJECT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+const OTHER_PROJECT_ID = "e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const TASK_ID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const ASSIGNMENT_ID = "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 const USER_ID = "user-1"
@@ -134,6 +136,7 @@ function makeAssignmentRow(overrides: Record<string, unknown> = {}) {
     cost: "0",
     startDate: new Date("2026-10-30T09:00:00"),
     endDate: new Date("2026-10-30T11:00:00"),
+    startTime: null,
     userName: "Ada",
     userEmail: "ada@test.local",
     userImage: null,
@@ -147,8 +150,8 @@ const validTask = {
   description: "",
   priority: null,
   assigneeIds: [] as string[],
-  startDate: "2026-10-30T09:00:00",
-  endDate: "2026-10-30T11:00:00",
+  startDate: "2026-10-30",
+  endDate: "2026-10-30",
   recurrence: null,
   interval: 1,
   daysOfWeek: [] as string[],
@@ -165,6 +168,11 @@ function rosterIs(...userIds: string[]) {
 beforeEach(() => {
   vi.clearAllMocks()
   state.mock.resetMocks()
+  // Every project-scoped read now resolves the project's zone; tests that
+  // need a different one register a later responder.
+  state.mock.onSelect(schema.projectsTable).respond([
+    { id: PROJECT_ID, timeZone: "America/Bogota", primaryOwnerId: USER_ID },
+  ])
   state.mock.onSelect(schema.taskAssigneesTable).respond([])
   state.mock.onInsert(schema.taskAssigneesTable).respond([])
   state.mock.onDelete(schema.taskAssigneesTable).respond([])
@@ -187,7 +195,7 @@ describe("input validation", () => {
   it("applies the task window refinements to createTask input", async () => {
     const result = await createTask({
       ...validTask,
-      endDate: "2026-10-29T11:00:00",
+      endDate: "2026-10-29",
     })
 
     expect(result.validationErrors).toBeDefined()
@@ -359,6 +367,60 @@ describe("getTasks", () => {
     const result = await getTasks({ projectId: PROJECT_ID })
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
   })
+
+  it("computes overdue from the first open assignment in the project zone", async () => {
+    // Midnight 2026-11-25 in Bogotá — how an all-day deadline is stored.
+    const due = new Date("2026-11-25T05:00:00.000Z")
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({ startDate: due, endDate: due, startTime: null }),
+    ])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([
+        makeAssignmentRow({
+          status: "todo",
+          startDate: due,
+          endDate: due,
+          startTime: null,
+        }),
+      ])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    vi.useFakeTimers({ toFake: ["Date"] })
+    try {
+      // 08:00 on the due day in Bogotá: still due today.
+      vi.setSystemTime(new Date("2026-11-25T13:00:00Z"))
+      const onDueDay = await getTasks({ projectId: PROJECT_ID })
+      expect(onDueDay.data?.[0]?.overdue).toBe(false)
+
+      // Midnight the next day in Bogotá: the window has closed.
+      vi.setSystemTime(new Date("2026-11-26T05:00:00Z"))
+      const nextDay = await getTasks({ projectId: PROJECT_ID })
+      expect(nextDay.data?.[0]?.overdue).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("leaves a task with no open assignment not overdue", async () => {
+    state.mock.onSelect(schema.tasksTable).respond([
+      makeTaskRow({
+        endDate: new Date("2020-01-01T16:00:00.000Z"),
+        startTime: "09:00",
+      }),
+    ])
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeAssignmentRow({ status: "done" })])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+
+    const result = await getTasks({ projectId: PROJECT_ID })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.[0]?.overdue).toBe(false)
+  })
 })
 
 describe("createTask", () => {
@@ -397,7 +459,7 @@ describe("createTask", () => {
   it("inserts one membership row per unique assignee before their assignments", async () => {
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: USER_ID }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
     state.mock
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: OTHER_ID }])
@@ -437,7 +499,7 @@ describe("createTask", () => {
   it("copies the task's default cost onto assignments created with the task", async () => {
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: USER_ID }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
     state.mock
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
@@ -466,10 +528,45 @@ describe("createTask", () => {
     expect(inserts[0].params).toContain("120")
   })
 
+  it("creates a past-ended repeating task with assignees using the task window", async () => {
+    // A past window is legitimate historical work: the no-slot guard must not
+    // turn it into an error or an assignment with null dates.
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: USER_ID }])
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+    state.mock.onInsert(schema.tasksTable).respond([makeTaskRow()])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "new-assignment" }])
+    const before = state.mock.calls.length
+
+    const result = await createTask({
+      ...validTask,
+      recurrence: "daily",
+      daysOfWeek: [],
+      startTime: "09:00",
+      endTime: "11:00",
+      assigneeIds: [USER_ID],
+    })
+
+    expect(result.serverError).toBeUndefined()
+    const inserts = state.mock.calls
+      .slice(before)
+      .filter((c) => c.sql.includes('insert into "task_assignment"'))
+    expect(inserts).toHaveLength(1)
+    // 09:00/11:00 in Bogotá on 30 Oct are 14:00Z/16:00Z — real dates, not null.
+    // The mocked driver serialises instants to ISO strings.
+    expect(inserts[0].params).toContain("2026-10-30T14:00:00.000Z")
+    expect(inserts[0].params).toContain("2026-10-30T16:00:00.000Z")
+  })
+
   it("rejects an assignee outside the project", async () => {
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: "owner-1" }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:"owner-1" }])
     state.mock.onSelect(schema.projectMembershipTable).respond([])
 
     const result = await createTask({
@@ -491,7 +588,7 @@ describe("updateTask", () => {
   it("diffs against membership and closes only the removed member's open row", async () => {
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: USER_ID }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
     state.mock
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: "user-3" }])
@@ -541,7 +638,7 @@ describe("updateTask", () => {
   it("closes removed rows with the requested disposition", async () => {
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: USER_ID }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
     state.mock
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
@@ -575,7 +672,7 @@ describe("updateTask", () => {
   it("groups removals by disposition, one update per group", async () => {
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: USER_ID }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
     state.mock
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
@@ -622,7 +719,7 @@ describe("updateTask", () => {
   it("closes removed rows as cancelled when no disposition is sent", async () => {
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: USER_ID }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
     state.mock
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
@@ -654,7 +751,7 @@ describe("updateTask", () => {
   it("performs no insert when only removing", async () => {
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: USER_ID }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
     state.mock
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
@@ -688,7 +785,7 @@ describe("updateTask", () => {
   it("collapses duplicate assignee ids into a single insert", async () => {
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: USER_ID }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
     state.mock
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }])
@@ -717,14 +814,16 @@ describe("updateTask", () => {
   })
 
   describe("membership sync", () => {
-    const FUTURE_END = "2099-01-01T00:00:00"
+    const FUTURE_END = "2099-01-01"
     const futureRepeating = (overrides: Record<string, unknown> = {}) =>
       makeTaskRow({
         recurrence: "daily",
         startTime: "09:00",
         endTime: "11:00",
         startDate: new Date("2026-10-30T09:00:00"),
-        endDate: new Date(FUTURE_END),
+        // The form's 2099-01-01 + 11:00 resolves to this instant in Bogotá;
+        // keeping it identical avoids a spurious due-date-change spawn.
+        endDate: new Date("2099-01-01T16:00:00.000Z"),
         ...overrides,
       })
     const repeatingInput = (endDate = FUTURE_END) => ({
@@ -741,7 +840,7 @@ describe("updateTask", () => {
       callsBefore = state.mock.calls.length
       state.mock
         .onSelect(schema.projectsTable)
-        .respond([{ primaryOwnerId: USER_ID }])
+        .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
       state.mock
         .onSelect(schema.projectMembershipTable)
         .respond([{ userId: USER_ID }, { userId: OTHER_ID }])
@@ -817,10 +916,10 @@ describe("updateTask", () => {
           )
 
         const result = await updateTask({
-          ...repeatingInput(allDayDate(27).toISOString()),
+          ...repeatingInput("2026-11-27"),
           startTime: "",
           endTime: "",
-          startDate: allDayDate(25).toISOString(),
+          startDate: "2026-11-25",
           assigneeIds: [OTHER_ID],
         })
 
@@ -851,8 +950,8 @@ describe("updateTask", () => {
         )
 
       const result = await updateTask({
-        ...repeatingInput("2020-01-01T00:00:00"),
-        startDate: "2019-01-01T00:00:00",
+        ...repeatingInput("2020-01-01"),
+        startDate: "2019-01-01",
         assigneeIds: [OTHER_ID],
       })
 
@@ -982,7 +1081,7 @@ describe("updateTask", () => {
     function dateEditFixtures(previous: Record<string, unknown>) {
       state.mock
         .onSelect(schema.projectsTable)
-        .respond([{ primaryOwnerId: USER_ID }])
+        .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
       state.mock
         .onSelect(schema.projectMembershipTable)
         .respond([{ userId: USER_ID }])
@@ -1020,8 +1119,8 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "09:00",
         endTime: "11:00",
-        startDate: "2026-11-16T09:00:00",
-        endDate: "2099-01-01T00:00:00",
+        startDate: "2026-11-16",
+        endDate: "2099-01-01",
       })
 
       expect(result.serverError).toBeUndefined()
@@ -1062,8 +1161,8 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "09:00",
         endTime: "11:00",
-        startDate: "2026-11-16T09:00:00",
-        endDate: "2099-01-01T00:00:00",
+        startDate: "2026-11-16",
+        endDate: "2099-01-01",
       })
 
       expect(result.serverError).toBeUndefined()
@@ -1092,8 +1191,8 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "09:00",
         endTime: "11:00",
-        startDate: "2026-11-25T09:00:00",
-        endDate: "2099-01-01T00:00:00",
+        startDate: "2026-11-25",
+        endDate: "2099-01-01",
       })
 
       expect(result.serverError).toBeUndefined()
@@ -1124,8 +1223,8 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "",
         endTime: "",
-        startDate: allDayDate(25).toISOString(),
-        endDate: "2099-01-01T00:00:00",
+        startDate: "2026-11-25",
+        endDate: "2099-01-01",
       })
 
       expect(result.serverError).toBeUndefined()
@@ -1136,28 +1235,30 @@ describe("updateTask", () => {
     })
 
     it("a plain save after unarchive never reopens work: the archived due date round-trips unchanged", async () => {
-      // Seconds and milliseconds on the clock: a raw-clock due date would not
-      // survive the form's minute-precision round trip.
       vi.setSystemTime(new Date("2026-11-20T08:00:11.456"))
-      const toFormValue = (date: Date) => {
-        const pad = (n: number) => `${n}`.padStart(2, "0")
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`
-      }
 
-      // Archive preserves the original due date and time — a timed task and
-      // an all-day task each keep what they had.
-      for (const original of [
-        new Date("2026-12-31T17:30:00"),
-        new Date("2026-12-31T00:00:00"),
+      // Archive preserves the original due date — a timed task keeps its
+      // wall-clock end time, an all-day task its project-zone midnight. Both
+      // resolve back to the same instant when the form is saved unchanged.
+      for (const task of [
+        {
+          startTime: "09:00",
+          endTime: "11:00",
+          endDate: new Date("2026-12-31T16:00:00.000Z"),
+        },
+        {
+          startTime: "",
+          endTime: "",
+          endDate: new Date("2026-12-31T05:00:00.000Z"),
+        },
       ]) {
-        const stored = original
         const baseline = state.mock.calls.length
         dateEditFixtures({
           recurrence: "daily",
-          startTime: "09:00",
-          endTime: "11:00",
+          startTime: task.startTime,
+          endTime: task.endTime,
           startDate: new Date("2026-11-02T09:00:00"),
-          endDate: stored,
+          endDate: task.endDate,
         })
         rosterIs(USER_ID)
         state.mock.onSelect(schema.taskAssignmentsTable).respond([])
@@ -1171,10 +1272,10 @@ describe("updateTask", () => {
           name: "Renamed",
           assigneeIds: [USER_ID],
           recurrence: "daily",
-          startTime: "09:00",
-          endTime: "11:00",
-          startDate: "2026-11-02T09:00:00",
-          endDate: toFormValue(stored),
+          startTime: task.startTime,
+          endTime: task.endTime,
+          startDate: "2026-11-02",
+          endDate: "2026-12-31",
         })
 
         expect(result.serverError).toBeUndefined()
@@ -1194,8 +1295,8 @@ describe("updateTask", () => {
         recurrence: "daily" as const,
         startTime: "09:00",
         endTime: "11:00",
-        startDate: "2026-11-16T09:00:00",
-        endDate: "2099-01-01T00:00:00",
+        startDate: "2026-11-16",
+        endDate: "2099-01-01",
       }
       const cases: {
         name: string
@@ -1220,10 +1321,14 @@ describe("updateTask", () => {
         },
         {
           name: "an unchanged date",
-          previous: repeating,
+          previous: {
+            ...repeating,
+            // 11:00 on 2026-11-30 in Bogotá, the instant the form now submits.
+            endDate: new Date("2026-11-30T16:00:00.000Z"),
+          },
           input: {
             ...repeatingInput,
-            endDate: "2026-11-30T23:59:59",
+            endDate: "2026-11-30",
             assigneeIds: [USER_ID],
           },
           roster: [USER_ID],
@@ -1236,8 +1341,8 @@ describe("updateTask", () => {
             endDate: new Date("2026-11-30T23:59:59"),
           },
           input: {
-            startDate: "2026-11-16T09:00:00",
-            endDate: "2026-11-16T11:00:00",
+            startDate: "2026-11-16",
+            endDate: "2026-11-16",
             assigneeIds: [USER_ID],
           },
           roster: [USER_ID],
@@ -2372,7 +2477,7 @@ describe("archived tasks", () => {
     state.mock.onSelect(schema.taskAssigneesTable).respond([])
     state.mock
       .onSelect(schema.projectsTable)
-      .respond([{ primaryOwnerId: USER_ID }])
+      .respond([{ timeZone: "America/Bogota", primaryOwnerId:USER_ID }])
     state.mock
       .onSelect(schema.projectMembershipTable)
       .respond([{ userId: USER_ID }, { userId: OTHER_ID }])
@@ -2484,7 +2589,13 @@ describe("getTaskAssignmentHistory", () => {
     expect(result.data?.assignments).toHaveLength(10)
     expect(result.data?.hasMore).toBe(true)
     // ordering lives in SQL: the history select orders by created_at
-    expect(state.mock.calls.at(-1)?.sql).toContain("created_at")
+    expect(
+      state.mock.calls.find(
+        (c) =>
+          c.sql.includes('from "task_assignment_detail"') &&
+          c.sql.includes("order by")
+      )?.sql
+    ).toContain("created_at")
   })
 
   it("coerces view date strings and reports hasMore false when the page fits", async () => {
@@ -2521,6 +2632,7 @@ describe("getTaskAssignmentHistory", () => {
 
   it("constrains the history select to the requested project", async () => {
     grantAccess("owner")
+    const before = state.mock.calls.length
     state.mock.onSelect(schema.taskAssignmentDetailView).respond([
       makeAssignmentRow({ assignmentId: "h0", status: "done" }),
     ])
@@ -2530,7 +2642,9 @@ describe("getTaskAssignmentHistory", () => {
       limit: 10,
       offset: 0,
     })
-    const historyCall = state.mock.calls.at(-1)
+    const historyCall = state.mock.calls
+      .slice(before)
+      .find((c) => c.sql.includes('from "task_assignment_detail"'))
     const where = (historyCall?.sql ?? "").slice(
       (historyCall?.sql ?? "").indexOf("where")
     )
@@ -2581,7 +2695,10 @@ describe("spawnEligibleAssignments", () => {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
     expect(
-      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+      await queries.spawnEligibleAssignments(TASK_ID, {
+        anchor: ANCHOR,
+        timeZone: "America/Bogota",
+      })
     ).toEqual([])
     expect(inserts()).toHaveLength(0)
   })
@@ -2594,7 +2711,10 @@ describe("spawnEligibleAssignments", () => {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
     expect(
-      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+      await queries.spawnEligibleAssignments(TASK_ID, {
+        anchor: ANCHOR,
+        timeZone: "America/Bogota",
+      })
     ).toEqual([])
     expect(inserts()).toHaveLength(0)
   })
@@ -2603,7 +2723,10 @@ describe("spawnEligibleAssignments", () => {
     state.mock.onSelect(schema.tasksTable).respond([])
 
     expect(
-      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+      await queries.spawnEligibleAssignments(TASK_ID, {
+        anchor: ANCHOR,
+        timeZone: "America/Bogota",
+      })
     ).toEqual([])
     expect(inserts()).toHaveLength(0)
   })
@@ -2613,7 +2736,10 @@ describe("spawnEligibleAssignments", () => {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
     expect(
-      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+      await queries.spawnEligibleAssignments(TASK_ID, {
+        anchor: ANCHOR,
+        timeZone: "America/Bogota",
+      })
     ).toEqual([])
 
     rosterOf(USER_ID)
@@ -2622,7 +2748,10 @@ describe("spawnEligibleAssignments", () => {
       .respond([{ id: ASSIGNMENT_ID, userId: USER_ID }])
 
     expect(
-      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+      await queries.spawnEligibleAssignments(TASK_ID, {
+        anchor: ANCHOR,
+        timeZone: "America/Bogota",
+      })
     ).toEqual([])
     expect(inserts()).toHaveLength(0)
   })
@@ -2635,7 +2764,10 @@ describe("spawnEligibleAssignments", () => {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
     expect(
-      await queries.spawnEligibleAssignments(TASK_ID, { anchor: ANCHOR })
+      await queries.spawnEligibleAssignments(TASK_ID, {
+        anchor: ANCHOR,
+        timeZone: "America/Bogota",
+      })
     ).toEqual([])
     expect(inserts()).toHaveLength(0)
   })
@@ -2659,6 +2791,7 @@ describe("spawnEligibleAssignments", () => {
 
     const ids = await queries.spawnEligibleAssignments(TASK_ID, {
       anchor: new Date("2026-11-23T22:00:00.000Z"),
+      timeZone: "America/Bogota",
     })
 
     expect(ids).toEqual(["spawned-1"])
@@ -2681,6 +2814,7 @@ describe("spawnEligibleAssignments", () => {
 
     const ids = await queries.spawnEligibleAssignments(TASK_ID, {
       anchor: ANCHOR,
+      timeZone: "America/Bogota",
     })
 
     expect(ids).toEqual(["spawned-1"])
@@ -2709,6 +2843,7 @@ describe("spawnEligibleAssignments", () => {
 
     const ids = await queries.spawnEligibleAssignments(TASK_ID, {
       anchor: ANCHOR,
+      timeZone: "America/Bogota",
     })
 
     expect(ids).toEqual(["spawned-owner"])
@@ -2742,6 +2877,7 @@ describe("spawnEligibleAssignments", () => {
 
     const ids = await queries.spawnEligibleAssignments(TASK_ID, {
       anchor: ANCHOR,
+      timeZone: "America/Bogota",
       closing: {
         userId: USER_ID,
         endDate: new Date("2026-11-16T10:00:00"),
@@ -2764,6 +2900,7 @@ describe("spawnEligibleAssignments", () => {
 
     const ids = await queries.spawnEligibleAssignments(TASK_ID, {
       anchor: ANCHOR,
+      timeZone: "America/Bogota",
       onlyUserIds: [USER_ID],
     })
 
@@ -2771,5 +2908,191 @@ describe("spawnEligibleAssignments", () => {
     expect(inserts()).toHaveLength(1)
     expect(inserts()[0].params).toContain(USER_ID)
     expect(inserts()[0].params).not.toContain(OTHER_ID)
+  })
+})
+
+describe("time zone", () => {
+  const instantMs = (value: unknown): number => {
+    if (value instanceof Date) return value.getTime()
+    if (typeof value === "string") return Date.parse(value)
+    return Number.NaN
+  }
+
+  function projectZone(timeZone: string) {
+    state.mock.onSelect(schema.projectsTable).respond([
+      { id: PROJECT_ID, timeZone, primaryOwnerId: USER_ID },
+    ])
+  }
+
+  function createRows() {
+    state.mock.onInsert(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([])
+    state.mock.onSelect(schema.taskAssignmentLatestView).respond([])
+    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+  }
+
+  function writtenInstants(since: number): number[] {
+    const insert = state.mock.calls
+      .slice(since)
+      .find((c) => c.sql.includes('insert into "task"'))
+    return insert ? insert.params.map(instantMs).filter((t) => !Number.isNaN(t)) : []
+  }
+
+  it("stores a 09:00 wall clock as 14:00Z in Bogotá and 08:00Z in Madrid", async () => {
+    const cases = [
+      { timeZone: "America/Bogota", expected: "2026-11-25T14:00:00.000Z" },
+      { timeZone: "Europe/Madrid", expected: "2026-11-25T08:00:00.000Z" },
+    ]
+
+    for (const { timeZone, expected } of cases) {
+      projectZone(timeZone)
+      createRows()
+      const before = state.mock.calls.length
+
+      const result = await createTask({
+        ...validTask,
+        startDate: "2026-11-25",
+        endDate: "2026-11-25",
+        startTime: "09:00",
+        endTime: "11:00",
+      })
+
+      expect(result.serverError, timeZone).toBeUndefined()
+      expect(writtenInstants(before), timeZone).toContain(
+        Date.parse(expected)
+      )
+    }
+  })
+
+  it("stores an all-day task at project-zone midnight when startTime is empty", async () => {
+    projectZone("America/Bogota")
+    createRows()
+    const before = state.mock.calls.length
+
+    const result = await createTask({
+      ...validTask,
+      startDate: "2026-11-25",
+      endDate: "2026-11-25",
+      startTime: "",
+      endTime: "",
+    })
+
+    expect(result.serverError).toBeUndefined()
+    expect(writtenInstants(before)).toContain(
+      Date.parse("2026-11-25T05:00:00.000Z")
+    )
+  })
+
+  it("falls back to the task window for a repeating schedule with no slot, never a null-dated assignment", async () => {
+    projectZone("America/Bogota")
+    createRows()
+    state.mock
+      .onSelect(schema.projectMembershipTable)
+      .respond([{ userId: USER_ID }])
+    // A Wednesday-only window with a Monday-only weekly schedule yields no
+    // occurrence inside the window: the assignee gets the task's own window
+    // instead of null dates (the original incident).
+    const repeating = {
+      recurrence: "weekly" as const,
+      daysOfWeek: ["monday"],
+      startTime: "09:00",
+      endTime: "13:00",
+      startDate: new Date("2026-11-25T14:00:00.000Z"),
+      endDate: new Date("2026-11-25T18:00:00.000Z"),
+    }
+    state.mock.onInsert(schema.tasksTable).respond([makeTaskRow(repeating)])
+    state.mock.onSelect(schema.tasksTable).respond([makeTaskRow(repeating)])
+    state.mock
+      .onSelect(schema.taskAssignmentLatestView)
+      .respond([makeAssignmentRow(repeating)])
+    state.mock
+      .onInsert(schema.taskAssignmentsTable)
+      .respond([{ id: "assignment-with-dates" }])
+    const before = state.mock.calls.length
+
+    const result = await createTask({
+      ...validTask,
+      assigneeIds: [USER_ID],
+      startDate: "2026-11-25",
+      endDate: "2026-11-25",
+      recurrence: "weekly",
+      daysOfWeek: ["monday"],
+      startTime: "09:00",
+      endTime: "13:00",
+    })
+
+    expect(result.validationErrors).toBeUndefined()
+    expect(result.serverError).toBeUndefined()
+    const inserts = state.mock.calls
+      .slice(before)
+      .filter((c) => c.sql.includes('insert into "task_assignment"'))
+    expect(inserts).toHaveLength(1)
+    // 09:00/13:00 in Bogotá are 14:00Z/18:00Z — both real instants, no nulls.
+    expect(inserts[0].params).toContain("2026-11-25T14:00:00.000Z")
+    expect(inserts[0].params).toContain("2026-11-25T18:00:00.000Z")
+    expect(inserts[0].params).not.toContain(null)
+  })
+
+  it("carries each row's own time zone and start time on MyAssignmentDTO", async () => {
+    const myRow = (overrides: Record<string, unknown>) => ({
+      assignmentId: ASSIGNMENT_ID,
+      taskId: TASK_ID,
+      userId: USER_ID,
+      projectId: PROJECT_ID,
+      name: "Task",
+      description: null,
+      priority: null,
+      status: "todo",
+      comment: null,
+      cost: "0",
+      startDate: new Date("2026-11-25T14:00:00.000Z"),
+      endDate: new Date("2026-11-25T16:00:00.000Z"),
+      recurrence: null,
+      startTime: "09:00",
+      ...overrides,
+    })
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
+      myRow({ assignmentId: "a1", taskId: "t1", projectId: PROJECT_ID }),
+      myRow({
+        assignmentId: "a2",
+        taskId: "t2",
+        projectId: OTHER_PROJECT_ID,
+        startTime: null,
+      }),
+    ])
+    state.mock.onSelect(schema.projectsTable).respond([
+      {
+        id: PROJECT_ID,
+        projectName: "Bogotá project",
+        projectColor: "#ffffff",
+        primaryOwnerId: USER_ID,
+        projectOwnerName: "Owner",
+        memberRole: "owner",
+        timeZone: "America/Bogota",
+      },
+      {
+        id: OTHER_PROJECT_ID,
+        projectName: "Madrid project",
+        projectColor: "#000000",
+        primaryOwnerId: "someone-else",
+        projectOwnerName: "Other",
+        memberRole: "collaborator",
+        timeZone: "Europe/Madrid",
+      },
+    ])
+    state.mock.onSelect(schema.taskCommentsTable).respond([])
+
+    const result = await getMyTasks({ view: "active" })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.map((row) => row.timeZone)).toEqual([
+      "America/Bogota",
+      "Europe/Madrid",
+    ])
+    expect(result.data?.map((row) => row.startTime)).toEqual([
+      "09:00",
+      null,
+    ])
   })
 })

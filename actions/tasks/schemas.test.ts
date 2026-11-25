@@ -43,8 +43,10 @@ const base = {
 }
 
 const window = {
-  startDate: "2026-10-30T09:00:00",
-  endDate: "2026-10-30T11:00:00",
+  startDate: "2026-10-30",
+  endDate: "2026-10-30",
+  startTime: "09:00",
+  endTime: "11:00",
 }
 
 const validUpdate = {
@@ -64,8 +66,10 @@ describe("task window schema", () => {
   it("rejects a window crossing midnight", () => {
     const result = TaskFormSchema.safeParse({
       ...base,
-      startDate: "2026-10-30T23:00:00",
-      endDate: "2026-10-31T01:00:00",
+      startDate: "2026-10-30",
+      endDate: "2026-10-31",
+      startTime: "23:00",
+      endTime: "01:00",
     })
     expect(result.success).toBe(false)
   })
@@ -73,8 +77,10 @@ describe("task window schema", () => {
   it("rejects an end before the start", () => {
     const result = TaskFormSchema.safeParse({
       ...base,
-      startDate: "2026-10-30T11:00:00",
-      endDate: "2026-10-30T09:00:00",
+      startDate: "2026-10-30",
+      endDate: "2026-10-29",
+      startTime: "11:00",
+      endTime: "09:00",
     })
     expect(result.success).toBe(false)
   })
@@ -155,6 +161,8 @@ describe("assignment dates from the detail view", () => {
       comment: null,
       recurrence: null,
       commentCount: 0,
+      timeZone: "America/Bogota",
+      startTime: "09:00",
       ...rawDates,
     })
 
@@ -173,6 +181,8 @@ describe("assignment dates from the detail view", () => {
       status: "todo",
       comment: null,
       cost: "0",
+      timeZone: "America/Bogota",
+      startTime: "09:00",
       ...rawDates,
     })
 
@@ -187,6 +197,9 @@ describe("assignment dates from the detail view", () => {
       taskName: "Task",
       status: "todo",
       priority: null,
+      timeZone: "America/Bogota",
+      startTime: "09:00",
+      dateKey: "2026-10-30",
       projectId: "p1",
       projectName: "Project",
       projectColor: "#0f766e",
@@ -269,5 +282,105 @@ describe("archive and assignee roster schemas", () => {
     }).success).toBe(false)
     expect(UnarchiveTaskSchema.parse({ projectId: PROJECT_ID, taskId: TASK_ID }))
       .toEqual({ projectId: PROJECT_ID, taskId: TASK_ID })
+  })
+})
+
+describe("wall-clock form dates", () => {
+  const wallClock = {
+    startDate: "2026-11-25",
+    endDate: "2026-11-25",
+    startTime: "09:00",
+    endTime: "11:00",
+  }
+
+  it("accepts a YYYY-MM-DD window with explicit time strings", () => {
+    expect(TaskFormSchema.safeParse({ ...base, ...wallClock }).success).toBe(
+      true
+    )
+  })
+
+  it("rejects an ISO timestamp with a time component", () => {
+    expect(
+      TaskFormSchema.safeParse({
+        ...base,
+        startDate: "2026-11-25T09:00:00.000Z",
+        endDate: "2026-11-25T11:00:00.000Z",
+      }).success
+    ).toBe(false)
+  })
+
+  it("rejects a timed task with no endTime", () => {
+    const result = TaskFormSchema.safeParse({
+      ...base,
+      ...wallClock,
+      endTime: "",
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it("accepts an all-day task with empty time strings", () => {
+    expect(
+      TaskFormSchema.safeParse({
+        ...base,
+        startDate: "2026-11-25",
+        endDate: "2026-11-25",
+        startTime: "",
+        endTime: "",
+      }).success
+    ).toBe(true)
+  })
+})
+
+describe("time zone DTO fields", () => {
+  const assignment = {
+    id: "a1",
+    taskId: "t1",
+    userId: "u1",
+    userName: null,
+    userEmail: null,
+    userImage: null,
+    status: "todo",
+    comment: null,
+    cost: "0",
+    startDate: new Date("2026-11-25T14:00:00.000Z"),
+    endDate: new Date("2026-11-25T16:00:00.000Z"),
+    timeZone: "America/Bogota",
+    startTime: "09:00",
+  }
+
+  it("carries timeZone and startTime on TaskAssignmentSchema", () => {
+    expect(TaskAssignmentSchema.parse(assignment)).toMatchObject({
+      timeZone: "America/Bogota",
+      startTime: "09:00",
+    })
+  })
+
+  it("carries timeZone and startTime on MyAssignmentSchema, never allDay", () => {
+    const parsed = MyAssignmentSchema.parse({
+      assignmentId: "a1",
+      taskId: "t1",
+      projectId: "p1",
+      name: "Task",
+      description: null,
+      priority: null,
+      projectName: "Project",
+      projectColor: "#0f766e",
+      projectOwnerName: null,
+      role: "collaborator",
+      status: "todo",
+      comment: null,
+      cost: "0",
+      recurrence: null,
+      commentCount: 0,
+      startDate: assignment.startDate,
+      endDate: assignment.endDate,
+      timeZone: "Europe/Madrid",
+      startTime: null,
+    })
+    expect(parsed).toMatchObject({
+      timeZone: "Europe/Madrid",
+      startTime: null,
+    })
+    expect(parsed).not.toHaveProperty("allDay")
   })
 })

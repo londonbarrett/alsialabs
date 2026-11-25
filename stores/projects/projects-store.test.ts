@@ -25,6 +25,7 @@ function makeProject(
     endDate: "",
     location: "Medellin",
     country: "CO",
+    timeZone: "America/Bogota",
     budget: 1000,
     expenses: 250,
     tasksTotal: 4,

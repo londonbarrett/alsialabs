@@ -69,6 +69,21 @@ const EMPTY_TASKS_PROJECT = {
   id: "10000000-0000-4000-8000-000000000006",
 } as const
 
+/**
+ * A Bogotá-owned project dedicated to the time-zone e2e check. Its deadline is
+ * an explicit UTC instant — 2026-12-25T02:00Z = 21:00 on 24 Dec in
+ * America/Bogota, but 11:00 on 25 Dec in Asia/Tokyo — so the same stored
+ * instant can be asserted under two different project zones.
+ */
+const ZONED_PROJECT = {
+  id: "10000000-0000-4000-8000-000000000007",
+  task: "10000000-0000-4000-8000-000000000008",
+  assignment: "10000000-0000-4000-8000-000000000009",
+  timeZone: "America/Bogota",
+  start: new Date("2026-12-25T01:00:00.000Z"),
+  end: new Date("2026-12-25T02:00:00.000Z"),
+} as const
+
 async function seedRolesProject(): Promise<void> {
   const seedUsers = await db
     .select({ id: usersTable.id, email: usersTable.email })
@@ -148,6 +163,7 @@ async function seedRolesProject(): Promise<void> {
     name: "E2E Roles Project",
     startDate: "2026-01-01",
     country: "CO",
+    timeZone: "America/Bogota",
     color: "#b45309",
   })
 
@@ -266,10 +282,94 @@ async function seedEmptyTasksProject(): Promise<void> {
     name: "E2E Empty Tasks Project",
     startDate: "2026-01-01",
     country: "CO",
+    timeZone: "America/Bogota",
     color: "#b45309",
   })
 
   console.log("E2E seed: empty tasks project fixture ready")
+}
+
+/** Recreated every run (delete-by-id) so the time-zone spec can edit this
+ *  project's zone without affecting any other spec. */
+async function seedZonedProject(): Promise<void> {
+  const [owner] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.email, "user1@test.local"))
+    .limit(1)
+  if (!owner) {
+    console.error("Missing seeded user user1@test.local")
+    process.exit(1)
+  }
+
+  const [category] = await db
+    .select({ id: categoryTable.id })
+    .from(categoryTable)
+    .innerJoin(taxonomyTable, eq(categoryTable.taxonomyId, taxonomyTable.id))
+    .where(eq(taxonomyTable.slug, "project"))
+    .limit(1)
+  if (!category) {
+    console.error("No project category seeded")
+    process.exit(1)
+  }
+
+  await db
+    .delete(taskAssigneesTable)
+    .where(eq(taskAssigneesTable.taskId, ZONED_PROJECT.task))
+  await db
+    .delete(taskAssignmentsTable)
+    .where(eq(taskAssignmentsTable.taskId, ZONED_PROJECT.task))
+  await db.delete(tasksTable).where(eq(tasksTable.projectId, ZONED_PROJECT.id))
+  await db
+    .delete(projectMembershipTable)
+    .where(eq(projectMembershipTable.projectId, ZONED_PROJECT.id))
+  await db.delete(projectsTable).where(eq(projectsTable.id, ZONED_PROJECT.id))
+
+  await db.insert(projectsTable).values({
+    id: ZONED_PROJECT.id,
+    primaryOwnerId: owner.id,
+    categoryId: category.id,
+    name: "E2E Time Zone Project",
+    startDate: "2026-01-01",
+    location: "Bogotá, Colombia",
+    country: "CO",
+    timeZone: ZONED_PROJECT.timeZone,
+    color: "#f97316", // a PROJECT_COLORS value so the edit form can resubmit it
+  })
+
+  await db.insert(projectMembershipTable).values({
+    projectId: ZONED_PROJECT.id,
+    userId: owner.id,
+    role: "admin",
+  })
+
+  // A late-evening Bogotá deadline: the same instant is already the next day
+  // in Tokyo, so a browser-local conversion would display 25 Dec / 11:00.
+  await db.insert(tasksTable).values({
+    id: ZONED_PROJECT.task,
+    projectId: ZONED_PROJECT.id,
+    name: "E2E zoned deadline",
+    startDate: ZONED_PROJECT.start,
+    endDate: ZONED_PROJECT.end,
+    startTime: "20:00",
+    endTime: "21:00",
+  })
+
+  await db.insert(taskAssigneesTable).values({
+    taskId: ZONED_PROJECT.task,
+    userId: owner.id,
+  })
+
+  await db.insert(taskAssignmentsTable).values({
+    id: ZONED_PROJECT.assignment,
+    taskId: ZONED_PROJECT.task,
+    userId: owner.id,
+    status: "todo",
+    startDate: ZONED_PROJECT.start,
+    endDate: ZONED_PROJECT.end,
+  })
+
+  console.log("E2E seed: time-zone project fixture ready")
 }
 
 async function seedE2E(): Promise<void> {
@@ -323,6 +423,7 @@ async function seedE2E(): Promise<void> {
 
   await seedRolesProject()
   await seedEmptyTasksProject()
+  await seedZonedProject()
 
   const [{ total }] = await db
     .select({ total: count() })

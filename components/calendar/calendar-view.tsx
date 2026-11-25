@@ -23,11 +23,14 @@ export function CalendarView({ labels }: CalendarViewProps) {
   >([])
   const [isFetching, setIsFetching] = useState(false)
   const [range, setRange] = useState(() => {
+    // Match the server's one-day buffer (resolveCalendarRange): events whose
+    // project-zone date differs from the host-zone date must not be filtered
+    // out before the first fetch lands.
     const from = new Date()
     from.setHours(0, 0, 0, 0)
-    from.setDate(from.getDate() - 90)
+    from.setDate(from.getDate() - 91)
     const to = new Date()
-    to.setDate(to.getDate() + 91)
+    to.setDate(to.getDate() + 92)
     to.setHours(23, 59, 59, 999)
     return { from, to }
   })

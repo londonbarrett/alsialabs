@@ -32,6 +32,7 @@ import {
   Calendar,
   CircleDollarSign,
   ClipboardList,
+  Clock,
   Crown,
   FileText,
   MapPin,
@@ -168,6 +169,15 @@ export function ProjectDetails() {
               <p className="text-sm font-medium">
                 {countryLabel(project.country, locale)}
               </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Clock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="mb-1 text-xs text-muted-foreground">
+                {t("common.timeZone")}
+              </p>
+              <p className="text-sm font-medium">{project.timeZone}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">

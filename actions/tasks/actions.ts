@@ -16,6 +16,7 @@ import {
 import { toTaskAssignmentDTO } from "@/lib/tasks/assignments"
 import { firstOccurrenceAnchor } from "@/lib/tasks/recurrence"
 import { costToNumber } from "@/lib/tasks/cost"
+import { wallClockToInstant } from "@/lib/time/zone"
 import { z } from "zod"
 import queries from "./queries"
 import {
@@ -49,6 +50,25 @@ import {
   assertTaskMutable,
   isUniqueViolation,
 } from "./util"
+
+/** Resolve a wall-clock day/time to an instant, never writing an invalid one. */
+function toInstant(
+  dateKey: string | null | undefined,
+  time: string | null | undefined,
+  timeZone: string,
+  fallbackNow = false
+): Date | null {
+  if (!dateKey) return fallbackNow ? new Date() : null
+  const instant = wallClockToInstant(dateKey, time || null, timeZone)
+  if (!instant) returnActionError("VALIDATION_FAILED")
+  return new Date(instant.epochMilliseconds)
+}
+
+async function loadTimeZone(projectId: string): Promise<string> {
+  const timeZone = await queries.getProjectTimeZone(projectId)
+  if (!timeZone) returnActionError("NOT_FOUND")
+  return timeZone
+}
 
 export const getTasks = projectAction(z.object({ projectId: z.uuid() }))
   .metadata({})
@@ -98,7 +118,23 @@ export const createTask = projectAction(CreateTaskSchema)
     const uniqueIds = [...new Set(parsedInput.assigneeIds)]
     await assertAssignees(parsedInput.projectId, uniqueIds)
 
-    const created = await queries.createTask(parsedInput, uniqueIds)
+    const timeZone = await loadTimeZone(parsedInput.projectId)
+    const startDate = toInstant(
+      parsedInput.startDate,
+      parsedInput.startTime,
+      timeZone,
+      Boolean(parsedInput.recurrence)
+    )
+    const endDate = toInstant(
+      parsedInput.endDate,
+      parsedInput.endTime,
+      timeZone
+    )
+    const created = await queries.createTask(
+      { ...parsedInput, startDate, endDate },
+      uniqueIds,
+      timeZone
+    )
     const loaded = await queries.getTaskWithAssignments(created.id)
     if (!loaded) returnActionError("NOT_FOUND")
 
@@ -109,6 +145,9 @@ export const createTask = projectAction(CreateTaskSchema)
       commentCount: 0,
       closedCount: loaded.closedCount,
       totalCost: loaded.totalCost,
+      // Server-side overdue is decided by the list fetch, not here; the
+      // optimistic row is replaced on the next refetch.
+      overdue: false,
     }
   })
 
@@ -128,13 +167,31 @@ export const updateTask = projectAction(UpdateTaskSchema)
 
     await assertAssignees(projectId, uniqueIds)
 
-    const row = await queries.updateTaskRow(parsedInput)
+    const timeZone = await loadTimeZone(projectId)
+    const startDate = toInstant(
+      parsedInput.startDate,
+      parsedInput.startTime,
+      timeZone,
+      Boolean(parsedInput.recurrence)
+    )
+    const endDate = toInstant(
+      parsedInput.endDate,
+      parsedInput.endTime,
+      timeZone
+    )
+
+    const row = await queries.updateTaskRow({
+      ...parsedInput,
+      startDate,
+      endDate,
+    })
     if (!row) returnActionError("NOT_FOUND")
 
     await queries.syncTaskAssignments(
       taskId,
       uniqueIds,
       row,
+      timeZone,
       parsedInput.unassignAs
     )
 
@@ -147,19 +204,22 @@ export const updateTask = projectAction(UpdateTaskSchema)
      * (null == null included) never spawns.
      */
     const previousEnd = previous.endDate?.getTime() ?? null
-    const nextEnd = parsedInput.endDate
-      ? new Date(parsedInput.endDate).getTime()
-      : null
+    const nextEnd = endDate?.getTime() ?? null
 
     if (previous.recurrence && previousEnd !== nextEnd) {
-      const { anchor, inclusive } = firstOccurrenceAnchor({
-        startDate: parsedInput.startDate
-          ? new Date(parsedInput.startDate)
-          : null,
-        startTime: parsedInput.startTime || null,
-      })
+      const { anchor, inclusive } = firstOccurrenceAnchor(
+        {
+          startDate,
+          startTime: parsedInput.startTime || null,
+        },
+        timeZone
+      )
 
-      await queries.spawnEligibleAssignments(taskId, { anchor, inclusive })
+      await queries.spawnEligibleAssignments(taskId, {
+        anchor,
+        inclusive,
+        timeZone,
+      })
     }
 
     const loaded = await queries.getTaskWithAssignments(taskId)
@@ -172,6 +232,7 @@ export const updateTask = projectAction(UpdateTaskSchema)
       commentCount: 0,
       closedCount: loaded.closedCount,
       totalCost: loaded.totalCost,
+      overdue: false,
     }
   })
 
@@ -187,6 +248,7 @@ export const updateAssignmentStatus = projectAction(
   .action(async ({ parsedInput, ctx }) => {
     const { projectId, assignmentId, status } = parsedInput
 
+    const timeZone = await loadTimeZone(projectId)
     const row = await queries.getAssignmentForRow(
       assignmentId,
       projectId
@@ -243,6 +305,7 @@ export const updateAssignmentStatus = projectAction(
           ? {
               taskId: row.taskId,
               anchor: row.endDate ?? new Date(),
+              timeZone,
               closing: { userId: row.userId, endDate: row.endDate },
             }
           : null
@@ -272,12 +335,12 @@ export const updateAssignmentStatus = projectAction(
       // healed members that `nextAssignment` does not report.
       spawnedCostTotal += costToNumber(nextView.cost)
       if (nextView.userId === row.userId && !nextAssignment) {
-        nextAssignment = toTaskAssignmentDTO(nextView)
+        nextAssignment = toTaskAssignmentDTO(nextView, timeZone)
       }
     }
 
     return {
-      assignment: toTaskAssignmentDTO(viewRow),
+      assignment: toTaskAssignmentDTO(viewRow, timeZone),
       nextAssignment,
       spawnedCostTotal,
     }
@@ -301,12 +364,13 @@ export const updateAssignmentCost = projectAction(UpdateAssignmentCostSchema)
     const row = await queries.getAssignmentForRow(assignmentId, projectId)
     if (!row) returnActionError("NOT_FOUND")
 
+    const timeZone = await loadTimeZone(projectId)
     await queries.updateAssignmentCost(assignmentId, parsedInput.cost || "0")
 
     const viewRow = await queries.getAssignmentViewById(assignmentId)
     if (!viewRow) returnActionError("NOT_FOUND")
 
-    return toTaskAssignmentDTO(viewRow)
+    return toTaskAssignmentDTO(viewRow, timeZone)
   })
 
 export const updateAssignmentComment = projectAction(
@@ -331,6 +395,7 @@ export const updateAssignmentComment = projectAction(
       returnActionError("FORBIDDEN")
     }
 
+    const timeZone = await loadTimeZone(projectId)
     const trimmed = comment.trim()
 
     await queries.updateAssignmentComment(assignmentId, trimmed || null)
@@ -338,7 +403,7 @@ export const updateAssignmentComment = projectAction(
     const viewRow = await queries.getAssignmentViewById(assignmentId)
     if (!viewRow) returnActionError("NOT_FOUND")
 
-    return toTaskAssignmentDTO(viewRow)
+    return toTaskAssignmentDTO(viewRow, timeZone)
   })
 
 export const updateTaskPriority = projectAction(
@@ -422,10 +487,12 @@ export const unarchiveTask = projectAction(UnarchiveTaskSchema)
     if (!task) returnActionError("NOT_FOUND")
     if (!task.archived) returnActionError("VALIDATION_FAILED")
 
+    const timeZone = await loadTimeZone(projectId)
     const spawnedIds = await queries.unarchiveTaskRow(
       taskId,
       projectId,
-      new Date()
+      new Date(),
+      timeZone
     )
     // Deleted (or unarchived) between the pre-read and the write.
     if (spawnedIds === null) returnActionError("NOT_FOUND")
@@ -433,7 +500,7 @@ export const unarchiveTask = projectAction(UnarchiveTaskSchema)
     const spawned: TaskAssignmentDTO[] = []
     for (const id of spawnedIds) {
       const viewRow = await queries.getAssignmentViewById(id)
-      if (viewRow) spawned.push(toTaskAssignmentDTO(viewRow))
+      if (viewRow) spawned.push(toTaskAssignmentDTO(viewRow, timeZone))
     }
 
     return { spawned }

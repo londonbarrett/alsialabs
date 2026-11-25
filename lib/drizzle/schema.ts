@@ -392,12 +392,13 @@ export const projectsTable = pgTable("project", {
   endDate: date("end_date"),
   location: text(),
   country: text("country").notNull().$type<ProjectCountry>(),
+  timeZone: text("time_zone").notNull(),
   budget: decimal("budget", { precision: 12, scale: 2 }),
   color: text().notNull().default(PROJECT_COLORS[0]),
-  createdAt: timestamp("created_at", { mode: "date" })
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "date" })
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
@@ -416,7 +417,7 @@ export const projectMembershipTable = pgTable(
       .notNull()
       .references(() => usersTable.id, { onDelete: "cascade" }),
     role: text().notNull().$type<ProjectMemberRole>(),
-    createdAt: timestamp("created_at", { mode: "date" })
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
       .notNull()
       .defaultNow(),
   },
@@ -452,8 +453,8 @@ export const tasksTable = pgTable("task", {
   name: text().notNull(),
   description: text(),
   priority: text("priority").$type<TaskPriority | null>(),
-  startDate: timestamp("start_date", { mode: "date" }),
-  endDate: timestamp("end_date", { mode: "date" }),
+  startDate: timestamp("start_date", { mode: "date", withTimezone: true }),
+  endDate: timestamp("end_date", { mode: "date", withTimezone: true }),
   archived: boolean("archived").notNull().default(false),
   cost: decimal("cost", { precision: 12, scale: 2 }).notNull().default("0"),
   recurrence: text().$type<"daily" | "weekly" | null>(),
@@ -461,10 +462,10 @@ export const tasksTable = pgTable("task", {
   daysOfWeek: text("days_of_week").array(),
   startTime: time("start_time"),
   endTime: time("end_time"),
-  createdAt: timestamp("created_at", { mode: "date" })
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "date" })
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
@@ -485,12 +486,12 @@ export const taskAssignmentsTable = pgTable(
     status: text().notNull().default("todo").$type<TaskStatus>(),
     comment: text(),
     cost: decimal("cost", { precision: 12, scale: 2 }).notNull().default("0"),
-    startDate: timestamp("start_date", { mode: "date" }),
-    endDate: timestamp("end_date", { mode: "date" }),
-    createdAt: timestamp("created_at", { mode: "date" })
+    startDate: timestamp("start_date", { mode: "date", withTimezone: true }),
+    endDate: timestamp("end_date", { mode: "date", withTimezone: true }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
       .notNull()
       .defaultNow(),
-    updatedAt: timestamp("updated_at", { mode: "date" })
+    updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -515,10 +516,10 @@ export const taskAssigneesTable = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => usersTable.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { mode: "date" })
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
       .notNull()
       .defaultNow(),
-    updatedAt: timestamp("updated_at", { mode: "date" })
+    updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -539,10 +540,10 @@ export const taskCommentsTable = pgTable("task_comment", {
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" }),
   content: text().notNull(),
-  createdAt: timestamp("created_at", { mode: "date" })
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "date" })
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
@@ -561,10 +562,10 @@ export const expensesTable = pgTable("expense", {
   description: text().notNull(),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   expenseDate: date("expense_date").notNull(),
-  createdAt: timestamp("created_at", { mode: "date" })
+  createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "date" })
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
@@ -588,6 +589,7 @@ export const taskAssignmentDetailView = pgView(
       taskDescription: sql<string | null>`${tasksTable.description}`.as("task_description"),
       taskPriority: sql<string | null>`${tasksTable.priority}`.as("task_priority"),
       taskRecurrence: sql<string | null>`${tasksTable.recurrence}`.as("task_recurrence"),
+      startTime: sql<string | null>`${tasksTable.startTime}`.as("start_time"),
       projectId: sql<string>`${tasksTable.projectId}`.as("project_id"),
       userName: sql<string | null>`${usersTable.name}`.as("user_name"),
       userEmail: sql<string | null>`${usersTable.email}`.as("user_email"),
@@ -610,6 +612,7 @@ export const taskAssignmentLatestView = pgView("task_assignment_latest").as(
         cost: taskAssignmentDetailView.cost,
         startDate: taskAssignmentDetailView.startDate,
         endDate: taskAssignmentDetailView.endDate,
+        startTime: taskAssignmentDetailView.startTime,
         userName: taskAssignmentDetailView.userName,
         userEmail: taskAssignmentDetailView.userEmail,
         userImage: taskAssignmentDetailView.userImage,
@@ -631,6 +634,7 @@ export const taskAssignmentLatestView = pgView("task_assignment_latest").as(
         cost: numbered.cost,
         startDate: numbered.startDate,
         endDate: numbered.endDate,
+        startTime: numbered.startTime,
         userName: numbered.userName,
         userEmail: numbered.userEmail,
         userImage: numbered.userImage,

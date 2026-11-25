@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Native Temporal requires Node 26. Git hooks run in a non-interactive shell,
+# which may not source nvm; select the version pinned by .nvmrc explicitly.
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  source "$HOME/.nvm/nvm.sh"
+  nvm use >/dev/null
+fi
+
 echo "Running pre-commit verification..."
 pnpm verify
 

@@ -12,6 +12,7 @@ const CO_COUNTRY = "Colombia" // Intl.DisplayNames("en", { type: "region" }).of(
 // Details page renders the derived ISO code plus its localized name.
 const US_CURRENCY = "USD — US Dollar" // code + Intl.DisplayNames("en", { type: "currency" }).of("USD")
 const CO_CURRENCY = "COP — Colombian Peso" // code + ...of("COP")
+const US_ZONE = "America/New_York" // first COUNTRY_TIMEZONES entry for US
 
 const USD_BUDGET = "$1,500"
 const USD_SPEND = "$250"
@@ -56,6 +57,14 @@ function cardCurrency(card: Locator): Locator {
   return card.locator("dl > div").filter({ hasText: "Currency" }).locator("dd")
 }
 
+/** The card's Time zone <dd>, scoped to its <dt> label. */
+function cardTimeZone(card: Locator): Locator {
+  return card
+    .locator("dl > div")
+    .filter({ hasText: "Time zone" })
+    .locator("dd")
+}
+
 /** The card's "spend / budget" line. */
 function cardMoney(card: Locator): Locator {
   return card.locator("span.tabular-nums").filter({ hasText: "/" }).first()
@@ -77,6 +86,8 @@ async function createUsProject(
   await dialog.getByLabel("Start Date").fill(toDateInput(new Date()))
   await dialog.locator("#country").click()
   await page.getByRole("option", { name: new RegExp(US_COUNTRY) }).click()
+  // Picking a country suggests its default zone; the field stays editable.
+  await expect(dialog.locator("#timeZone")).toContainText(US_ZONE)
   await dialog.getByLabel("Location").fill(location)
 
   const budget = dialog.getByLabel("Budget")
@@ -121,6 +132,7 @@ test("a US project shows United States, USD and US-formatted money on both surfa
   await expect(card).toBeVisible()
   await expect(cardCountry(card)).toHaveText(US_COUNTRY)
   await expect(cardCurrency(card)).toHaveText(US_CURRENCY)
+  await expect(cardTimeZone(card)).toHaveText(US_ZONE)
   await expect(cardMoney(card)).toContainText(USD_BUDGET)
   // The free-text Location stays a separate, unchanged field on the card.
   await expect(card.locator("dd").filter({ hasText: location })).toHaveText(
@@ -132,6 +144,7 @@ test("a US project shows United States, USD and US-formatted money on both surfa
   await expect(page.getByText("Project Details")).toBeVisible()
   await expect(detailValue(page, "Country")).toHaveText(US_COUNTRY)
   await expect(detailValue(page, "Currency")).toHaveText(US_CURRENCY)
+  await expect(detailValue(page, "Time zone")).toHaveText(US_ZONE)
   await expect(detailValue(page, "Budget")).toHaveText(USD_BUDGET)
   await expect(detailValue(page, "Location")).toHaveText(location)
 })
@@ -176,6 +189,9 @@ test("editing a US project to Colombia updates both surfaces to COP/es-CO, inclu
   await expect(dialog.locator("#country")).toContainText(US_COUNTRY)
   await dialog.locator("#country").click()
   await page.getByRole("option", { name: new RegExp(CO_COUNTRY) }).click()
+  // A stored zone is already an explicit choice: changing only the country
+  // must not silently relabel the project's stored instants.
+  await expect(dialog.locator("#timeZone")).toContainText(US_ZONE)
   // Same stored amount, new derived currency/locale in the form.
   await expect(dialog.getByLabel("Budget")).toHaveValue(COP_BUDGET)
   await dialog.getByRole("button", { name: "Save Changes" }).click()
@@ -185,9 +201,12 @@ test("editing a US project to Colombia updates both surfaces to COP/es-CO, inclu
   })
   await page.reload()
 
-  // Details page reflects Colombia, COP and es-CO formatting.
+  // Details page reflects Colombia, COP and es-CO formatting. The zone stays
+  // the explicitly chosen US one — the instant is never relabelled by a
+  // country-only edit.
   await expect(detailValue(page, "Country")).toHaveText(CO_COUNTRY)
   await expect(detailValue(page, "Currency")).toHaveText(CO_CURRENCY)
+  await expect(detailValue(page, "Time zone")).toHaveText(US_ZONE)
   await expect(detailValue(page, "Budget")).toHaveText(COP_BUDGET)
   // Location is still the same free-text value after the edit.
   await expect(detailValue(page, "Location")).toHaveText(location)
@@ -197,6 +216,7 @@ test("editing a US project to Colombia updates both surfaces to COP/es-CO, inclu
   const card = projectCard(page, name)
   await expect(cardCountry(card)).toHaveText(CO_COUNTRY)
   await expect(cardCurrency(card)).toHaveText(CO_CURRENCY)
+  await expect(cardTimeZone(card)).toHaveText(US_ZONE)
   await expect(cardMoney(card)).toContainText(COP_SPEND)
   await expect(cardMoney(card)).toContainText(COP_BUDGET)
 })
@@ -226,6 +246,9 @@ test("a new project's Country select starts empty and is required", async ({
   await page.keyboard.press("Escape")
   await esDialog.getByRole("button", { name: "Crear Proyecto" }).click()
   await expect(esDialog.getByText("El país es obligatorio")).toBeVisible()
+  await expect(
+    esDialog.getByText("La zona horaria es obligatoria")
+  ).toBeVisible()
   await esDialog.getByRole("button", { name: "Cancelar" }).click()
   await expect(esDialog).toBeHidden()
 
@@ -238,5 +261,6 @@ test("a new project's Country select starts empty and is required", async ({
   await expect(enDialog.locator("#country")).not.toContainText(US_COUNTRY)
   await enDialog.getByRole("button", { name: "Create Project" }).click()
   await expect(enDialog.getByText("Country is required")).toBeVisible()
+  await expect(enDialog.getByText("Time zone is required")).toBeVisible()
   await enDialog.getByRole("button", { name: "Cancel" }).click()
 })

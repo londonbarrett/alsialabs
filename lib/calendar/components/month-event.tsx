@@ -26,7 +26,13 @@ export const MonthEvent = memo(function MonthEvent({
   const isTimed =
     !event.allDay && event.start.getTime() !== event.end.getTime()
 
-  const isPast = event.end.getTime() < Date.now()
+  // Timed events follow the real instant; all-day events keep their exclusive
+  // grid midnight so they do not dim from the first minute of their day.
+  const endMs =
+    !event.allDay && event.meta?.endDateIso
+      ? new Date(event.meta.endDateIso).getTime()
+      : event.end.getTime()
+  const isPast = endMs < Date.now()
 
   return (
     <>
