@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { wallClockToInstant } from "@/lib/time/zone"
+
 vi.mock("@/lib/auth", () => ({ auth: vi.fn(), hasPermission: vi.fn() }))
 vi.mock("@/actions/projects/util", () => ({
   resolveProjectAccess: vi.fn(),
@@ -90,8 +92,15 @@ const OTHER_ID = "user-2"
 const THIRD_ID = "user-3"
 const COMMENT_ID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
 
-/** Local midnight of a November 2026 day — how all-day slots are stored. */
-const allDayDate = (day: number): Date => new Date(2026, 10, day)
+const TEST_ZONE = "America/Bogota"
+
+/** A wall-clock date/time in the project zone, independent of the host TZ. */
+const at = (dateKey: string, time = "00:00"): Date =>
+  new Date(wallClockToInstant(dateKey, time, TEST_ZONE)!.epochMilliseconds)
+
+/** Project-zone midnight of a November 2026 day — how all-day slots are stored. */
+const allDayDate = (day: number): Date =>
+  at(`2026-11-${String(day).padStart(2, "0")}`)
 
 function grantAccess(role: ProjectRole = "owner") {
   mockResolveAccess.mockResolvedValue({
@@ -111,8 +120,8 @@ function makeTaskRow(overrides: Record<string, unknown> = {}) {
     priority: null,
     routineId: null,
     dueDate: null,
-    startDate: new Date("2026-10-30T09:00:00"),
-    endDate: new Date("2026-10-30T11:00:00"),
+    startDate: at("2026-10-30", "09:00:00"),
+    endDate: at("2026-10-30", "11:00:00"),
     recurrence: null,
     interval: 1,
     daysOfWeek: null,
@@ -120,8 +129,8 @@ function makeTaskRow(overrides: Record<string, unknown> = {}) {
     endTime: null,
     archived: false,
     assigneeId: null,
-    createdAt: new Date("2026-10-30T08:00:00"),
-    updatedAt: new Date("2026-10-30T08:00:00"),
+    createdAt: at("2026-10-30", "08:00:00"),
+    updatedAt: at("2026-10-30", "08:00:00"),
     ...overrides,
   }
 }
@@ -134,8 +143,8 @@ function makeAssignmentRow(overrides: Record<string, unknown> = {}) {
     status: "todo",
     comment: null,
     cost: "0",
-    startDate: new Date("2026-10-30T09:00:00"),
-    endDate: new Date("2026-10-30T11:00:00"),
+    startDate: at("2026-10-30", "09:00:00"),
+    endDate: at("2026-10-30", "11:00:00"),
     startTime: null,
     userName: "Ada",
     userEmail: "ada@test.local",
@@ -820,7 +829,7 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "09:00",
         endTime: "11:00",
-        startDate: new Date("2026-10-30T09:00:00"),
+        startDate: at("2026-10-30", "09:00:00"),
         // The form's 2099-01-01 + 11:00 resolves to this instant in Bogotá;
         // keeping it identical avoids a spurious due-date-change spawn.
         endDate: new Date("2099-01-01T16:00:00.000Z"),
@@ -937,7 +946,7 @@ describe("updateTask", () => {
 
     it("a new member of a repeating task past its end date gets membership only", async () => {
       const ended = futureRepeating({
-        endDate: new Date("2020-01-01T00:00:00"),
+        endDate: at("2020-01-01", "00:00:00"),
       })
       state.mock.onUpdate(schema.tasksTable).respond([ended])
       state.mock.onSelect(schema.tasksTable).respond([ended])
@@ -962,8 +971,8 @@ describe("updateTask", () => {
 
     it("a new member of a non-repeating task gets membership plus a firstAssignmentWindow row", async () => {
       const row = makeTaskRow({
-        startDate: new Date("2020-01-01T09:00:00"),
-        endDate: new Date("2020-01-01T11:00:00"),
+        startDate: at("2020-01-01", "09:00:00"),
+        endDate: at("2020-01-01", "11:00:00"),
       })
       state.mock.onUpdate(schema.tasksTable).respond([row])
       state.mock.onSelect(schema.tasksTable).respond([row])
@@ -1048,7 +1057,7 @@ describe("updateTask", () => {
   describe("date-edit spawn", () => {
     // The spawn anchors on the later of the start date and now, so the clock
     // is frozen to keep every fixture deterministic.
-    const FROZEN_NOW = new Date("2026-11-20T08:00:00")
+    const FROZEN_NOW = at("2026-11-20", "08:00:00")
 
     let callsBefore = 0
     beforeEach(() => {
@@ -1090,7 +1099,7 @@ describe("updateTask", () => {
         .respond([
           makeTaskRow({
             ...previous,
-            endDate: new Date("2099-01-01T00:00:00"),
+            endDate: at("2099-01-01", "00:00:00"),
           }),
         ])
       state.mock.onSelect(schema.tasksTable).respond([makeTaskRow(previous)])
@@ -1103,8 +1112,8 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "09:00",
         endTime: "11:00",
-        startDate: new Date("2026-11-16T09:00:00"),
-        endDate: new Date("2026-11-30T23:59:59"),
+        startDate: at("2026-11-16", "09:00:00"),
+        endDate: at("2026-11-30", "23:59:59"),
       })
       rosterIs(USER_ID)
       state.mock.onSelect(schema.taskAssignmentsTable).respond([])
@@ -1131,9 +1140,9 @@ describe("updateTask", () => {
       // The start date (11-16) is in the past: the anchor is now, so the
       // occurrence is the next slot on or after now — never a backdated one.
       const dates = insertedTimes(inserts[0].params)
-      expect(dates).toContain(new Date("2026-11-20T09:00:00").getTime())
-      expect(dates).toContain(new Date("2026-11-20T11:00:00").getTime())
-      expect(dates).not.toContain(new Date("2026-11-17T09:00:00").getTime())
+      expect(dates).toContain(at("2026-11-20", "09:00:00").getTime())
+      expect(dates).toContain(at("2026-11-20", "11:00:00").getTime())
+      expect(dates).not.toContain(at("2026-11-17", "09:00:00").getTime())
     })
 
     it("a spawned assignment inherits the task's edited cost, not a stale default", async () => {
@@ -1143,8 +1152,8 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "09:00",
         endTime: "11:00",
-        startDate: new Date("2026-11-16T09:00:00"),
-        endDate: new Date("2026-11-30T23:59:59"),
+        startDate: at("2026-11-16", "09:00:00"),
+        endDate: at("2026-11-30", "23:59:59"),
         cost: "200",
       })
       rosterIs(USER_ID)
@@ -1175,8 +1184,8 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "09:00",
         endTime: "11:00",
-        startDate: new Date("2026-11-16T09:00:00"),
-        endDate: new Date("2026-11-30T23:59:59"),
+        startDate: at("2026-11-16", "09:00:00"),
+        endDate: at("2026-11-30", "23:59:59"),
       })
       rosterIs(USER_ID)
       state.mock.onSelect(schema.taskAssignmentsTable).respond([])
@@ -1198,8 +1207,8 @@ describe("updateTask", () => {
       expect(result.serverError).toBeUndefined()
       const [insert] = assignmentInserts()
       const dates = insertedTimes(insert.params)
-      expect(dates).toContain(new Date("2026-11-25T09:00:00").getTime())
-      expect(dates).toContain(new Date("2026-11-25T11:00:00").getTime())
+      expect(dates).toContain(at("2026-11-25", "09:00:00").getTime())
+      expect(dates).toContain(at("2026-11-25", "11:00:00").getTime())
     })
 
     it("an all-day future start keeps its own day as the first occurrence", async () => {
@@ -1207,8 +1216,8 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: null,
         endTime: null,
-        startDate: new Date("2026-10-30T09:00:00"),
-        endDate: new Date("2026-11-30T00:00:00"),
+        startDate: at("2026-10-30", "09:00:00"),
+        endDate: at("2026-11-30", "00:00:00"),
       })
       rosterIs(USER_ID)
       state.mock.onSelect(schema.taskAssignmentsTable).respond([])
@@ -1257,7 +1266,7 @@ describe("updateTask", () => {
           recurrence: "daily",
           startTime: task.startTime,
           endTime: task.endTime,
-          startDate: new Date("2026-11-02T09:00:00"),
+          startDate: at("2026-11-02", "09:00:00"),
           endDate: task.endDate,
         })
         rosterIs(USER_ID)
@@ -1288,8 +1297,8 @@ describe("updateTask", () => {
         recurrence: "daily",
         startTime: "09:00",
         endTime: "11:00",
-        startDate: new Date("2026-11-16T09:00:00"),
-        endDate: new Date("2026-11-30T23:59:59"),
+        startDate: at("2026-11-16", "09:00:00"),
+        endDate: at("2026-11-30", "23:59:59"),
       }
       const repeatingInput = {
         recurrence: "daily" as const,
@@ -1337,8 +1346,8 @@ describe("updateTask", () => {
         {
           name: "a non-repeating task",
           previous: {
-            startDate: new Date("2026-11-16T09:00:00"),
-            endDate: new Date("2026-11-30T23:59:59"),
+            startDate: at("2026-11-16", "09:00:00"),
+            endDate: at("2026-11-30", "23:59:59"),
           },
           input: {
             startDate: "2026-11-16",
@@ -1352,7 +1361,7 @@ describe("updateTask", () => {
           name: "an out-of-range occurrence",
           previous: {
             ...repeating,
-            endDate: new Date("2026-11-10T23:59:59"),
+            endDate: at("2026-11-10", "23:59:59"),
           },
           input: { ...repeatingInput, assigneeIds: [USER_ID] },
           roster: [USER_ID],
@@ -1489,7 +1498,7 @@ describe("updateAssignmentStatus", () => {
         daysOfWeek: null,
         startTime: "09:00",
         endTime: "11:00",
-        endDate: new Date("2026-11-30T23:59:59"),
+        endDate: at("2026-11-30", "23:59:59"),
         archived: false,
       }),
     ])
@@ -1502,7 +1511,7 @@ describe("updateAssignmentStatus", () => {
           id: ASSIGNMENT_ID,
           userId: USER_ID,
           status: "todo",
-          endDate: new Date("2026-10-30T11:00:00"),
+          endDate: at("2026-10-30", "11:00:00"),
           taskId: TASK_ID,
           recurrence: "daily",
           interval: 1,
@@ -1548,8 +1557,8 @@ describe("updateAssignmentStatus", () => {
       .filter((p): p is string => typeof p === "string")
       .map((p) => Date.parse(p))
       .filter((t) => !Number.isNaN(t))
-    expect(dates).toContain(new Date("2026-10-31T09:00:00").getTime())
-    expect(dates).toContain(new Date("2026-10-31T11:00:00").getTime())
+    expect(dates).toContain(at("2026-10-31", "09:00:00").getTime())
+    expect(dates).toContain(at("2026-10-31", "11:00:00").getTime())
   })
 
   it("spawns nothing for a non-repeating task", async () => {
@@ -1558,7 +1567,7 @@ describe("updateAssignmentStatus", () => {
         id: ASSIGNMENT_ID,
         userId: USER_ID,
         status: "todo",
-        endDate: new Date("2026-10-30T11:00:00"),
+        endDate: at("2026-10-30", "11:00:00"),
         taskId: TASK_ID,
         recurrence: null,
         interval: 1,
@@ -1587,7 +1596,7 @@ describe("updateAssignmentStatus", () => {
         id: ASSIGNMENT_ID,
         userId: USER_ID,
         status: "done",
-        endDate: new Date("2026-10-30T11:00:00"),
+        endDate: at("2026-10-30", "11:00:00"),
         taskId: TASK_ID,
         recurrence: "daily",
         interval: 1,
@@ -1618,7 +1627,7 @@ describe("updateAssignmentStatus", () => {
         daysOfWeek: null,
         startTime: "09:00",
         endTime: "11:00",
-        endDate: new Date("2026-11-30T23:59:59"),
+        endDate: at("2026-11-30", "23:59:59"),
       }),
     ])
     rosterIs(USER_ID)
@@ -1626,7 +1635,7 @@ describe("updateAssignmentStatus", () => {
       if (sql.includes("exists")) return [{ id: "later-row" }]
       if (sql.includes("not in")) return []
       return [
-        { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", endDate: new Date("2026-11-10T11:00:00"),
+        { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", endDate: at("2026-11-10", "11:00:00"),
           taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
           startTime: "09:00", endTime: "11:00" },
       ]
@@ -1650,7 +1659,7 @@ describe("updateAssignmentStatus", () => {
         daysOfWeek: null,
         startTime: "09:00",
         endTime: "11:00",
-        endDate: new Date("2099-01-01T00:00:00"),
+        endDate: at("2099-01-01", "00:00:00"),
       }),
     ])
     rosterIs(USER_ID)
@@ -1681,7 +1690,7 @@ describe("updateAssignmentStatus", () => {
         daysOfWeek: null,
         startTime: "09:00",
         endTime: "11:00",
-        endDate: new Date("2026-11-30T23:59:59"),
+        endDate: at("2026-11-30", "23:59:59"),
         archived: false,
       }),
     ])
@@ -1693,7 +1702,7 @@ describe("updateAssignmentStatus", () => {
       if (sql.includes("not in")) return [{ id: "open-third", userId: THIRD_ID }]
       return [
         { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo",
-          endDate: new Date("2026-10-30T11:00:00"),
+          endDate: at("2026-10-30", "11:00:00"),
           taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
           startTime: "09:00", endTime: "11:00", archived: false },
       ]
@@ -1746,7 +1755,7 @@ describe("updateAssignmentStatus", () => {
         daysOfWeek: null,
         startTime: "09:00",
         endTime: "11:00",
-        endDate: new Date("2026-11-30T23:59:59"),
+        endDate: at("2026-11-30", "23:59:59"),
         archived: false,
       }),
     ])
@@ -1756,7 +1765,7 @@ describe("updateAssignmentStatus", () => {
       if (sql.includes("not in")) return []
       return [
         { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo",
-          endDate: new Date("2026-10-30T11:00:00"),
+          endDate: at("2026-10-30", "11:00:00"),
           taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
           startTime: "09:00", endTime: "11:00", archived: false },
       ]
@@ -1795,7 +1804,7 @@ describe("updateAssignmentStatus", () => {
     const baseline = state.mock.calls.length
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
       { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", archived: true,
-        endDate: new Date("2026-10-30T11:00:00"),
+        endDate: at("2026-10-30", "11:00:00"),
         taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
         startTime: "09:00", endTime: "11:00" },
     ])
@@ -1838,7 +1847,7 @@ describe("updateAssignmentStatus", () => {
 
   it("rejects reopening a closed assignment on a repeating task", async () => {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      { id: ASSIGNMENT_ID, userId: USER_ID, status: "done", endDate: new Date("2026-11-10T11:00:00"),
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "done", endDate: at("2026-11-10", "11:00:00"),
         taskId: TASK_ID, recurrence: "daily", interval: 1, daysOfWeek: null,
         startTime: "09:00", endTime: "11:00" },
     ])
@@ -1850,7 +1859,7 @@ describe("updateAssignmentStatus", () => {
 
   it("lets a manager reopen a closed assignment on a non-repeating task", async () => {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      { id: ASSIGNMENT_ID, userId: USER_ID, status: "cancelled", endDate: new Date("2026-11-10T11:00:00"),
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "cancelled", endDate: at("2026-11-10", "11:00:00"),
         taskId: TASK_ID, recurrence: null, interval: 1, daysOfWeek: null,
         startTime: null, endTime: null },
     ])
@@ -1867,7 +1876,7 @@ describe("updateAssignmentStatus", () => {
 
   it("maps a reopen that races an existing open row to VALIDATION_FAILED", async () => {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      { id: ASSIGNMENT_ID, userId: USER_ID, status: "done", endDate: new Date("2026-11-10T11:00:00"),
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "done", endDate: at("2026-11-10", "11:00:00"),
         taskId: TASK_ID, recurrence: null, interval: 1, daysOfWeek: null,
         startTime: null, endTime: null },
     ])
@@ -1893,7 +1902,7 @@ describe("updateAssignmentCost (recost)", () => {
         id: ASSIGNMENT_ID,
         userId: USER_ID,
         status: "todo",
-        endDate: new Date("2026-10-30T11:00:00"),
+        endDate: at("2026-10-30", "11:00:00"),
         taskId: TASK_ID,
       },
     ])
@@ -2064,7 +2073,7 @@ describe("archiveTask", () => {
       makeTaskRow({
         recurrence: "weekly",
         archived: false,
-        endDate: new Date("2099-01-01T00:00:00"),
+        endDate: at("2099-01-01", "00:00:00"),
       }),
     ])
     state.mock
@@ -2176,8 +2185,8 @@ describe("archiveTask", () => {
 describe("unarchiveTask", () => {
   // The action anchors the spawn on `now`; freezing the clock keeps the
   // in-range/out-of-range fixtures deterministic at any hour of the day.
-  const FROZEN_NOW = new Date("2026-11-19T08:00:00")
-  const TODAY_END = new Date("2026-11-19T23:59:59")
+  const FROZEN_NOW = at("2026-11-19", "08:00:00")
+  const TODAY_END = at("2026-11-19", "23:59:59")
 
   let callsBefore = 0
   beforeEach(() => {
@@ -2320,7 +2329,7 @@ describe("unarchiveTask", () => {
       daysOfWeek: null,
       startTime: "09:00",
       endTime: "11:00",
-      endDate: new Date("2026-11-10T23:59:59"),
+      endDate: at("2026-11-10", "23:59:59"),
       archived: true,
     })
     rosterIs(USER_ID, OTHER_ID)
@@ -2512,8 +2521,8 @@ describe("archived comments", () => {
     authorName: "Test",
     authorImage: null,
     content: "hi",
-    createdAt: new Date("2026-10-30T08:00:00"),
-    updatedAt: new Date("2026-10-30T08:00:00"),
+    createdAt: at("2026-10-30", "08:00:00"),
+    updatedAt: at("2026-10-30", "08:00:00"),
   }
 
   beforeEach(() => {
@@ -2656,7 +2665,7 @@ describe("getTaskAssignmentHistory", () => {
 })
 
 describe("spawnEligibleAssignments", () => {
-  const ANCHOR = new Date("2026-11-16T08:00:00")
+  const ANCHOR = at("2026-11-16", "08:00:00")
   const INSERT = 'insert into "task_assignment"'
 
   function repeatingTask(overrides: Record<string, unknown> = {}) {
@@ -2664,7 +2673,7 @@ describe("spawnEligibleAssignments", () => {
       recurrence: "daily",
       startTime: "09:00",
       endTime: "11:00",
-      endDate: new Date("2026-11-30T23:00:00"),
+      endDate: at("2026-11-30", "23:00:00"),
       ...overrides,
     })
   }
@@ -2759,7 +2768,7 @@ describe("spawnEligibleAssignments", () => {
   it("skips candidates whose next occurrence is out of range", async () => {
     state.mock
       .onSelect(schema.tasksTable)
-      .respond([repeatingTask({ endDate: new Date("2026-11-10T23:00:00") })])
+      .respond([repeatingTask({ endDate: at("2026-11-10", "23:00:00") })])
     rosterOf(USER_ID)
     state.mock.onSelect(schema.taskAssignmentsTable).respond([])
 
@@ -2827,8 +2836,8 @@ describe("spawnEligibleAssignments", () => {
       .filter((p): p is string => typeof p === "string")
       .map((p) => Date.parse(p))
       .filter((t) => !Number.isNaN(t))
-    expect(dates).toContain(new Date("2026-11-16T09:00:00").getTime())
-    expect(dates).toContain(new Date("2026-11-16T11:00:00").getTime())
+    expect(dates).toContain(at("2026-11-16", "09:00:00").getTime())
+    expect(dates).toContain(at("2026-11-16", "11:00:00").getTime())
   })
 
   it("treats the project's primary owner as an active member without a membership row", async () => {
@@ -2880,7 +2889,7 @@ describe("spawnEligibleAssignments", () => {
       timeZone: "America/Bogota",
       closing: {
         userId: USER_ID,
-        endDate: new Date("2026-11-16T10:00:00"),
+        endDate: at("2026-11-16", "10:00:00"),
       },
     })
 
