@@ -31,6 +31,11 @@
       "sourceType": "autoskills-registry",
       "computedHash": "82a02f95879e9adf1a5a89f9ca2f51813e41ff3bab3c723cc8905f5a926bdd30"
     },
+    "next-cache-components-adoption": {
+      "source": "vercel/next.js",
+      "sourceType": "autoskills-registry",
+      "computedHash": "1642ae2a1bc48f484240cb9c9669e32846aa5e4f9fa68cd650ad4817fa070711"
+    },
     "next-upgrade": {
       "source": "vercel-labs/next-skills",
       "sourceType": "autoskills-registry",
@@ -55,6 +60,11 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "autoskills-registry",
       "computedHash": "502eb06700e2c3cb1bd7f710860528f72281320bd5171a2087b05a090b573dc1"
+    },
+    "react-hook-form": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "autoskills-registry",
+      "computedHash": "75e2b99e6ea7e5f64cb16729be308d7a6b3f6adaf5285139d0f3990797e51615"
     },
     "seo": {
       "source": "addyosmani/web-quality-skills",

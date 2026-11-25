@@ -67,6 +67,10 @@ Common triggers:
 - **Before adding a key, check whether the term already exists.** Search `messages/` first and reuse the shared namespace: `common.*` for generic UI labels, `invoice.*` for invoice terms shared by `sales` and `myInvoices`, `nav.*` for route labels. Add a domain-specific key only when the label genuinely differs by context.
 - Dynamic key-maps (`errors.*`, `sales.statuses.*`, `projects.status.*`, `projects.tasks.status.*`, `projects.tasks.priority.*`, `projects.colors.*`, `activity.*`, `activities.types.*`, `projects.routines.*`, `categoryNames.*`, `taxonomyNames.*`, `theme.*`) are looked up by value — never rename or merge their keys.
 
+## Forms
+
+- **Every form uses react-hook-form.** All form logic — field values, validation, and event handlers — lives in a colocated hook; the form component only wires the hook's values and handlers into its inputs and holds no logic of its own. Reference implementation: `components/projects/tasks/use-task-form.ts` consumed by `task-form.tsx`.
+
 ## Server Actions
 
 **Every domain lives in one folder under `actions/<domain>/`.** Background: `docs/superpowers/specs/2026-10-16-safe-actions-design.md` (client chains, auth, metadata, revalidation) and `docs/superpowers/specs/2026-10-16-action-response-schemas-design.md` (output schemas, DTO inference). Domains not yet migrated sit under `actions/legacy/` (with plain server actions in `actions/legacy/not-safe/`) and migrate one per session — the rules below describe the target layout.

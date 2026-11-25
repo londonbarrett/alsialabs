@@ -1,300 +1,71 @@
 "use client"
 
-import type {
-  TaskPriorityDTO,
-  TaskWithAssignmentsDTO,
-} from "@/actions/tasks/schemas"
+import type { TaskWithAssignmentsDTO } from "@/actions/tasks/schemas"
 import { Button } from "@/components/ui/button"
-import {
-  validateRepeatingWindow,
-  validateTaskDetails,
-  validateTaskName,
-} from "@/lib/tasks/form-validation"
-import type {
-  TaskDetailsIssue,
-  TaskDetailsValues,
-} from "@/lib/tasks/form-validation"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
-import { useMemo, useState } from "react"
 import { TaskFormDetailsStep } from "./task-form-details-step"
 import { TaskFormScheduleStep } from "./task-form-schedule-step"
 import { TaskStepIndicator } from "./task-step-indicator"
-
-/**
- * Stored instants are formatted in the project's zone, never the browser's:
- * the form edits wall-clock values, so host-local getters would shift them.
- */
-function wallClockParts(
-  instant: Date,
-  timeZone: string
-): { date: string; time: string } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(instant)
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === type)?.value ?? ""
-  return {
-    date: `${part("year")}-${part("month")}-${part("day")}`,
-    time: `${part("hour")}:${part("minute")}`,
-  }
-}
+import { useTaskForm } from "./use-task-form"
+import type { TaskFormSubmitValues } from "./use-task-form"
 
 interface TaskFormProps {
   task?: TaskWithAssignmentsDTO
-  onSubmit: (data: {
-    name: string
-    cost: string
-    description: string
-    priority: string | null
-    assigneeIds: string[]
-    unassignAs: Record<string, "done" | "cancelled">
-    startDate: string | null
-    endDate: string | null
-    recurrence: "daily" | "weekly" | null
-    interval: number
-    daysOfWeek: string[]
-    startTime: string
-    endTime: string
-  }) => void
+  onSubmit: (data: TaskFormSubmitValues) => void
   onCancel: () => void
 }
 
 export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const t = useTranslations()
-  const { members, project } = useProjectContextState()
-  const timeZone = project.timeZone
-
-  const [step, setStep] = useState(1)
-  const [step1Done, setStep1Done] = useState(false)
-  const [name, setName] = useState(task?.name ?? "")
-  const [cost, setCost] = useState(task?.cost ?? "")
-  const [description, setDescription] = useState(
-    task?.description ?? ""
-  )
-  const [priority, setPriority] = useState<TaskPriorityDTO>(
-    task?.priority ?? null
-  )
-  // Current members on the task's assignee roster: the initial selection
-  // and the set whose removal needs the disposition dialog. Computed once
-  // from the task prop — the roster (not open rows) is the source, so a
-  // zero-open task still shows its assignees, and a roster user who left
-  // the project is dropped here so it can never travel in the payload as
-  // an unrenderable chip.
-  const protectedIds = useMemo(
-    () =>
-      task
-        ? task.assigneeIds.filter((userId) =>
-            members.some((m) => m.userId === userId)
-          )
-        : [],
-    [task, members]
-  )
-  const [assigneeIds, setAssigneeIds] = useState<string[]>(
-    () => protectedIds
-  )
-  const [removedDispositions, setRemovedDispositions] = useState<
-    Record<string, "done" | "cancelled">
-  >({})
-  // All-day is `startTime === null` on the stored task — the wall-clock
-  // occurrence time, not an instant's hour, is the authoritative flag.
-  const [allDay, setAllDay] = useState(() =>
-    task ? !task.startTime : true
-  )
-  const [startDate, setStartDate] = useState(() => {
-    if (task?.startDate) return wallClockParts(task.startDate, timeZone).date
-    // Repeating work without a stored anchor begins today in the project zone.
-    return task?.recurrence ? wallClockParts(new Date(), timeZone).date : ""
-  })
-  const [startTime, setStartTime] = useState(
-    allDay ? "" : (task?.startTime ?? "")
-  )
-  const [endDate, setEndDate] = useState(
-    task?.endDate ? wallClockParts(task.endDate, timeZone).date : ""
-  )
-  const [endTime, setEndTime] = useState(
-    allDay ? "" : (task?.endTime ?? "")
-  )
-  const [repeat, setRepeat] = useState(Boolean(task?.recurrence))
-  const [recurrence, setRecurrence] = useState<"daily" | "weekly">(
-    task?.recurrence === "daily" ? "daily" : "weekly"
-  )
-  const [interval, setInterval] = useState(String(task?.interval ?? 1))
-  const [daysOfWeek, setDaysOfWeek] = useState<string[]>(
-    task?.daysOfWeek ?? []
-  )
-  const [occurrenceStart, setOccurrenceStart] = useState(
-    task?.startTime ?? ""
-  )
-  const [occurrenceEnd, setOccurrenceEnd] = useState(
-    task?.endTime ?? ""
-  )
-  const [errors, setErrors] = useState<Record<string, string>>({})
-
-  function toggleDay(day: string) {
-    setDaysOfWeek((prev) =>
-      prev.includes(day)
-        ? prev.filter((d) => d !== day)
-        : [...prev, day]
-    )
-  }
-
-  function recordDisposition(
-    userId: string,
-    disposition: "done" | "cancelled"
-  ) {
-    setRemovedDispositions((prev) => ({
-      ...prev,
-      [userId]: disposition,
-    }))
-  }
-
-  function mapDetailsIssues(issues: TaskDetailsIssue[]) {
-    const fieldErrors: Record<string, string> = {}
-    for (const issue of issues) {
-      if (issue === "NAME_REQUIRED") {
-        fieldErrors.name = t("projects.tasks.nameRequired")
-      } else if (issue === "START_DATE_REQUIRED") {
-        fieldErrors.startDate = t("common.dateRequired")
-      } else if (issue === "END_DATE_REQUIRED") {
-        fieldErrors.endDate = t("common.dateRequired")
-      } else if (issue === "START_TIME_REQUIRED") {
-        fieldErrors.startTime = t("common.timeRequired")
-      } else if (issue === "END_TIME_REQUIRED") {
-        fieldErrors.endTime = t("common.timeRequired")
-      } else {
-        fieldErrors.endDate = t("projects.routines.endBeforeStart")
-      }
-    }
-    return fieldErrors
-  }
-
-  /**
-   * The schedule step stays locked until step 1 is clean — a name is always
-   * required, and a window that was started must be a complete, same-day one.
-   * An untouched window may pass: a repeating task fills it later or never.
-   */
-  function goNext() {
-    // The schedule step owns the dates now, so only the details step's own
-    // fields gate the transition.
-    const issues = validateTaskName(name)
-    if (issues.length > 0) {
-      setErrors(mapDetailsIssues(issues))
-      return
-    }
-    setErrors({})
-    setStep1Done(true)
-    setStep(2)
-  }
-
-  function handleRepeatChange(value: boolean) {
-    setRepeat(value)
-    setErrors({})
-    if (value && !startDate) {
-      setStartDate(wallClockParts(new Date(), timeZone).date)
-    }
-  }
-
-  function handleAllDayChange(value: boolean) {
-    setAllDay(value)
-    setErrors({})
-  }
-
-  function handleStepSelect(n: number) {
-    if (n === 2) {
-      goNext()
-      return
-    }
-    setStep(n)
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const effectiveStartDate =
-      repeat && !startDate
-        ? wallClockParts(new Date(), timeZone).date
-        : startDate
-    // The All-day switch owns the times: on, they travel as empty strings
-    // (midnight timestamps, null occurrence times); off, they are submitted
-    // and validated as entered.
-    const winStart = allDay ? "" : startTime
-    const winEnd = allDay ? "" : endTime
-    const occStart = allDay ? "" : occurrenceStart
-    const occEnd = allDay ? "" : occurrenceEnd
-    // A non-repeating task lives on one day: its start date is the due date,
-    // so the hidden field never diverges (legacy multi-day rows normalize on
-    // save) and validation always sees a same-day window.
-    const nonRepeatingValues: TaskDetailsValues = {
-      name,
-      startDate: endDate,
-      startTime: winStart,
-      endDate,
-      endTime: winEnd,
-    }
-    const issues = repeat
-      ? [
-          ...validateTaskName(name),
-          ...validateRepeatingWindow({
-            startDate: effectiveStartDate,
-            endDate,
-          }),
-        ]
-      : validateTaskDetails(nonRepeatingValues, {
-          requireWindow: true,
-        })
-    const fieldErrors = mapDetailsIssues(issues)
-
-    // Off the All-day switch the times are the point of the mode: both are
-    // required, in either branch. All-day submits empty times and demands none.
-    if (!allDay) {
-      if (repeat) {
-        if (!occurrenceStart)
-          fieldErrors.startTime = t("common.timeRequired")
-        if (!occurrenceEnd)
-          fieldErrors.endTime = t("common.timeRequired")
-      } else {
-        if (!startTime) fieldErrors.startTime = t("common.timeRequired")
-        if (!endTime) fieldErrors.endTime = t("common.timeRequired")
-      }
-    }
-    if (repeat) {
-      if (recurrence === "weekly" && daysOfWeek.length === 0)
-        fieldErrors.daysOfWeek = t("projects.routines.atLeastOneDay")
-    }
-
-    setErrors(fieldErrors)
-    if (Object.keys(fieldErrors).length > 0) {
-      // The name lives on step 1 — bounce back so its message is visible;
-      // window errors already render in place on the schedule step.
-      if (issues.includes("NAME_REQUIRED")) setStep(1)
-      return
-    }
-
-    // Wall-clock days and times travel separately: the server resolves them
-    // to instants in the project zone. No `toISOString()` here — that would
-    // freeze the browser's zone into a value the project does not own.
-    onSubmit({
-      name: name.trim(),
-      cost,
-      description: description.trim(),
-      priority,
-      assigneeIds,
-      unassignAs: removedDispositions,
-      startDate: repeat ? effectiveStartDate : endDate || null,
-      endDate: endDate || null,
-      recurrence: repeat ? recurrence : null,
-      interval: Number(interval) || 1,
-      daysOfWeek: repeat ? daysOfWeek : [],
-      startTime: repeat ? occStart : winStart,
-      endTime: repeat ? occEnd : winEnd,
-    })
-  }
+  const { members } = useProjectContextState()
+  const {
+    values,
+    errors,
+    step,
+    step1Done,
+    protectedIds,
+    handleSubmit,
+    goNext,
+    goBack,
+    handleStepSelect,
+    handleRepeatChange,
+    handleAllDayChange,
+    toggleDay,
+    recordDisposition,
+    onNameChange,
+    onCostChange,
+    onDescriptionChange,
+    onPriorityChange,
+    onAssigneeChange,
+    onStartDateChange,
+    onStartTimeChange,
+    onEndDateChange,
+    onEndTimeChange,
+    onRecurrenceChange,
+    onIntervalChange,
+    onOccurrenceStartTimeChange,
+    onOccurrenceEndTimeChange,
+    onCancel: cancel,
+  } = useTaskForm({ task, onSubmit, onCancel })
+  const {
+    name,
+    cost,
+    description,
+    priority,
+    assigneeIds,
+    allDay,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    repeat,
+    recurrence,
+    interval,
+    daysOfWeek,
+    occurrenceStart,
+    occurrenceEnd,
+  } = values
 
   return (
     <form onSubmit={handleSubmit}>
@@ -315,14 +86,14 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
           members={members}
           protectedIds={protectedIds}
           errors={errors}
-          onNameChange={setName}
-          onCostChange={setCost}
-          onDescriptionChange={setDescription}
-          onPriorityChange={setPriority}
-          onAssigneeChange={setAssigneeIds}
+          onNameChange={onNameChange}
+          onCostChange={onCostChange}
+          onDescriptionChange={onDescriptionChange}
+          onPriorityChange={onPriorityChange}
+          onAssigneeChange={onAssigneeChange}
           onRemoveDisposition={recordDisposition}
           onNext={goNext}
-          onCancel={onCancel}
+          onCancel={cancel}
         />
       ) : (
         <div className="flex flex-col gap-6">
@@ -339,30 +110,24 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
             occurrenceStartTime={occurrenceStart}
             occurrenceEndTime={occurrenceEnd}
             errors={errors}
-            onStartDateChange={setStartDate}
-            onStartTimeChange={setStartTime}
-            onEndDateChange={setEndDate}
-            onEndTimeChange={setEndTime}
+            onStartDateChange={onStartDateChange}
+            onStartTimeChange={onStartTimeChange}
+            onEndDateChange={onEndDateChange}
+            onEndTimeChange={onEndTimeChange}
             onAllDayChange={handleAllDayChange}
             onRepeatChange={handleRepeatChange}
-            onRecurrenceChange={setRecurrence}
-            onIntervalChange={setInterval}
+            onRecurrenceChange={onRecurrenceChange}
+            onIntervalChange={onIntervalChange}
             onDayToggle={toggleDay}
-            onOccurrenceStartTimeChange={setOccurrenceStart}
-            onOccurrenceEndTimeChange={setOccurrenceEnd}
+            onOccurrenceStartTimeChange={onOccurrenceStartTimeChange}
+            onOccurrenceEndTimeChange={onOccurrenceEndTimeChange}
           />
           <div className="flex justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setStep(1)}
-            >
+            <Button type="button" variant="outline" onClick={goBack}>
               {t("common.back")}
             </Button>
             <Button type="submit">
-              {task
-                ? t("common.saveChanges")
-                : t("projects.tasks.createTask")}
+              {task ? t("common.saveChanges") : t("projects.tasks.createTask")}
             </Button>
           </div>
         </div>
