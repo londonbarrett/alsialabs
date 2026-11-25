@@ -139,12 +139,21 @@ describe("toOptimisticPatch (via stores/project-context/use-project-actions)", (
     endDate: "",
     location: "Medellin",
     country: "CO" as const,
+    timeZone: "America/Bogota",
     budget: "1000",
     color: "#3b82f6" as const,
   }
 
   it("carries the form country into the optimistic patch", () => {
     expect(toOptimisticPatch(values).country).toBe("CO")
+  })
+
+  it("carries the form time zone into the optimistic patch", () => {
+    expect(toOptimisticPatch(values).timeZone).toBe("America/Bogota")
+    expect(
+      toOptimisticPatch({ ...values, timeZone: "America/Mexico_City" })
+        .timeZone
+    ).toBe("America/Mexico_City")
   })
 
   it("does not hardcode the country", () => {

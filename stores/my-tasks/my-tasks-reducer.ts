@@ -117,9 +117,11 @@ export function myTasksReducer(
      * The returned assignment is a bare assignment row, so it carries no
      * project display fields. They are copied from the occurrence it replaces
      * rather than looked up again: same task, same project, same person.
-     * `commentCount` starts at 0 because the occurrence is new. The source row
-     * rides along in the action because completing it already removed it from
-     * the list.
+     * `commentCount` starts at 0 because the occurrence is new. `overdue`
+     * likewise resets: the server's bare next assignment carries no verdict,
+     * so the completed row's stale `true` must not be copied onto a future
+     * occurrence. The source row rides along in the action because completing
+     * it already removed it from the list.
      */
     case "insertNextAssignment": {
       const next: MyAssignmentDTO = {
@@ -131,6 +133,7 @@ export function myTasksReducer(
         startDate: action.assignment.startDate,
         endDate: action.assignment.endDate,
         commentCount: 0,
+        overdue: false,
       }
 
       return { ...state, assignments: [next, ...state.assignments] }

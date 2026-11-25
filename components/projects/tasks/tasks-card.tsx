@@ -23,6 +23,7 @@ import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-s
 import { ListTodo, Plus } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Activity, useState } from "react"
+import { resolveOptimisticWindow } from "@/lib/util/tasks"
 import { ProjectTaskCommentsPanel } from "./project-task-comments-panel"
 import { TaskDialog, type TaskFormValues } from "./task-dialog"
 import { TasksFilter } from "./tasks-filter"
@@ -32,7 +33,7 @@ const VIEWS = ["open", "archived"] as const satisfies readonly TasksVisibilityFi
 
 export function TasksCard() {
   const t = useTranslations()
-  const { projectId, members, currentUserId, isOwner, isAdmin } =
+  const { projectId, project, members, currentUserId, isOwner, isAdmin } =
     useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = (isOwner || isAdmin) && canEditProject
@@ -97,8 +98,19 @@ export function TasksCard() {
     editing: TaskWithAssignmentsDTO | undefined
   ): TaskWithAssignmentsDTO {
     const tempId = editing?.id ?? `temp-${Date.now()}`
-    const startDate = data.startDate ? new Date(data.startDate) : null
-    const endDate = data.endDate ? new Date(data.endDate) : null
+    // The form submits wall-clock date keys, not instants: resolve them in the
+    // project zone so the optimistic row matches what the action will persist.
+    const startDate = resolveOptimisticWindow(
+      data.startDate,
+      data.startTime,
+      project.timeZone,
+      Boolean(data.recurrence)
+    )
+    const endDate = resolveOptimisticWindow(
+      data.endDate,
+      data.endTime,
+      project.timeZone
+    )
 
     const assignments: TaskAssignmentDTO[] = data.assigneeIds.map(
       (userId, index) => {
@@ -119,6 +131,8 @@ export function TasksCard() {
           cost: existing?.cost ?? (data.cost || "0"),
           startDate: existing?.startDate ?? startDate,
           endDate: existing?.endDate ?? endDate,
+          timeZone: project.timeZone,
+          startTime: data.startTime || null,
         }
       }
     )
@@ -155,6 +169,8 @@ export function TasksCard() {
       closedCount: assignments.filter((a) =>
         isTerminalStatus(a.status)
       ).length,
+      // Carry the last server verdict until the commit refetch recomputes it.
+      overdue: editing?.overdue ?? false,
     }
 
     return optimisticTask

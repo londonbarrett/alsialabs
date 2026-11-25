@@ -48,6 +48,7 @@ function makeProject(id: string, name: string): ProjectOptionDTO {
     endDate: null,
     location: null,
     country: "CO",
+    timeZone: "America/Bogota",
     budget: null,
     color: "#3b82f6",
     createdAt: new Date("2024-01-01"),

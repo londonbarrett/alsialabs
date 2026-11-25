@@ -50,6 +50,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     cost: "0",
     startDate: new Date("2026-10-30T09:00:00"),
     endDate: new Date("2026-10-30T11:00:00"),
+    startTime: "09:00",
     recurrence: null,
     ...overrides,
   }
@@ -61,6 +62,7 @@ function makeProject(overrides: Record<string, unknown> = {}) {
     projectName: "Renovation",
     projectColor: "#0f766e",
     projectOwnerName: "Grace",
+    timeZone: "America/Bogota",
     primaryOwnerId: OWNER_ID,
     memberRole: "collaborator",
     ...overrides,
@@ -181,5 +183,53 @@ describe("getMyTasks", () => {
 
     expect(result.data?.map((a) => a.assignmentId)).toEqual(["a1"])
     expect(result.data?.[0]?.role).toBe("owner")
+  })
+
+  it("holds an all-day assignment through its project-zone day", async () => {
+    // Midnight 2026-11-25 in Bogotá — how an all-day deadline is stored.
+    const due = new Date("2026-11-25T05:00:00.000Z")
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([makeRow({ endDate: due, startTime: null })])
+
+    vi.useFakeTimers({ toFake: ["Date"] })
+    try {
+      // 08:00 on the due day in Bogotá: still due today.
+      vi.setSystemTime(new Date("2026-11-25T13:00:00Z"))
+      const onDueDay = await getMyTasks({ view: "active" })
+      expect(onDueDay.data?.[0]?.overdue).toBe(false)
+
+      // Midnight the next day in Bogotá: the window has closed.
+      vi.setSystemTime(new Date("2026-11-26T05:00:00Z"))
+      const nextDay = await getMyTasks({ view: "active" })
+      expect(nextDay.data?.[0]?.overdue).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("marks a timed assignment overdue only after its deadline", async () => {
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([
+        makeRow({
+          endDate: new Date("2020-01-01T16:00:00.000Z"),
+          startTime: "09:00",
+        }),
+      ])
+
+    const past = await getMyTasks({ view: "active" })
+    expect(past.data?.[0]?.overdue).toBe(true)
+
+    state.mock
+      .onSelect(schema.taskAssignmentDetailView)
+      .respond([
+        makeRow({
+          endDate: new Date(Date.now() + 60 * 60 * 1000),
+          startTime: "09:00",
+        }),
+      ])
+    const future = await getMyTasks({ view: "active" })
+    expect(future.data?.[0]?.overdue).toBe(false)
   })
 })

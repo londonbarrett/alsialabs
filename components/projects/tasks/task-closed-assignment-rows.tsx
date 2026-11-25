@@ -21,8 +21,8 @@ import { taskStatusColors } from "./task-status-select"
 interface TaskClosedAssignmentRowsProps {
   taskId: string
   assignments: TaskAssignmentDTO[]
-  /** The task's all-day flag — an all-day row shows only its date. */
-  allDay: boolean
+  /** Project zone every occurrence in this task is displayed in. */
+  timeZone: string
   onReopen?: (assignmentId: string) => void
 }
 
@@ -36,7 +36,7 @@ interface TaskClosedAssignmentRowsProps {
 export function TaskClosedAssignmentRows({
   taskId,
   assignments,
-  allDay,
+  timeZone,
   onReopen,
 }: TaskClosedAssignmentRowsProps) {
   const t = useTranslations()
@@ -58,7 +58,12 @@ export function TaskClosedAssignmentRows({
     // A row is one occurrence: show its due date, with time only for timed
     // work, never a start–end range or the task's all-day header date.
     const occurrence = assignment.endDate
-      ? formatAssignmentDueDate(assignment.endDate, locale, allDay)
+      ? formatAssignmentDueDate(
+          assignment.endDate,
+          locale,
+          timeZone,
+          assignment.startTime
+        )
       : "—"
 
     return (
@@ -91,7 +96,9 @@ export function TaskClosedAssignmentRows({
             </span>
           </span>
         </TableCell>
-        <TableCell>{occurrence}</TableCell>
+        <TableCell>
+          <span>{occurrence}</span>
+        </TableCell>
         <TableCell>
           <span className="flex items-center gap-2">
             <Badge className={taskStatusColors[assignment.status]}>

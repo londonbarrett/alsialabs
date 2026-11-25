@@ -73,6 +73,113 @@ export const COUNTRY_FORMAT: Record<ProjectCountry, CountryFormat> = {
   UY: { currency: "UYU", locale: "es-UY" },
 }
 
+/**
+ * IANA zones for every project country, primary (capital / most populous)
+ * zone first. Identifiers are the canonical names accepted by
+ * `Intl.supportedValuesOf("timeZone")` in Node 26.
+ */
+export const COUNTRY_TIMEZONES: Record<ProjectCountry, string[]> = {
+  CA: [
+    "America/Toronto",
+    "America/Vancouver",
+    "America/Edmonton",
+    "America/Winnipeg",
+    "America/Halifax",
+    "America/St_Johns",
+    "America/Regina",
+    "America/Moncton",
+    "America/Whitehorse",
+    "America/Iqaluit",
+  ],
+  US: [
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "America/Phoenix",
+    "America/Anchorage",
+    "Pacific/Honolulu",
+    "America/Detroit",
+    "America/Indianapolis",
+  ],
+  MX: [
+    "America/Mexico_City",
+    "America/Tijuana",
+    "America/Hermosillo",
+    "America/Mazatlan",
+    "America/Monterrey",
+    "America/Chihuahua",
+    "America/Cancun",
+    "America/Merida",
+  ],
+  GT: ["America/Guatemala"],
+  BZ: ["America/Belize"],
+  HN: ["America/Tegucigalpa"],
+  SV: ["America/El_Salvador"],
+  NI: ["America/Managua"],
+  CR: ["America/Costa_Rica"],
+  PA: ["America/Panama"],
+  BS: ["America/Nassau"],
+  CU: ["America/Havana"],
+  HT: ["America/Port-au-Prince"],
+  DO: ["America/Santo_Domingo"],
+  JM: ["America/Jamaica"],
+  PR: ["America/Puerto_Rico"],
+  BB: ["America/Barbados"],
+  TT: ["America/Port_of_Spain"],
+  CO: ["America/Bogota"],
+  VE: ["America/Caracas"],
+  GY: ["America/Guyana"],
+  SR: ["America/Paramaribo"],
+  EC: ["America/Guayaquil", "Pacific/Galapagos"],
+  PE: ["America/Lima"],
+  BR: [
+    "America/Sao_Paulo",
+    "America/Manaus",
+    "America/Cuiaba",
+    "America/Recife",
+    "America/Fortaleza",
+    "America/Bahia",
+    "America/Belem",
+    "America/Boa_Vista",
+    "America/Porto_Velho",
+    "America/Rio_Branco",
+    "America/Araguaina",
+    "America/Maceio",
+    "America/Santarem",
+  ],
+  BO: ["America/La_Paz"],
+  PY: ["America/Asuncion"],
+  CL: ["America/Santiago", "Pacific/Easter"],
+  AR: [
+    "America/Buenos_Aires",
+    "America/Cordoba",
+    "America/Mendoza",
+    "America/Argentina/Tucuman",
+    "America/Argentina/La_Rioja",
+    "America/Argentina/Salta",
+    "America/Argentina/San_Juan",
+    "America/Argentina/San_Luis",
+    "America/Argentina/Ushuaia",
+    "America/Argentina/Rio_Gallegos",
+  ],
+  UY: ["America/Montevideo"],
+}
+
+const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"))
+
+/** Tolerates bad seed data so a stale country cannot crash a render. */
+export function defaultTimeZoneForCountry(country: ProjectCountry): string {
+  return COUNTRY_TIMEZONES[country]?.[0] ?? "UTC"
+}
+
+/** Whether the value is an IANA zone this runtime recognizes. */
+export function isSupportedTimeZone(value: string): boolean {
+  // ICU does not enumerate UTC in supportedValuesOf, but Intl accepts it and
+  // it is the fallback returned for a stale country; keep the round-trip valid.
+  return value === "UTC" || supportedTimeZones.has(value)
+}
+
 /** Tolerates bad seed data so a stale country cannot crash a render. */
 export function currencyForCountry(country: ProjectCountry): string {
   return COUNTRY_FORMAT[country]?.currency ?? "USD"

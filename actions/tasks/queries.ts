@@ -12,8 +12,8 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "@/lib/drizzle/schema"
+import { returnActionError } from "@/actions/safe-action"
 import { isTerminalStatus } from "@/lib/util/project-roles"
-import { isAllDayWindow } from "@/lib/util/tasks"
 import {
   computeNextOccurrence,
   firstOccurrenceAnchor,
@@ -24,6 +24,8 @@ import {
   sortAssignments,
   toTaskAssignmentDTO,
 } from "@/lib/tasks/assignments"
+import { isOpenAssignment } from "@/lib/tasks/filter"
+import { isTaskOverdue } from "@/lib/tasks/overdue"
 import {
   and,
   asc,
@@ -46,6 +48,7 @@ import {
   type TaskAssignmentHistoryDTO,
   type TaskRecordDTO,
   type TaskWithAssignmentsDTO,
+  type TaskWriteDTO,
   type UpdateTaskDTO,
 } from "./schemas"
 
@@ -58,6 +61,7 @@ const ASSIGNMENT_VIEW_COLUMNS = {
   cost: taskAssignmentDetailView.cost,
   startDate: taskAssignmentDetailView.startDate,
   endDate: taskAssignmentDetailView.endDate,
+  startTime: taskAssignmentDetailView.startTime,
   userName: taskAssignmentDetailView.userName,
   userEmail: taskAssignmentDetailView.userEmail,
   userImage: taskAssignmentDetailView.userImage,
@@ -72,6 +76,7 @@ const LATEST_ASSIGNMENT_COLUMNS = {
   cost: taskAssignmentLatestView.cost,
   startDate: taskAssignmentLatestView.startDate,
   endDate: taskAssignmentLatestView.endDate,
+  startTime: taskAssignmentLatestView.startTime,
   userName: taskAssignmentLatestView.userName,
   userEmail: taskAssignmentLatestView.userEmail,
   userImage: taskAssignmentLatestView.userImage,
@@ -116,6 +121,8 @@ type QueryClient = typeof db | Transaction
 
 type SpawnOptions = {
   anchor: Date
+  /** Zone the schedule's wall-clock time is resolved in. */
+  timeZone: string
   /** Keep an occurrence that lands exactly on the anchor. */
   inclusive?: boolean
   client?: QueryClient
@@ -203,8 +210,13 @@ async function getTaskAssignmentHistory(
     .limit(limit + 1)
     .offset(offset)
 
+  const timeZone = await getProjectTimeZone(projectId)
+  if (!timeZone) returnActionError("NOT_FOUND")
+
   return {
-    assignments: rows.slice(0, limit).map(toTaskAssignmentDTO),
+    assignments: rows.slice(0, limit).map((row) =>
+      toTaskAssignmentDTO(row, timeZone)
+    ),
     hasMore: rows.length > limit,
   }
 }
@@ -288,6 +300,19 @@ async function getProjectPrimaryOwnerId(
     .then((rows) => rows[0])
 
   return project?.primaryOwnerId ?? null
+}
+
+/** The zone every wall-clock value of a project is resolved in. */
+async function getProjectTimeZone(
+  projectId: string
+): Promise<string | null> {
+  const project = await db
+    .select({ timeZone: projectsTable.timeZone })
+    .from(projectsTable)
+    .where(eq(projectsTable.id, projectId))
+    .then((rows) => rows[0])
+
+  return project?.timeZone ?? null
 }
 
 async function getProjectMemberIds(
@@ -475,6 +500,7 @@ async function getMyAssignmentRows(userId: string, view: MyTasksTab) {
       cost: taskAssignmentDetailView.cost,
       startDate: taskAssignmentDetailView.startDate,
       endDate: taskAssignmentDetailView.endDate,
+      startTime: taskAssignmentDetailView.startTime,
       recurrence: taskAssignmentDetailView.taskRecurrence,
     })
     .from(taskAssignmentDetailView)
@@ -495,6 +521,7 @@ async function getProjectsForMyAssignments(
       id: projectsTable.id,
       projectName: projectsTable.name,
       projectColor: projectsTable.color,
+      timeZone: projectsTable.timeZone,
       primaryOwnerId: projectsTable.primaryOwnerId,
       projectOwnerName: sql<
         string | null
@@ -605,6 +632,9 @@ async function getTasksWithAssignments(
   const ids = taskRows.map((t) => t.id)
   if (ids.length === 0) return []
 
+  const timeZone = await getProjectTimeZone(projectId)
+  if (!timeZone) returnActionError("NOT_FOUND")
+
   const fullIds: string[] = []
   const latestIds: string[] = []
   for (const row of taskRows) {
@@ -631,7 +661,7 @@ async function getTasksWithAssignments(
   const assignmentsByTask = new Map<string, TaskAssignmentDTO[]>()
   for (const row of assignmentRows) {
     const list = assignmentsByTask.get(row.taskId) ?? []
-    list.push(toTaskAssignmentDTO(row))
+    list.push(toTaskAssignmentDTO(row, timeZone))
     assignmentsByTask.set(row.taskId, list)
   }
 
@@ -645,14 +675,29 @@ async function getTasksWithAssignments(
     assigneesByTask.set(row.taskId, list)
   }
 
-  return taskRows.map((row) => ({
-    ...toTaskRecord(row),
-    assignments: sortAssignments(assignmentsByTask.get(row.id) ?? []),
-    assigneeIds: assigneesByTask.get(row.id) ?? [],
-    commentCount: counts.get(row.id) ?? 0,
-    closedCount: closedCounts.get(row.id) ?? 0,
-    totalCost: Number(costTotals.get(row.id) ?? 0),
-  }))
+  return taskRows.map((row) => {
+    const assignments = sortAssignments(assignmentsByTask.get(row.id) ?? [])
+    const firstOpen = assignments.find(isOpenAssignment)
+
+    return {
+      ...toTaskRecord(row),
+      assignments,
+      assigneeIds: assigneesByTask.get(row.id) ?? [],
+      commentCount: counts.get(row.id) ?? 0,
+      closedCount: closedCounts.get(row.id) ?? 0,
+      totalCost: Number(costTotals.get(row.id) ?? 0),
+      // The due-date cell used to do this in the browser; Temporal is
+      // server-only, so the first open assignment decides it at fetch time.
+      overdue: firstOpen
+        ? isTaskOverdue(
+            firstOpen.status,
+            row.endDate,
+            timeZone,
+            row.startTime === null
+          )
+        : false,
+    }
+  })
 }
 
 async function getTaskWithAssignments(taskId: string): Promise<{
@@ -664,6 +709,9 @@ async function getTaskWithAssignments(taskId: string): Promise<{
 } | null> {
   const row = await getTaskRow(taskId)
   if (!row) return null
+
+  const timeZone = await getProjectTimeZone(row.projectId)
+  if (!timeZone) returnActionError("NOT_FOUND")
 
   const [assignmentRows, closedRows, assigneeRows, totalCost] =
     await Promise.all([
@@ -678,7 +726,7 @@ async function getTaskWithAssignments(taskId: string): Promise<{
   return {
     record: toTaskRecord(row),
     assignments: sortAssignments(
-      assignmentRows.map(toTaskAssignmentDTO)
+      assignmentRows.map((row) => toTaskAssignmentDTO(row, timeZone))
     ),
     closedCount: closedRows[0]?.cnt ?? 0,
     assigneeIds: assigneeRows.map((r) => r.userId),
@@ -733,26 +781,37 @@ async function getMyTasks(
         // project, so their history outlives the membership.
         merged.filter((m) => !isOpen(m.row.status))
 
-  return visible.map(({ row, project, role }) =>
-    MyAssignmentSchema.parse({
+  return visible.map(({ row, project, role }) => {
+    const timeZone = project?.timeZone ?? "UTC"
+
+    return MyAssignmentSchema.parse({
       ...row,
-      // Derived at the DTO boundary so every surface just consumes the
-      // boolean instead of guessing from a timestamp's hour.
-      allDay: isAllDayWindow(row.startDate, row.endDate),
+      // Each row carries the zone and wall-clock time of its own project:
+      // consumers format in that zone and read all-day from `startTime`.
+      timeZone,
       projectName: project?.projectName ?? "",
       projectColor: project?.projectColor ?? "",
       projectOwnerName: project?.projectOwnerName ?? null,
       role,
       commentCount: countsByTask.get(row.taskId) ?? 0,
+      // Resolved here, in the row's own zone, so the client never needs
+      // Temporal. Refetching refreshes it.
+      overdue: isTaskOverdue(
+        row.status,
+        row.endDate,
+        timeZone,
+        row.startTime === null
+      ),
     })
-  )
+  })
 }
 
 // ---------- Writes ----------
 
 async function createTask(
-  values: CreateTaskDTO,
-  assigneeIds: string[]
+  values: TaskWriteDTO<CreateTaskDTO>,
+  assigneeIds: string[],
+  timeZone: string
 ): Promise<typeof tasksTable.$inferSelect> {
   const {
     projectId,
@@ -769,6 +828,28 @@ async function createTask(
     endTime,
   } = values
 
+  // Resolve the first slot before any write: a valid-looking schedule with no
+  // occurrence inside its window must fail the action, never insert an
+  // assignment carrying null dates (the original incident).
+  const window = firstAssignmentWindow(
+    {
+      startDate,
+      endDate,
+      recurrence: recurrence ?? null,
+      interval,
+      daysOfWeek,
+      startTime: startTime || null,
+      endTime: endTime || null,
+    },
+    timeZone
+  )
+  if (
+    assigneeIds.length > 0 &&
+    (!window.startDate || !window.endDate)
+  ) {
+    returnActionError("VALIDATION_FAILED")
+  }
+
   let created!: typeof tasksTable.$inferSelect
   await db.transaction(async (tx) => {
     const [row] = await tx
@@ -779,12 +860,8 @@ async function createTask(
         cost: cost || "0",
         description: description || null,
         priority: priority ?? null,
-        startDate: startDate
-          ? new Date(startDate)
-          : recurrence
-            ? new Date()
-            : null,
-        endDate: endDate ? new Date(endDate) : null,
+        startDate: startDate ?? (recurrence ? new Date() : null),
+        endDate,
         recurrence: recurrence ?? null,
         interval,
         daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
@@ -800,7 +877,6 @@ async function createTask(
         .insert(taskAssigneesTable)
         .values(assigneeIds.map((userId) => ({ taskId: row.id, userId })))
 
-      const window = firstAssignmentWindow(row)
       await tx.insert(taskAssignmentsTable).values(
         assigneeIds.map((userId) => ({
           taskId: row.id,
@@ -818,7 +894,7 @@ async function createTask(
 }
 
 async function updateTaskRow(
-  values: UpdateTaskDTO
+  values: TaskWriteDTO<UpdateTaskDTO>
 ): Promise<typeof tasksTable.$inferSelect | undefined> {
   const {
     projectId,
@@ -843,12 +919,8 @@ async function updateTaskRow(
       cost: cost || "0",
       description: description || null,
       priority: priority ?? null,
-      startDate: startDate
-        ? new Date(startDate)
-        : recurrence
-          ? new Date()
-          : null,
-      endDate: endDate ? new Date(endDate) : null,
+      startDate: startDate ?? (recurrence ? new Date() : null),
+      endDate,
       recurrence: recurrence ?? null,
       interval,
       daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : null,
@@ -870,6 +942,7 @@ async function syncTaskAssignments(
   taskId: string,
   assigneeIds: string[],
   taskRow: typeof tasksTable.$inferSelect,
+  timeZone: string,
   unassignAs?: Record<string, "done" | "cancelled">
 ): Promise<void> {
   const [roster, openAssignments] = await Promise.all([
@@ -884,6 +957,15 @@ async function syncTaskAssignments(
   const removed = [...memberIds].filter((id) => !wanted.has(id))
   const removedSet = new Set(removed)
   const toClose = openAssignments.filter((a) => removedSet.has(a.userId))
+
+  const window = firstAssignmentWindow(taskRow, timeZone)
+  if (
+    added.length > 0 &&
+    !taskRow.recurrence &&
+    (!window.startDate || !window.endDate)
+  ) {
+    returnActionError("VALIDATION_FAILED")
+  }
 
   // Removals group by their recorded disposition — at most two UPDATEs,
   // closed rows keep dates/comment/id intact; only membership is deleted.
@@ -921,7 +1003,8 @@ async function syncTaskAssignments(
 
     if (taskRow.recurrence) {
       await spawnEligibleAssignments(taskId, {
-        ...firstOccurrenceAnchor(taskRow),
+        ...firstOccurrenceAnchor(taskRow, timeZone),
+        timeZone,
         client: tx,
         onlyUserIds: added,
       })
@@ -933,7 +1016,6 @@ async function syncTaskAssignments(
       ? []
       : added.filter((id) => !openUserIds.has(id))
     if (needsRow.length > 0) {
-      const window = firstAssignmentWindow(taskRow)
       await tx.insert(taskAssignmentsTable).values(
         needsRow.map((userId) => ({
           taskId,
@@ -1003,6 +1085,7 @@ async function spawnEligibleAssignments(
       endDate: task.endDate,
     },
     opts.anchor,
+    opts.timeZone,
     { inclusive: opts.inclusive }
   )
   if (!next || candidates.length === 0) return []
@@ -1026,7 +1109,7 @@ async function spawnEligibleAssignments(
       // Snapshot the task's CURRENT default: later edits never rewrite rows.
       cost: task.cost,
       startDate: next,
-      endDate: atTime(next, task.endTime),
+      endDate: atTime(next, task.endTime, opts.timeZone),
     })
   }
   if (spawns.length === 0) return []
@@ -1043,6 +1126,7 @@ async function spawnEligibleAssignments(
 type SpawnDescriptor = {
   taskId: string
   anchor: Date
+  timeZone: string
   closing: { userId: string; endDate: Date | null }
 } | null
 
@@ -1062,6 +1146,7 @@ async function updateAssignmentStatus(
     if (spawn) {
       spawnedIds = await spawnEligibleAssignments(spawn.taskId, {
         anchor: spawn.anchor,
+        timeZone: spawn.timeZone,
         closing: spawn.closing,
         client: tx,
       })
@@ -1167,7 +1252,8 @@ async function archiveTaskRow(
 async function unarchiveTaskRow(
   taskId: string,
   projectId: string,
-  anchor: Date
+  anchor: Date,
+  timeZone: string
 ): Promise<string[] | null> {
   let spawnedIds: string[] | null = null
 
@@ -1188,6 +1274,7 @@ async function unarchiveTaskRow(
 
     spawnedIds = await spawnEligibleAssignments(taskId, {
       anchor,
+      timeZone,
       client: tx,
     })
   })
@@ -1230,6 +1317,7 @@ async function deleteComment(commentId: string): Promise<void> {
 
 const queries = {
   getProjectPrimaryOwnerId,
+  getProjectTimeZone,
   getProjectMemberIds,
   getAssignmentViewById,
   getAssignmentForRow,

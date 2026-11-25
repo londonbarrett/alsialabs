@@ -26,6 +26,7 @@ async function getProjectOptions(userId: string) {
       endDate: projectsTable.endDate,
       location: projectsTable.location,
       country: projectsTable.country,
+      timeZone: projectsTable.timeZone,
       budget: projectsTable.budget,
       color: projectsTable.color,
       createdAt: projectsTable.createdAt,
@@ -65,6 +66,7 @@ async function getProjectsForUser(userId: string) {
       endDate: projectsTable.endDate,
       location: projectsTable.location,
       country: projectsTable.country,
+      timeZone: projectsTable.timeZone,
       budget: projectsTable.budget,
       color: projectsTable.color,
       createdAt: projectsTable.createdAt,
@@ -341,6 +343,7 @@ async function getProjectSummaries(userId: string) {
       endDate: p.endDate ?? "",
       location: p.location,
       country: p.country,
+      timeZone: p.timeZone,
       budget,
       expenses,
       tasksTotal: tasks.total,
@@ -364,6 +367,7 @@ async function getProjectById(projectId: string) {
       endDate: projectsTable.endDate,
       location: projectsTable.location,
       country: projectsTable.country,
+      timeZone: projectsTable.timeZone,
       budget: projectsTable.budget,
       color: projectsTable.color,
       createdAt: projectsTable.createdAt,
@@ -393,6 +397,7 @@ async function createProject(
     endDate,
     location,
     country,
+    timeZone,
     budget,
     color,
   } = values
@@ -408,6 +413,7 @@ async function createProject(
       endDate: endDate || null,
       location: location || null,
       country,
+      timeZone,
       budget: budget ? budget : null,
       color,
     })
@@ -426,6 +432,7 @@ async function updateProject(values: UpdateProjectDTO) {
     endDate,
     location,
     country,
+    timeZone,
     budget,
     color,
   } = values
@@ -440,6 +447,7 @@ async function updateProject(values: UpdateProjectDTO) {
       endDate: endDate || null,
       location: location || null,
       country,
+      timeZone,
       budget: budget ? budget : null,
       color,
     })

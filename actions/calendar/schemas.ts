@@ -21,6 +21,12 @@ export const CalendarAssignmentSchema = z.object({
   // View columns come back as raw driver strings; coerce them to Dates.
   startDate: z.coerce.date().nullable(),
   endDate: z.coerce.date().nullable(),
+  /** IANA zone of the owning project — the zone this instant is displayed in. */
+  timeZone: z.string(),
+  /** The view's wall-clock start time; `null` is the authoritative all-day flag. */
+  startTime: z.string().nullable(),
+  /** Calendar date (`YYYY-MM-DD`) of `startDate` in the project's zone, computed server-side. */
+  dateKey: z.string(),
   projectId: z.string(),
   projectName: z.string(),
   projectColor: z.string(),

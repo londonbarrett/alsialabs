@@ -7,6 +7,7 @@ import {
   usersTable,
 } from "@/lib/drizzle/schema"
 import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm"
+import { zonedDateKey } from "@/lib/time/zone"
 import { CalendarAssignmentSchema } from "./schemas"
 
 /**
@@ -25,6 +26,7 @@ async function getViewAssignmentRows(from: Date, to: Date) {
       priority: taskAssignmentDetailView.taskPriority,
       startDate: taskAssignmentDetailView.startDate,
       endDate: taskAssignmentDetailView.endDate,
+      startTime: taskAssignmentDetailView.startTime,
       projectId: taskAssignmentDetailView.projectId,
       userId: taskAssignmentDetailView.userId,
       comment: taskAssignmentDetailView.comment,
@@ -55,6 +57,7 @@ async function getProjectVisibilityRows(
       id: projectsTable.id,
       projectName: projectsTable.name,
       projectColor: projectsTable.color,
+      timeZone: projectsTable.timeZone,
       primaryOwnerId: projectsTable.primaryOwnerId,
       projectOwnerName: sql<
         string | null
@@ -120,13 +123,29 @@ async function getVisibleCalendarAssignments(
 
   return visible.map((row) => {
     const project = projectsById.get(row.projectId)
-    return CalendarAssignmentSchema.parse({
+    // Every visible row has a project; UTC is a safe fallback if a row is
+    // orphaned, since the schema requires a valid IANA zone.
+    const timeZone = project?.timeZone ?? "UTC"
+    // Coerce the view's raw driver strings first: `startDate` must be a real
+    // Date before it can be resolved in the project's zone. `dateKey` is a
+    // placeholder here — the schema requires it, but it is set below.
+    const parsed = CalendarAssignmentSchema.parse({
       ...row,
       projectName: project?.projectName ?? "",
       projectColor: project?.projectColor ?? "",
       projectOwnerName: project?.projectOwnerName ?? null,
+      timeZone,
+      dateKey: "",
       commentCount: countsByTask.get(row.taskId) ?? 0,
     })
+    // The client has no Temporal: resolve the project-zone calendar date
+    // here, while the instant is still a server-side Date.
+    return {
+      ...parsed,
+      dateKey: parsed.startDate
+        ? zonedDateKey(parsed.startDate, timeZone)
+        : "",
+    }
   })
 }
 

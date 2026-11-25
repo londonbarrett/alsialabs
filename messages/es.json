@@ -41,6 +41,7 @@
     "country": "País",
     "countryCurrency": "País - Moneda",
     "currency": "Moneda",
+    "timeZone": "Zona horaria",
     "comments": "Comentarios",
     "createInvoice": "Crear Factura",
     "dateRequired": "La fecha es obligatoria",
@@ -235,6 +236,7 @@
     "startDateRequired": "La fecha de inicio es obligatoria",
     "locationRequired": "La ubicación es obligatoria",
     "countryRequired": "El país es obligatorio",
+    "timeZoneRequired": "La zona horaria es obligatoria",
     "colorRequired": "El color es obligatorio",
     "colors": {
       "yellow": "Amarillo",

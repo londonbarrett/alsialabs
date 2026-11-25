@@ -12,13 +12,15 @@ import {
 } from "@/components/ui/select"
 import type { Project } from "@/lib/drizzle/schema"
 import {
+  COUNTRY_TIMEZONES,
   countryOptionLabel,
+  defaultTimeZoneForCountry,
   projectMoneyProps,
   sortedProjectCountries,
   type ProjectCountry,
 } from "@/lib/projects/location"
 import { useLocale, useTranslations } from "next-intl"
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { type ProjectColor } from "./colors"
 import { ProjectColorField } from "./project-color-field"
 
@@ -31,6 +33,7 @@ export type ProjectFormValues = {
   endDate: string
   location: string
   country: ProjectCountry
+  timeZone: string
   budget: string
   color: ProjectColor
 }
@@ -68,6 +71,9 @@ export function ProjectForm({
   const [country, setCountry] = useState<ProjectCountry | "">(
     project?.country ?? ""
   )
+  const [timeZone, setTimeZone] = useState(project?.timeZone ?? "")
+  // A stored zone is already a choice: changing the country must not replace it.
+  const [zoneChosen, setZoneChosen] = useState(Boolean(project?.timeZone))
   const [budget, setBudget] = useState(project?.budget ?? "")
   const [color, setColor] = useState<string | undefined>(project?.color)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -81,6 +87,30 @@ export function ProjectForm({
     [locale]
   )
 
+  const zoneOptions = useMemo(() => {
+    const zones = country ? [...(COUNTRY_TIMEZONES[country] ?? [])] : []
+    if (!zones.includes("UTC")) zones.push("UTC")
+    // Keep an explicit choice selectable after the country changes.
+    if (timeZone && !zones.includes(timeZone)) zones.push(timeZone)
+    return zones.map((value) => ({ value, label: value }))
+  }, [country, timeZone])
+
+  const handleCountryChange = useCallback(
+    (value: string | null) => {
+      if (!value) return
+      const nextCountry = value as ProjectCountry
+      setCountry(nextCountry)
+      if (!zoneChosen) setTimeZone(defaultTimeZoneForCountry(nextCountry))
+    },
+    [zoneChosen]
+  )
+
+  const handleTimeZoneChange = useCallback((value: string | null) => {
+    if (!value) return
+    setTimeZone(value)
+    setZoneChosen(true)
+  }, [])
+
   function validate() {
     const fieldErrors: Record<string, string> = {}
     if (!name.trim()) fieldErrors.name = t("common.nameRequired")
@@ -91,6 +121,7 @@ export function ProjectForm({
     if (!location.trim())
       fieldErrors.location = t("projects.locationRequired")
     if (!country) fieldErrors.country = t("projects.countryRequired")
+    if (!timeZone) fieldErrors.timeZone = t("projects.timeZoneRequired")
     if (!color) fieldErrors.color = t("projects.colorRequired")
     setErrors(fieldErrors)
     return Object.keys(fieldErrors).length === 0
@@ -110,6 +141,7 @@ export function ProjectForm({
       endDate: endDate.trim(),
       location: location.trim(),
       country,
+      timeZone,
       budget: budget.trim(),
       color: color as ProjectColor,
     }
@@ -250,42 +282,78 @@ export function ProjectForm({
         />
       </div>
 
-      <div
-        className="flex flex-col gap-2"
-        data-invalid={!!errors.country || undefined}
-      >
-        <Label htmlFor="country">{t("common.countryCurrency")}</Label>
-        <Select
-          value={country}
-          onValueChange={(value) => {
-            if (value) setCountry(value as ProjectCountry)
-          }}
-          items={countryOptions}
+      <div className="grid grid-cols-2 gap-4">
+        <div
+          className="flex flex-col gap-2"
+          data-invalid={!!errors.country || undefined}
         >
-          <SelectTrigger
-            id="country"
-            className="w-full"
-            aria-invalid={!!errors.country}
+          <Label htmlFor="country">{t("common.countryCurrency")}</Label>
+          <Select
+            value={country}
+            onValueChange={handleCountryChange}
+            items={countryOptions}
           >
-            <SelectValue placeholder={t("common.countryCurrency")} />
-          </SelectTrigger>
-          <SelectContent className="w-auto min-w-(--anchor-width)">
-            {countryOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.country && (
-          <p
-            id="country-error"
-            className="text-xs text-destructive"
-            role="alert"
+            <SelectTrigger
+              id="country"
+              className="w-full"
+              aria-invalid={!!errors.country}
+            >
+              <SelectValue placeholder={t("common.countryCurrency")} />
+            </SelectTrigger>
+            <SelectContent className="w-auto min-w-(--anchor-width)">
+              {countryOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.country && (
+            <p
+              id="country-error"
+              className="text-xs text-destructive"
+              role="alert"
+            >
+              {errors.country}
+            </p>
+          )}
+        </div>
+
+        <div
+          className="flex flex-col gap-2"
+          data-invalid={!!errors.timeZone || undefined}
+        >
+          <Label htmlFor="timeZone">{t("common.timeZone")}</Label>
+          <Select
+            value={timeZone}
+            onValueChange={handleTimeZoneChange}
+            items={zoneOptions}
           >
-            {errors.country}
-          </p>
-        )}
+            <SelectTrigger
+              id="timeZone"
+              className="w-full"
+              aria-invalid={!!errors.timeZone}
+            >
+              <SelectValue placeholder={t("common.timeZone")} />
+            </SelectTrigger>
+            <SelectContent>
+              {zoneOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.timeZone && (
+            <p
+              id="timeZone-error"
+              className="text-xs text-destructive"
+              role="alert"
+            >
+              {errors.timeZone}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

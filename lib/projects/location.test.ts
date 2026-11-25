@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   COUNTRY_FORMAT,
+  COUNTRY_TIMEZONES,
   PROJECT_COUNTRIES,
   countryFlag,
   countryLabel,
@@ -9,6 +10,8 @@ import {
   currencyDisplayLabel,
   currencyForCountry,
   currencyLabel,
+  defaultTimeZoneForCountry,
+  isSupportedTimeZone,
   localeForCountry,
   projectMoneyProps,
   sortedProjectCountries,
@@ -141,5 +144,54 @@ describe("country selector options", () => {
   it("formats an option as flag country - currency", () => {
     expect(countryOptionLabel("US", "en")).toBe("🇺🇸 United States - USD")
     expect(countryOptionLabel("CO", "es")).toBe("🇨🇴 Colombia - COP")
+  })
+})
+
+describe("country time zones", () => {
+  const supportedZones = new Set(Intl.supportedValuesOf("timeZone"))
+
+  it("lists at least one IANA zone for every project country", () => {
+    for (const country of PROJECT_COUNTRIES) {
+      const zones = COUNTRY_TIMEZONES[country]
+
+      expect(zones, `no zones for ${country}`).toBeDefined()
+      expect(zones.length, `empty zones for ${country}`).toBeGreaterThan(0)
+    }
+  })
+
+  it("offers more than one candidate for countries spanning several zones", () => {
+    expect(COUNTRY_TIMEZONES.US.length).toBeGreaterThan(1)
+    expect(COUNTRY_TIMEZONES.BR.length).toBeGreaterThan(1)
+  })
+
+  it("uses only IANA identifiers accepted by Intl.supportedValuesOf", () => {
+    for (const country of PROJECT_COUNTRIES) {
+      for (const zone of COUNTRY_TIMEZONES[country]) {
+        expect(supportedZones.has(zone), `${zone} is not a supported zone`).toBe(
+          true
+        )
+      }
+    }
+  })
+
+  it("defaults to the primary IANA zone for a country", () => {
+    expect(defaultTimeZoneForCountry("CO")).toBe("America/Bogota")
+    expect(defaultTimeZoneForCountry("US")).toBe("America/New_York")
+  })
+
+  it("falls back to UTC for a stale or unknown country", () => {
+    expect(defaultTimeZoneForCountry(invalidCountry)).toBe("UTC")
+  })
+
+  it("accepts supported zones and rejects unknown ones", () => {
+    expect(isSupportedTimeZone("America/Bogota")).toBe(true)
+    expect(isSupportedTimeZone("Mars/Olympus")).toBe(false)
+  })
+
+  it("accepts the UTC fallback so a stale-country default validates", () => {
+    expect(isSupportedTimeZone("UTC")).toBe(true)
+    expect(isSupportedTimeZone(defaultTimeZoneForCountry(invalidCountry))).toBe(
+      true
+    )
   })
 })

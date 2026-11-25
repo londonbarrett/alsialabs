@@ -14,8 +14,6 @@ import type {
   TaskDetailsIssue,
   TaskDetailsValues,
 } from "@/lib/tasks/form-validation"
-import { combineDateTime } from "@/lib/util/schedule"
-import { isAllDayDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useTranslations } from "next-intl"
 import { useMemo, useState } from "react"
@@ -23,12 +21,29 @@ import { TaskFormDetailsStep } from "./task-form-details-step"
 import { TaskFormScheduleStep } from "./task-form-schedule-step"
 import { TaskStepIndicator } from "./task-step-indicator"
 
-function toDateInput(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-}
-
-function toTimeInput(date: Date): string {
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+/**
+ * Stored instants are formatted in the project's zone, never the browser's:
+ * the form edits wall-clock values, so host-local getters would shift them.
+ */
+function wallClockParts(
+  instant: Date,
+  timeZone: string
+): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant)
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? ""
+  return {
+    date: `${part("year")}-${part("month")}-${part("day")}`,
+    time: `${part("hour")}:${part("minute")}`,
+  }
 }
 
 interface TaskFormProps {
@@ -53,7 +68,8 @@ interface TaskFormProps {
 
 export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const t = useTranslations()
-  const { members } = useProjectContextState()
+  const { members, project } = useProjectContextState()
+  const timeZone = project.timeZone
 
   const [step, setStep] = useState(1)
   const [step1Done, setStep1Done] = useState(false)
@@ -86,32 +102,24 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [removedDispositions, setRemovedDispositions] = useState<
     Record<string, "done" | "cancelled">
   >({})
-  // All-day is the default; editing derives it from stored times (a
-  // repeating task's occurrence time, a one-off's timestamp times).
-  const [allDay, setAllDay] = useState(() => {
-    if (!task) return true
-    if (task.recurrence) return !task.startTime
-    return (
-      (!task.startDate || isAllDayDate(task.startDate)) &&
-      (!task.endDate || isAllDayDate(task.endDate))
-    )
-  })
-  const [startDate, setStartDate] = useState(
-    task?.startDate
-      ? toDateInput(task.startDate)
-      : task?.recurrence
-        ? // Repeating work without a stored anchor begins today.
-          toDateInput(new Date())
-        : ""
+  // All-day is `startTime === null` on the stored task — the wall-clock
+  // occurrence time, not an instant's hour, is the authoritative flag.
+  const [allDay, setAllDay] = useState(() =>
+    task ? !task.startTime : true
   )
+  const [startDate, setStartDate] = useState(() => {
+    if (task?.startDate) return wallClockParts(task.startDate, timeZone).date
+    // Repeating work without a stored anchor begins today in the project zone.
+    return task?.recurrence ? wallClockParts(new Date(), timeZone).date : ""
+  })
   const [startTime, setStartTime] = useState(
-    allDay ? "" : task?.startDate ? toTimeInput(task.startDate) : ""
+    allDay ? "" : (task?.startTime ?? "")
   )
   const [endDate, setEndDate] = useState(
-    task?.endDate ? toDateInput(task.endDate) : ""
+    task?.endDate ? wallClockParts(task.endDate, timeZone).date : ""
   )
   const [endTime, setEndTime] = useState(
-    allDay ? "" : task?.endDate ? toTimeInput(task.endDate) : ""
+    allDay ? "" : (task?.endTime ?? "")
   )
   const [repeat, setRepeat] = useState(Boolean(task?.recurrence))
   const [recurrence, setRecurrence] = useState<"daily" | "weekly">(
@@ -188,7 +196,9 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   function handleRepeatChange(value: boolean) {
     setRepeat(value)
     setErrors({})
-    if (value && !startDate) setStartDate(toDateInput(new Date()))
+    if (value && !startDate) {
+      setStartDate(wallClockParts(new Date(), timeZone).date)
+    }
   }
 
   function handleAllDayChange(value: boolean) {
@@ -207,7 +217,9 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const effectiveStartDate =
-      repeat && !startDate ? toDateInput(new Date()) : startDate
+      repeat && !startDate
+        ? wallClockParts(new Date(), timeZone).date
+        : startDate
     // The All-day switch owns the times: on, they travel as empty strings
     // (midnight timestamps, null occurrence times); off, they are submitted
     // and validated as entered.
@@ -264,17 +276,9 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
       return
     }
 
-    // Repeating work is anchored from its start date (today when the user
-    // never picked one); its optional end date bounds the schedule — each
-    // occurrence's own window still comes from the schedule. A non-repeating
-    // task's start timestamp falls on the due date.
-    const start = combineDateTime(
-      repeat ? effectiveStartDate : endDate,
-      repeat ? occStart : winStart
-    )
-    const repeatEnd = combineDateTime(endDate, occEnd)
-    const end = combineDateTime(endDate, winEnd)
-
+    // Wall-clock days and times travel separately: the server resolves them
+    // to instants in the project zone. No `toISOString()` here — that would
+    // freeze the browser's zone into a value the project does not own.
     onSubmit({
       name: name.trim(),
       cost,
@@ -282,19 +286,13 @@ export function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
       priority,
       assigneeIds,
       unassignAs: removedDispositions,
-      startDate: start ? start.toISOString() : null,
-      endDate: repeat
-        ? repeatEnd
-          ? repeatEnd.toISOString()
-          : null
-        : end
-          ? end.toISOString()
-          : null,
+      startDate: repeat ? effectiveStartDate : endDate || null,
+      endDate: endDate || null,
       recurrence: repeat ? recurrence : null,
       interval: Number(interval) || 1,
       daysOfWeek: repeat ? daysOfWeek : [],
-      startTime: repeat ? occStart : "",
-      endTime: repeat ? occEnd : "",
+      startTime: repeat ? occStart : winStart,
+      endTime: repeat ? occEnd : winEnd,
     })
   }
 

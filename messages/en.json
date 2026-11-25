@@ -41,6 +41,7 @@
     "country": "Country",
     "countryCurrency": "Country - Currency",
     "currency": "Currency",
+    "timeZone": "Time zone",
     "comments": "Comments",
     "createInvoice": "Create Invoice",
     "dateRequired": "Date is required",
@@ -235,6 +236,7 @@
     "startDateRequired": "Start date is required",
     "locationRequired": "Location is required",
     "countryRequired": "Country is required",
+    "timeZoneRequired": "Time zone is required",
     "colorRequired": "Color is required",
     "colors": {
       "yellow": "Yellow",

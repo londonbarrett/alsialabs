@@ -36,7 +36,9 @@ vi.mock("@/lib/drizzle/client", async () => {
 
 import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
+import { toDateKey } from "@/lib/util/schedule"
 import { getCalendarAssignments } from "@/actions/calendar"
+import { resolveCalendarRange } from "@/actions/calendar/util"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 
@@ -53,6 +55,8 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     priority: null,
     startDate: new Date("2026-10-30T09:00:00"),
     endDate: new Date("2026-10-30T11:00:00"),
+    startTime: "09:00",
+    dateKey: "2026-10-30",
     projectId: PROJECT_ID,
     userId: "someone-else",
     recurrence: null,
@@ -70,6 +74,7 @@ function makeProject(overrides: Record<string, unknown> = {}) {
     projectName: "Home",
     projectColor: "#3b82f6",
     projectOwnerName: "Owner",
+    timeZone: "America/Bogota",
     primaryOwnerId: OWNER_ID,
     memberRole: "admin",
     ...overrides,
@@ -172,6 +177,81 @@ describe("getCalendarAssignments", () => {
     // cannot be serialized against them; they must cross as ISO strings.
     expect(params.length).toBeGreaterThan(0)
     expect(params.every((p) => typeof p === "string")).toBe(true)
+  })
+
+  it("exposes each assignment's project zone and task start time", async () => {
+    state.mock.onSelect(schema.projectsTable).respond([
+      makeProject({ timeZone: "America/Bogota" }),
+    ])
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
+      makeRow({ userId: USER_ID, startTime: "21:00" }),
+    ])
+
+    const result = await getCalendarAssignments({
+      from: "2026-10-01",
+      to: "2026-10-31",
+    })
+
+    expect(result.data?.[0]?.timeZone).toBe("America/Bogota")
+    expect(result.data?.[0]?.startTime).toBe("21:00")
+  })
+
+  it("derives the project-zone day key on the server", async () => {
+    const boundary = new Date("2026-11-25T02:00:00.000Z")
+    const range = { from: "2026-11-01", to: "2026-11-30" }
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
+      makeRow({ userId: USER_ID, startDate: boundary }),
+    ])
+
+    state.mock.onSelect(schema.projectsTable).respond([
+      makeProject({ timeZone: "America/Bogota" }),
+    ])
+    const bogota = await getCalendarAssignments(range)
+    expect(bogota.data?.[0]?.dateKey).toBe("2026-11-24")
+
+    state.mock.onSelect(schema.projectsTable).respond([
+      makeProject({ timeZone: "UTC" }),
+    ])
+    const utc = await getCalendarAssignments(range)
+    expect(utc.data?.[0]?.dateKey).toBe("2026-11-25")
+  })
+
+  it("coerces the driver's raw startDate before deriving the calendar date", async () => {
+    state.mock.onSelect(schema.taskAssignmentDetailView).respond([
+      makeRow({
+        userId: USER_ID,
+        startDate: "2026-11-24 05:00:00+00",
+        endDate: "2026-11-24 06:00:00+00",
+      }),
+    ])
+    state.mock.onSelect(schema.projectsTable).respond([
+      makeProject({ timeZone: "America/Bogota" }),
+    ])
+
+    const result = await getCalendarAssignments({
+      from: "2026-11-01",
+      to: "2026-11-30",
+    })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data).toHaveLength(1)
+    expect(result.data?.[0]?.dateKey).toBe("2026-11-24")
+    expect(result.data?.[0]?.startDate).toBeInstanceOf(Date)
+  })
+
+  it("widens explicit range bounds by a day on each side", () => {
+    const range = resolveCalendarRange({
+      from: "2026-11-25",
+      to: "2026-11-25",
+    })
+
+    // Bounds are host-local days, but events are placed by their project-zone
+    // date. A one-day buffer keeps an adjacent-zone event inside the query.
+    expect(toDateKey(range.from)).toBe("2026-11-24")
+    expect(toDateKey(range.to)).toBe("2026-11-26")
+    expect(range.from.getTime()).toBeLessThanOrEqual(
+      new Date("2026-11-24T23:30:00.000Z").getTime()
+    )
   })
 
   it("rejects a missing session", async () => {

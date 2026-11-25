@@ -19,6 +19,8 @@ function makeAssignment(
     cost: "0",
     startDate: null,
     endDate: null,
+    timeZone: "America/Bogota",
+    startTime: null,
     ...overrides,
   }
 }
@@ -46,6 +48,7 @@ function makeTask(
     commentCount: 0,
     closedCount: 0,
     totalCost: 0,
+    overdue: false,
     assignments: [makeAssignment()],
     assigneeIds: ["user-1"],
     ...overrides,
