@@ -204,8 +204,11 @@ export const TaskWithAssignmentsSchema = TaskRecordSchema.extend({
    */
   closedCount: z.number(),
   /**
-   * Server-authoritative sum over EVERY assignment of the task — no status
-   * filter, no pagination. Defaulted so actions that construct a task DTO
+   * Server-authoritative sum of the task's CLOSED assignments' costs
+   * (`done` and `cancelled` only), with no pagination. Repeating tasks
+   * hide history behind Load More, so deriving this from loaded rows would
+   * silently undercount; the closed set is part of the SQL sum, never
+   * computed in JavaScript. Defaulted so actions that construct a task DTO
    * before the total is threaded through still validate; the query always
    * supplies the real value.
    */

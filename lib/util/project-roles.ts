@@ -1,3 +1,4 @@
+import { CLOSED_TASK_STATUSES } from "@/lib/costs/status"
 import type { ProjectRole } from "@/lib/types"
 import type { TaskStatus } from "@/lib/drizzle/schema"
 
@@ -36,5 +37,5 @@ export function canChangeAnyAssignment(
 }
 
 export function isTerminalStatus(status: TaskStatus): boolean {
-  return status === "done" || status === "cancelled"
+  return CLOSED_TASK_STATUSES.includes(status)
 }

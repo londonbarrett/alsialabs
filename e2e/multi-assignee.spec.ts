@@ -218,11 +218,9 @@ test("unassigning the last person asks what to do and leaves the task visible", 
   await expect(confirm).toHaveCount(0)
 
   // The task stays visible (due today) with nobody open on it: the
-  // status cell shows Done + the closed total instead of the unassigned
-  // label.
+  // status cell shows just the closed total instead of the unassigned label.
   await expect(row).toBeVisible()
   await expect(row).toContainText("1 cerrada")
-  await expect(row).toContainText("Completado")
 
   // Reopening the form seeds assignees from current members only: the
   // closed collaborator must not come back as a chip on step 1.

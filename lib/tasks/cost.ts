@@ -8,7 +8,3 @@ export const COST_DEBOUNCE_MS = 1000
 export function costToNumber(value: string): number {
   return Number(value) || 0
 }
-
-export function sumCosts(rows: { cost: string }[]): number {
-  return rows.reduce((sum, row) => sum + costToNumber(row.cost), 0)
-}

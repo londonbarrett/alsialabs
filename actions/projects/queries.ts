@@ -11,7 +11,16 @@ import {
   tasksTable,
   usersTable,
 } from "@/lib/drizzle/schema"
-import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm"
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm"
+import { closedCostSql, sumMoney } from "@/lib/costs/total"
 
 async function getProjectOptions(userId: string) {
   return db
@@ -134,6 +143,29 @@ async function getProjectInvoicePaidTotals(projectIds: string[]) {
     .groupBy(invoicesTable.projectId)
 }
 
+/**
+ * The closed task cost behind a project card: the same closed-only sum the
+ * task rows use, rolled up per project. The join reaches the project through
+ * the task, so only assignments of this project's tasks are counted.
+ */
+async function getProjectClosedTaskCostTotals(projectIds: string[]) {
+  return db
+    .select({
+      projectId: tasksTable.projectId,
+      total: closedCostSql(
+        sql`${taskAssignmentsTable.cost}`,
+        sql`${taskAssignmentsTable.status}`
+      ),
+    })
+    .from(taskAssignmentsTable)
+    .innerJoin(
+      tasksTable,
+      eq(taskAssignmentsTable.taskId, tasksTable.id)
+    )
+    .where(inArray(tasksTable.projectId, projectIds))
+    .groupBy(tasksTable.projectId)
+}
+
 async function getProjectInProgressTasks(projectIds: string[]) {
   return db
     .select({
@@ -218,13 +250,14 @@ async function getInProgressTaskAssignees(taskIds: string[]) {
 async function getProjectSummaries(userId: string) {
   const filteredProjects = await getProjectsForUser(userId)
 
-  const projectIds = filteredProjects.map((p) => p.id)
+  const projectIds = filteredProjects.map((project) => project.id)
   if (projectIds.length === 0) return []
 
   const [
     taskAggs,
     expenseAggs,
     invoicePaidAggs,
+    taskCostAggs,
     inProgressTasks,
     ownerData,
     memberData,
@@ -232,6 +265,7 @@ async function getProjectSummaries(userId: string) {
     getProjectTaskCounts(projectIds),
     getProjectExpenseTotals(projectIds),
     getProjectInvoicePaidTotals(projectIds),
+    getProjectClosedTaskCostTotals(projectIds),
     getProjectInProgressTasks(projectIds),
     getProjectOwners(projectIds),
     getProjectMemberships(projectIds),
@@ -273,6 +307,10 @@ async function getProjectSummaries(userId: string) {
   for (const agg of invoicePaidAggs) {
     if (agg.projectId === null) continue
     invoicePaidMap.set(agg.projectId, Number(agg.total))
+  }
+  const taskCostMap = new Map<string, number>()
+  for (const agg of taskCostAggs) {
+    taskCostMap.set(agg.projectId, Number(agg.total))
   }
   const inProgressMap = new Map<
     string,
@@ -326,30 +364,35 @@ async function getProjectSummaries(userId: string) {
     memberMap.set(m.projectId, list)
   }
 
-  return filteredProjects.map((p) => {
-    const tasks = taskMap.get(p.id) ?? { total: 0, completed: 0 }
-    const expenses =
-      (expenseMap.get(p.id) ?? 0) + (invoicePaidMap.get(p.id) ?? 0)
-    const budget = p.budget ? Number(p.budget) : 0
+  return filteredProjects.map((project) => {
+    const tasks = taskMap.get(project.id) ?? { total: 0, completed: 0 }
+    // Spend is what the project has committed: recorded expenses, money
+    // already collected in invoices, and the cost of closed assignments.
+    const expenses = sumMoney([
+      expenseMap.get(project.id),
+      invoicePaidMap.get(project.id),
+      taskCostMap.get(project.id),
+    ])
+    const budget = project.budget ? Number(project.budget) : 0
     return {
-      id: p.id,
-      primaryOwnerId: p.primaryOwnerId,
-      name: p.name,
-      description: p.description,
-      status: p.status,
-      color: p.color,
-      categorySlug: p.categorySlug,
-      startDate: p.startDate,
-      endDate: p.endDate ?? "",
-      location: p.location,
-      country: p.country,
-      timeZone: p.timeZone,
+      id: project.id,
+      primaryOwnerId: project.primaryOwnerId,
+      name: project.name,
+      description: project.description,
+      status: project.status,
+      color: project.color,
+      categorySlug: project.categorySlug,
+      startDate: project.startDate,
+      endDate: project.endDate ?? "",
+      location: project.location,
+      country: project.country,
+      timeZone: project.timeZone,
       budget,
       expenses,
       tasksTotal: tasks.total,
       tasksCompleted: tasks.completed,
-      inProgressTasks: inProgressMap.get(p.id) ?? [],
-      members: memberMap.get(p.id) ?? [],
+      inProgressTasks: inProgressMap.get(project.id) ?? [],
+      members: memberMap.get(project.id) ?? [],
     }
   })
 }
@@ -587,7 +630,10 @@ async function deleteProjectMembership(
       .where(
         and(
           eq(taskAssignmentsTable.userId, userId),
-          notInArray(taskAssignmentsTable.status, ["done", "cancelled"]),
+          notInArray(taskAssignmentsTable.status, [
+            "done",
+            "cancelled",
+          ]),
           inArray(
             taskAssignmentsTable.taskId,
             tx
@@ -598,18 +644,20 @@ async function deleteProjectMembership(
         )
       )
 
-    await tx.delete(taskAssigneesTable).where(
-      and(
-        eq(taskAssigneesTable.userId, userId),
-        inArray(
-          taskAssigneesTable.taskId,
-          tx
-            .select({ id: tasksTable.id })
-            .from(tasksTable)
-            .where(eq(tasksTable.projectId, projectId))
+    await tx
+      .delete(taskAssigneesTable)
+      .where(
+        and(
+          eq(taskAssigneesTable.userId, userId),
+          inArray(
+            taskAssigneesTable.taskId,
+            tx
+              .select({ id: tasksTable.id })
+              .from(tasksTable)
+              .where(eq(tasksTable.projectId, projectId))
+          )
         )
       )
-    )
     return removed
   })
 }
@@ -664,6 +712,7 @@ const queries = {
   getProjectTaskCounts,
   getProjectExpenseTotals,
   getProjectInvoicePaidTotals,
+  getProjectClosedTaskCostTotals,
   getProjectInProgressTasks,
   getProjectOwners,
   getProjectMemberships,

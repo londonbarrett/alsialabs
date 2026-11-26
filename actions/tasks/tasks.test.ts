@@ -57,7 +57,8 @@ import * as schema from "@/lib/drizzle/schema"
 import { auth } from "@/lib/auth"
 import { resolveProjectAccess } from "@/actions/projects/util"
 import type { ProjectRole } from "@/lib/types"
-import { sumCosts } from "@/lib/tasks/cost"
+import { CLOSED_TASK_STATUSES } from "@/lib/costs/status"
+import { sumMoney } from "@/lib/costs/delta"
 import queries from "@/actions/tasks/queries"
 import { assertTaskMutable } from "@/actions/tasks/util"
 import { defaultIsSuccess } from "@/lib/util/action-result"
@@ -234,14 +235,19 @@ describe("getTasks", () => {
     expect(result.data?.[0]?.closedCount).toBe(3)
   })
 
-  it("sums every assignment's cost into totalCost including cancelled rows", async () => {
-    // The aggregate has no status filter: cancelled/hidden rows still count.
-    const everyAssignment = [
+  it("sums only closed assignment costs into totalCost", async () => {
+    // Only done/cancelled rows are committed money: the aggregate filters
+    // them in SQL, so an open row never reaches the total.
+    const assignments = [
       { taskId: TASK_ID, cost: "50", status: "todo" },
       { taskId: TASK_ID, cost: "70", status: "done" },
       { taskId: TASK_ID, cost: "30", status: "cancelled" },
-    ]
-    const expected = sumCosts(everyAssignment)
+    ] as const
+    const expected = sumMoney(
+      assignments
+        .filter((row) => CLOSED_TASK_STATUSES.includes(row.status))
+        .map((row) => row.cost)
+    )
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
     state.mock
       .onSelect(schema.taskAssignmentLatestView)
@@ -259,23 +265,29 @@ describe("getTasks", () => {
     const result = await getTasks({ projectId: PROJECT_ID })
 
     expect(result.serverError).toBeUndefined()
-    expect(result.data?.[0]?.totalCost).toBe(150)
+    expect(result.data?.[0]?.totalCost).toBe(100)
     const costSql =
       state.mock.calls
         .slice(before)
         .find((c) => c.sql.includes("sum("))?.sql ?? ""
-    expect(costSql).not.toContain("status")
+    // The closed set belongs to the statement, not to a filter applied after.
+    expect(costSql).toContain("status")
+    expect(costSql).toContain("case when")
   })
 
-  it("sums decimal assignment costs into totalCost without rounding", async () => {
+  it("sums decimal closed assignment costs into totalCost without rounding", async () => {
     // A text cast returns the exact decimal as a string; the old integer cast
     // rounds it. The mock emulates that based on the SQL so this assertion
     // proves the aggregate no longer rounds fractional costs.
-    const everyAssignment = [
+    const assignments = [
       { taskId: TASK_ID, cost: "12.50", status: "todo" },
       { taskId: TASK_ID, cost: "7.25", status: "done" },
-    ]
-    const expected = sumCosts(everyAssignment)
+    ] as const
+    const expected = sumMoney(
+      assignments
+        .filter((row) => CLOSED_TASK_STATUSES.includes(row.status))
+        .map((row) => row.cost)
+    )
     state.mock.onSelect(schema.tasksTable).respond([makeTaskRow()])
     state.mock
       .onSelect(schema.taskAssignmentLatestView)
@@ -299,7 +311,7 @@ describe("getTasks", () => {
     const result = await getTasks({ projectId: PROJECT_ID })
 
     expect(result.serverError).toBeUndefined()
-    expect(result.data?.[0]?.totalCost).toBe(19.75)
+    expect(result.data?.[0]?.totalCost).toBe(7.25)
   })
 
   it("carries the archived flag and the assignee roster", async () => {

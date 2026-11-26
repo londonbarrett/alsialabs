@@ -142,13 +142,13 @@ export function mergeClosedRows(
   return sortClosedRows(merged)
 }
 
-const byEndDateAsc = (
+const byEndDateDesc = (
   a: TaskWithAssignmentsDTO,
   b: TaskWithAssignmentsDTO
 ): number => {
   if (!a.endDate) return b.endDate ? 1 : 0
   if (!b.endDate) return -1
-  return a.endDate.getTime() - b.endDate.getTime()
+  return b.endDate.getTime() - a.endDate.getTime()
 }
 
 export function selectTasks(
@@ -158,5 +158,5 @@ export function selectTasks(
   const wantArchived = filter === "archived"
   return tasks
     .filter((task) => task.archived === wantArchived)
-    .sort(byEndDateAsc)
+    .sort(byEndDateDesc)
 }

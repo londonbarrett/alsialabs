@@ -21,19 +21,29 @@ test("row actions are inline icons on desktop and a dropdown on mobile", async (
   await expect(menuTrigger).toBeVisible()
 })
 
-test("task table comments and actions columns are labelled and centred", async ({
+test("task table has a centred actions column with a comments action", async ({
   page,
   signInAs,
 }) => {
   await signInAs("user1")
   await page.goto("/app/proyectos/10000000-0000-4000-8000-000000000001")
 
-  const comments = page.getByRole("columnheader", { name: "Comentarios" }).first()
+  await expect(
+    page.getByRole("columnheader", { name: "Comentarios" })
+  ).toHaveCount(0)
   const actions = page.getByRole("columnheader", { name: "Acciones" }).first()
-
-  await expect(comments).toBeVisible()
-  await expect(comments).toHaveCSS("text-align", "center")
+  await expect(actions).toBeVisible()
   await expect(actions).toHaveCSS("text-align", "center")
+  await expect(
+    page.locator('button[aria-label="Comentarios"]').first()
+  ).toBeVisible()
+
+  const alignments = await page.evaluate(() =>
+    Array.from(document.querySelectorAll("thead th")).map(
+      (cell) => getComputedStyle(cell).textAlign
+    )
+  )
+  expect(alignments.slice(1).every((value) => value === "center")).toBe(true)
 
   // Seeded assignments belong to user2, not user1.
   await signInAs("user2")

@@ -48,11 +48,12 @@ test("a task cost of 12.50 persists and its row total shows cents", async ({
     timeout: 20_000,
   })
 
-  // A fresh server seed must report cents, not a value rounded by ::int.
+  // The assignment is still open, so the closed-only task total is $0; the
+  // decimal itself is preserved on the assignment's Costo input below.
   await page.reload()
   const taskRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(taskRow).toBeVisible()
-  await expect(taskRow.getByRole("cell").nth(5)).toHaveText("$12.50")
+  await expect(taskRow.getByRole("cell").nth(5)).toHaveText("$0")
 
   // The inline assignment cost input reads the persisted decimal string.
   await taskRow
@@ -95,6 +96,8 @@ test("an expense amount of 10.75 survives a reload", async ({
   const expenseRow = page.getByRole("row", { name: new RegExp(description) })
   await expect(expenseRow).toBeVisible()
   await expect(expenseRow.getByRole("cell").nth(2)).toHaveText("$10.75")
+  // Dates use the same locale-aware, date-only format as the tasks tab.
+  await expect(expenseRow.getByRole("cell").nth(3)).not.toContainText(today)
 
   // Reopening the form prefills the MoneyInput with the stored decimal.
   await expenseRow.getByRole("button", { name: "Editar" }).click()
@@ -250,12 +253,13 @@ test("a whole-dollar cost still renders as $150 with no cents", async ({
   await page.reload()
   const taskRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(taskRow).toBeVisible()
+  // The assignment is still open, so the closed-only task total is $0.
   const totalCell = taskRow.getByRole("cell").nth(5)
-  await expect(totalCell).toHaveText("$150")
-  await expect(totalCell).not.toHaveText("$150.00")
+  await expect(totalCell).toHaveText("$0")
 
-  // The stored "150.00" must normalize back to whole dollars on edit. The
-  // edit dialog has a different title, so re-resolve it by its generic role.
+  // The stored "150" must normalize back to whole dollars (no ".00" cents)
+  // on edit. The edit dialog has a different title, so re-resolve it by its
+  // generic role.
   await taskRow.getByRole("button", { name: "Editar", exact: true }).click()
   await expect(
     page.getByRole("dialog").getByLabel("Costo base por asignación")
