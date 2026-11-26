@@ -12,6 +12,11 @@ interface AssignmentCostInputProps {
   taskId: string
   assignmentId: string
   value: string
+  /**
+   * Whether the row is closed (`done`/`cancelled`). Only a closed row's cost
+   * is money: editing an open row changes the stored cost, not the total.
+   */
+  terminal: boolean
 }
 
 /**
@@ -24,6 +29,7 @@ export function AssignmentCostInput({
   taskId,
   assignmentId,
   value,
+  terminal,
 }: AssignmentCostInputProps) {
   const t = useTranslations()
   const { projectId } = useProjectContextState()
@@ -48,10 +54,11 @@ export function AssignmentCostInput({
         taskId,
         assignmentId,
         next || "0",
-        value
+        value,
+        terminal
       )
     },
-    [updateAssignmentCost, projectId, taskId, assignmentId, value]
+    [updateAssignmentCost, projectId, taskId, assignmentId, value, terminal]
   )
 
   const persistDebounced = useDebounced(persist, COST_DEBOUNCE_MS)
@@ -67,7 +74,7 @@ export function AssignmentCostInput({
   return (
     <MoneyInput
       aria-label={t("common.cost")}
-      className="h-8 w-24"
+      className="h-8 w-[116px]"
       value={cost}
       onChange={handleChange}
     />

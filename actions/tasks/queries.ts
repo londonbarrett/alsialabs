@@ -14,6 +14,7 @@ import {
 } from "@/lib/drizzle/schema"
 import { returnActionError } from "@/actions/safe-action"
 import { isTerminalStatus } from "@/lib/util/project-roles"
+import { closedCostSql } from "@/lib/costs/total"
 import {
   computeNextOccurrence,
   firstOccurrenceAnchor,
@@ -255,15 +256,20 @@ async function getClosedCountsByTaskIds(taskIds: string[]) {
 }
 
 /**
- * The task-row total: the sum of EVERY assignment's cost, with no status
- * filter and no pagination. Repeating tasks hide history behind Load More,
- * so deriving this from loaded rows would silently undercount.
+ * The task-row total: the sum of the CLOSED assignments' costs (done and
+ * cancelled only), with no pagination. Repeating tasks hide history behind
+ * Load More, so deriving this from loaded rows would silently undercount.
+ * The closed set is part of the statement — the sum never happens in
+ * JavaScript.
  */
 async function getCostTotalsByTaskIds(taskIds: string[]) {
   return db
     .select({
       taskId: taskAssignmentsTable.taskId,
-      total: sql<string>`coalesce(sum(${taskAssignmentsTable.cost}), 0)::text`,
+      total: closedCostSql(
+        sql`${taskAssignmentsTable.cost}`,
+        sql`${taskAssignmentsTable.status}`
+      ),
     })
     .from(taskAssignmentsTable)
     .where(inArray(taskAssignmentsTable.taskId, taskIds))
@@ -273,7 +279,10 @@ async function getCostTotalsByTaskIds(taskIds: string[]) {
 async function getCostTotalByTaskId(taskId: string): Promise<number> {
   return db
     .select({
-      total: sql<string>`coalesce(sum(${taskAssignmentsTable.cost}), 0)::text`,
+      total: closedCostSql(
+        sql`${taskAssignmentsTable.cost}`,
+        sql`${taskAssignmentsTable.status}`
+      ),
     })
     .from(taskAssignmentsTable)
     .where(eq(taskAssignmentsTable.taskId, taskId))

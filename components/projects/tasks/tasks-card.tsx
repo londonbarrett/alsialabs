@@ -14,7 +14,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { sumCosts } from "@/lib/tasks/cost"
 import { selectTasks, type TasksVisibilityFilter } from "@/lib/tasks/list"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
@@ -144,7 +143,9 @@ export function TasksCard() {
       description: data.description || null,
       priority: data.priority as TaskPriorityDTO,
       cost: data.cost || "0",
-      totalCost: sumCosts(assignments),
+      // The total is a server aggregate over closed assignments only: an
+      // optimistic row must never derive it from its own (open) rows.
+      totalCost: editing?.totalCost ?? 0,
       startDate,
       endDate,
       // The form owns the schedule it just submitted — taking it from

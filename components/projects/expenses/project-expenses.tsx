@@ -12,12 +12,15 @@ import {
 import { Progress } from "@/components/ui/progress"
 import type { Expense } from "@/lib/drizzle/schema"
 import type { ExpenseWithCategoryDTO } from "@/actions/expenses/schemas"
+import { sumMoney } from "@/lib/costs/delta"
+import { formatDueDate } from "@/lib/util/tasks"
 import { useExpensesActions } from "@/stores/expenses/use-expenses-actions"
 import { useExpensesState } from "@/stores/expenses/use-expenses-state"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
+import { useProjectTasksState } from "@/stores/project-tasks/use-project-tasks-state"
 import { cn } from "cn"
 import { Plus, Receipt, Wallet } from "lucide-react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useCallback, useState } from "react"
 import { ExpenseDialog } from "./expense-dialog"
 import { ExpensesTable } from "./expenses-table"
@@ -26,8 +29,21 @@ interface ProjectExpensesProps {
   categories: { id: string; slug: string; name: string }[]
 }
 
+function formatRowDate(
+  value: Date | string,
+  locale: string,
+  timeZone: string
+): string {
+  // DB date columns are calendar days, not instants; midday keeps the same
+  // day after conversion into the project's zone.
+  const date =
+    value instanceof Date ? value : new Date(`${value}T12:00:00`)
+  return formatDueDate(date, locale, timeZone, null)
+}
+
 export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const t = useTranslations()
+  const locale = useLocale()
   const { project, projectId, isOwner, isAdmin } =
     useProjectContextState()
   const budget = project.budget ?? null
@@ -39,6 +55,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const canDelete = canDeleteExpense || isOwner || isAdmin
 
   const { expenses, invoices } = useExpensesState()
+  const { tasks } = useProjectTasksState()
   const { saveExpense, deleteExpense, unbindInvoice } =
     useExpensesActions()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -76,16 +93,15 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
     saveExpense({ data, categories, editingExpense })
   }
 
-  const expenseTotal = expenses.reduce(
-    (sum, e) => sum + Number(e.amount),
-    0
-  )
-  const invoicePaidTotal = invoices.reduce(
-    (sum, i) => sum + Number(i.paidAmount),
-    0
-  )
-  const total = expenseTotal + invoicePaidTotal
-  const hasItems = expenses.length > 0 || invoices.length > 0
+  // Only tasks with closed assignments have anything to show or count.
+  const taskRows = tasks.filter((task) => task.closedCount > 0)
+  const total = sumMoney([
+    ...expenses.map((e) => e.amount),
+    ...invoices.map((i) => i.paidAmount),
+    ...taskRows.map((task) => task.totalCost),
+  ])
+  const hasItems =
+    expenses.length > 0 || invoices.length > 0 || taskRows.length > 0
   const budgetNum = budget ? Number(budget) : 0
   const spendPct =
     budgetNum > 0
@@ -94,19 +110,30 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
   const overBudget = budgetNum > 0 && total > budgetNum
 
   const rows = [
+    ...taskRows.map((task) => ({
+      key: `task-${task.id}`,
+      type: "task" as const,
+      task,
+      date: task.createdAt
+        ? formatRowDate(new Date(task.createdAt), locale, project.timeZone)
+        : "—",
+      sortDate: task.createdAt ? new Date(task.createdAt).toISOString() : "",
+    })),
     ...expenses.map((expense) => ({
       key: expense.id,
       type: "expense" as const,
       expense,
-      date: expense.expenseDate,
+      date: formatRowDate(expense.expenseDate, locale, project.timeZone),
+      sortDate: expense.expenseDate,
     })),
     ...invoices.map((invoice) => ({
       key: invoice.id,
       type: "invoice" as const,
       invoice,
-      date: invoice.issueDate,
+      date: formatRowDate(invoice.issueDate, locale, project.timeZone),
+      sortDate: invoice.issueDate,
     })),
-  ].sort((a, b) => a.date.localeCompare(b.date))
+  ].sort((a, b) => b.sortDate.localeCompare(a.sortDate))
 
   return (
     <Card>
@@ -170,6 +197,7 @@ export function ProjectExpenses({ categories }: ProjectExpensesProps) {
               rows={rows}
               canEdit={canEdit}
               canDelete={canDelete}
+              timeZone={project.timeZone}
               onEditExpense={openEdit}
               onDeleteExpense={handleDeleteExpense}
               onUnbindInvoice={handleUnbindInvoice}

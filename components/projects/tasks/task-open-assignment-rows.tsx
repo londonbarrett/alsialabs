@@ -36,6 +36,8 @@ interface TaskOpenAssignmentRowsProps {
     assignmentId: string,
     status: TaskStatus
   ) => void
+  /** Total table columns the filler cells must span. */
+  columnCount?: number
 }
 
 export function TaskOpenAssignmentRows({
@@ -43,6 +45,7 @@ export function TaskOpenAssignmentRows({
   assignments,
   timeZone,
   onStatusChange,
+  columnCount,
 }: TaskOpenAssignmentRowsProps) {
   const t = useTranslations()
   const locale = useLocale()
@@ -59,7 +62,7 @@ export function TaskOpenAssignmentRows({
 
   // The header renders the actions column only for mutators; the empty
   // filler cells must match that column count exactly.
-  const columnCount = assignmentColumnCount(canMutate)
+  const columns = columnCount ?? assignmentColumnCount(canMutate)
 
   function getAllowedStatuses(assignment: TaskAssignmentDTO) {
     if (isOwner || isAdmin) return ALL_TASK_STATUSES
@@ -117,32 +120,33 @@ export function TaskOpenAssignmentRows({
             </span>
           </span>
         </TableCell>
-        <TableCell>
-          <span>{occurrence}</span>
+        <TableCell className="text-center" />
+        <TableCell className="text-center">
+          <div className="flex justify-center">
+            {allowed ? (
+              <TaskStatusSelect
+                status={assignment.status}
+                allowedStatuses={allowed}
+                onStatusChange={(status) =>
+                  onStatusChange(taskId, assignment.id, status)
+                }
+              />
+            ) : (
+              <span className="flex items-center gap-2">
+                <Badge className={taskStatusColors[assignment.status]}>
+                  {t(`projects.tasks.status.${assignment.status}`)}
+                </Badge>
+              </span>
+            )}
+          </div>
         </TableCell>
-        <TableCell>
-          {allowed ? (
-            <TaskStatusSelect
-              status={assignment.status}
-              allowedStatuses={allowed}
-              onStatusChange={(status) =>
-                onStatusChange(taskId, assignment.id, status)
-              }
-            />
-          ) : (
-            <span className="flex items-center gap-2">
-              <Badge className={taskStatusColors[assignment.status]}>
-                {t(`projects.tasks.status.${assignment.status}`)}
-              </Badge>
-            </span>
-          )}
-        </TableCell>
-        <TableCell>
+        <TableCell className="text-center">
           {canEditCost ? (
             <AssignmentCostInput
               taskId={taskId}
               assignmentId={assignment.id}
               value={assignment.cost}
+              terminal={isTerminalStatus(assignment.status)}
             />
           ) : (
             <span className="text-sm tabular-nums">
@@ -150,8 +154,11 @@ export function TaskOpenAssignmentRows({
             </span>
           )}
         </TableCell>
-        {Array.from({ length: columnCount - 4 }, (_, index) => (
-          <TableCell key={index} />
+        <TableCell className="text-center">
+          <span>{occurrence}</span>
+        </TableCell>
+        {Array.from({ length: columns - 5 }, (_, index) => (
+          <TableCell key={index} className="text-center" />
         ))}
       </TableRow>
     )

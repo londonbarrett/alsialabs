@@ -345,7 +345,7 @@ test("a repeating task emptied through the wizard stays under Open without reope
   })
   const row = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(row).toBeVisible()
-  await expect(row).toContainText("Recurrente")
+  await expect(row.getByLabel("Recurrente")).toBeVisible()
 
   const dialog = await openEdit(page, row)
   await removeAssigneeAsCancelled(page, dialog)
@@ -409,7 +409,7 @@ test("archiving a repeating task spawns nothing, stays editable, and unarchiving
   // A comment written while the task is live must stay readable once it
   // is archived.
   const note = `E2E archived note ${Date.now()}`
-  await row.getByRole("button", { name: /^\d+$/ }).click()
+  await row.getByRole("button", { name: "Comentarios" }).click()
   const liveSheet = page.getByRole("dialog", { name: taskName })
   await liveSheet.getByPlaceholder("Agregar un comentario...").fill(note)
   await page.keyboard.press("Enter")
@@ -465,7 +465,7 @@ test("archiving a repeating task spawns nothing, stays editable, and unarchiving
 
   // Comments stay fully writable on the archived task: the note is
   // readable, a new comment posts, and own comments keep edit/delete.
-  await row.getByRole("button", { name: /^\d+$/ }).click()
+  await row.getByRole("button", { name: "Comentarios" }).click()
   const archivedSheet = page.getByRole("dialog", { name: taskName })
   await expect(archivedSheet.getByText(note)).toBeVisible()
   const input = archivedSheet.getByPlaceholder("Agregar un comentario...")
@@ -521,7 +521,7 @@ test("archiving a task with no open assignments skips the disposition dialog", a
 
   // The column header is plural: it lists the roster, not one assignee.
   await expect(
-    page.getByRole("columnheader", { name: "Asignadas" })
+    page.getByRole("columnheader", { name: "Asignados" })
   ).toBeVisible()
 
   // A task without an assignee has zero assignment rows, so there is no
@@ -823,13 +823,13 @@ test("an all-day assignment row shows only the date, not a time", async ({
   await expect(person).toHaveCount(1)
   // The assignment cell is the date value itself — no nested label.
   const label = (
-    (await person.locator("td").nth(1).textContent()) ?? ""
+    (await person.locator("td").nth(4).textContent()) ?? ""
   ).trim()
   expect(label).toMatch(/\d{1,2}\s+\w+/)
   expect(label).not.toContain(":")
 })
 
-test("the Open view orders by due date ascending regardless of status", async ({
+test("the Open view orders by due date descending regardless of status", async ({
   page,
   signInAs,
 }) => {
@@ -868,7 +868,7 @@ test("the Open view orders by due date ascending regardless of status", async ({
             (row.textContent ?? "").includes(name)
           )
         ),
-      [pastName, tomorrowName, laterName]
+      [laterName, tomorrowName, pastName]
     )
   expect(indexes[0]).toBeGreaterThan(-1)
   expect(indexes[1]).toBeGreaterThan(indexes[0])
@@ -916,13 +916,13 @@ test("closed assignment history pages ten rows at a time", async ({
   })
   const row = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(row).toBeVisible()
-  await expect(row).toContainText("Recurrente")
+  await expect(row.getByLabel("Recurrente")).toBeVisible()
   await expandAssignments(row)
 
   const person = personRows(row)
   await expect(person).toHaveCount(1)
   const open = openOccurrenceRow(page, person)
-  const occurrence = open.locator("td").nth(1)
+  const occurrence = open.locator("td").nth(4)
 
   // Display split: the due cell reads the task's own due date (the
   // window end, 30 days out), not the lead occurrence's date, while an
@@ -973,7 +973,7 @@ test("closed assignment history pages ten rows at a time", async ({
   // Newest first (createdAt DESC): the first appended row is the
   // occurrence closed last, with the older page below it instead of
   // above; the open successor still leads the block.
-  await expect(person.nth(1).locator("td").nth(1)).toHaveText(
+  await expect(person.nth(1).locator("td").nth(4)).toHaveText(
     lastClosedWindow
   )
 
@@ -984,7 +984,7 @@ test("closed assignment history pages ten rows at a time", async ({
   const closedDays: number[] = []
   const personCount = await person.count()
   for (let i = 1; i < personCount; i++) {
-    const cell = await person.nth(i).locator("td").nth(1).textContent()
+    const cell = await person.nth(i).locator("td").nth(4).textContent()
     closedDays.push(occurrenceStart(cell ?? ""))
   }
   expect(closedDays).toHaveLength(11)
@@ -1044,7 +1044,7 @@ test("closing after an exhausted history re-arms Load More for the new row", asy
 
   const open = openOccurrenceRow(page, person)
   await pinRow(open)
-  const justClosedWindow = await open.locator("td").nth(1).textContent()
+  const justClosedWindow = await open.locator("td").nth(4).textContent()
   if (!justClosedWindow) throw new Error("occurrence cell had no text")
   await open.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
@@ -1158,7 +1158,7 @@ test("a close surfaces only the session-closed row, never old history", async ({
   const person = personRows(row)
   await expect(person).toHaveCount(1)
   const open = openOccurrenceRow(page, person)
-  const occurrence = open.locator("td").nth(1)
+  const occurrence = open.locator("td").nth(4)
 
   // Old closed history: two closes, then a reload so the panel mounts
   // fresh — two closed rows exist server-side while the panel shows
@@ -1233,11 +1233,10 @@ test("a removed assignee can be reassigned with the closed row in history", asyn
   await removeAssigneeAsCancelled(page, firstEdit)
   await saveEdit(page, firstEdit)
 
-  // Zero-open lingering task: a Done label leads the closed-count
-  // summary ("Completado · 1 cerrada"), plus a closed row with Reopen.
+  // Zero-open lingering task: the summary shows only the closed count,
+  // plus a closed row with Reopen.
   await expect(row).toBeVisible()
   await expect(row).toContainText("1 cerrada")
-  await expect(row).toContainText("Completado")
   await expandAssignments(row)
   const person = personRows(row)
   await expect(person).toHaveCount(1)
@@ -1368,7 +1367,7 @@ test("a plain save after unarchive never reopens work, and extending the due dat
   await expect(open).toHaveCount(1)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const startCell = await open.locator("td").nth(1).textContent()
+  const startCell = await open.locator("td").nth(4).textContent()
   expect(occurrenceStart(startCell ?? "")).toBeGreaterThanOrEqual(
     today.getTime()
   )

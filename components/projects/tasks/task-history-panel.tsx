@@ -6,6 +6,7 @@ import {
 } from "@/actions/tasks/schemas"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { freshlyClosedRows, mergeClosedRows } from "@/lib/tasks/list"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
@@ -34,6 +35,18 @@ interface TaskHistoryPanelProps {
    */
   openIds: string[]
   historySignature: string
+  /**
+   * Total table columns the closed rows and the Load more cell must span.
+   * Defaults to the tasks table's arrangement; a caller rendering this
+   * panel in a table with a different column set passes its own count.
+   */
+  columnCount?: number
+  /** Forwarded to the closed rows so their cells match the host table's headers. */
+  cellOrder?: "tasks" | "expenses"
+  /** Rows per page; the expenses tab asks for 30 instead of the tasks tab's 10. */
+  pageSize?: number
+  /** Forwarded to closed rows so expenses shows dates without times. */
+  dateOnly?: boolean
 }
 
 // Stable empty scope for mixed tasks (old closed history stays behind
@@ -48,14 +61,19 @@ export function TaskHistoryPanel({
   storeTerminal,
   openIds,
   historySignature,
+  columnCount,
+  cellOrder,
+  pageSize,
+  dateOnly,
 }: TaskHistoryPanelProps) {
+  const pageCount = pageSize ?? HISTORY_PAGE_SIZE
   const t = useTranslations()
   const { projectId, isOwner, isAdmin } = useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canDeleteProject = useHasPermission("projects:delete")
   const canMutate =
     (isOwner || isAdmin) && (canEditProject || canDeleteProject)
-  const columnCount = assignmentColumnCount(canMutate)
+  const columns = columnCount ?? assignmentColumnCount(canMutate)
   const { loadAssignmentHistory } = useProjectTasksActions()
   const [displayed, setDisplayed] = useState<TaskAssignmentDTO[]>([])
   // The previous render's open ids: a row that was open there and is
@@ -136,7 +154,12 @@ export function TaskHistoryPanel({
     async (offset: number): Promise<void> => {
       const startSignature = signatureRef.current
       try {
-        const page = await loadAssignmentHistory(projectId, taskId, offset)
+        const page = await loadAssignmentHistory(
+          projectId,
+          taskId,
+          offset,
+          pageCount
+        )
         // Stale-response discard: a terminal-set change landed while
         // this request was in flight, so its snapshot predates the
         // current history — drop it whole, no state writes.
@@ -154,13 +177,13 @@ export function TaskHistoryPanel({
         })
         // Absolute (not a running sum): a double-applied fetch for the
         // same offset must land on the same offset, never skip a window.
-        setFetchedCount(offset + HISTORY_PAGE_SIZE)
+        setFetchedCount(offset + pageCount)
         setHasMore(page.hasMore)
       } catch {
         return
       }
     },
-    [loadAssignmentHistory, projectId, taskId, zeroOpenScope]
+    [loadAssignmentHistory, projectId, taskId, zeroOpenScope, pageCount]
   )
 
   const loadMore = useCallback(async (): Promise<void> => {
@@ -182,17 +205,22 @@ export function TaskHistoryPanel({
         taskId={taskId}
         assignments={closed}
         timeZone={timeZone}
+        columnCount={columns}
+        cellOrder={cellOrder}
+        dateOnly={dateOnly}
       />
       {hasMore && (
         <TableRow>
-          <TableCell colSpan={columnCount}>
+          <TableCell colSpan={columns}>
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={loading}
               onClick={loadMore}
+              className="gap-2"
             >
+              {loading && <Spinner />}
               {t("common.loadMore")}
             </Button>
           </TableCell>

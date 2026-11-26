@@ -320,6 +320,8 @@
       "reviewCount": "{count, plural, one {# in review} other {# in review}}",
       "closedCount": "{count, plural, one {# closed} other {# closed}}",
       "assignmentsToggle": "Assignee details",
+      "showAssignments": "Show assignments",
+      "collapseAssignments": "Collapse assignments",
       "addAssignee": "Add assignee",
       "assignees": "Assignees",
       "archive": {

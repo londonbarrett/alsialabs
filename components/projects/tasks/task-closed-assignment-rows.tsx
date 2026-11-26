@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
+import { isTerminalStatus } from "@/lib/util/project-roles"
 import { formatAssignmentDueDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useLocale, useTranslations } from "next-intl"
@@ -24,6 +25,20 @@ interface TaskClosedAssignmentRowsProps {
   /** Project zone every occurrence in this task is displayed in. */
   timeZone: string
   onReopen?: (assignmentId: string) => void
+  /**
+   * Total table columns the filler cells must pad out to. Defaults to
+   * the tasks table's arrangement; a caller rendering these rows in a
+   * table with a different column set passes its own count.
+   */
+  columnCount?: number
+  /**
+   * Cell order for the four leading cells. The tasks table headers are
+   * Assignee / Status / Cost / Due date; the expenses table headers are
+   * Description / Type / Amount / Date, so cost and due date swap there.
+   */
+  cellOrder?: "tasks" | "expenses"
+  /** Show only the occurrence date, never its time. */
+  dateOnly?: boolean
 }
 
 /**
@@ -38,6 +53,9 @@ export function TaskClosedAssignmentRows({
   assignments,
   timeZone,
   onReopen,
+  columnCount,
+  cellOrder = "tasks",
+  dateOnly = false,
 }: TaskClosedAssignmentRowsProps) {
   const t = useTranslations()
   const locale = useLocale()
@@ -52,7 +70,8 @@ export function TaskClosedAssignmentRows({
 
   // The header renders the actions column only for mutators; the empty
   // filler cells must match that column count exactly.
-  const columnCount = assignmentColumnCount(canMutate)
+  const columns = columnCount ?? assignmentColumnCount(canMutate)
+  const align = "text-center"
 
   return assignments.map((assignment) => {
     // A row is one occurrence: show its due date, with time only for timed
@@ -62,45 +81,43 @@ export function TaskClosedAssignmentRows({
           assignment.endDate,
           locale,
           timeZone,
-          assignment.startTime
+          dateOnly ? null : assignment.startTime
         )
       : "—"
 
-    return (
-      <TableRow key={assignment.id}>
-        <TableCell className="pl-8">
-          <span className="flex items-center gap-2">
-            <Avatar
-              size="sm"
-              className="border-2 border-background"
-            >
-              <AvatarImage
-                src={assignment.userImage ?? undefined}
-                alt=""
-              />
-              <AvatarFallback>
-                {(assignment.userName || assignment.userEmail || "")
-                  .slice(0, 2)
-                  .toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="flex flex-col">
-              <span className="text-sm">
-                {assignment.userName || assignment.userEmail}
-              </span>
-              {assignment.userName && assignment.userEmail && (
-                <span className="text-xs text-muted-foreground">
-                  {assignment.userEmail}
-                </span>
-              )}
+    const assigneeCell = (
+      <TableCell key="assignee" className="pl-8">
+        <span className="flex items-center gap-2">
+          <Avatar size="sm" className="border-2 border-background">
+            <AvatarImage src={assignment.userImage ?? undefined} alt="" />
+            <AvatarFallback>
+              {(assignment.userName || assignment.userEmail || "")
+                .slice(0, 2)
+                .toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <span className="flex flex-col">
+            <span className="text-sm">
+              {assignment.userName || assignment.userEmail}
             </span>
+            {assignment.userName && assignment.userEmail && (
+              <span className="text-xs text-muted-foreground">
+                {assignment.userEmail}
+              </span>
+            )}
           </span>
-        </TableCell>
-        <TableCell>
-          <span>{occurrence}</span>
-        </TableCell>
-        <TableCell>
-          <span className="flex items-center gap-2">
+        </span>
+      </TableCell>
+    )
+    const dateCell = (
+      <TableCell key="date" className={align}>
+        <span>{occurrence}</span>
+      </TableCell>
+    )
+    const statusCell = (
+      <TableCell key="status" className={align}>
+        <div className="flex justify-center">
+          <span className="flex flex-wrap items-center justify-center gap-2">
             <Badge className={taskStatusColors[assignment.status]}>
               {t(`projects.tasks.status.${assignment.status}`)}
             </Badge>
@@ -114,23 +131,50 @@ export function TaskClosedAssignmentRows({
               </Button>
             )}
           </span>
-        </TableCell>
-        <TableCell>
+        </div>
+      </TableCell>
+    )
+    const costCell = (
+      <TableCell key="cost" className={align}>
+        <div className="flex justify-center">
           {canEditCost ? (
             <AssignmentCostInput
               taskId={taskId}
               assignmentId={assignment.id}
               value={assignment.cost}
+              terminal={isTerminalStatus(assignment.status)}
             />
           ) : (
             <span className="text-sm tabular-nums">
               <Money value={assignment.cost} />
             </span>
           )}
-        </TableCell>
-        {Array.from({ length: columnCount - 4 }, (_, index) => (
-          <TableCell key={index} />
-        ))}
+        </div>
+      </TableCell>
+    )
+    // The expenses headers are Description / Type / Amount / Date; the tasks
+    // headers put status in Status and the occurrence in Due date, leaving the
+    // Assignees cell empty in between.
+    const leadingCells =
+      cellOrder === "expenses"
+        ? [assigneeCell, statusCell, costCell, dateCell]
+        : [
+            assigneeCell,
+            <TableCell key="spacer" className={align} />,
+            statusCell,
+            costCell,
+            dateCell,
+          ]
+
+    return (
+      <TableRow key={assignment.id}>
+        {leadingCells}
+        {Array.from(
+          { length: columns - leadingCells.length },
+          (_, index) => (
+            <TableCell key={index} className={align} />
+          )
+        )}
       </TableRow>
     )
   })

@@ -18,13 +18,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { MenuAction } from "@/lib/types"
 import { sortAssignments } from "@/lib/tasks/assignments"
+import { isOpenAssignment } from "@/lib/tasks/filter"
 import {
-  assignmentCounts,
-  isOpenAssignment,
-} from "@/lib/tasks/filter"
-import { assigneeIdentities, visibleAssignments } from "@/lib/tasks/list"
+  assigneeIdentities,
+  visibleAssignments,
+} from "@/lib/tasks/list"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
@@ -66,12 +71,13 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
-  const { project, isOwner, isAdmin, members } = useProjectContextState()
+  const { project, isOwner, isAdmin, members } =
+    useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
-  const canMutate =
-    (isOwner || isAdmin) && (canEdit || canDeleteProject)
+  // Name + five centred columns + Actions; the comments column is gone.
+  const columnCount = 7
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [archivingTaskId, setArchivingTaskId] = useState<string | null>(
     null
@@ -106,27 +112,31 @@ export function TasksTable({
 
   return (
     <div className="overflow-auto rounded-md border">
-      <Table>
+      {/* Fixed widths keep expanded assignment rows from reflowing the table. */}
+      <Table className="min-w-275 table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead scope="col">
+            <TableHead scope="col" className="w-45">
               {t("projects.tasks.name")}
             </TableHead>
-            <TableHead scope="col">
+            <TableHead scope="col" className="w-27.5 text-center">
               {t("projects.tasks.assignees")}
             </TableHead>
-            <TableHead scope="col">{t("common.status")}</TableHead>
-            <TableHead scope="col">{t("common.priority")}</TableHead>
-            <TableHead scope="col">{t("common.dueDate")}</TableHead>
-            <TableHead scope="col">{t("projects.tasks.totalCost")}</TableHead>
-            <TableHead scope="col" className="w-12 text-center">
-              {t("common.comments")}
+            <TableHead scope="col" className="w-37.5 text-center">
+              {t("common.status")}
             </TableHead>
-            {canMutate && (
-              <TableHead scope="col" className="text-center">
-                {t("common.actions")}
-              </TableHead>
-            )}
+            <TableHead scope="col" className="w-35 text-center">
+              {t("common.priority")}
+            </TableHead>
+            <TableHead scope="col" className="w-40 text-center">
+              {t("common.dueDate")}
+            </TableHead>
+            <TableHead scope="col" className="w-27.5 text-center">
+              {t("projects.tasks.totalCost")}
+            </TableHead>
+            <TableHead scope="col" className="w-35 text-center">
+              {t("common.actions")}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -160,11 +170,10 @@ export function TasksTable({
             // The panel's two views of the store: every terminal row
             // (zero-open scope + open→terminal absorption) and which
             // rows are currently open (the "was open last render" set).
-            const storeTerminal = task.assignments.filter((assignment) =>
-              isTerminalStatus(assignment.status)
+            const storeTerminal = task.assignments.filter(
+              (assignment) => isTerminalStatus(assignment.status)
             )
             const openIds = open.map((assignment) => assignment.id)
-            const counts = assignmentCounts(task.assignments)
             const isExpanded = expanded.has(task.id)
             // Sorted so sortAssignments re-orders can't retrigger the
             // history panel's pagination reset.
@@ -172,38 +181,17 @@ export function TasksTable({
               .map((assignment) => assignment.id)
               .sort()
               .join(",")
-            // Open work first (with its blocked/review detail), then
-            // the server-counted terminal total. A task with nothing
-            // open but some closed reads "Done · N closed"; with open
-            // work the closed total stands alone. No parts at all means
-            // the task has no assignments whatsoever.
+            // A simple summary: open assignments and closed assignments.
             const statusParts = [
               ...(open.length > 0
                 ? [
                     t("projects.tasks.openCount", {
-                      count: counts.open,
+                      count: open.length,
                     }),
-                    ...(counts.blocked > 0
-                      ? [
-                          t("projects.tasks.blockedCount", {
-                            count: counts.blocked,
-                          }),
-                        ]
-                      : []),
-                    ...(counts.review > 0
-                      ? [
-                          t("projects.tasks.reviewCount", {
-                            count: counts.review,
-                          }),
-                        ]
-                      : []),
                   ]
                 : []),
               ...(task.closedCount > 0
                 ? [
-                    ...(open.length === 0
-                      ? [t("projects.tasks.status.done")]
-                      : []),
                     t("projects.tasks.closedCount", {
                       count: task.closedCount,
                     }),
@@ -217,7 +205,23 @@ export function TasksTable({
 
             return (
               <Fragment key={task.id}>
-                <TableRow onDoubleClick={() => onComments(task)}>
+                <TableRow
+                  className={
+                    shown.length > 0 ? "cursor-pointer" : undefined
+                  }
+                  onClick={(event) => {
+                    const target = event.target as HTMLElement
+                    if (
+                      target.closest(
+                        "button, [role='combobox'], input, a"
+                      )
+                    ) {
+                      return
+                    }
+                    if (shown.length > 0) toggleExpanded(task.id)
+                  }}
+                  onDoubleClick={() => onComments(task)}
+                >
                   <TableCell className="font-medium">
                     <div>
                       <div className="flex items-center gap-2">
@@ -225,6 +229,7 @@ export function TasksTable({
                           <Button
                             variant="ghost"
                             size="icon-sm"
+                            className="shrink-0"
                             aria-label={t(
                               "projects.tasks.assignmentsToggle"
                             )}
@@ -244,104 +249,117 @@ export function TasksTable({
                             className="size-8 shrink-0"
                           />
                         )}
-                        <p>{task.name}</p>
-                        {task.recurrence && (
-                          <Badge
-                            variant="outline"
-                            className="gap-1 text-xs"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                            {t("projects.tasks.recurring")}
-                          </Badge>
-                        )}
-                      </div>
-                      {task.description && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {task.description}
+                        <p className="min-w-0 flex-1 wrap-break-word whitespace-normal">
+                          {task.name}
                         </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex justify-center">
+                      {assignees.length > 0 ? (
+                        <TaskAssigneeStack assignees={assignees} />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {t("common.unassigned")}
+                        </span>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {assignees.length > 0 ? (
-                      <TaskAssigneeStack assignees={assignees} />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {t("common.unassigned")}
-                      </span>
-                    )}
+                  <TableCell className="text-center">
+                    {statusSummary}
                   </TableCell>
-                  <TableCell>{statusSummary}</TableCell>
-                  <TableCell>
-                    {(isOwner || isAdmin) && canEdit ? (
-                      <TaskPrioritySelect
-                        priority={task.priority}
-                        onPriorityChange={(p) =>
-                          onPriorityChange(task.id, p)
-                        }
+                  <TableCell className="text-center">
+                    <div className="flex justify-center">
+                      {(isOwner || isAdmin) && canEdit ? (
+                        <TaskPrioritySelect
+                          priority={task.priority}
+                          onPriorityChange={(p) =>
+                            onPriorityChange(task.id, p)
+                          }
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {task.priority
+                            ? t(
+                                `projects.tasks.priority.${task.priority}`
+                              )
+                            : t("projects.tasks.priority.none")}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <DueDate
+                        date={task.endDate}
+                        timeZone={project.timeZone}
+                        startTime={task.startTime}
+                        overdue={task.overdue}
+                        overdueLabel={t("common.overdue")}
                       />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {task.priority
-                          ? t(`projects.tasks.priority.${task.priority}`)
-                          : t("projects.tasks.priority.none")}
-                      </span>
-                    )}
+                      {task.recurrence && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Badge
+                                variant="outline"
+                                aria-label={t(
+                                  "projects.tasks.recurring"
+                                )}
+                                className="shrink-0"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                              </Badge>
+                            }
+                          />
+                          <TooltipContent>
+                            {t("projects.tasks.recurring")}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell>
-                    <DueDate
-                      date={task.endDate}
-                      timeZone={project.timeZone}
-                      startTime={task.startTime}
-                      overdue={task.overdue}
-                      overdueLabel={t("common.overdue")}
-                    />
-                  </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <Money value={task.totalCost} />
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button
-                      variant="secondary"
-                      onClick={() => onComments(task)}
-                      className="gap-1.5"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      <span className="text-xs text-muted-foreground">
-                        {task.commentCount}
-                      </span>
-                    </Button>
+                    <div className="flex justify-center">
+                      <ActionMenu
+                        entityName={task.name}
+                        onEdit={() => onEdit(task)}
+                        onDelete={() => onDelete(task.id)}
+                        canEdit={canEdit}
+                        canDelete={canDeleteProject}
+                        actions={[
+                          {
+                            key: "comments",
+                            label: t("common.comments"),
+                            icon: MessageSquare,
+                            onSelect: () => onComments(task),
+                          },
+                          createTaskArchiveAction({
+                            labels: {
+                              archive: t("projects.tasks.archiveTask"),
+                              unarchive: t(
+                                "projects.tasks.unarchiveTask"
+                              ),
+                            },
+                            task,
+                            canArchive: canEdit,
+                            onArchiveRequest: () =>
+                              setArchivingTaskId(task.id),
+                            onArchiveDirect: () =>
+                              handleArchive(task.id, "cancelled"),
+                            onUnarchive: () => onUnarchive(task.id),
+                          }),
+                        ].filter(
+                          (action): action is MenuAction =>
+                            action !== null
+                        )}
+                      />
+                    </div>
                   </TableCell>
-                  {canMutate && (
-                    <TableCell className="text-center">
-                      <div className="flex justify-center">
-                        <ActionMenu
-                          entityName={task.name}
-                          onEdit={() => onEdit(task)}
-                          onDelete={() => onDelete(task.id)}
-                          canEdit={canEdit}
-                          canDelete={canDeleteProject}
-                          actions={[
-                            createTaskArchiveAction({
-                              labels: {
-                                archive: t("projects.tasks.archiveTask"),
-                                unarchive: t("projects.tasks.unarchiveTask"),
-                              },
-                              task,
-                              canArchive: canEdit,
-                              onArchiveRequest: () =>
-                                setArchivingTaskId(task.id),
-                              onArchiveDirect: () =>
-                                handleArchive(task.id, "cancelled"),
-                              onUnarchive: () => onUnarchive(task.id),
-                            }),
-                          ].filter(
-                            (action): action is MenuAction => action !== null
-                          )}
-                        />
-                      </div>
-                    </TableCell>
-                  )}
                 </TableRow>
                 {isExpanded && (
                   <Fragment>
@@ -350,6 +368,7 @@ export function TasksTable({
                       assignments={openRows}
                       timeZone={project.timeZone}
                       onStatusChange={onStatusChange}
+                      columnCount={columnCount}
                     />
                     {task.recurrence === null && (
                       <TaskClosedAssignmentRows
@@ -359,6 +378,7 @@ export function TasksTable({
                         onReopen={(assignmentId) =>
                           onStatusChange(task.id, assignmentId, "todo")
                         }
+                        columnCount={columnCount}
                       />
                     )}
                     <TaskHistoryPanel
@@ -368,6 +388,7 @@ export function TasksTable({
                       storeTerminal={storeTerminal}
                       openIds={openIds}
                       historySignature={historySignature}
+                      columnCount={columnCount}
                     />
                   </Fragment>
                 )}

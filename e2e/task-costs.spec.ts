@@ -113,10 +113,11 @@ test("total cost shows on the task row and in both My Tasks tabs", async ({
   })
   await page.reload()
 
-  // Name, assignees, status, priority, due date, then the new total column.
+  // Name, assignees, status, priority, due date, then the total column.
+  // Both assignments are still open, so the closed-only server total is $0.
   const taskRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(taskRow).toBeVisible()
-  await expect(taskRow.getByRole("cell").nth(5)).toHaveText("$150")
+  await expect(taskRow.getByRole("cell").nth(5)).toHaveText("$0")
 
   // The collaborator sees their assignment's own cost in the active tab.
   await signInAs("user2")
@@ -141,6 +142,8 @@ test("total cost shows on the task row and in both My Tasks tabs", async ({
   await collaboratorRow.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
   await expect(page.getByText("Estado actualizado")).toBeVisible()
+  // The owner's task row now counts the one closed (done) assignment: $75.
+  await expect(ownerRow.getByRole("cell").nth(5)).toHaveText("$75")
 
   await signInAs("user2")
   await page.goto("/app/mis-tareas")

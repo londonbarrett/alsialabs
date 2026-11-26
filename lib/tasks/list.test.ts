@@ -410,7 +410,7 @@ describe("freshlyClosedRows", () => {
 })
 
 describe("selectTasks", () => {
-  it("open lists non-archived tasks by endDate ascending, nulls last", () => {
+  it("open lists non-archived tasks by endDate descending, nulls last", () => {
     const soon = makeTask({
       id: "soon",
       archived: false,
@@ -437,10 +437,10 @@ describe("selectTasks", () => {
       selectTasks([archived, later, noDue, soon], "open").map(
         (t) => t.id
       )
-    ).toEqual(["soon", "later", "no-due"])
+    ).toEqual(["later", "soon", "no-due"])
   })
 
-  it("archived lists only archived tasks by endDate ascending, nulls last", () => {
+  it("archived lists only archived tasks by endDate descending, nulls last", () => {
     const archivedLate = makeTask({
       id: "archived-late",
       archived: true,
@@ -467,7 +467,7 @@ describe("selectTasks", () => {
         [archivedLate, open, archivedNoDue, archivedEarly],
         "archived"
       ).map((t) => t.id)
-    ).toEqual(["archived-early", "archived-late", "archived-no-due"])
+    ).toEqual(["archived-late", "archived-early", "archived-no-due"])
   })
 })
 

@@ -26,7 +26,7 @@ import {
 } from "@/actions/tasks"
 import type { TaskFormValues } from "@/components/projects/tasks/task-dialog"
 import { useSettle } from "@/hooks/use-settle"
-import { costToNumber, sumCosts } from "@/lib/tasks/cost"
+import { closedCostDelta, sumMoney } from "@/lib/costs/delta"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
@@ -84,12 +84,13 @@ export function useProjectTasksActions() {
     async (
       projectId: string,
       taskId: string,
-      offset: number
+      offset: number,
+      limit: number = HISTORY_PAGE_SIZE
     ): Promise<TaskAssignmentHistoryDTO | null> => {
       const result = await executeHistory({
         projectId,
         taskId,
-        limit: HISTORY_PAGE_SIZE,
+        limit,
         offset,
       })
       return result.data ?? null
@@ -196,12 +197,30 @@ export function useProjectTasksActions() {
     taskId: string,
     closeAs: "done" | "cancelled"
   ) {
+    // Archiving closes every open row, so each of their costs joins the
+    // closed total the server will report for this task.
+    const assignments =
+      store
+        .getState()
+        .optimistic.tasks.find((task) => task.id === taskId)?.assignments ?? []
+    const costDelta = sumMoney(
+      assignments
+        .filter((assignment) => !isTerminalStatus(assignment.status))
+        .map((assignment) =>
+          closedCostDelta(
+            { cost: assignment.cost, terminal: false },
+            { cost: assignment.cost, terminal: true }
+          )
+        )
+    )
+
     const result = await run(
       {
         type: "setArchived",
         taskId,
         archived: true,
         closeAs,
+        costDelta,
       },
       () => executeArchive({ projectId, taskId, closeAs })
     )
@@ -220,7 +239,9 @@ export function useProjectTasksActions() {
                 taskId,
                 archived: false,
                 spawned: r.data.spawned,
-                costDelta: sumCosts(r.data.spawned),
+                // The spawned rows are open, so they add nothing to the
+                // closed-only total.
+                costDelta: 0,
               }
             : undefined,
       }
@@ -253,12 +274,20 @@ export function useProjectTasksActions() {
           ? -1
           : 1
 
+    // Money follows the same closed-only rule: closing a row adds its cost,
+    // reopening it takes the cost back. An open row's cost is not money yet.
+    const costDelta = closedCostDelta(
+      { cost: current.cost, terminal: wasTerminal },
+      { cost: current.cost, terminal: willBeTerminal }
+    )
+
     const result = await run(
       {
         type: "upsertAssignment",
         taskId,
         assignment: { ...current, status },
         closedDelta,
+        costDelta,
       },
       () => executeStatus({ projectId, assignmentId, status }),
       {
@@ -269,7 +298,10 @@ export function useProjectTasksActions() {
                 taskId,
                 assignment: r.data.assignment,
                 nextAssignment: r.data.nextAssignment,
-                costDelta: r.data.spawnedCostTotal,
+                // The transition already moved the total on the pend, and
+                // every spawned row is open — it adds nothing to a
+                // closed-only total.
+                costDelta: 0,
               }
             : undefined,
       }
@@ -321,7 +353,8 @@ export function useProjectTasksActions() {
     taskId: string,
     assignmentId: string,
     cost: string,
-    previousCost?: string
+    previousCost?: string,
+    terminal: boolean = true
   ) {
     const nextCost = cost || "0"
     // The caller supplies the pre-edit cost because history-panel rows are
@@ -329,8 +362,11 @@ export function useProjectTasksActions() {
     // no-op on those rows. The task's total is a server aggregate between
     // reseeds: move it by the difference now, keep that adjustment on commit
     // (which carries no fresh delta), and revert it with the pend on failure.
-    const costDelta =
-      costToNumber(nextCost) - costToNumber(previousCost || "0")
+    // Only a closed row is money: an open row's cost is stored, not counted.
+    const costDelta = closedCostDelta(
+      { cost: previousCost || "0", terminal },
+      { cost: nextCost, terminal }
+    )
     const result = await run(
       {
         type: "setAssignmentCost",

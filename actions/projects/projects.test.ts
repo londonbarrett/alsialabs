@@ -491,7 +491,7 @@ describe("projects actions", () => {
   })
 
   describe("getProjectsWithDetails", () => {
-    it("counts only expenses and paid invoices toward project spend", async () => {
+    it("counts expenses, paid invoices and closed task costs toward project spend", async () => {
       mockIsSuperUser.mockReturnValue(false)
       const PROJECT: ProjectDetailDTO = {
         id: PROJECT_ID,
@@ -524,11 +524,16 @@ describe("projects actions", () => {
             ]
           : [PROJECT]
       )
-      const taskSqls: string[] = []
-      state.mock.onSelect(schema.tasksTable).respondWith((sql) => {
-        taskSqls.push(sql)
-        return sql.includes("count(")
+      state.mock.onSelect(schema.tasksTable).respondWith((sql) =>
+        sql.includes("count(")
           ? [{ projectId: PROJECT.id, total: 2, completed: 1 }]
+          : []
+      )
+      let taskCostSql = ""
+      state.mock.onSelect(schema.taskAssignmentsTable).respondWith((sql) => {
+        if (sql.includes("sum(")) taskCostSql = sql
+        return sql.includes("sum(")
+          ? [{ projectId: PROJECT.id, total: "25" }]
           : []
       })
       state.mock
@@ -543,9 +548,10 @@ describe("projects actions", () => {
 
       const result = await getProjectsWithDetails()
 
-      // 50 expenses + 30 paid invoices: task costs never reach spend.
-      expect(result.data?.[0]?.expenses).toBe(80)
-      expect(taskSqls.some((sql) => sql.includes("cost"))).toBe(false)
+      // 50 expenses + 30 paid invoices + 25 closed task costs.
+      expect(result.data?.[0]?.expenses).toBe(105)
+      // Task money only counts once the assignment is closed.
+      expect(taskCostSql).toContain("case when")
       expect(invoiceSql).toContain("paid_amount")
       expect(invoiceSql).not.toContain("grand_total")
     })
@@ -577,6 +583,7 @@ describe("projects actions", () => {
           sql.includes('inner join "user"') ? [] : [PROJECT]
         )
       state.mock.onSelect(schema.tasksTable).respond([])
+      state.mock.onSelect(schema.taskAssignmentsTable).respond([])
       state.mock.onSelect(schema.expensesTable).respond([])
       state.mock.onSelect(schema.invoicesTable).respond([])
       state.mock.onSelect(schema.projectMembershipTable).respond([])
