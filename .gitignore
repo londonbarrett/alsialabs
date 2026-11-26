@@ -49,3 +49,6 @@ next-env.d.ts
 
 # database backups — may contain live secrets (OAuth tokens); never commit
 /backups/
+
+# brainstorming scratch (mockups and session state)
+/.superpowers/

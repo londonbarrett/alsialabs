@@ -146,6 +146,14 @@ test("expanding a task does not reflow the tasks table", async ({
     Math.abs((taskDueCell?.x ?? 0) - (assignmentDueCell?.x ?? 0))
   ).toBeLessThan(2)
 
+  // The labeled comment input lives in the cost cell, not its own column.
+  const costCell = assignmentRow.getByRole("cell").nth(3)
+  await expect(costCell.getByRole("textbox", { name: "Costo" })).toBeVisible()
+  await expect(
+    costCell.getByRole("textbox", { name: "Comentario" })
+  ).toBeVisible()
+  await expect(costCell.getByText("Comentario", { exact: true })).toBeVisible()
+
   // The status summary only reports open and closed counts, not detail labels.
   await assignmentRow.getByRole("combobox").click()
   await page.getByRole("option", { name: "Bloqueado" }).click()

@@ -128,8 +128,14 @@ test("expanded task rows keep the expenses table aligned", async ({
     )
   expect(widthsAfter).toEqual(widthsBefore)
 
-  // Cost belongs under Monto, status under Tipo, occurrence under Fecha.
-  await expect(cells.nth(2).getByRole("textbox", { name: "Costo" })).toBeVisible()
+  // Cost and its labeled comment share the Monto cell; status sits under
+  // Tipo and the occurrence under Fecha.
+  const costCell = cells.nth(2)
+  await expect(costCell.getByRole("textbox", { name: "Costo" })).toBeVisible()
+  await expect(
+    costCell.getByRole("textbox", { name: "Comentario" })
+  ).toBeVisible()
+  await expect(costCell.getByText("Comentario", { exact: true })).toBeVisible()
   await expect(cells.nth(1)).toContainText("Completado")
   await expect(cells.nth(3)).toContainText("nov")
   await expect(cells.nth(3)).not.toContainText(":")

@@ -466,29 +466,6 @@ async function getAssignmentForRow(
     .then((rows) => rows[0])
 }
 
-async function getAssignmentForComment(
-  assignmentId: string,
-  projectId: string
-) {
-  return db
-    .select({
-      userId: taskAssignmentsTable.userId,
-      status: taskAssignmentsTable.status,
-    })
-    .from(taskAssignmentsTable)
-    .innerJoin(
-      tasksTable,
-      eq(taskAssignmentsTable.taskId, tasksTable.id)
-    )
-    .where(
-      and(
-        eq(taskAssignmentsTable.id, assignmentId),
-        eq(tasksTable.projectId, projectId)
-      )
-    )
-    .then((rows) => rows[0])
-}
-
 /**
  * Drizzle emits the detail view's columns unqualified, so the view query
  * runs on its own: joining `project` (status, start_date...) or
@@ -1165,23 +1142,15 @@ async function updateAssignmentStatus(
   return spawnedIds
 }
 
-async function updateAssignmentCost(
+/** One statement commits both manager-edited fields of an assignment. */
+async function updateAssignmentDetails(
   assignmentId: string,
-  cost: string
-): Promise<void> {
-  await db
-    .update(taskAssignmentsTable)
-    .set({ cost })
-    .where(eq(taskAssignmentsTable.id, assignmentId))
-}
-
-async function updateAssignmentComment(
-  assignmentId: string,
+  cost: string,
   comment: string | null
 ): Promise<void> {
   await db
     .update(taskAssignmentsTable)
-    .set({ comment })
+    .set({ cost, comment })
     .where(eq(taskAssignmentsTable.id, assignmentId))
 }
 
@@ -1332,7 +1301,6 @@ const queries = {
   getAssignmentForRow,
   getTaskAssignmentHistory,
   hasLaterDatedAssignment,
-  getAssignmentForComment,
   getTasksWithAssignments,
   getTaskWithAssignments,
   getAssigneeUserIdsByTaskIds,
@@ -1342,14 +1310,13 @@ const queries = {
   syncTaskAssignments,
   spawnEligibleAssignments,
   updateAssignmentStatus,
-  updateAssignmentComment,
+  updateAssignmentDetails,
   updateTaskPriority,
   deleteTask,
   archiveTaskRow,
   unarchiveTaskRow,
   getCostTotalsByTaskIds,
   getCostTotalByTaskId,
-  updateAssignmentCost,
   getTaskRowInProject,
   getOpenAssignmentId,
   getUserProfile,

@@ -143,4 +143,41 @@ describe("MyTasksList dates", () => {
     expect(markup).not.toContain("America/Bogota")
     expect(markup).not.toContain("Europe/Madrid")
   })
+
+  it("shows the performance note under the task name and no editing affordance", () => {
+    const markup = renderToStaticMarkup(
+      <MyTasksList
+        header={<span>Tasks</span>}
+        emptyLabel="No tasks"
+        assignments={[assignmentRow({ comment: "Delivered early" })]}
+        statuses={{}}
+        isPending={false}
+        currentUserId="u1"
+        readOnly
+      />
+    )
+
+    expect(markup).toContain("Delivered early")
+    // The note is plain data: no note input, no Save button, no input at all
+    // in the read-only surface.
+    expect(markup).not.toContain("Comentario de desempeño")
+    expect(markup).not.toContain("performanceComment")
+    expect(markup).not.toContain("<input")
+  })
+
+  it("shows no note element when the comment is null", () => {
+    const markup = renderToStaticMarkup(
+      <MyTasksList
+        header={<span>Tasks</span>}
+        emptyLabel="No tasks"
+        assignments={[assignmentRow({ comment: null })]}
+        statuses={{}}
+        isPending={false}
+        currentUserId="u1"
+        readOnly
+      />
+    )
+
+    expect(markup).not.toContain("Delivered early")
+  })
 })

@@ -76,7 +76,7 @@ export function TasksTable({
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
-  // Name + five centred columns + Actions; the comments column is gone.
+  // Name + five centred columns + Actions; the comment lives in the cost cell.
   const columnCount = 7
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [archivingTaskId, setArchivingTaskId] = useState<string | null>(

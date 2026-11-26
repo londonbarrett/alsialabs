@@ -480,44 +480,47 @@ describe("createProjectTasksStore reseedFromServer", () => {
 })
 
 describe("cost deltas", () => {
-  it("setAssignmentCost changes the assignment and lowers totalCost by costDelta", () => {
+  it("setAssignmentDetails replaces cost and comment and moves totalCost by costDelta", () => {
     const assignment = makeAssignment({
       id: "assignment-1",
-      cost: "120",
+      status: "done",
+      cost: "100",
     })
     const store = createProjectTasksStore([
-      makeTask({ id: "a", assignments: [assignment], totalCost: 200 }),
+      makeTask({ id: "a", assignments: [assignment], totalCost: 100 }),
     ])
 
     store.getState().commit(
       store.getState().pend({
-        type: "setAssignmentCost",
+        type: "setAssignmentDetails",
         taskId: "a",
         assignmentId: "assignment-1",
-        cost: "80",
-        costDelta: -40,
+        cost: "150",
+        comment: "note",
+        costDelta: 50,
       })
     )
 
     const task = store.getState().optimistic.tasks[0]
-    expect(task.assignments[0]?.cost).toBe("80")
-    expect(task.totalCost).toBe(160)
+    expect(task.assignments[0]?.cost).toBe("150")
+    expect(task.assignments[0]?.comment).toBe("note")
+    expect(task.totalCost).toBe(150)
   })
 
-  it("setAssignmentCost moves totalCost for a history row absent from the store's assignments", () => {
-    // History-panel rows can come from a fetched page, not the store's task
-    // rows. The delta must still land on the task total; the assignment map
-    // simply has nobody to update.
+  it("a fetched history row pends without inserting an assignment", () => {
+    // History-panel rows are fetched, not store-backed. The delta still lands
+    // on the task total, but no row may be invented in the store.
     const store = createProjectTasksStore([
       makeTask({ id: "a", assignments: [], totalCost: 100 }),
     ])
 
     store.getState().commit(
       store.getState().pend({
-        type: "setAssignmentCost",
+        type: "setAssignmentDetails",
         taskId: "a",
         assignmentId: "fetched-history-row",
         cost: "150",
+        comment: "note",
         costDelta: 50,
       })
     )

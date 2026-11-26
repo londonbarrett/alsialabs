@@ -147,6 +147,7 @@ test("task rows in expenses are read-only and count only closed assignments", as
   // Recosting the closed assignment moves the row amount and the footer total.
   await costInput.fill("150")
   await expect(costInput).toHaveValue("$150")
+  await closedRow.getByRole("button", { name: "Guardar cambios" }).click()
   await expect(expenseRow.getByRole("cell").nth(2)).toHaveText("$150", {
     timeout: 20_000,
   })
@@ -171,8 +172,8 @@ test("task rows in expenses are read-only and count only closed assignments", as
   )
   expect(footerValue).toBe(rowSum)
 
-  // The server seed must report the persisted value, not the optimistic one.
-  await expect(page.getByText("Tarea actualizada")).toBeVisible({
+  // The combined save settles with the assignment-details toast.
+  await expect(page.getByText("Comentario actualizado")).toBeVisible({
     timeout: 20_000,
   })
   await page.reload()
@@ -315,15 +316,24 @@ test("a repeating task's closed history is paginated in expenses", async ({
   // server-authoritative task total by the delta: the recost action carries
   // previousCost explicitly, so a fetched, non-store-backed row still counts.
   const delta = 40
-  const fetchedCost = closedCostRows
-    .last()
-    .getByRole("textbox", { name: "Costo" })
+  const fetchedRow = closedCostRows.last()
+  const fetchedCost = fetchedRow.getByRole("textbox", { name: "Costo" })
+  const fetchedNote = fetchedRow.getByRole("textbox", {
+    name: "Comentario",
+  })
   await expect(fetchedCost).toBeVisible()
   await fetchedCost.fill(String(delta))
+  await fetchedNote.fill("Recost de historial")
   await expect(fetchedCost).toHaveValue(`$${delta}`)
+  await fetchedRow.getByRole("button", { name: "Guardar cambios" }).click()
+  // This row lives in the panel's local `displayed` list, not the store, so
+  // its props never advance to the saved values. Both drafts must survive the
+  // save without a reload instead of snapping back to the old cost/note.
+  await expect(fetchedCost).toHaveValue(`$${delta}`)
+  await expect(fetchedNote).toHaveValue("Recost de historial")
   // Pinned at "$0" above, so the total must now read the +40 delta.
   await expect(amountCell).toHaveText(`$${delta}`, { timeout: 20_000 })
-  await expect(page.getByText("Tarea actualizada")).toBeVisible({
+  await expect(page.getByText("Comentario actualizado")).toBeVisible({
     timeout: 20_000,
   })
 })

@@ -8,7 +8,6 @@ import {
   ALL_TASK_STATUSES,
   COLLABORATOR_TASK_STATUSES,
 } from "@/actions/tasks/schemas"
-import { Money } from "@/components/common/money"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import {
   Avatar,
@@ -22,7 +21,7 @@ import { isTerminalStatus } from "@/lib/util/project-roles"
 import { formatAssignmentDueDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useLocale, useTranslations } from "next-intl"
-import { AssignmentCostInput } from "./assignment-cost-input"
+import { AssignmentDetailsCells } from "./assignment-details-cells"
 import { assignmentColumnCount } from "./assignment-columns"
 import { TaskStatusSelect, taskStatusColors } from "./task-status-select"
 
@@ -140,20 +139,14 @@ export function TaskOpenAssignmentRows({
             )}
           </div>
         </TableCell>
-        <TableCell className="text-center">
-          {canEditCost ? (
-            <AssignmentCostInput
-              taskId={taskId}
-              assignmentId={assignment.id}
-              value={assignment.cost}
-              terminal={isTerminalStatus(assignment.status)}
-            />
-          ) : (
-            <span className="text-sm tabular-nums">
-              <Money value={assignment.cost} />
-            </span>
-          )}
-        </TableCell>
+        <AssignmentDetailsCells
+          taskId={taskId}
+          assignmentId={assignment.id}
+          cost={assignment.cost}
+          comment={assignment.comment}
+          terminal={isTerminalStatus(assignment.status)}
+          canEdit={canEditCost}
+        />
         <TableCell className="text-center">
           <span>{occurrence}</span>
         </TableCell>

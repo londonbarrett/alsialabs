@@ -129,6 +129,11 @@ export function MyTasksList({
                               {assignment.description}
                             </p>
                           )}
+                          {assignment.comment && (
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {assignment.comment}
+                            </p>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

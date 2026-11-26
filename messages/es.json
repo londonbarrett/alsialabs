@@ -280,6 +280,7 @@
       "baseCostPerAssignment": "Costo base por asignación",
       "baseCostHelp": "El costo se puede cambiar por asignación más tarde.",
       "totalCost": "Costo total",
+      "comment": "Comentario",
       "taskDeleted": "Tarea eliminada",
       "taskUpdated": "Tarea actualizada",
       "taskCreated": "Tarea creada",

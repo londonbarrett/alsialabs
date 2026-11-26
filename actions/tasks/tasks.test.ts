@@ -73,13 +73,12 @@ import {
   getTaskComments,
   getTasks,
   unarchiveTask,
-  updateAssignmentComment,
+  updateAssignment,
   updateAssignmentStatus,
   updateComment,
   updateTask,
   updateTaskPriority,
 } from "@/actions/tasks"
-import { updateAssignmentCost } from "@/actions/tasks/actions"
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn>
 const mockResolveAccess = vi.mocked(resolveProjectAccess)
@@ -1901,72 +1900,104 @@ describe("updateAssignmentStatus", () => {
   })
 })
 
-describe("updateAssignmentCost (recost)", () => {
-  const recostInput = {
+describe("updateAssignment", () => {
+  const updateInput = {
     projectId: PROJECT_ID,
+    taskId: TASK_ID,
     assignmentId: ASSIGNMENT_ID,
     cost: "150",
+    comment: "note",
   }
 
-  function mockScopedAssignment() {
+  function mockScopedAssignment(taskId = TASK_ID) {
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
       {
         id: ASSIGNMENT_ID,
         userId: USER_ID,
         status: "todo",
         endDate: at("2026-10-30", "11:00:00"),
-        taskId: TASK_ID,
+        taskId,
       },
     ])
   }
 
-  function mockRecostView(cost: string) {
+  function mockView(cost = "150", comment: string | null = "note") {
     state.mock
       .onSelect(schema.taskAssignmentDetailView)
-      .respond([makeAssignmentRow({ cost })])
+      .respond([makeAssignmentRow({ cost, comment })])
   }
 
-  function recostUpdates(since: number) {
+  function detailsUpdates(since: number) {
     return state.mock.calls
       .slice(since)
       .filter((c) => c.sql.includes('update "task_assignment"'))
   }
 
-  it("recost: an owner recosts an assignment and the DTO carries the new cost", async () => {
+  it("writes cost and comment in one update and returns both in the DTO", async () => {
     mockScopedAssignment()
     state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
-    mockRecostView("150")
+    mockView()
     const before = state.mock.calls.length
 
-    const result = await updateAssignmentCost(recostInput)
+    const result = await updateAssignment(updateInput)
 
     expect(result.serverError).toBeUndefined()
-    expect(result.data?.id).toBe(ASSIGNMENT_ID)
     expect(result.data?.cost).toBe("150")
-    const updates = recostUpdates(before)
+    expect(result.data?.comment).toBe("note")
+    const updates = detailsUpdates(before)
     expect(updates).toHaveLength(1)
     expect(updates[0].params).toContain("150")
+    expect(updates[0].params).toContain("note")
   })
 
-  it("recost: a collaborator is forbidden", async () => {
+  it("cleared cost stores zero", async () => {
+    mockScopedAssignment()
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    mockView("0")
+    const before = state.mock.calls.length
+
+    const result = await updateAssignment({ ...updateInput, cost: "" })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.cost).toBe("0")
+    const updates = detailsUpdates(before)
+    expect(updates).toHaveLength(1)
+    expect(updates[0].params).toContain("0")
+  })
+
+  it("blank comment stores null", async () => {
+    mockScopedAssignment()
+    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
+    mockView("150", null)
+    const before = state.mock.calls.length
+
+    const result = await updateAssignment({ ...updateInput, comment: "   " })
+
+    expect(result.serverError).toBeUndefined()
+    expect(result.data?.comment).toBeNull()
+    const updates = detailsUpdates(before)
+    expect(updates).toHaveLength(1)
+    expect(updates[0].params).toContain(null)
+  })
+
+  it("collaborator is forbidden", async () => {
     grantAccess("collaborator")
     const before = state.mock.calls.length
 
-    const result = await updateAssignmentCost(recostInput)
+    const result = await updateAssignment(updateInput)
 
     expect(result.serverError).toEqual({ code: "FORBIDDEN" })
-    expect(recostUpdates(before)).toHaveLength(0)
+    expect(detailsUpdates(before)).toHaveLength(0)
   })
 
-  it("recost: an assignment outside the project is rejected without an update", async () => {
-    // The scoped read returns nothing: the assignment is not in projectId.
-    state.mock.onSelect(schema.taskAssignmentsTable).respond([])
+  it("rejects an assignment outside the input task/project without an update", async () => {
+    mockScopedAssignment("another-task")
     const before = state.mock.calls.length
 
-    const result = await updateAssignmentCost(recostInput)
+    const result = await updateAssignment(updateInput)
 
-    expect(["FORBIDDEN", "NOT_FOUND"]).toContain(result.serverError?.code)
-    expect(recostUpdates(before)).toHaveLength(0)
+    expect(result.serverError?.code).toBe("NOT_FOUND")
+    expect(detailsUpdates(before)).toHaveLength(0)
 
     // The rejection is only a valid authorization boundary if the read was
     // scoped to the input project: dropping `eq(tasksTable.projectId,
@@ -1979,70 +2010,16 @@ describe("updateAssignmentCost (recost)", () => {
     expect(scopedSelect?.params).toContain(PROJECT_ID)
   })
 
-  it("recost: a cleared cost returns and stores zero", async () => {
-    mockScopedAssignment()
-    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
-    mockRecostView("0")
+  it("rejects a comment over 2000 characters", async () => {
     const before = state.mock.calls.length
 
-    const result = await updateAssignmentCost({ ...recostInput, cost: "" })
-
-    expect(result.serverError).toBeUndefined()
-    expect(result.data?.cost).toBe("0")
-    const updates = recostUpdates(before)
-    expect(updates).toHaveLength(1)
-    expect(updates[0].params).toContain("0")
-  })
-})
-
-describe("updateAssignmentComment", () => {
-  it("lets a manager edit another assignee's note", async () => {
-    state.mock
-      .onSelect(schema.taskAssignmentsTable)
-      .respond([{ userId: OTHER_ID, status: "todo" }])
-    state.mock.onUpdate(schema.taskAssignmentsTable).respond([])
-    state.mock
-      .onSelect(schema.taskAssignmentDetailView)
-      .respond([makeAssignmentRow({ comment: "note" })])
-
-    const result = await updateAssignmentComment({
-      projectId: PROJECT_ID,
-      assignmentId: ASSIGNMENT_ID,
-      comment: " note ",
+    const result = await updateAssignment({
+      ...updateInput,
+      comment: "x".repeat(2001),
     })
 
-    expect(result.serverError).toBeUndefined()
-    expect(result.data?.comment).toBe("note")
-  })
-
-  it("forbids a collaborator from editing another assignee's note", async () => {
-    state.mock
-      .onSelect(schema.taskAssignmentsTable)
-      .respond([{ userId: OTHER_ID, status: "todo" }])
-    grantAccess("collaborator")
-
-    const result = await updateAssignmentComment({
-      projectId: PROJECT_ID,
-      assignmentId: ASSIGNMENT_ID,
-      comment: "note",
-    })
-
-    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
-  })
-
-  it("forbids a collaborator from editing their own note", async () => {
-    state.mock
-      .onSelect(schema.taskAssignmentsTable)
-      .respond([{ userId: USER_ID, status: "todo" }])
-    grantAccess("collaborator")
-
-    const result = await updateAssignmentComment({
-      projectId: PROJECT_ID,
-      assignmentId: ASSIGNMENT_ID,
-      comment: "note",
-    })
-
-    expect(result.serverError).toEqual({ code: "FORBIDDEN" })
+    expect(result.validationErrors).toBeDefined()
+    expect(detailsUpdates(before)).toHaveLength(0)
   })
 })
 
@@ -2444,7 +2421,7 @@ describe("archived tasks", () => {
     const archived = makeTaskRow({ archived: true })
     state.mock.onSelect(schema.tasksTable).respond([archived])
     state.mock.onSelect(schema.taskAssignmentsTable).respond([
-      { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", archived: true },
+      { id: ASSIGNMENT_ID, userId: USER_ID, status: "todo", taskId: TASK_ID, archived: true },
     ])
     state.mock
       .onSelect(schema.taskAssignmentDetailView)
@@ -2455,7 +2432,7 @@ describe("archived tasks", () => {
     for (const [name, action] of [
       ["updateTask", () => updateTask({ ...validTask, taskId: TASK_ID })],
       ["updateAssignmentStatus", () => updateAssignmentStatus({ projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, status: "in_progress" })],
-      ["updateAssignmentComment", () => updateAssignmentComment({ projectId: PROJECT_ID, assignmentId: ASSIGNMENT_ID, comment: "hi" })],
+      ["updateAssignment", () => updateAssignment({ projectId: PROJECT_ID, taskId: TASK_ID, assignmentId: ASSIGNMENT_ID, cost: "0", comment: "hi" })],
       ["updateTaskPriority", () => updateTaskPriority({ projectId: PROJECT_ID, taskId: TASK_ID, priority: "high" })],
     ] as const) {
       expect((await action()).serverError, name).toBeUndefined()

@@ -2,6 +2,7 @@ import type {
   TaskAssignmentDTO,
   TaskWithAssignmentsDTO,
 } from "@/actions/tasks/schemas"
+import { defaultIsSuccess } from "@/lib/util/action-result"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
@@ -41,14 +42,18 @@ vi.mock("@/stores/use-optimistic-action", () => ({
       action: unknown,
       execute: () => Promise<unknown>,
       options?: {
-        commitAction?: (result: { data?: { cost?: string } }) => unknown
+        commitAction?: (result: { data?: TaskAssignmentDTO }) => unknown
       }
     ) => {
       const id = mocks.pend(action)
       const result = await execute()
+      if (!defaultIsSuccess(result)) {
+        mocks.discard(id)
+        return result
+      }
       const override =
         typeof options?.commitAction === "function"
-          ? options.commitAction(result as { data?: { cost?: string } })
+          ? options.commitAction(result as { data?: TaskAssignmentDTO })
           : options?.commitAction
       mocks.commit(id, override)
       return result
@@ -64,8 +69,7 @@ vi.mock("@/actions/tasks", () => ({
   getTaskAssignmentHistory: vi.fn(),
   getTaskComments: vi.fn(),
   unarchiveTask: vi.fn(),
-  updateAssignmentCost: vi.fn(),
-  updateAssignmentComment: vi.fn(),
+  updateAssignment: vi.fn(),
   updateAssignmentStatus: vi.fn(),
   updateComment: vi.fn(),
   updateTask: vi.fn(),
@@ -125,45 +129,10 @@ function makeTask(
   } satisfies TaskWithAssignmentsDTO
 }
 
-describe("useProjectTasksActions().updateAssignmentCost", () => {
+describe("useProjectTasksActions().loadAssignmentHistory", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // No store rows: the assignment being recosted is a fetched one.
     mocks.tasks = []
-  })
-
-  it("pends, persists and settles when the assignment is not in the store", async () => {
-    mocks.executeAsync.mockResolvedValue({ data: { cost: "150.00" } })
-
-    const actions = getProjectTasksActions()
-    await actions.updateAssignmentCost(
-      "project-1",
-      "task-1",
-      "fetched-history-row",
-      "150",
-      "100"
-    )
-
-    expect(mocks.pend).toHaveBeenCalledWith({
-      type: "setAssignmentCost",
-      taskId: "task-1",
-      assignmentId: "fetched-history-row",
-      cost: "150",
-      costDelta: 50,
-    })
-    expect(mocks.executeAsync).toHaveBeenCalledWith({
-      projectId: "project-1",
-      assignmentId: "fetched-history-row",
-      cost: "150",
-    })
-    expect(mocks.commit).toHaveBeenCalledWith(7, {
-      type: "setAssignmentCost",
-      taskId: "task-1",
-      assignmentId: "fetched-history-row",
-      cost: "150.00",
-      costDelta: 0,
-    })
-    expect(mocks.settle).toHaveBeenCalled()
   })
 
   it("loads history with an explicit page size for the expenses tab", async () => {
@@ -181,21 +150,104 @@ describe("useProjectTasksActions().updateAssignmentCost", () => {
       offset: 0,
     })
   })
+})
 
-  it("treats an absent previousCost as zero", async () => {
-    mocks.executeAsync.mockResolvedValue({ data: { cost: "80" } })
+describe("useProjectTasksActions().updateAssignment", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // The row being edited can be a fetched history row, absent from the store.
+    mocks.tasks = []
+  })
+
+  it("pends both fields, calls the action with both fields, and commits the server row", async () => {
+    mocks.executeAsync.mockResolvedValue({
+      data: makeAssignment({ cost: "150.00", comment: "note" }),
+    })
+    mocks.settle.mockReturnValue({ success: true })
 
     const actions = getProjectTasksActions()
-    await actions.updateAssignmentCost(
+    const result = await actions.updateAssignment(
       "project-1",
       "task-1",
       "fetched-history-row",
-      "80"
+      "150",
+      "note",
+      "100"
     )
 
-    expect(mocks.pend).toHaveBeenCalledWith(
-      expect.objectContaining({ cost: "80", costDelta: 80 })
+    expect(mocks.pend).toHaveBeenCalledWith({
+      type: "setAssignmentDetails",
+      taskId: "task-1",
+      assignmentId: "fetched-history-row",
+      cost: "150",
+      comment: "note",
+      costDelta: 50,
+    })
+    expect(mocks.executeAsync).toHaveBeenCalledWith({
+      projectId: "project-1",
+      taskId: "task-1",
+      assignmentId: "fetched-history-row",
+      cost: "150",
+      comment: "note",
+    })
+    expect(mocks.commit).toHaveBeenCalledWith(7, {
+      type: "setAssignmentDetails",
+      taskId: "task-1",
+      assignmentId: "fetched-history-row",
+      cost: "150.00",
+      comment: "note",
+      costDelta: 0,
+    })
+    expect(mocks.settle).toHaveBeenCalled()
+    expect(result).toEqual({ success: true })
+  })
+
+  it("an open-row edit leaves totalCost unchanged", async () => {
+    mocks.executeAsync.mockResolvedValue({
+      data: makeAssignment({ cost: "150.00", comment: "note" }),
+    })
+    mocks.settle.mockReturnValue({ success: true })
+
+    const actions = getProjectTasksActions()
+    await actions.updateAssignment(
+      "project-1",
+      "task-1",
+      "fetched-history-row",
+      "150",
+      "note",
+      "100",
+      false
     )
+
+    // An open row's cost is stored, not counted in the closed total.
+    expect(mocks.pend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setAssignmentDetails",
+        cost: "150",
+        costDelta: 0,
+      })
+    )
+  })
+
+  it("a failed mutation discards and returns failure", async () => {
+    mocks.executeAsync.mockResolvedValue({
+      serverError: { code: "FORBIDDEN" },
+    })
+    mocks.settle.mockReturnValue({ success: false })
+
+    const actions = getProjectTasksActions()
+    const result = await actions.updateAssignment(
+      "project-1",
+      "task-1",
+      "fetched-history-row",
+      "150",
+      "note",
+      "100"
+    )
+
+    expect(mocks.discard).toHaveBeenCalledWith(7)
+    expect(mocks.commit).not.toHaveBeenCalled()
+    expect(result.success).toBe(false)
   })
 })
 
@@ -203,29 +255,6 @@ describe("useProjectTasksActions() closed-only cost deltas", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.tasks = [makeTask()]
-  })
-
-  it("an open assignment cost edit does not move totalCost", async () => {
-    mocks.executeAsync.mockResolvedValue({ data: { cost: "150.00" } })
-
-    const actions = getProjectTasksActions()
-    await actions.updateAssignmentCost(
-      "project-1",
-      "task-1",
-      "a-1",
-      "150",
-      "100",
-      false
-    )
-
-    // The row is still open: its cost is stored, but it is not money yet.
-    expect(mocks.pend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "setAssignmentCost",
-        cost: "150",
-        costDelta: 0,
-      })
-    )
   })
 
   it("closing an assignment adds its cost and reopening subtracts it", async () => {

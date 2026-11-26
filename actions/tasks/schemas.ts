@@ -263,6 +263,18 @@ export const UpdateAssignmentCostSchema = z.object({
   cost: CostInputSchema,
 })
 
+/**
+ * One explicit Save writes both the corrected cost and the manager's
+ * performance note. The task id scopes the write to the row the manager saw.
+ */
+export const UpdateAssignmentSchema = z.object({
+  projectId: z.uuid(),
+  taskId: z.uuid(),
+  assignmentId: z.uuid(),
+  cost: CostInputSchema,
+  comment: z.string().max(2000),
+})
+
 export const ArchiveTaskSchema = z.object({
   projectId: z.uuid(),
   taskId: z.uuid(),
@@ -321,9 +333,7 @@ export type MyAssignmentDTO = z.infer<typeof MyAssignmentSchema>
 export type AssignmentStatusResultDTO = z.infer<
   typeof AssignmentStatusResultSchema
 >
-export type UpdateAssignmentCostDTO = z.infer<
-  typeof UpdateAssignmentCostSchema
->
+export type UpdateAssignmentDTO = z.infer<typeof UpdateAssignmentSchema>
 export type ArchiveTaskDTO = z.infer<typeof ArchiveTaskSchema>
 export type UnarchiveTaskDTO = z.infer<typeof UnarchiveTaskSchema>
 export type UnarchiveTaskResultDTO = z.infer<
