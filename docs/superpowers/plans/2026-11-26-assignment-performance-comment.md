@@ -10,6 +10,35 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-26-assignment-performance-comment-design.md`
 
+## As-built adjustments (final UI)
+
+The task steps below describe the original implementation and were followed in
+order during delivery. Subsequent user-directed adjustments changed only the
+presentation; the server action, optimistic store, and form hook are unchanged.
+Where the steps below disagree with this section, **this section wins** — see
+the spec for the full final-state description.
+
+- `AssignmentDetailsCells` renders **two** cells: cost and comment. On Tasks the
+  comment cell uses `colSpan={3}` with `px-10` padding; on Expenses it stays one
+  column. The comment input grows to fill the cell, has no visible label, and
+  uses `common.comments` as its placeholder ("Comments" / "Comentarios").
+- Save is always present as a labelled button (`Save` icon + `common.save`,
+  "Save" / "Guardar"), disabled until a field changes or while saving. Its icon
+  swaps to `Spinner` during the request; the global bar also runs. It is no
+  longer icon-only with `aria-label="common.saveChanges"`, and it no longer
+  appears/disappears with `isDirty`.
+- Task row: **name → status → due date → total cost → priority → assignees →
+  actions**, recurring badge inline with the title, due date date-only.
+- Assignment row: **assignee → status → due date → cost → comment (3 columns) →
+  actions**, due date date-only via `formatAssignmentDueDate`.
+- My Tasks: the note moved out of the task-name cell into its own **Comment**
+  column after Cost; the separate `common.comments` count column is unchanged.
+- The retired `dateOnly` prop and the old `assignment-cost-input.tsx` are gone.
+  `AssignmentDetailsCells` takes an optional `commentColSpan` (default `1`).
+- E2E selectors use `getByRole("textbox", { name: "Comentarios" })` and
+  `getByRole("button", { name: "Guardar" })`; cell indices in Tasks/Expenses
+  specs follow the final column order above.
+
 ## Global Constraints
 
 - Never commit or push without explicit user permission (AGENTS.md). Every task ends with changes left uncommitted; do not run `git commit`.

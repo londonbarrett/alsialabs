@@ -45,8 +45,6 @@ interface TaskHistoryPanelProps {
   cellOrder?: "tasks" | "expenses"
   /** Rows per page; the expenses tab asks for 30 instead of the tasks tab's 10. */
   pageSize?: number
-  /** Forwarded to closed rows so expenses shows dates without times. */
-  dateOnly?: boolean
 }
 
 // Stable empty scope for mixed tasks (old closed history stays behind
@@ -64,7 +62,6 @@ export function TaskHistoryPanel({
   columnCount,
   cellOrder,
   pageSize,
-  dateOnly,
 }: TaskHistoryPanelProps) {
   const pageCount = pageSize ?? HISTORY_PAGE_SIZE
   const t = useTranslations()
@@ -207,7 +204,6 @@ export function TaskHistoryPanel({
         timeZone={timeZone}
         columnCount={columns}
         cellOrder={cellOrder}
-        dateOnly={dateOnly}
       />
       {hasMore && (
         <TableRow>

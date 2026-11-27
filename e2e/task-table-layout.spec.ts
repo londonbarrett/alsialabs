@@ -48,7 +48,7 @@ test("expanding a task does not reflow the tasks table", async ({
   expect(nameColumnWidth ?? 999).toBeLessThan(220)
 
   const centerDiffs = await Promise.all([
-    taskRow.getByRole("cell").nth(1).evaluate((cell) => {
+    taskRow.getByRole("cell").nth(5).evaluate((cell) => {
       const child = cell.firstElementChild?.firstElementChild
       if (!child) return 999
       const cellBox = cell.getBoundingClientRect()
@@ -57,7 +57,7 @@ test("expanding a task does not reflow the tasks table", async ({
         cellBox.left + cellBox.width / 2 - (childBox.left + childBox.width / 2)
       )
     }),
-    taskRow.getByRole("cell").nth(3).evaluate((cell) => {
+    taskRow.getByRole("cell").nth(4).evaluate((cell) => {
       const child = cell.firstElementChild?.firstElementChild
       if (!child) return 999
       const cellBox = cell.getBoundingClientRect()
@@ -122,7 +122,7 @@ test("expanding a task does not reflow the tasks table", async ({
   // The assignment's status control is centered too.
   const statusCentered = await assignmentRow
     .getByRole("cell")
-    .nth(2)
+    .nth(1)
     .evaluate((cell) => {
       const child = cell.firstElementChild?.firstElementChild
       if (!child) return false
@@ -136,23 +136,21 @@ test("expanding a task does not reflow the tasks table", async ({
     })
   expect(statusCentered).toBe(true)
 
-  // The assignment's due date sits under the task's Due date column.
-  const taskDueCell = await taskRow.getByRole("cell").nth(4).boundingBox()
-  const assignmentDueCell = await assignmentRow
-    .getByRole("cell")
-    .nth(4)
-    .boundingBox()
-  expect(
-    Math.abs((taskDueCell?.x ?? 0) - (assignmentDueCell?.x ?? 0))
-  ).toBeLessThan(2)
+  // Due date follows Status on both rows.
+  await expect(taskRow.getByRole("cell").nth(2)).toBeVisible()
+  await expect(assignmentRow.getByRole("cell").nth(2)).toBeVisible()
 
-  // The labeled comment input lives in the cost cell, not its own column.
+  // Cost and the placeholder-labelled comment sit after the due date; the
+  // comment cell spans the remaining three columns and holds Save.
   const costCell = assignmentRow.getByRole("cell").nth(3)
+  const commentCell = assignmentRow.getByRole("cell").nth(4)
   await expect(costCell.getByRole("textbox", { name: "Costo" })).toBeVisible()
   await expect(
-    costCell.getByRole("textbox", { name: "Comentario" })
+    commentCell.getByRole("textbox", { name: "Comentarios" })
+  ).toHaveAttribute("placeholder", "Comentarios")
+  await expect(
+    commentCell.getByRole("button", { name: "Guardar" })
   ).toBeVisible()
-  await expect(costCell.getByText("Comentario", { exact: true })).toBeVisible()
 
   // The status summary only reports open and closed counts, not detail labels.
   await assignmentRow.getByRole("combobox").click()

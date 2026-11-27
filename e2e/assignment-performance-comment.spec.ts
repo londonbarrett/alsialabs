@@ -50,22 +50,22 @@ test("an owner stages cost and comment, sees both indicators, and both persist",
   // Cost and note are local drafts: nothing is written until Save is clicked.
   await costInput.fill("150")
   const noteInput = detailRow.getByRole("textbox", {
-    name: "Comentario",
+    name: "Comentarios",
   })
   await noteInput.fill("Delivered early")
-  const saveButton = detailRow.getByRole("button", { name: "Guardar cambios" })
+  const saveButton = detailRow.getByRole("button", { name: "Guardar" })
   await expect(saveButton).toBeVisible()
 
   await saveButton.click()
-  // While the combined write is in flight the Save button shows the Spinner
-  // and the global loading bar is active. The bar is always mounted (opacity
-  // 0 when idle), so aria-busy is the signal that it is actually running.
-  await expect(detailRow.getByRole("status")).toBeVisible()
+  // The button shows its spinner while saving, and the global loading bar is
+  // active too. The bar is always mounted (opacity 0 when idle), so aria-busy
+  // is the signal that it is running.
+  await expect(saveButton.getByRole("status")).toBeVisible()
   await expect(page.getByRole("progressbar")).toHaveAttribute(
     "aria-busy",
     "true"
   )
-  await expect(saveButton).toBeHidden()
+  await expect(saveButton).toBeDisabled()
   await expect(page.getByText("Comentario actualizado")).toBeVisible({
     timeout: 20_000,
   })
@@ -86,7 +86,7 @@ test("an owner stages cost and comment, sees both indicators, and both persist",
   ).toHaveValue("$150")
   await expect(
     reloadedDetailRow.getByRole("textbox", {
-      name: "Comentario",
+      name: "Comentarios",
     })
   ).toHaveValue("Delivered early")
 })
@@ -127,23 +127,24 @@ test("a collaborator reads the note inline in My Tasks and cannot edit it", asyn
     .click()
   const detailRow = taskRow.locator("xpath=following-sibling::tr[1]")
   await detailRow
-    .getByRole("textbox", { name: "Comentario" })
+    .getByRole("textbox", { name: "Comentarios" })
     .fill("Delivered early")
-  await detailRow.getByRole("button", { name: "Guardar cambios" }).click()
+  await detailRow.getByRole("button", { name: "Guardar" }).click()
   await expect(page.getByText("Comentario actualizado")).toBeVisible({
     timeout: 20_000,
   })
 
-  // The assigned collaborator reads the note inline, with no editing controls.
+  // The assigned collaborator reads the note in its own column, with no
+  // editing controls.
   await signInAs("user2")
   await page.goto("/app/mis-tareas")
   const myTaskRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(myTaskRow).toBeVisible()
-  await expect(myTaskRow.getByText("Delivered early")).toBeVisible()
+  await expect(myTaskRow.getByRole("cell").nth(6)).toHaveText("Delivered early")
   await expect(
-    myTaskRow.getByRole("textbox", { name: "Comentario" })
+    myTaskRow.getByRole("textbox", { name: "Comentarios" })
   ).toHaveCount(0)
   await expect(
-    myTaskRow.getByRole("button", { name: "Guardar cambios" })
+    myTaskRow.getByRole("button", { name: "Guardar" })
   ).toHaveCount(0)
 })

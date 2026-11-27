@@ -147,7 +147,7 @@ test("task rows in expenses are read-only and count only closed assignments", as
   // Recosting the closed assignment moves the row amount and the footer total.
   await costInput.fill("150")
   await expect(costInput).toHaveValue("$150")
-  await closedRow.getByRole("button", { name: "Guardar cambios" }).click()
+  await closedRow.getByRole("button", { name: "Guardar" }).click()
   await expect(expenseRow.getByRole("cell").nth(2)).toHaveText("$150", {
     timeout: 20_000,
   })
@@ -238,9 +238,7 @@ test("a repeating task's closed history is paginated in expenses", async ({
   const taskRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(taskRow).toBeVisible()
   // Caret, title and recurring badge share one line; the badge is fixed-size.
-  await expect(
-    taskRow.getByRole("cell").nth(4).getByLabel("Recurrente")
-  ).toBeVisible()
+  await expect(taskRow.getByLabel("Recurrente")).toBeVisible()
   const badgeBox = await taskRow.getByLabel("Recurrente").boundingBox()
   const caretBox = await taskRow
     .getByRole("button", { name: "Detalles de asignados" })
@@ -319,13 +317,13 @@ test("a repeating task's closed history is paginated in expenses", async ({
   const fetchedRow = closedCostRows.last()
   const fetchedCost = fetchedRow.getByRole("textbox", { name: "Costo" })
   const fetchedNote = fetchedRow.getByRole("textbox", {
-    name: "Comentario",
+    name: "Comentarios",
   })
   await expect(fetchedCost).toBeVisible()
   await fetchedCost.fill(String(delta))
   await fetchedNote.fill("Recost de historial")
   await expect(fetchedCost).toHaveValue(`$${delta}`)
-  await fetchedRow.getByRole("button", { name: "Guardar cambios" }).click()
+  await fetchedRow.getByRole("button", { name: "Guardar" }).click()
   // This row lives in the panel's local `displayed` list, not the store, so
   // its props never advance to the saved values. Both drafts must survive the
   // save without a reload instead of snapping back to the old cost/note.

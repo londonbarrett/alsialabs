@@ -4,13 +4,12 @@ import { Money } from "@/components/common/money"
 import { MoneyInput } from "@/components/common/money-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { TableCell } from "@/components/ui/table"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { Save } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useId } from "react"
+import { Fragment } from "react"
 import { useAssignmentDetailsForm } from "./use-assignment-details-form"
 
 interface AssignmentDetailsCellsProps {
@@ -20,12 +19,14 @@ interface AssignmentDetailsCellsProps {
   comment: string | null
   terminal: boolean
   canEdit: boolean
+  /** Columns the comment cell spans after the cost column. */
+  commentColSpan?: number
 }
 
 /**
- * The single cell of one assignment row that owns cost, the labeled comment
- * input, and Save. It always renders exactly one `<td>`; the Save button is
- * wired through `save()` rather than a wrapping `<form>`.
+ * The cost cell and the comment cell of one assignment row. On the Tasks
+ * table the comment cell spans the three columns left after cost, holding a
+ * growing input and a Save button; elsewhere it stays a single column.
  */
 export function AssignmentDetailsCells({
   taskId,
@@ -34,10 +35,10 @@ export function AssignmentDetailsCells({
   comment,
   terminal,
   canEdit,
+  commentColSpan = 1,
 }: AssignmentDetailsCellsProps) {
   const t = useTranslations()
   const { projectId } = useProjectContextState()
-  const commentId = useId()
   const { values, setField, isDirty, isSubmitting, save } =
     useAssignmentDetailsForm({
       projectId,
@@ -48,55 +49,56 @@ export function AssignmentDetailsCells({
       terminal,
     })
 
-  if (!canEdit) {
-    return (
-      <TableCell className="text-center">
-        <span className="text-sm tabular-nums">
-          <Money value={cost} />
-        </span>
-        {comment && (
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            {comment}
-          </span>
-        )}
-      </TableCell>
-    )
-  }
-
-  return (
+  const costCell = (
     <TableCell className="text-center">
-      <div className="flex flex-col items-center gap-1">
+      {canEdit ? (
         <MoneyInput
           aria-label={t("common.cost")}
           className="h-8 w-[116px]"
           value={values.cost}
           onChange={(value) => setField("cost", value)}
         />
-        <Label htmlFor={commentId} className="text-xs text-muted-foreground">
-          {t("projects.tasks.comment")}
-        </Label>
-        <div className="flex w-full items-center justify-center gap-2">
+      ) : (
+        <span className="text-sm tabular-nums">
+          <Money value={cost} />
+        </span>
+      )}
+    </TableCell>
+  )
+
+  const commentCell = (
+    <TableCell className="px-10 text-center" colSpan={commentColSpan}>
+      {canEdit ? (
+        <div className="flex w-full items-center gap-2">
           <Input
-            id={commentId}
             maxLength={2000}
-            aria-label={t("projects.tasks.comment")}
+            placeholder={t("common.comments")}
+            aria-label={t("common.comments")}
             className="h-8 min-w-0 flex-1"
             value={values.comment}
             onChange={(event) => setField("comment", event.target.value)}
           />
-          {isDirty && (
-            <Button
-              type="button"
-              size="icon-sm"
-              aria-label={t("common.saveChanges")}
-              onClick={() => void save()}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? <Spinner /> : <Save />}
-            </Button>
-          )}
+          <Button
+            type="button"
+            size="sm"
+            aria-label={t("common.save")}
+            onClick={() => void save()}
+            disabled={!isDirty || isSubmitting}
+          >
+            {isSubmitting ? <Spinner /> : <Save aria-hidden="true" />}
+            {t("common.save")}
+          </Button>
         </div>
-      </div>
+      ) : comment ? (
+        <span className="text-sm text-muted-foreground">{comment}</span>
+      ) : null}
     </TableCell>
+  )
+
+  return (
+    <Fragment>
+      {costCell}
+      {commentCell}
+    </Fragment>
   )
 }

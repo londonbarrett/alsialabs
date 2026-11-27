@@ -8,7 +8,6 @@ import {
   ALL_TASK_STATUSES,
   COLLABORATOR_TASK_STATUSES,
 } from "@/actions/tasks/schemas"
-import { useHasPermission } from "@/components/common/permissions-provider"
 import {
   Avatar,
   AvatarFallback,
@@ -22,7 +21,6 @@ import { formatAssignmentDueDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useLocale, useTranslations } from "next-intl"
 import { AssignmentDetailsCells } from "./assignment-details-cells"
-import { assignmentColumnCount } from "./assignment-columns"
 import { TaskStatusSelect, taskStatusColors } from "./task-status-select"
 
 interface TaskOpenAssignmentRowsProps {
@@ -35,8 +33,6 @@ interface TaskOpenAssignmentRowsProps {
     assignmentId: string,
     status: TaskStatus
   ) => void
-  /** Total table columns the filler cells must span. */
-  columnCount?: number
 }
 
 export function TaskOpenAssignmentRows({
@@ -44,24 +40,14 @@ export function TaskOpenAssignmentRows({
   assignments,
   timeZone,
   onStatusChange,
-  columnCount,
 }: TaskOpenAssignmentRowsProps) {
   const t = useTranslations()
   const locale = useLocale()
   const { currentUserId, isOwner, isAdmin, isCollaborator } =
     useProjectContextState()
-  const canEditProject = useHasPermission("projects:edit")
-  const canEdit = (isOwner || isAdmin) && canEditProject
-  const canDeleteProject = useHasPermission("projects:delete")
-  const canMutate =
-    (isOwner || isAdmin) && (canEdit || canDeleteProject)
-  // Cost editing is role-gated on the server (canManageWork), so the input
-  // follows the same owner/admin fact — no separate permission code here.
+  // Cost/comment editing is role-gated on the server (canManageWork), so the
+  // inputs follow the same owner/admin fact — no separate permission code.
   const canEditCost = isOwner || isAdmin
-
-  // The header renders the actions column only for mutators; the empty
-  // filler cells must match that column count exactly.
-  const columns = columnCount ?? assignmentColumnCount(canMutate)
 
   function getAllowedStatuses(assignment: TaskAssignmentDTO) {
     if (isOwner || isAdmin) return ALL_TASK_STATUSES
@@ -81,12 +67,7 @@ export function TaskOpenAssignmentRows({
     // A row is one occurrence: show its due date, with time only for timed
     // work, never a start–end range or the task's all-day header date.
     const occurrence = assignment.endDate
-      ? formatAssignmentDueDate(
-          assignment.endDate,
-          locale,
-          timeZone,
-          assignment.startTime
-        )
+      ? formatAssignmentDueDate(assignment.endDate, locale, timeZone, null)
       : "—"
 
     return (
@@ -119,7 +100,6 @@ export function TaskOpenAssignmentRows({
             </span>
           </span>
         </TableCell>
-        <TableCell className="text-center" />
         <TableCell className="text-center">
           <div className="flex justify-center">
             {allowed ? (
@@ -139,6 +119,9 @@ export function TaskOpenAssignmentRows({
             )}
           </div>
         </TableCell>
+        <TableCell className="text-center">
+          <span>{occurrence}</span>
+        </TableCell>
         <AssignmentDetailsCells
           taskId={taskId}
           assignmentId={assignment.id}
@@ -146,13 +129,8 @@ export function TaskOpenAssignmentRows({
           comment={assignment.comment}
           terminal={isTerminalStatus(assignment.status)}
           canEdit={canEditCost}
+          commentColSpan={3}
         />
-        <TableCell className="text-center">
-          <span>{occurrence}</span>
-        </TableCell>
-        {Array.from({ length: columns - 5 }, (_, index) => (
-          <TableCell key={index} className="text-center" />
-        ))}
       </TableRow>
     )
   })

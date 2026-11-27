@@ -54,13 +54,13 @@ test("an owner recosts an assignment inline and the new cost persists", async ({
   await costInput.fill("150")
   await expect(costInput).toHaveValue("$150")
   const noteInput = costCell.getByRole("textbox", {
-    name: "Comentario",
+    name: "Comentarios",
   })
   await noteInput.fill("Buen desempeño")
-  const saveButton = costCell.getByRole("button", { name: "Guardar cambios" })
+  const saveButton = costCell.getByRole("button", { name: "Guardar" })
   await expect(saveButton).toBeVisible()
   await saveButton.click()
-  await expect(saveButton).toBeHidden()
+  await expect(saveButton).toBeDisabled()
   // The combined save settles with the assignment-details toast, not the
   // old cost-only one. With one assignee this input is also the task's total.
   await expect(page.getByText("Comentario actualizado")).toBeVisible({
@@ -83,7 +83,7 @@ test("an owner recosts an assignment inline and the new cost persists", async ({
   ).toHaveValue("$150")
   await expect(
     reloadedAssignmentRow.getByRole("textbox", {
-      name: "Comentario",
+      name: "Comentarios",
     })
   ).toHaveValue("Buen desempeño")
 })
@@ -128,7 +128,7 @@ test("total cost shows on the task row and in both My Tasks tabs", async ({
   // Both assignments are still open, so the closed-only server total is $0.
   const taskRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(taskRow).toBeVisible()
-  await expect(taskRow.getByRole("cell").nth(5)).toHaveText("$0")
+  await expect(taskRow.getByRole("cell").nth(3)).toHaveText("$0")
 
   // The collaborator sees their assignment's own cost in the active tab.
   await signInAs("user2")
@@ -154,7 +154,7 @@ test("total cost shows on the task row and in both My Tasks tabs", async ({
   await page.getByRole("option", { name: "Completado" }).click()
   await expect(page.getByText("Estado actualizado")).toBeVisible()
   // The owner's task row now counts the one closed (done) assignment: $75.
-  await expect(ownerRow.getByRole("cell").nth(5)).toHaveText("$75")
+  await expect(ownerRow.getByRole("cell").nth(3)).toHaveText("$75")
 
   await signInAs("user2")
   await page.goto("/app/mis-tareas")

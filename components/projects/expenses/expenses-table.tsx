@@ -334,7 +334,6 @@ export function ExpensesTable({
                       timeZone={timeZone}
                       columnCount={columnCount}
                       cellOrder="expenses"
-                      dateOnly
                     />
                   ) : (
                     <TaskHistoryPanel
@@ -347,7 +346,6 @@ export function ExpensesTable({
                       columnCount={columnCount}
                       cellOrder="expenses"
                       pageSize={30}
-                      dateOnly
                     />
                   )
                 )}
