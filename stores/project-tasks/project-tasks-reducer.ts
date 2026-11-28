@@ -53,10 +53,11 @@ export type ProjectTaskAction =
       costDelta?: number
     }
   | {
-      type: "setAssignmentCost"
+      type: "setAssignmentDetails"
       taskId: string
       assignmentId: string
       cost: string
+      comment: string | null
       /** New cost minus old cost, applied to the server-counting total. */
       costDelta: number
     }
@@ -199,7 +200,7 @@ export function projectTasksReducer(
         }),
       }
 
-    case "setAssignmentCost":
+    case "setAssignmentDetails":
       return {
         ...state,
         tasks: state.tasks.map((task) =>
@@ -207,8 +208,12 @@ export function projectTasksReducer(
             ? {
                 ...task,
                 totalCost: Math.max(0, task.totalCost + action.costDelta),
+                // Fetched history rows are not store rows. Update a matching
+                // row in place, but never append one here.
                 assignments: task.assignments.map((a) =>
-                  a.id === action.assignmentId ? { ...a, cost: action.cost } : a
+                  a.id === action.assignmentId
+                    ? { ...a, cost: action.cost, comment: action.comment }
+                    : a
                 ),
               }
             : task

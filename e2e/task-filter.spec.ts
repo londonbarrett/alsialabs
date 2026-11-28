@@ -459,9 +459,9 @@ test("archiving a repeating task spawns nothing, stays editable, and unarchiving
     month: "short",
     day: "numeric",
   }).format(originalEndDate)
-  const dueCell = row.locator("td").nth(4)
+  const dueCell = row.locator("td").nth(2)
   await expect(dueCell).toContainText(originalDueDay)
-  await expect(dueCell).toContainText("23:59")
+  await expect(dueCell).not.toContainText(":")
 
   // Comments stay fully writable on the archived task: the note is
   // readable, a new comment posts, and own comments keep edit/delete.
@@ -537,7 +537,7 @@ test("archiving a task with no open assignments skips the disposition dialog", a
 
   // An all-day task's due cell shows the date only — no assignment-row
   // date or time leaks into it.
-  const dueCell = row.locator("td").nth(4)
+  const dueCell = row.locator("td").nth(2)
   await expect(dueCell).toContainText(
     new Intl.DateTimeFormat("es-ES", {
       month: "short",
@@ -545,7 +545,7 @@ test("archiving a task with no open assignments skips the disposition dialog", a
     }).format(dueDay)
   )
   // Only the formatted date value itself must stay time-free.
-  const dueValue = (await dueCell.locator("span > span").first().textContent()) ?? ""
+  const dueValue = (await dueCell.textContent()) ?? ""
   expect(dueValue).not.toContain(":")
 
   await clickRowAction(row, "Archivar")
@@ -823,7 +823,7 @@ test("an all-day assignment row shows only the date, not a time", async ({
   await expect(person).toHaveCount(1)
   // The assignment cell is the date value itself — no nested label.
   const label = (
-    (await person.locator("td").nth(4).textContent()) ?? ""
+    (await person.locator("td").nth(2).textContent()) ?? ""
   ).trim()
   expect(label).toMatch(/\d{1,2}\s+\w+/)
   expect(label).not.toContain(":")
@@ -922,19 +922,19 @@ test("closed assignment history pages ten rows at a time", async ({
   const person = personRows(row)
   await expect(person).toHaveCount(1)
   const open = openOccurrenceRow(page, person)
-  const occurrence = open.locator("td").nth(4)
+  const occurrence = open.locator("td").nth(2)
 
   // Display split: the due cell reads the task's own due date (the
   // window end, 30 days out), not the lead occurrence's date, while an
   // assignment row shows its own occurrence due time and never a range.
-  const dueCell = (await row.locator("td").nth(4).textContent()) ?? ""
+  const dueCell = (await row.locator("td").nth(2).textContent()) ?? ""
   const windowDay = new Intl.DateTimeFormat("es-ES", {
     month: "short",
     day: "numeric",
   }).format(windowEnd)
   expect(dueCell).toContain(windowDay)
   const occurrenceCell = (await occurrence.textContent()) ?? ""
-  expect(occurrenceCell).toContain(":")
+  expect(occurrenceCell).not.toContain(":")
   expect(occurrenceCell).not.toContain("–")
 
   // Close the open occurrence 11 times: every close spawns the next day's
@@ -973,7 +973,7 @@ test("closed assignment history pages ten rows at a time", async ({
   // Newest first (createdAt DESC): the first appended row is the
   // occurrence closed last, with the older page below it instead of
   // above; the open successor still leads the block.
-  await expect(person.nth(1).locator("td").nth(4)).toHaveText(
+  await expect(person.nth(1).locator("td").nth(2)).toHaveText(
     lastClosedWindow
   )
 
@@ -984,7 +984,7 @@ test("closed assignment history pages ten rows at a time", async ({
   const closedDays: number[] = []
   const personCount = await person.count()
   for (let i = 1; i < personCount; i++) {
-    const cell = await person.nth(i).locator("td").nth(4).textContent()
+    const cell = await person.nth(i).locator("td").nth(2).textContent()
     closedDays.push(occurrenceStart(cell ?? ""))
   }
   expect(closedDays).toHaveLength(11)
@@ -1044,7 +1044,7 @@ test("closing after an exhausted history re-arms Load More for the new row", asy
 
   const open = openOccurrenceRow(page, person)
   await pinRow(open)
-  const justClosedWindow = await open.locator("td").nth(4).textContent()
+  const justClosedWindow = await open.locator("td").nth(2).textContent()
   if (!justClosedWindow) throw new Error("occurrence cell had no text")
   await open.getByRole("combobox").click()
   await page.getByRole("option", { name: "Completado" }).click()
@@ -1158,7 +1158,7 @@ test("a close surfaces only the session-closed row, never old history", async ({
   const person = personRows(row)
   await expect(person).toHaveCount(1)
   const open = openOccurrenceRow(page, person)
-  const occurrence = open.locator("td").nth(4)
+  const occurrence = open.locator("td").nth(2)
 
   // Old closed history: two closes, then a reload so the panel mounts
   // fresh — two closed rows exist server-side while the panel shows
@@ -1367,7 +1367,7 @@ test("a plain save after unarchive never reopens work, and extending the due dat
   await expect(open).toHaveCount(1)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const startCell = await open.locator("td").nth(4).textContent()
+  const startCell = await open.locator("td").nth(2).textContent()
   expect(occurrenceStart(startCell ?? "")).toBeGreaterThanOrEqual(
     today.getTime()
   )

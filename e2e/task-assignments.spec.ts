@@ -12,15 +12,11 @@ const ZONED_PROJECT_ID = "10000000-0000-4000-8000-000000000007"
 const ZONED_PROJECT_URL = `/app/proyectos/${ZONED_PROJECT_ID}`
 const ZONED_TASK_NAME = "E2E zoned deadline"
 
-/** The due cell shows the project's wall clock without naming its zone. */
-async function assertZonedDueDate(
-  row: Locator,
-  day: string,
-  time: string
-): Promise<void> {
-  const dueCell = row.locator("td").nth(4)
+/** The due cell shows the project-zone calendar day without a time or zone label. */
+async function assertZonedDueDate(row: Locator, day: string): Promise<void> {
+  const dueCell = row.locator("td").nth(2)
   await expect(dueCell).toContainText(day)
-  await expect(dueCell).toContainText(time)
+  await expect(dueCell).not.toContainText(":")
   await expect(dueCell).not.toContainText("Zona horaria:")
 }
 
@@ -83,11 +79,9 @@ test.describe.serial("project time zone", () => {
 
     const row = page.getByRole("row", { name: new RegExp(ZONED_TASK_NAME) })
     await expect(row).toBeVisible()
-    // 2026-12-25T02:00Z is 21:00 on 24 Dec in Bogotá but 11:00 on 25 Dec in
-    // the browser's Asia/Tokyo zone. The displayed wall clock proves which
-    // zone won; the row itself carries no zone label.
+    // 2026-12-25T02:00Z is 24 Dec in Bogotá but 25 Dec in the browser's
+    // Asia/Tokyo zone. The displayed calendar day proves which zone won.
     await expect(row).toContainText("Dec 24")
-    await expect(row).toContainText("9:00 PM")
     await expect(row).not.toContainText("America/Bogota")
 
     // A zone edit is metadata only: it must NOT rewrite the stored instant,
@@ -96,7 +90,6 @@ test.describe.serial("project time zone", () => {
     await setProjectZone(page, "UTC")
     await page.goto(ZONED_PROJECT_URL)
     await expect(row).toContainText("Dec 25")
-    await expect(row).toContainText("2:00 AM")
     await expect(row).not.toContainText("America/Bogota")
   })
 
@@ -130,14 +123,14 @@ test.describe.serial("project time zone", () => {
 
     const row = page.getByRole("row", { name: new RegExp(taskName) })
     await expect(row).toBeVisible()
-    // 21:00 on 24 Dec in Bogotá, not 11:00 on 25 Dec in Tokyo. The row shows
-    // the project-zone wall clock but no zone label.
-    await assertZonedDueDate(row, "24 dic", "21:00")
+    // 24 Dec in Bogotá, not 25 Dec in Tokyo. The row shows the project-zone
+    // calendar day with no time or zone label.
+    await assertZonedDueDate(row, "24 dic")
 
     await page.reload()
     const reloadedRow = page.getByRole("row", { name: new RegExp(taskName) })
     await expect(reloadedRow).toBeVisible()
-    await assertZonedDueDate(reloadedRow, "24 dic", "21:00")
+    await assertZonedDueDate(reloadedRow, "24 dic")
   })
 })
 

@@ -53,7 +53,7 @@ test("a task cost of 12.50 persists and its row total shows cents", async ({
   await page.reload()
   const taskRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(taskRow).toBeVisible()
-  await expect(taskRow.getByRole("cell").nth(5)).toHaveText("$0")
+  await expect(taskRow.getByRole("cell").nth(3)).toHaveText("$0")
 
   // The inline assignment cost input reads the persisted decimal string.
   await taskRow
@@ -254,7 +254,7 @@ test("a whole-dollar cost still renders as $150 with no cents", async ({
   const taskRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(taskRow).toBeVisible()
   // The assignment is still open, so the closed-only task total is $0.
-  const totalCell = taskRow.getByRole("cell").nth(5)
+  const totalCell = taskRow.getByRole("cell").nth(3)
   await expect(totalCell).toHaveText("$0")
 
   // The stored "150" must normalize back to whole dollars (no ".00" cents)

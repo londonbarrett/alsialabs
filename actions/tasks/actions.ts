@@ -39,7 +39,7 @@ import {
   TaskWithAssignmentsSchema,
   UnarchiveTaskResultSchema,
   UnarchiveTaskSchema,
-  UpdateAssignmentCostSchema,
+  UpdateAssignmentSchema,
   UpdateTaskCommentSchema,
   UpdateTaskSchema,
   type TaskAssignmentDTO,
@@ -347,58 +347,29 @@ export const updateAssignmentStatus = projectAction(
   })
 
 /**
- * Inline recost of one assignment. Only work managers may change money, and
- * the assignment must resolve inside the action's project — the scope check
- * runs before any write so a crafted payload cannot touch another project's
- * row. An empty input persists the task's "no cost" sentinel, "0".
+ * One explicit Save for the manager-corrected cost and the performance note.
+ * The scoped read runs before any write so a crafted payload cannot reach an
+ * assignment in another project or another task. Empty cost persists the
+ * task's "no cost" sentinel, "0"; a blank note persists null.
  */
-export const updateAssignmentCost = projectAction(UpdateAssignmentCostSchema)
+export const updateAssignment = projectAction(UpdateAssignmentSchema)
   .metadata({})
   .outputSchema(TaskAssignmentSchema)
   .action(async ({ parsedInput, ctx }) => {
-    const { projectId, assignmentId } = parsedInput
+    const { projectId, taskId, assignmentId, cost, comment } = parsedInput
     if (!canManageWork(ctx.projectRole)) {
       returnActionError("FORBIDDEN")
     }
 
     const row = await queries.getAssignmentForRow(assignmentId, projectId)
-    if (!row) returnActionError("NOT_FOUND")
+    if (!row || row.taskId !== taskId) returnActionError("NOT_FOUND")
 
     const timeZone = await loadTimeZone(projectId)
-    await queries.updateAssignmentCost(assignmentId, parsedInput.cost || "0")
-
-    const viewRow = await queries.getAssignmentViewById(assignmentId)
-    if (!viewRow) returnActionError("NOT_FOUND")
-
-    return toTaskAssignmentDTO(viewRow, timeZone)
-  })
-
-export const updateAssignmentComment = projectAction(
-  z.object({
-    projectId: z.uuid(),
-    assignmentId: z.uuid(),
-    comment: z.string().max(2000),
-  })
-)
-  .metadata({})
-  .outputSchema(TaskAssignmentSchema)
-  .action(async ({ parsedInput, ctx }) => {
-    const { projectId, assignmentId, comment } = parsedInput
-
-    const row = await queries.getAssignmentForComment(
+    await queries.updateAssignmentDetails(
       assignmentId,
-      projectId
+      cost || "0",
+      comment.trim() || null
     )
-    if (!row) returnActionError("NOT_FOUND")
-
-    if (!canChangeAnyAssignment(ctx.projectRole)) {
-      returnActionError("FORBIDDEN")
-    }
-
-    const timeZone = await loadTimeZone(projectId)
-    const trimmed = comment.trim()
-
-    await queries.updateAssignmentComment(assignmentId, trimmed || null)
 
     const viewRow = await queries.getAssignmentViewById(assignmentId)
     if (!viewRow) returnActionError("NOT_FOUND")

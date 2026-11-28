@@ -128,11 +128,17 @@ test("expanded task rows keep the expenses table aligned", async ({
     )
   expect(widthsAfter).toEqual(widthsBefore)
 
-  // Cost belongs under Monto, status under Tipo, occurrence under Fecha.
-  await expect(cells.nth(2).getByRole("textbox", { name: "Costo" })).toBeVisible()
+  // Cost and the placeholder-labelled comment have their own cells; status
+  // sits under Tipo and the occurrence under Fecha.
+  const costCell = cells.nth(2)
+  const commentCell = cells.nth(3)
+  await expect(costCell.getByRole("textbox", { name: "Costo" })).toBeVisible()
+  await expect(
+    commentCell.getByRole("textbox", { name: "Comentarios" })
+  ).toHaveAttribute("placeholder", "Comentarios")
   await expect(cells.nth(1)).toContainText("Completado")
-  await expect(cells.nth(3)).toContainText("nov")
-  await expect(cells.nth(3)).not.toContainText(":")
+  await expect(cells.nth(4)).toContainText("nov")
+  await expect(cells.nth(4)).not.toContainText(":")
 
   // The cost input is 20px wider than the old 96px w-24.
   const inputWidth = await cells

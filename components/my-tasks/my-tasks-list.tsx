@@ -91,6 +91,7 @@ export function MyTasksList({
                     {t("common.dueDate")}
                   </TableHead>
                   <TableHead scope="col">{t("common.cost")}</TableHead>
+                  <TableHead scope="col">{t("projects.tasks.comment")}</TableHead>
                   <TableHead scope="col" className="w-12 text-center">
                     {t("common.comments")}
                   </TableHead>
@@ -190,6 +191,13 @@ export function MyTasksList({
                       </TableCell>
                       <TableCell>
                         <Money value={assignment.cost} />
+                      </TableCell>
+                      <TableCell>
+                        {assignment.comment && (
+                          <span className="text-sm text-muted-foreground">
+                            {assignment.comment}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         {readOnly ? (

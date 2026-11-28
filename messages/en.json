@@ -280,6 +280,7 @@
       "baseCostPerAssignment": "Base cost per assignment",
       "baseCostHelp": "Cost can be changed per assignment later.",
       "totalCost": "Total cost",
+      "comment": "Comment",
       "taskDeleted": "Task deleted",
       "taskUpdated": "Task updated",
       "taskCreated": "Task created",

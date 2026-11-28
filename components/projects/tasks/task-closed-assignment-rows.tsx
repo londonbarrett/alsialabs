@@ -1,7 +1,6 @@
 "use client"
 
 import type { TaskAssignmentDTO } from "@/actions/tasks/schemas"
-import { Money } from "@/components/common/money"
 import { useHasPermission } from "@/components/common/permissions-provider"
 import {
   Avatar,
@@ -15,7 +14,7 @@ import { isTerminalStatus } from "@/lib/util/project-roles"
 import { formatAssignmentDueDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
 import { useLocale, useTranslations } from "next-intl"
-import { AssignmentCostInput } from "./assignment-cost-input"
+import { AssignmentDetailsCells } from "./assignment-details-cells"
 import { assignmentColumnCount } from "./assignment-columns"
 import { taskStatusColors } from "./task-status-select"
 
@@ -32,13 +31,13 @@ interface TaskClosedAssignmentRowsProps {
    */
   columnCount?: number
   /**
-   * Cell order for the four leading cells. The tasks table headers are
-   * Assignee / Status / Cost / Due date; the expenses table headers are
-   * Description / Type / Amount / Date, so cost and due date swap there.
+   * Cell order for the leading cells: four rendered in the expenses table
+   * (Description / Type / Amount / Date) and five in the tasks table
+   * (Assignee / spacer / Status / Cost / Due date). Cost and its labeled
+   * comment input share one cell, so the comment stays with the editable
+   * cost or amount.
    */
   cellOrder?: "tasks" | "expenses"
-  /** Show only the occurrence date, never its time. */
-  dateOnly?: boolean
 }
 
 /**
@@ -55,7 +54,6 @@ export function TaskClosedAssignmentRows({
   onReopen,
   columnCount,
   cellOrder = "tasks",
-  dateOnly = false,
 }: TaskClosedAssignmentRowsProps) {
   const t = useTranslations()
   const locale = useLocale()
@@ -77,12 +75,7 @@ export function TaskClosedAssignmentRows({
     // A row is one occurrence: show its due date, with time only for timed
     // work, never a start–end range or the task's all-day header date.
     const occurrence = assignment.endDate
-      ? formatAssignmentDueDate(
-          assignment.endDate,
-          locale,
-          timeZone,
-          dateOnly ? null : assignment.startTime
-        )
+      ? formatAssignmentDueDate(assignment.endDate, locale, timeZone, null)
       : "—"
 
     const assigneeCell = (
@@ -134,43 +127,34 @@ export function TaskClosedAssignmentRows({
         </div>
       </TableCell>
     )
-    const costCell = (
-      <TableCell key="cost" className={align}>
-        <div className="flex justify-center">
-          {canEditCost ? (
-            <AssignmentCostInput
-              taskId={taskId}
-              assignmentId={assignment.id}
-              value={assignment.cost}
-              terminal={isTerminalStatus(assignment.status)}
-            />
-          ) : (
-            <span className="text-sm tabular-nums">
-              <Money value={assignment.cost} />
-            </span>
-          )}
-        </div>
-      </TableCell>
-    )
     // The expenses headers are Description / Type / Amount / Date; the tasks
-    // headers put status in Status and the occurrence in Due date, leaving the
-    // Assignees cell empty in between.
-    const leadingCells =
-      cellOrder === "expenses"
-        ? [assigneeCell, statusCell, costCell, dateCell]
-        : [
-            assigneeCell,
-            <TableCell key="spacer" className={align} />,
-            statusCell,
-            costCell,
-            dateCell,
-          ]
+    // headers put status and then due date right after the assignee cell,
+    // followed by the cost cell and a comment cell spanning three columns.
+    const isExpenses = cellOrder === "expenses"
+    const detailsCells = (
+      <AssignmentDetailsCells
+        key="details"
+        taskId={taskId}
+        assignmentId={assignment.id}
+        cost={assignment.cost}
+        comment={assignment.comment}
+        terminal={isTerminalStatus(assignment.status)}
+        canEdit={canEditCost}
+        commentColSpan={isExpenses ? 1 : 3}
+      />
+    )
+    const leadingCells = isExpenses
+      ? [assigneeCell, statusCell, detailsCells, dateCell]
+      : [assigneeCell, statusCell, dateCell, detailsCells]
+    // On Tasks the comment cell spans three columns (7 total); on Expenses
+    // it stays a single column (5 total).
+    const renderedLeadingCells = isExpenses ? 5 : 7
 
     return (
       <TableRow key={assignment.id}>
         {leadingCells}
         {Array.from(
-          { length: columns - leadingCells.length },
+          { length: columns - renderedLeadingCells },
           (_, index) => (
             <TableCell key={index} className={align} />
           )

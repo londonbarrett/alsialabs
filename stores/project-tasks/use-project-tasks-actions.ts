@@ -17,8 +17,7 @@ import {
   getTaskAssignmentHistory,
   getTaskComments,
   unarchiveTask as unarchiveTaskAction,
-  updateAssignmentCost as updateAssignmentCostAction,
-  updateAssignmentComment as updateAssignmentCommentAction,
+  updateAssignment as updateAssignmentAction,
   updateAssignmentStatus as updateAssignmentStatusAction,
   updateComment as updateCommentAction,
   updateTask as updateTaskAction,
@@ -27,6 +26,7 @@ import {
 import type { TaskFormValues } from "@/components/projects/tasks/task-dialog"
 import { useSettle } from "@/hooks/use-settle"
 import { closedCostDelta, sumMoney } from "@/lib/costs/delta"
+import type { SettleResult } from "@/lib/types"
 import { isTerminalStatus } from "@/lib/util/project-roles"
 import { useOptimisticAction } from "@/stores/use-optimistic-action"
 import { useTranslations } from "next-intl"
@@ -65,9 +65,8 @@ export function useProjectTasksActions() {
   const { executeAsync: executeStatus } = useAction(
     updateAssignmentStatusAction
   )
-  const { executeAsync: executeCost } = useAction(updateAssignmentCostAction)
-  const { executeAsync: executeComment } = useAction(
-    updateAssignmentCommentAction
+  const { executeAsync: executeAssignmentUpdate } = useAction(
+    updateAssignmentAction
   )
   const { executeAsync: executePriority } = useAction(
     updateTaskPriorityAction
@@ -312,50 +311,15 @@ export function useProjectTasksActions() {
     }
   }
 
-  async function updateAssignmentComment(
-    projectId: string,
-    taskId: string,
-    assignmentId: string,
-    comment: string
-  ) {
-    const current = store
-      .getState()
-      .optimistic.tasks.find((task) => task.id === taskId)
-      ?.assignments.find((a) => a.id === assignmentId)
-    if (!current) return
-
-    const result = await run(
-      {
-        type: "upsertAssignment",
-        taskId,
-        assignment: {
-          ...current,
-          comment: comment.trim() || null,
-        },
-      },
-      () => executeComment({ projectId, assignmentId, comment }),
-      {
-        commitAction: (r) =>
-          r.data
-            ? {
-                type: "upsertAssignment",
-                taskId,
-                assignment: r.data,
-              }
-            : undefined,
-      }
-    )
-    settle(result, t("projects.tasks.comments.commentUpdated"))
-  }
-
-  async function updateAssignmentCost(
+  async function updateAssignment(
     projectId: string,
     taskId: string,
     assignmentId: string,
     cost: string,
-    previousCost?: string,
+    comment: string | null,
+    previousCost: string,
     terminal: boolean = true
-  ) {
+  ): Promise<SettleResult> {
     const nextCost = cost || "0"
     // The caller supplies the pre-edit cost because history-panel rows are
     // fetched, not necessarily store-backed — a lookup here would silently
@@ -369,27 +333,37 @@ export function useProjectTasksActions() {
     )
     const result = await run(
       {
-        type: "setAssignmentCost",
+        type: "setAssignmentDetails",
         taskId,
         assignmentId,
         cost: nextCost,
+        comment,
         costDelta,
       },
-      () => executeCost({ projectId, assignmentId, cost: nextCost }),
+      () =>
+        executeAssignmentUpdate({
+          projectId,
+          taskId,
+          assignmentId,
+          cost: nextCost,
+          // The action trims, caps at 2000 characters and stores "" as null.
+          comment: comment ?? "",
+        }),
       {
         commitAction: (r) =>
           r.data
             ? {
-                type: "setAssignmentCost",
+                type: "setAssignmentDetails",
                 taskId,
                 assignmentId,
                 cost: r.data.cost,
+                comment: r.data.comment,
                 costDelta: 0,
               }
             : undefined,
       }
     )
-    settle(result, t("projects.tasks.taskUpdated"))
+    return settle(result, t("projects.tasks.comments.commentUpdated"))
   }
 
   async function updateTaskPriority(
@@ -480,8 +454,7 @@ export function useProjectTasksActions() {
     archiveTask,
     unarchiveTask,
     updateAssignmentStatus,
-    updateAssignmentCost,
-    updateAssignmentComment,
+    updateAssignment,
     updateTaskPriority,
     createComment,
     updateComment,

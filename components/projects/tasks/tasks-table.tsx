@@ -31,12 +31,17 @@ import {
   visibleAssignments,
 } from "@/lib/tasks/list"
 import { isTerminalStatus } from "@/lib/util/project-roles"
+import { formatAssignmentDueDate } from "@/lib/util/tasks"
 import { useProjectContextState } from "@/stores/project-context/use-project-context-state"
-import { ChevronRight, MessageSquare, RefreshCw } from "lucide-react"
-import { useTranslations } from "next-intl"
+import {
+  AlertTriangle,
+  ChevronRight,
+  MessageSquare,
+  RefreshCw,
+} from "lucide-react"
+import { useLocale, useTranslations } from "next-intl"
 import { Fragment, useCallback, useState } from "react"
 import { cn } from "cn"
-import { DueDate } from "../due-date"
 import { TaskArchiveDialog } from "./task-archive-dialog"
 import { createTaskArchiveAction } from "./task-archive-action"
 import { TaskAssigneeStack } from "./task-assignee-stack"
@@ -71,12 +76,13 @@ export function TasksTable({
   onComments,
 }: TasksTableProps) {
   const t = useTranslations()
+  const locale = useLocale()
   const { project, isOwner, isAdmin, members } =
     useProjectContextState()
   const canEditProject = useHasPermission("projects:edit")
   const canEdit = (isOwner || isAdmin) && canEditProject
   const canDeleteProject = useHasPermission("projects:delete")
-  // Name + five centred columns + Actions; the comments column is gone.
+  // Name + five centred columns + Actions; the comment lives in the cost cell.
   const columnCount = 7
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [archivingTaskId, setArchivingTaskId] = useState<string | null>(
@@ -119,20 +125,20 @@ export function TasksTable({
             <TableHead scope="col" className="w-45">
               {t("projects.tasks.name")}
             </TableHead>
-            <TableHead scope="col" className="w-27.5 text-center">
-              {t("projects.tasks.assignees")}
-            </TableHead>
             <TableHead scope="col" className="w-37.5 text-center">
               {t("common.status")}
-            </TableHead>
-            <TableHead scope="col" className="w-35 text-center">
-              {t("common.priority")}
             </TableHead>
             <TableHead scope="col" className="w-40 text-center">
               {t("common.dueDate")}
             </TableHead>
             <TableHead scope="col" className="w-27.5 text-center">
               {t("projects.tasks.totalCost")}
+            </TableHead>
+            <TableHead scope="col" className="w-35 text-center">
+              {t("common.priority")}
+            </TableHead>
+            <TableHead scope="col" className="w-27.5 text-center">
+              {t("projects.tasks.assignees")}
             </TableHead>
             <TableHead scope="col" className="w-35 text-center">
               {t("common.actions")}
@@ -249,25 +255,55 @@ export function TasksTable({
                             className="size-8 shrink-0"
                           />
                         )}
-                        <p className="min-w-0 flex-1 wrap-break-word whitespace-normal">
+                        <p className="min-w-0 wrap-break-word whitespace-normal">
                           {task.name}
                         </p>
+                        {task.recurrence && (
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Badge
+                                  variant="outline"
+                                  aria-label={t("projects.tasks.recurring")}
+                                  className="shrink-0"
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                </Badge>
+                              }
+                            />
+                            <TooltipContent>
+                              {t("projects.tasks.recurring")}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex justify-center">
-                      {assignees.length > 0 ? (
-                        <TaskAssigneeStack assignees={assignees} />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          {t("common.unassigned")}
+                    {statusSummary}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      {task.overdue && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
+                          <AlertTriangle className="h-3 w-3" />
+                          {t("common.overdue")}
                         </span>
                       )}
+                      <span>
+                        {task.endDate
+                          ? formatAssignmentDueDate(
+                              task.endDate,
+                              locale,
+                              project.timeZone,
+                              null
+                            )
+                          : "—"}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    {statusSummary}
+                    <Money value={task.totalCost} />
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex justify-center">
@@ -290,38 +326,15 @@ export function TasksTable({
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <DueDate
-                        date={task.endDate}
-                        timeZone={project.timeZone}
-                        startTime={task.startTime}
-                        overdue={task.overdue}
-                        overdueLabel={t("common.overdue")}
-                      />
-                      {task.recurrence && (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Badge
-                                variant="outline"
-                                aria-label={t(
-                                  "projects.tasks.recurring"
-                                )}
-                                className="shrink-0"
-                              >
-                                <RefreshCw className="h-3 w-3" />
-                              </Badge>
-                            }
-                          />
-                          <TooltipContent>
-                            {t("projects.tasks.recurring")}
-                          </TooltipContent>
-                        </Tooltip>
+                    <div className="flex justify-center">
+                      {assignees.length > 0 ? (
+                        <TaskAssigneeStack assignees={assignees} />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {t("common.unassigned")}
+                        </span>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Money value={task.totalCost} />
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex justify-center">
@@ -368,7 +381,6 @@ export function TasksTable({
                       assignments={openRows}
                       timeZone={project.timeZone}
                       onStatusChange={onStatusChange}
-                      columnCount={columnCount}
                     />
                     {task.recurrence === null && (
                       <TaskClosedAssignmentRows

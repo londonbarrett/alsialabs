@@ -50,31 +50,42 @@ test("an owner recosts an assignment inline and the new cost persists", async ({
   const costInput = costCell.getByRole("textbox", { name: "Costo" })
   await expect(costInput).toHaveValue("$100")
 
-  // Typing updates the local input immediately; the store write and its
-  // optimistic total delta land only after the 1 s debounce.
+  // Cost and note are local drafts: nothing is written until Save is clicked.
   await costInput.fill("150")
   await expect(costInput).toHaveValue("$150")
-  await page.waitForTimeout(600)
-  await expect(page.getByText("Tarea actualizada")).toBeHidden()
-  // With one assignee this input is also the task's total. The dedicated
-  // total-cost column is added in Task 5, which extends this same spec.
-  await expect(page.getByText("Tarea actualizada")).toBeVisible({
+  const noteInput = costCell.getByRole("textbox", {
+    name: "Comentarios",
+  })
+  await noteInput.fill("Buen desempeño")
+  const saveButton = costCell.getByRole("button", { name: "Guardar" })
+  await expect(saveButton).toBeVisible()
+  await saveButton.click()
+  await expect(saveButton).toBeDisabled()
+  // The combined save settles with the assignment-details toast, not the
+  // old cost-only one. With one assignee this input is also the task's total.
+  await expect(page.getByText("Comentario actualizado")).toBeVisible({
     timeout: 20_000,
   })
 
-  // A fresh server seed must report the persisted value, not the optimistic
-  // one: reloading and re-expanding reads the assignment straight from the DB.
+  // A fresh server seed must report the persisted values, not the optimistic
+  // ones: reloading and re-expanding reads the assignment straight from the DB.
   await page.reload()
   const reloadedRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(reloadedRow).toBeVisible()
   await reloadedRow
     .getByRole("button", { name: "Detalles de asignados" })
     .click()
+  const reloadedAssignmentRow = reloadedRow.locator(
+    "xpath=following-sibling::tr[1]"
+  )
   await expect(
-    reloadedRow
-      .locator("xpath=following-sibling::tr[1]")
-      .getByRole("textbox", { name: "Costo" })
+    reloadedAssignmentRow.getByRole("textbox", { name: "Costo" })
   ).toHaveValue("$150")
+  await expect(
+    reloadedAssignmentRow.getByRole("textbox", {
+      name: "Comentarios",
+    })
+  ).toHaveValue("Buen desempeño")
 })
 
 test("total cost shows on the task row and in both My Tasks tabs", async ({
@@ -117,7 +128,7 @@ test("total cost shows on the task row and in both My Tasks tabs", async ({
   // Both assignments are still open, so the closed-only server total is $0.
   const taskRow = page.getByRole("row", { name: new RegExp(taskName) })
   await expect(taskRow).toBeVisible()
-  await expect(taskRow.getByRole("cell").nth(5)).toHaveText("$0")
+  await expect(taskRow.getByRole("cell").nth(3)).toHaveText("$0")
 
   // The collaborator sees their assignment's own cost in the active tab.
   await signInAs("user2")
@@ -143,7 +154,7 @@ test("total cost shows on the task row and in both My Tasks tabs", async ({
   await page.getByRole("option", { name: "Completado" }).click()
   await expect(page.getByText("Estado actualizado")).toBeVisible()
   // The owner's task row now counts the one closed (done) assignment: $75.
-  await expect(ownerRow.getByRole("cell").nth(5)).toHaveText("$75")
+  await expect(ownerRow.getByRole("cell").nth(3)).toHaveText("$75")
 
   await signInAs("user2")
   await page.goto("/app/mis-tareas")
