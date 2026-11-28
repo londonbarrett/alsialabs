@@ -9,10 +9,8 @@ import {
   ListTodo,
   MessageSquare,
   Package,
-  Receipt,
   ShieldCheck,
   ShieldUser,
-  UserCircle,
   Users,
   type LucideIcon,
 } from "lucide-react"
@@ -122,15 +120,13 @@ function navigationSection(permissions?: string[]): SidebarSection[] {
   const sections: SidebarSection[] = []
 
   const items: SidebarItem[] = [
-    { label: "profile", icon: UserCircle, url: "/app/perfil" },
-    { label: "myInvoices", icon: Receipt, url: "/app/mis-facturas" },
-    { label: "myTasks", icon: ListTodo, url: "/app/mis-tareas" },
     {
       label: "projects",
       icon: FolderKanban,
       url: "/app/proyectos",
       requiredPermission: "projects:view",
     },
+    { label: "myTasks", icon: ListTodo, url: "/app/mis-tareas" },
     {
       label: "calendar",
       icon: CalendarDays,

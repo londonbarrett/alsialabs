@@ -1,7 +1,7 @@
 import { AppSidebar } from "@/components/common/app-sidebar"
+import { AiSearchInput } from "@/components/ai-search-input"
 import { FocusRefresh } from "@/components/common/focus-refresh"
 import { PermissionsProvider } from "@/components/common/permissions-provider"
-import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb"
 import {
   SidebarInset,
   SidebarProvider,
@@ -35,9 +35,9 @@ export default async function DashboardLayout({
           }}
         />
         <SidebarInset>
-          <header className="sticky top-0 z-1 flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <header className="sticky top-0 z-1 flex shrink-0 items-center gap-2 border-b bg-background px-4 py-3">
             <SidebarTrigger />
-            <DashboardBreadcrumb />
+            <AiSearchInput />
           </header>
           <section className="flex flex-1 flex-col">{children}</section>
         </SidebarInset>

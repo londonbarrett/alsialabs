@@ -77,7 +77,12 @@ export default async function ClientProfilePage({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
-      <PageHeader title={client.name} icon={Users}>
+      <PageHeader
+        title={client.name}
+        section={t("nav.clientes")}
+        sectionHref="/app/clientes"
+        icon={Users}
+      >
         <ClientSwitcher />
       </PageHeader>
       <ClientInfoCard client={client} />

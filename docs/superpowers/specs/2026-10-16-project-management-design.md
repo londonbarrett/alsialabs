@@ -2,7 +2,7 @@
 
 ## Why this exists
 
-A project is the app's unit of coordinated work: it owns tasks, routines, expenses, and people, and almost every other capability hangs off it. The design therefore treats the open project as shared, page-scoped state — one store seeded when the detail area loads, read by every subpage, header, and tab — rather than as props threaded through a component tree or state re-fetched per section. The detail area splits into five subpages (tasks, routines, details, people, expenses) under one persistent header, because all of them are views onto the same project.
+A project is the app's unit of coordinated work: it owns tasks, routines, expenses, and people, and almost every other capability hangs off it. The design therefore treats the open project as shared, page-scoped state — one store seeded when the detail area loads, read by every subpage, header, and tab — rather than as props threaded through a component tree or state re-fetched per section. The detail area splits into four subpages (tasks, details, people, expenses) under one persistent header, because all of them are views onto the same project.
 
 The capability also carries the app's heaviest optimistic-state machinery. Tasks, routines, expenses, comments, and membership changes all apply instantly and revert on failure, with each page holding its own store and each mutation owning its toast. The reason is structural: these stores are seeded once per page mount, so `router.refresh()` cannot reach them — every change must travel through optimistic actions that commit the server's authoritative row or discard on error.
 
@@ -10,7 +10,7 @@ Ownership is the authorization boundary. Not the global permission system: membe
 
 ## Goals
 
-- Split the project detail area into five permissioned subpages sharing one header and one context store.
+- Split the project detail area into four permissioned subpages sharing one header and one context store.
 - Let owners create, view, edit, and delete projects with a required identifying color.
 - Make every list and membership mutation optimistic with automatic revert and per-action toasts.
 - Enforce ownership-based authorization on membership changes, stricter than super-user access.
@@ -24,7 +24,7 @@ The project detail area is five subpages under `/app/proyectos/[id]`: tasks (the
 
 `app/app/proyectos/[id]/layout.tsx:17` calls `getProjectContext` and, before `unwrapResponse`, handles the failures itself: `if (!result.data) notFound()` for an unknown project (404 screen) and `serverError FORBIDDEN` → `forbidden()` for a user without access (403 screen). The successful `ProjectContextDTO` is passed to `ProjectContextProvider`, so the guard and the state seeding happen in the same place.
 
-All subpages share a persistent header — back button, project name, location, status badge — plus a tab navigation highlighting the active subpage. Both the header and the tab hrefs read from the project context store via `useProjectContext`: `components/projects/project-view.tsx:38` reads `project` and `projectId` and derives `basePath` from `projectId` at `:39`, so the displayed title and the tab links always come from the same read and cannot disagree. `ProjectView` accepts no `projectId` or `context` props; there is no second source of truth. `lib/util/unwrap.ts:22` returns `[]` by default for array results, so array-typed actions degrade to empty lists rather than undefined.
+All subpages share a persistent header with an uppercase `My Projects` eyebrow linking to `/app/proyectos` (with the `FolderKanban` icon), the project name, and the location on desktop only. There is no back button and no status badge. Desktop shows a tab bar highlighting the active subpage; mobile replaces it with a full-width `Select` whose items carry the same icons and extra vertical padding, and whose selection navigates to the subpage. Both the header and the navigation hrefs read from the project context store via `useProjectContextState`: `components/projects/project-view.tsx` reads `project` and `projectId` and derives `basePath` from `projectId`, so the displayed title and the links always come from the same read and cannot disagree. `ProjectView` accepts no `projectId` or `context` props; there is no second source of truth. `lib/util/unwrap.ts:22` returns `[]` by default for array results, so array-typed actions degrade to empty lists rather than undefined.
 
 ### Project creation and the shared form
 
@@ -36,7 +36,7 @@ The `project` prop only pre-fills fields; it never selects the mutation. That ke
 
 ### The projects list page and its store
 
-The list at `/app/proyectos` is permissioned at both ends: `hasPermission` in `app/app/proyectos/page.tsx:12` on the page, and `sessionAction` `permission: projects:view` inside `getProjectsWithDetails`/`getProjects`. Projects render as a card grid — name with a color dot, category, status badge, dates, budget bar, task progress, and the primary owner marked with a crown icon — under a header with a "Portfolio" label, "Projects" title, and subtitle. `getProjectsWithDetails` filters by a `projectOwners` `exists` for non-super users and unwraps with the `[]` fallback; users without `projects:view` receive 403 via `forbidden()`. Clicking a card's title navigates to `/app/proyectos/[id]`, landing on the tasks subpage.
+The list at `/app/proyectos` is permissioned at both ends: `hasPermission` in `app/app/proyectos/page.tsx:12` on the page, and `sessionAction` `permission: projects:view` inside `getProjectsWithDetails`/`getProjects`. Projects render as a card grid — name with a color dot, category, status badge, dates, budget bar, task progress, and the primary owner marked with a crown icon — under a header with a "My Projects" title and a subtitle that is hidden on mobile. `getProjectsWithDetails` filters by a `projectOwners` `exists` for non-super users and unwraps with the `[]` fallback; users without `projects:view` receive 403 via `forbidden()`. Clicking a card's title navigates to `/app/proyectos/[id]`, landing on the tasks subpage.
 
 Rows live in a client store created per page visit, never a module-level singleton. `app/app/proyectos/page.tsx` renders `ProjectsProvider` (`components/projects/projects-provider.tsx` — named for what it provides, not the page it serves), which builds the store once per mount with `useState(() => createProjectsStore(projects))` and publishes it through `ProjectsStoreContext` (`stores/projects/projects-store.ts`). The provider does not hydrate itself from changing props: the store is seeded once and mutations reach the client through optimistic actions. Navigating away and back remounts the provider and reseeds from freshly fetched projects.
 

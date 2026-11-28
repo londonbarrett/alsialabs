@@ -5,6 +5,7 @@ const ALL_PERMS = [
   "users:manage",
   "permissions:manage",
   "categories:view",
+  "projects:view",
 ]
 const findBackups = (role: string | null) =>
   getSidebarMenu(role, ALL_PERMS)
@@ -24,4 +25,26 @@ it("leaves the other admin items permission-driven", () => {
     .map((i) => i.url)
   expect(urls).toContain("/app/usuarios")
   expect(urls).not.toContain("/app/backups")
+})
+it("omits my invoices from the navigation menu", () => {
+  const urls = getSidebarMenu("super", ALL_PERMS)
+    .flatMap((s) => s.items)
+    .map((i) => i.url)
+  expect(urls).not.toContain("/app/mis-facturas")
+})
+it("omits profile from the navigation menu", () => {
+  const urls = getSidebarMenu("super", ALL_PERMS)
+    .flatMap((s) => s.items)
+    .map((i) => i.url)
+  expect(urls).not.toContain("/app/perfil")
+})
+it("lists my projects before my tasks in the navigation menu", () => {
+  const urls = getSidebarMenu("super", ALL_PERMS)
+    .flatMap((s) => s.items)
+    .map((i) => i.url)
+  const projectsAt = urls.indexOf("/app/proyectos")
+  const tasksAt = urls.indexOf("/app/mis-tareas")
+  expect(projectsAt).toBeGreaterThanOrEqual(0)
+  expect(tasksAt).toBeGreaterThanOrEqual(0)
+  expect(projectsAt).toBeLessThan(tasksAt)
 })

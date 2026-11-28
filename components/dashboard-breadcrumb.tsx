@@ -33,6 +33,7 @@ export function DashboardBreadcrumb() {
     <Breadcrumb>
       <BreadcrumbList>
         {segments.flatMap((segment, i) => {
+          if (i === 0 && segment === "app") return []
           const href = "/" + segments.slice(0, i + 1).join("/")
           const isLast = i === segments.length - 1
           const label = t.has(segment)
