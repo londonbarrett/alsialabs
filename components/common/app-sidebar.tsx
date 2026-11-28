@@ -1,7 +1,6 @@
 "use client"
 
 import { Logo } from "@/components/common/alsia-logo"
-import { LogoSmall } from "@/components/common/alsia-logo-small"
 import { NavUser } from "@/components/nav-user"
 import { StoreSwitcher } from "@/components/store-switcher"
 import {
@@ -49,9 +48,8 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="flex items-center justify-center group-data-[collapsible=icon]:pt-2">
-        <Logo className="mt-4 h-auto w-40 fill-green-800 group-data-[collapsible=icon]:hidden dark:fill-emerald-500" />
-        <LogoSmall className="hidden h-8 w-8 fill-green-800 group-data-[collapsible=icon]:block dark:fill-emerald-500" />
+      <SidebarHeader className="flex items-center justify-center group-data-[collapsible=icon]:hidden">
+        <Logo className="mt-4 h-auto w-40" />
       </SidebarHeader>
       <SidebarContent>
         {sidebarMenu.map((section) => (
